@@ -5,7 +5,10 @@ Small FastAPI backend that
   * proxies/caches NWS weather for any US point (/points -> forecast, hourly, obs, alerts),
   * proxies RainViewer radar metadata,
   * builds a local news list: San Antonio publisher RSS + Google News RSS searches for the
-    user's neighborhood / city / county, ranked by how close the named places are,
+    user's neighborhood / city / county, ranked by how close the named places are, with
+    "related coverage" links (the same story from other fetched outlets),
+  * builds an upcoming local events list (Visit San Antonio RSS, Eventbrite and AllEvents public
+    pages) with photos, venue, price (only when the source states it) and the NWS outlook,
 and serves the single-page PWA frontend."""
 from __future__ import annotations
 
@@ -18,9 +21,10 @@ import re
 import time
 import urllib.parse
 from calendar import timegm
-from datetime import datetime, timezone
+from datetime import date, datetime, time as dtime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import feedparser
 import httpx
@@ -455,6 +459,56 @@ def feeds_for(place: dict) -> list[dict]:
     return feeds
 
 
+
+# ---------------------------------------------------------------- "dig deeper" links
+# Words too common to tell two stories apart.
+STOPWORDS = set("""
+about after again against also among amid ahead around because been before being below between both but
+could does doing down during each from further have having here into itself just more most much must near
+never once only other over same says said should since some such than that their them then there these they
+this those through under until very want were what when where which while will with within without would
+year years your texas antonio news local week today first last make makes made take takes gets live update
+updates video photos watch here's what's report reports amid""".split())
+
+
+def sig_words(title: str) -> set[str]:
+    return {w for w in norm_title(title).split() if len(w) >= 4 and w not in STOPWORDS}
+
+
+def gnews_search_url(title: str, city: str | None) -> str:
+    """A Google News search for the story's key words (a real search URL, not a guessed article)."""
+    words = [w for w in re.findall(r"[\w'’-]+", title) if len(w) >= 3 and w.lower() not in STOPWORDS]
+    q = " ".join(words[:8]) or title
+    if city and city.lower() not in title.lower():
+        q += f" {city}"
+    return "https://news.google.com/search?" + urllib.parse.urlencode(
+        {"q": q, "hl": "en-US", "gl": "US", "ceid": "US:en"})
+
+
+def add_related(items: list[dict], pool: list[dict], city: str | None, limit: int = 3) -> None:
+    """Attach up to `limit` stories on the same topic from *other* outlets, found among the
+    feeds we already fetched (headline word overlap, published within 5 days of each other)."""
+    pool_sigs = [(o, sig_words(o["title"])) for o in pool]
+    for it in items:
+        s = sig_words(it["title"])
+        rel, srcs, links = [], {it["source"]}, {it["link"]}
+        if len(s) >= 3:
+            for o, os_ in pool_sigs:
+                if o["link"] in links or o["source"] in srcs or len(os_) < 3:
+                    continue
+                if it["published"] and o["published"] and abs(it["published"] - o["published"]) > 5 * 86400:
+                    continue
+                inter = len(s & os_)
+                if inter >= 3 and inter / min(len(s), len(os_)) >= 0.5:
+                    rel.append({"title": o["title"], "link": o["link"], "source": o["source"], "published": o["published"]})
+                    srcs.add(o["source"])
+                    links.add(o["link"])
+                    if len(rel) >= limit:
+                        break
+        it["related"] = rel
+        it["search_url"] = gnews_search_url(it["title"], city)
+
+
 async def build_news(lat: float, lon: float) -> dict:
     place = dict(await get_place(lat, lon))
     if place.get("country_code"):
@@ -511,6 +565,9 @@ async def build_news(lat: float, lon: float) -> dict:
     overflow = hood[18:] + rest[max(0, 30 - len(hood[:18])):]
     more = sorted(more + overflow, key=lambda i: -(i["published"] or 0))
     sa_other.sort(key=lambda i: -(i["published"] or 0))
+    more, sa_other = more[:80], sa_other[:40]
+    pool = [i for i in all_items if not (JUNK_SOURCES.search(i["source"]) or JUNK_TITLES.search(i["title"]))]
+    add_related(near + more + sa_other, pool, place.get("city"))
     return {
         "generated": now,
         "place": {k: place.get(k) for k in ("label", "neighborhood", "city", "county", "state", "state_abbr",
@@ -518,8 +575,8 @@ async def build_news(lat: float, lon: float) -> dict:
                  | {"nearby": [{"name": n["name"], "km": n["km"]} for n in place["nearby"][:10]]},
         "in_san_antonio": in_sa,
         "near": near,
-        "more": more[:80],
-        "san_antonio": sa_other[:40],
+        "more": more,
+        "san_antonio": sa_other,
         "feeds": [r["status"] for r in results],
     }
 
@@ -653,6 +710,559 @@ async def geocode(q: str) -> list[dict]:
     return out
 
 
+
+# ---------------------------------------------------------------- events
+# Public, keyless sources (checked 2026-09-29 from the build box):
+#   * Visit San Antonio's events RSS (Simpleview): ~30 current/featured SA events with photos.
+#     Each event page carries schema.org JSON-LD (venue, coordinates, dates, big photo) and an
+#     "admission" note. robots.txt asks for a 2 s crawl delay, so detail pages are fetched one at
+#     a time in the background and cached for a day.
+#   * Eventbrite city pages (/d/{state}--{city}/events/): the public listing embeds the events as
+#     JSON (name, local start time + time zone, venue + coordinates, photo). Ticket prices come
+#     from each event page's JSON-LD "offers" (fetched in the background, cached for a day).
+#     Eventbrite's /api/v3/destination/events/ is disallowed in robots.txt, so it isn't used.
+#   * AllEvents city pages (allevents.in/{city}/all): schema.org JSON-LD Event list.
+# Prices are only shown when the source states them; otherwise the UI says "Check price".
+EVENTS_LIST_TTL = 30 * 60
+EVENT_DETAIL_TTL = 24 * 3600
+EVENT_FC_TTL = 30 * 60
+EVENT_RADIUS_KM = 45
+EVENT_DAYS = 45
+SA_CENTER = (29.4241, -98.4936)
+VSA_RSS = "https://www.visitsanantonio.com/event/rss/"
+LD_RX = re.compile(r"<script[^>]*application/ld\+json[^>]*>(.*?)</script>", re.S | re.I)
+MDY_RX = re.compile(r"\b(\d{2})/(\d{2})/(\d{4})\b")
+HOST_DELAY = {"www.visitsanantonio.com": 2.1, "www.eventbrite.com": 1.0}
+_detail_queues: dict[str, list[str]] = {}
+_detail_workers: dict[str, asyncio.Task] = {}
+_detail_queued: set[str] = set()
+
+
+def _slug(s: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-")
+
+
+def ld_objects(page: str) -> list[dict]:
+    """All schema.org objects in a page's JSON-LD blocks (flattening @graph and ItemList)."""
+    out: list[dict] = []
+
+    def add(o):
+        if isinstance(o, list):
+            for x in o:
+                add(x)
+        elif isinstance(o, dict):
+            if "@graph" in o:
+                add(o["@graph"])
+            if o.get("itemListElement"):
+                add([x.get("item", x) if isinstance(x, dict) else x for x in o["itemListElement"]])
+            out.append(o)
+
+    for block in LD_RX.findall(page):
+        try:
+            add(json.loads(block.strip()))
+        except Exception:
+            continue
+    return out
+
+
+def is_event_obj(o: dict) -> bool:
+    t = o.get("@type")
+    t = " ".join(t) if isinstance(t, list) else str(t or "")
+    return t.endswith("Event") and bool(o.get("name"))
+
+
+def _tz(name: str | None) -> ZoneInfo:
+    try:
+        return ZoneInfo(name or "America/Chicago")
+    except Exception:
+        return ZoneInfo("America/Chicago")
+
+
+def parse_when(v: str | None, tz: ZoneInfo) -> tuple[datetime | None, bool]:
+    """ISO date or datetime -> (aware datetime, has_time)."""
+    if not v or not isinstance(v, str):
+        return None, False
+    v = v.strip()
+    try:
+        if re.fullmatch(r"\d{4}-\d{2}-\d{2}", v):
+            return datetime.combine(date.fromisoformat(v), dtime(0, 0), tz), False
+        d = datetime.fromisoformat(v.replace("Z", "+00:00"))
+        if d.tzinfo is None:
+            d = d.replace(tzinfo=tz)
+        return d, True
+    except Exception:
+        return None, False
+
+
+def offers_price(offers) -> dict | None:
+    """schema.org offers -> {"free", "text"}; None when the source gives no price."""
+    if not offers:
+        return None
+    offers = offers if isinstance(offers, list) else [offers]
+    lows, highs, cur = [], [], "USD"
+    for o in offers:
+        if not isinstance(o, dict):
+            continue
+        cur = o.get("priceCurrency") or cur
+        for k, dest in (("lowPrice", lows), ("price", lows), ("highPrice", highs), ("price", highs)):
+            try:
+                if o.get(k) not in (None, ""):
+                    dest.append(float(o[k]))
+            except (TypeError, ValueError):
+                pass
+    if not lows and not highs:
+        return None
+    lo, hi = min(lows or highs), max(highs or lows)
+    sym = "$" if cur == "USD" else cur + " "
+    money = lambda x: f"{sym}{x:,.0f}" if x == int(x) else f"{sym}{x:,.2f}"
+    if hi == 0:
+        return {"free": True, "text": "Free"}
+    if lo == 0:
+        return {"free": False, "text": f"Free – {money(hi)}"}
+    return {"free": False, "text": money(lo) if lo == hi else f"{money(lo)} – {money(hi)}"}
+
+
+FREE_RX = re.compile(r"^\s*(free(\s+(admission|entry|event|to attend|and open to the public))?|\$0(\.00)?(\s*[-–(]?\s*free\)?)?)\s*[.!]?\s*$", re.I)
+
+
+def admission_price(text: str | None) -> dict | None:
+    """Visit San Antonio's free-text "admission" note, shown as written. Only plain "Free"/"$0"
+    notes get the FREE badge (e.g. "Free with museum admission" is shown as text)."""
+    t = clean_text(text, 140)
+    if not t:
+        return None
+    return {"free": bool(FREE_RX.match(t)), "text": t}
+
+
+def ld_place(loc) -> dict:
+    if isinstance(loc, list):
+        loc = next((x for x in loc if isinstance(x, dict)), {})
+    if not isinstance(loc, dict) or loc.get("@type") == "VirtualLocation":
+        return {}
+    a = loc.get("address") or {}
+    if isinstance(a, str):
+        a = {"streetAddress": a}
+    g = loc.get("geo") or {}
+    try:
+        lat, lon = float(g.get("latitude")), float(g.get("longitude"))
+    except (TypeError, ValueError):
+        lat = lon = None
+    street = a.get("streetAddress") or ""
+    parts = [street] + [x for x in (a.get("addressLocality"), a.get("addressRegion")) if x and x not in street]
+    addr = ", ".join(p for p in parts if p)
+    if a.get("postalCode") and a["postalCode"] not in addr:
+        addr += " " + a["postalCode"]
+    name = loc.get("name") or ""
+    # no street address -> the coordinates are just the city's center; don't pin them on a map
+    return {"venue": clean_text(name, 120) or None, "address": clean_text(addr, 160) or None,
+            "lat": lat, "lon": lon, "city": a.get("addressLocality"), "approx": not street}
+
+
+def ld_image(img) -> str | None:
+    if isinstance(img, list):
+        img = img[0] if img else None
+    if isinstance(img, dict):
+        img = img.get("url")
+    return img if isinstance(img, str) and img.startswith("http") else None
+
+
+def base_event(**kw) -> dict:
+    e = {"id": None, "title": None, "url": None, "source": None, "source_id": None, "image": None,
+         "start": None, "end": None, "has_time": False, "venue": None, "address": None, "lat": None,
+         "lon": None, "price": None, "summary": "", "categories": [], "also": [], "online": False, "approx": False}
+    e.update(kw)
+    return e
+
+
+# --- Visit San Antonio
+async def fetch_vsa() -> list[dict]:
+    r = await client().get(VSA_RSS)
+    r.raise_for_status()
+    parsed = feedparser.parse(r.content)
+    tz = _tz("America/Chicago")
+    out = []
+    for x in parsed.entries:
+        link, title = x.get("link"), clean_text(x.get("title"), 200)
+        if not link or not title:
+            continue
+        desc = x.get("summary") or x.get("description") or ""
+        img = IMG_RX.search(desc)
+        dates = [date(int(y), int(m), int(d)) for m, d, y in MDY_RX.findall(desc)]
+        text = clean_text(MDY_RX.sub(" ", desc), 600)
+        text = re.sub(r"^[\s\-–to]*(?:to\s+)?-?\s*", "", text).strip()
+        start = datetime.combine(dates[0], dtime(0, 0), tz) if dates else None
+        end = datetime.combine(dates[-1], dtime(0, 0), tz) if dates else None
+        out.append(base_event(
+            id="vsa:" + link, title=title, url=link, source="Visit San Antonio", source_id="vsa",
+            image=html.unescape(img.group(1)) if img else None, start=start, end=end,
+            summary=clean_text(text, 260), categories=[t.get("term", "").strip() for t in x.get("tags") or []][:4],
+            city="San Antonio"))
+    return out
+
+
+def parse_vsa_detail(page: str) -> dict:
+    d: dict = {}
+    for o in ld_objects(page):
+        if is_event_obj(o):
+            d.update(ld_place(o.get("location")))
+            tz = _tz("America/Chicago")
+            s, st = parse_when(o.get("startDate"), tz)
+            e, et = parse_when(o.get("endDate"), tz)
+            if s:
+                d["start"], d["has_time"] = s, st
+            if e:
+                d["end"] = e
+            if ld_image(o.get("image")):
+                d["image"] = ld_image(o.get("image"))
+            if o.get("description"):
+                d["summary"] = clean_text(o["description"], 260)
+            p = offers_price(o.get("offers"))
+            if p:
+                d["price"] = p
+            break
+    i = page.find("var data = {")
+    if i >= 0:
+        try:
+            data, _ = json.JSONDecoder().raw_decode(page, i + len("var data = "))
+            if not d.get("price") and data.get("admission"):
+                d["price"] = admission_price(data["admission"])
+            if data.get("recurrence"):
+                d["recurrence"] = clean_text(data["recurrence"], 80)
+            if data.get("linkUrl", "").startswith("http"):
+                d["website"] = data["linkUrl"]
+        except Exception:
+            pass
+    return d
+
+
+# --- Eventbrite
+def eventbrite_url(place: dict, page: int = 1) -> str | None:
+    if place.get("country_code") != "us" or not place.get("state_abbr"):
+        return None
+    city = place.get("city")
+    if place.get("county") == "Bexar County" and city != "San Antonio":
+        city = "San Antonio"  # suburbs inside the county share SA's listings
+    if not city:
+        return None
+    u = f"https://www.eventbrite.com/d/{place['state_abbr'].lower()}--{_slug(city)}/events/"
+    return u + (f"?page={page}" if page > 1 else "")
+
+
+def parse_eventbrite_list(page: str) -> list[dict]:
+    i = page.find("window.__SERVER_DATA__")
+    if i < 0:
+        return []
+    j = page.find("=", i) + 1
+    while page[j] in " \n\t":
+        j += 1
+    data, _ = json.JSONDecoder().raw_decode(page, j)
+    found: list[dict] = []
+
+    def walk(o):
+        if isinstance(o, dict):
+            if o.get("_type") == "destination_event":
+                found.append(o)
+                return
+            for v in o.values():
+                walk(v)
+        elif isinstance(o, list):
+            for v in o:
+                walk(v)
+
+    walk(data)
+    out = []
+    for e in found:
+        if e.get("is_online_event") or not e.get("url") or not e.get("name"):
+            continue
+        tz = _tz(e.get("timezone"))
+        s = e.get("start_date")
+        start = parse_when(f"{s}T{e['start_time']}" if s and e.get("start_time") else s, tz)
+        end = parse_when(f"{e.get('end_date')}T{e['end_time']}" if e.get("end_date") and e.get("end_time") else e.get("end_date"), tz)
+        v = e.get("primary_venue") or {}
+        a = v.get("address") or {}
+        try:
+            lat, lon = float(a.get("latitude")), float(a.get("longitude"))
+        except (TypeError, ValueError):
+            lat = lon = None
+        ta = e.get("ticket_availability") or {}
+        price = None
+        if ta.get("is_free") is True:
+            price = {"free": True, "text": "Free"}
+        elif ta.get("minimum_ticket_price"):
+            lo = (ta.get("minimum_ticket_price") or {}).get("value")
+            hi = (ta.get("maximum_ticket_price") or {}).get("value")
+            if lo is not None:
+                price = offers_price([{"lowPrice": lo / 100, "highPrice": (hi or lo) / 100,
+                                       "priceCurrency": ta["minimum_ticket_price"].get("currency", "USD")}])
+        out.append(base_event(
+            id="eb:" + str(e.get("id")), title=clean_text(e["name"], 200), url=e["url"].split("?")[0],
+            source="Eventbrite", source_id="eventbrite", image=ld_image(e.get("image")),
+            start=start[0], has_time=start[1], end=end[0], venue=clean_text(v.get("name"), 120) or None,
+            address=a.get("localized_address_display"), lat=lat, lon=lon, price=price,
+            summary=clean_text(e.get("summary"), 260), city=a.get("city"),
+            categories=[t.get("display_name") for t in (e.get("tags") or []) if isinstance(t, dict) and t.get("display_name")][:3]))
+    return out
+
+
+def parse_eventbrite_detail(page: str) -> dict:
+    for o in ld_objects(page):
+        if is_event_obj(o):
+            d: dict = {}
+            p = offers_price(o.get("offers"))
+            if p:
+                d["price"] = p
+            if ld_image(o.get("image")):
+                d["image"] = ld_image(o.get("image"))
+            return d
+    return {}
+
+
+# --- AllEvents
+def allevents_url(place: dict) -> str | None:
+    city = place.get("city")
+    if place.get("county") == "Bexar County":
+        city = "San Antonio"
+    return f"https://allevents.in/{_slug(city)}/all" if city and place.get("country_code") == "us" else None
+
+
+def parse_allevents(page: str) -> list[dict]:
+    out = []
+    for o in ld_objects(page):
+        if not is_event_obj(o) or not o.get("url"):
+            continue
+        if "Online" in str(o.get("eventAttendanceMode") or ""):
+            continue
+        if re.search(r"\btickets?\s*$", o["name"], re.I):  # ticket-resale pages, not event listings
+            continue
+        tz = _tz("America/Chicago")
+        s, st = parse_when(o.get("startDate"), tz)
+        e, _ = parse_when(o.get("endDate"), tz)
+        pl = ld_place(o.get("location"))
+        out.append(base_event(
+            id="ae:" + o["url"], title=clean_text(o["name"], 200), url=o["url"], source="AllEvents",
+            source_id="allevents", image=ld_image(o.get("image")), start=s, has_time=st, end=e,
+            price=offers_price(o.get("offers")), summary=clean_text(o.get("description"), 260), **pl))
+    return out
+
+
+async def fetch_page(url: str) -> str:
+    r = await client().get(url, headers={"Accept": "text/html,application/xhtml+xml"})
+    r.raise_for_status()
+    return r.text
+
+
+async def event_source(sid: str, name: str, url: str, producer) -> dict:
+    t0 = time.time()
+    try:
+        items = await cached(f"evlist:{url}", EVENTS_LIST_TTL, producer)
+        return {"items": items, "status": {"id": sid, "name": name, "ok": True, "count": len(items), "url": url,
+                                           "ms": int((time.time() - t0) * 1000)}}
+    except Exception as ex:
+        return {"items": [], "status": {"id": sid, "name": name, "ok": False, "url": url,
+                                        "error": f"{type(ex).__name__}: {ex}"[:200]}}
+
+
+# --- background detail enrichment (one worker per host, polite delay between requests)
+def detail_cached(url: str) -> dict | None:
+    hit = _cache.get("evdetail:" + url)
+    if hit and time.time() - hit[0] < (EVENT_DETAIL_TTL if not hit[1].get("_failed") else 3600):
+        return hit[1]
+    return None
+
+
+def queue_detail(url: str) -> None:
+    if url in _detail_queued or detail_cached(url) is not None:
+        return
+    host = urllib.parse.urlsplit(url).netloc
+    _detail_queued.add(url)
+    _detail_queues.setdefault(host, []).append(url)
+    w = _detail_workers.get(host)
+    if w is None or w.done():
+        _detail_workers[host] = asyncio.create_task(_detail_worker(host))
+
+
+async def _detail_worker(host: str) -> None:
+    q = _detail_queues[host]
+    parser = parse_vsa_detail if "visitsanantonio" in host else parse_eventbrite_detail
+    while q:
+        url = q.pop(0)
+        try:
+            d = parser(await fetch_page(url))
+        except Exception as ex:
+            d = {"_failed": True, "error": f"{type(ex).__name__}"}
+        _cache["evdetail:" + url] = (time.time(), d)
+        _detail_queued.discard(url)
+        await asyncio.sleep(HOST_DELAY.get(host, 1.0))
+
+
+# --- NWS outlook per event day
+async def event_forecast(lat: float, lon: float) -> dict | None:
+    c = cell(lat, lon, 0.1)  # ~11 km: events around town share a handful of forecasts
+    p = await get_points(*c)
+    if p.get("unsupported"):
+        return None
+    grid = f'{p.get("gridId")}/{p.get("gridX")},{p.get("gridY")}'
+    fc = await cached(f"evfc:{grid}", EVENT_FC_TTL, lambda: get_json(p["forecast"]))
+    periods = []
+    for x in (fc.get("properties") or {}).get("periods") or []:
+        s, _ = parse_when(x.get("startTime"), timezone.utc)
+        e, _ = parse_when(x.get("endTime"), timezone.utc)
+        if s and e:
+            periods.append((s, e, x))
+    return {"periods": periods, "tz": p.get("timeZone"), "city": ((p.get("relativeLocation") or {}).get("properties") or {}).get("city")}
+
+
+def outlook_for(ev: dict, fc: dict | None, now: datetime) -> dict:
+    if not fc or not fc["periods"]:
+        return {"available": False, "reason": "unavailable"}
+    tz = _tz(fc.get("tz"))
+    if ev["has_time"] and ev["start"] > now:
+        t = ev["start"]
+    else:
+        day = max(ev["start"].astimezone(tz).date(), now.astimezone(tz).date())
+        t = max(datetime.combine(day, dtime(12, 0), tz), now)
+    first, last = fc["periods"][0], fc["periods"][-1]
+    if t >= last[1]:
+        return {"available": False, "reason": "beyond", "until": last[1].isoformat()}
+    s, e, x = next((p for p in fc["periods"] if p[0] <= t < p[1]), first)
+    return {"available": True, "name": x.get("name"), "temp": x.get("temperature"), "unit": x.get("temperatureUnit"),
+            "short": x.get("shortForecast"), "pop": (x.get("probabilityOfPrecipitation") or {}).get("value"),
+            "icon": x.get("icon"), "day": x.get("isDaytime"), "near": fc.get("city")}
+
+
+def _merge_detail(ev: dict) -> dict:
+    d = detail_cached(ev["url"]) or {}
+    for k, v in d.items():
+        if k.startswith("_") or v in (None, "", []):
+            continue
+        if k == "image" and ev.get("image") and "visitsanantonio" not in ev["url"]:
+            continue
+        ev[k] = v
+    return ev
+
+
+def _dedupe_events(events: list[dict]) -> list[dict]:
+    rank = {"vsa": 0, "eventbrite": 1, "allevents": 2}
+    events.sort(key=lambda e: (rank.get(e["source_id"], 9), -(bool(e.get("price")) + bool(e.get("image")) + bool(e.get("lat")))))
+    kept: list[dict] = []
+    for e in events:
+        sig = sig_words(e["title"])
+        dup = None
+        for k in kept:
+            same_day = k["start"].date() == e["start"].date() or (k["end"] and k["start"] <= e["start"] <= k["end"])
+            ks = sig_words(k["title"])
+            if same_day and (norm_title(k["title"]) == norm_title(e["title"]) or
+                             (sig and ks and len(sig & ks) / min(len(sig), len(ks)) >= 0.7)):
+                dup = k
+                break
+        if dup:
+            if e["url"] not in (dup["url"], *[a["url"] for a in dup["also"]]):
+                dup["also"].append({"source": e["source"], "url": e["url"]})
+            if dup.get("lat") is None and e.get("lat") is not None:
+                dup["lat"], dup["lon"], dup["approx"] = e["lat"], e["lon"], e.get("approx", False)
+            for f in ("image", "price", "venue", "address"):
+                if not dup.get(f) and e.get(f):
+                    dup[f] = e[f]
+            if e["has_time"] and not dup["has_time"] and e["start"].date() == dup["start"].date():
+                dup["start"], dup["has_time"] = e["start"], True
+        else:
+            kept.append(e)
+    return kept
+
+
+async def build_events(lat: float, lon: float) -> dict:
+    place = dict(await get_place(lat, lon))
+    now = datetime.now(timezone.utc)
+    near_sa = km_between(lat, lon, *SA_CENTER) <= 60
+    jobs = []
+    if near_sa:
+        jobs.append(event_source("vsa", "Visit San Antonio", VSA_RSS, fetch_vsa))
+    for pg in (1, 2):
+        u = eventbrite_url(place, pg)
+        if u:
+            jobs.append(event_source("eventbrite" if pg == 1 else "eventbrite2", f"Eventbrite{'' if pg == 1 else f' (page {pg})'}", u,
+                                     lambda u=u: _eb(u)))
+    u = allevents_url(place)
+    if u:
+        jobs.append(event_source("allevents", "AllEvents", u, lambda u=u: _ae(u)))
+    results = await asyncio.gather(*jobs)
+    raw = [dict(e, also=[]) for r in results for e in r["items"]]
+    horizon = now + timedelta(days=EVENT_DAYS)
+    events = []
+    for e in raw:
+        _merge_detail(e)
+        if not e["start"] or e.get("online"):
+            continue
+        if e["end"] and e["end"] >= e["start"]:
+            end = e["end"]
+            if (end.hour, end.minute) == (0, 0):  # date-only end: lasts through that day
+                end = datetime.combine(end.date(), dtime(23, 59), end.tzinfo)
+        elif e["has_time"]:
+            end = e["start"] + timedelta(hours=3)
+        else:
+            end = datetime.combine(e["start"].date(), dtime(23, 59), e["start"].tzinfo)
+        if end < now or e["start"] > horizon:
+            continue
+        if e["lat"] is not None and km_between(lat, lon, e["lat"], e["lon"]) > EVENT_RADIUS_KM:
+            continue
+        e["end_eff"] = end
+        events.append(e)
+    events = _dedupe_events(events)
+    # enrich the ones people will see first (photos/venue for Visit SA, prices for Eventbrite)
+    events.sort(key=lambda e: e["start"])
+    shown = [e for e in events if e["start"] >= now - timedelta(hours=12)][:40] + \
+            [e for e in events if e["start"] < now - timedelta(hours=12)]
+    pending = 0
+    for e in shown:
+        if e["source_id"] == "vsa" or (e["source_id"] == "eventbrite" and not e.get("price")):
+            if detail_cached(e["url"]) is None:
+                queue_detail(e["url"])
+                pending += 1
+    # NWS outlook: one forecast per ~11 km cell (max 8 cells, else the user's own)
+    fcs: dict[tuple, dict | None] = {}
+    user_cell = cell(lat, lon, 0.1)
+
+    async def fc_for(c):
+        if c not in fcs:
+            try:
+                fcs[c] = await event_forecast(*c)
+            except Exception:
+                fcs[c] = None
+        return fcs[c]
+
+    await fc_for(user_cell)
+    out_up, out_on = [], []
+    for e in events:
+        c = cell(e["lat"], e["lon"], 0.1) if e["lat"] is not None else user_cell
+        if c not in fcs and len(fcs) >= 8:
+            c = user_cell
+        fc = await fc_for(c)
+        ongoing = e["start"] < now - timedelta(hours=12) and (e["end_eff"] - e["start"]) > timedelta(days=1)
+        item = {k: e.get(k) for k in ("id", "title", "url", "source", "source_id", "image", "has_time", "venue", "address",
+                                      "lat", "lon", "approx", "price", "summary", "categories", "also", "recurrence", "website")}
+        item.update(start=e["start"].isoformat(), end=e["end"].isoformat() if e["end"] else None,
+                    km=round(km_between(lat, lon, e["lat"], e["lon"]), 1) if e["lat"] is not None and not e.get("approx") else None,
+                    weather=outlook_for(e, fc, now), ongoing=ongoing)
+        (out_on if ongoing else out_up).append(item)
+    out_on.sort(key=lambda i: i["end"] or i["start"])
+    return {
+        "generated": time.time(),
+        "place": {"label": place.get("label"), "city": place.get("city"), "neighborhood": place.get("neighborhood")},
+        "events": out_up[:60], "ongoing": out_on[:20], "pending": pending,
+        "radius_km": EVENT_RADIUS_KM, "days": EVENT_DAYS,
+        "message": None if jobs else "Event listings are only available for U.S. cities for now.",
+        "sources": [r["status"] for r in results],
+    }
+
+
+async def _eb(u: str) -> list[dict]:
+    return parse_eventbrite_list(await fetch_page(u))
+
+
+async def _ae(u: str) -> list[dict]:
+    return parse_allevents(await fetch_page(u))
+
+
 # ---------------------------------------------------------------- routes
 def _err(ex: Exception, code: int = 502) -> JSONResponse:
     return JSONResponse({"error": f"{type(ex).__name__}: {ex}"[:300]}, status_code=code)
@@ -688,6 +1298,19 @@ async def api_news(lat: float | None = Query(None), lon: float | None = Query(No
     try:
         c = cell(la, lo, 0.01)
         return await cached(f"news:{c}", 5 * 60, lambda: build_news(*c))
+    except Exception as ex:
+        return _err(ex)
+
+
+@app.get("/api/events")
+async def api_events(lat: float | None = Query(None), lon: float | None = Query(None)):
+    try:
+        la, lo = _coords(lat, lon)
+    except ValueError as ex:
+        return _err(ex, 400)
+    try:
+        c = cell(la, lo, 0.02)  # ~2 km: events are city-wide anyway
+        return await cached(f"events:{c}", 45, lambda: build_events(*c))
     except Exception as ex:
         return _err(ex)
 
@@ -754,7 +1377,8 @@ app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
 @app.on_event("startup")
 async def warm():
     async def _w():  # warm caches for the default location
-        await asyncio.gather(api_weather(DEFAULT_LAT, DEFAULT_LON), api_radar(), return_exceptions=True)
+        await asyncio.gather(api_weather(DEFAULT_LAT, DEFAULT_LON), api_radar(), api_events(DEFAULT_LAT, DEFAULT_LON),
+                             return_exceptions=True)
     asyncio.create_task(_w())
 
 

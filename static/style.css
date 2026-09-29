@@ -13,7 +13,8 @@ button.primary{background:var(--brand);color:#fff;border-color:var(--brand)}
 button:focus-visible,a:focus-visible,summary:focus-visible{outline:4px solid #f5b400;outline-offset:2px}
 
 /* header — matches the app icon: turquoise ground, black type, hot-pink + orange accents (papel picado strip) */
-.topbar{background:var(--turq);color:#000;position:sticky;top:0;z-index:2000;box-shadow:0 3px 10px rgba(0,0,0,.3);padding-top:env(safe-area-inset-top)}
+/* the header scrolls away; the section buttons below it (.tabs) stay stuck to the top */
+.topbar{background:var(--turq);color:#000;position:relative;z-index:10;padding-top:env(safe-area-inset-top)}
 .topbar-inner{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:10px;padding-bottom:6px}
 .brand{display:flex;align-items:center;gap:12px;color:#000;text-decoration:none;min-width:0}
 .brand img{width:56px;height:56px;border-radius:14px;flex:0 0 auto;box-shadow:0 0 0 3px #000}
@@ -29,9 +30,6 @@ button:focus-visible,a:focus-visible,summary:focus-visible{outline:4px solid #f5
 .textsize button{background:transparent;color:#000;border-color:#000;min-width:52px}
 .install{background:var(--orange);color:#000;border-color:#000;font-weight:900}
 .install[hidden]{display:none}
-.nav{display:flex;gap:6px;overflow-x:auto;padding-bottom:10px;scrollbar-width:none}
-.nav a{color:#fff;background:#000;text-decoration:none;font-weight:800;font-size:.9rem;padding:.25em .75em;border:2px solid #000;border-radius:999px;white-space:nowrap}
-.nav a:hover,.nav a:focus-visible{background:var(--pink);color:#000}
 .picado{height:14px;background:repeating-linear-gradient(90deg,var(--pink) 0 36px,var(--orange) 36px 72px,#000 72px 108px);
   -webkit-mask:conic-gradient(from 135deg at top,#000 90deg,#0000 0) 0 0/18px 100%;mask:conic-gradient(from 135deg at top,#000 90deg,#0000 0) 0 0/18px 100%}
 
@@ -46,7 +44,7 @@ button:focus-visible,a:focus-visible,summary:focus-visible{outline:4px solid #f5
 .share-ico{display:inline-block;border:2px solid #0a0a0a;border-radius:6px;padding:0 .25em;font-size:.85em}
 
 main{padding-top:14px}
-.card{background:var(--card);border:2px solid var(--line);border-radius:16px;padding:16px 18px;margin:0 0 16px;scroll-margin-top:160px}
+.card{background:var(--card);border:2px solid var(--line);border-radius:16px;padding:16px 18px;margin:0 0 16px;scroll-margin-top:calc(var(--tabs-h,72px) + 10px)}
 .sec-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 12px;margin-bottom:8px}
 h2{margin:0;font-size:1.55rem;font-weight:900;color:var(--ink);letter-spacing:-.01em}
 .stamp{font-size:.8rem;color:var(--muted);font-weight:600}
@@ -56,7 +54,7 @@ h2{margin:0;font-size:1.55rem;font-weight:900;color:var(--ink);letter-spacing:-.
 .error{color:var(--accent);font-weight:800}
 
 /* alerts */
-#alerts{scroll-margin-top:160px}
+#alerts{scroll-margin-top:calc(var(--tabs-h,72px) + 10px)}
 .alert{background:#fde8e6;border:3px solid var(--accent);border-left-width:12px;border-radius:14px;padding:14px 16px;margin:0 0 14px}
 .alert.sev-Extreme,.alert.sev-Severe{background:#b3261e;color:#fff;border-color:#7a120d}
 .alert.sev-Extreme a,.alert.sev-Severe a{color:#fff}
@@ -186,8 +184,99 @@ h2{margin:0;font-size:1.55rem;font-weight:900;color:var(--ink);letter-spacing:-.
 .feeds-status li{margin:.2em 0;overflow-wrap:anywhere}
 @media (max-width:600px){
   .loc-pill{display:flex;width:100%;font-size:.85rem}
-  /* on phones the header scrolls away so stories get the whole screen */
-  .topbar{position:relative}
   .topbar .topbar-inner{padding-top:8px;padding-bottom:6px}
-  .card,#alerts{scroll-margin-top:10px}
+}
+
+/* ---------- sticky section buttons (always visible, phones included) */
+.tabs{position:sticky;top:0;z-index:2000;background:#000;box-shadow:0 3px 10px rgba(0,0,0,.35)}
+.tabs-inner{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding-top:6px;padding-bottom:6px}
+.tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;min-height:52px;padding:.2em .2em;
+  background:#000;color:#fff;border:2px solid #000;border-radius:12px;font-size:min(.85rem,18px);font-weight:900;line-height:1.1;white-space:nowrap}
+.tab span{font-size:1.15em;line-height:1}
+.tab[aria-current="page"]{background:var(--turq);color:#000;border-color:var(--turq)}
+.tab.sub-current{box-shadow:inset 0 -4px 0 var(--pink)}
+.tab:hover{border-color:var(--pink)}
+@media (min-width:601px){ .tab{flex-direction:row;gap:.4em;font-size:.9rem} }
+
+/* ---------- views: News | Weather | Events, side by side; swipe or tap to move */
+.views{overflow:hidden;padding-top:14px;touch-action:pan-y pinch-zoom}
+.track{display:flex;align-items:flex-start;gap:24px;will-change:transform}
+.track.animating{transition:transform .32s cubic-bezier(.2,.8,.2,1)}
+.view{flex:0 0 100%;min-width:0}
+.view:not(.active):not(.peek){height:0;overflow:hidden;visibility:hidden}
+.view.peek{visibility:visible}
+main{padding-top:0}
+@media (prefers-reduced-motion:reduce){ .track.animating{transition-duration:.01s} }
+
+/* personality: greeting + blurbs */
+.greet{background:linear-gradient(135deg,#e5fbfb,#fff 60%);border-color:var(--turq)}
+.greet-hi{margin:0;font-size:1.35rem;font-weight:900;line-height:1.2}
+.greet-sub{margin:.15em 0 0;font-size:.95rem;font-weight:700}
+.swipe-hint{margin:.35em 0 0;font-size:.8rem;font-weight:700;color:var(--muted)}
+@media (min-width:901px){ .swipe-hint{display:none} }
+.blurb{margin:0 0 10px;font-size:1rem;font-weight:800;color:var(--ink2)}
+.blurb.serious{background:#fde8e6;border:2px solid var(--accent);border-radius:10px;padding:6px 10px;color:#5a0f0a}
+
+/* alert strip (visible on every view when NWS alerts are active) */
+.alert-strip[hidden]{display:none}
+.alert-strip{margin-top:10px}
+.alert-strip button{width:100%;text-align:left;background:var(--accent);color:#fff;border-color:#7a120d;font-size:.95rem}
+
+/* ---------- news: "dig deeper" links at the end of each story */
+.story{flex-wrap:wrap}
+.dig{flex:1 0 100%;border-top:2px dashed var(--line);margin-top:4px;padding-top:8px;display:flex;flex-direction:column;gap:6px}
+.dig-row{display:flex;flex-wrap:wrap;gap:6px 10px}
+.dig a.btnlink{display:inline-flex;align-items:center;min-height:44px;padding:.2em .7em;border:2px solid var(--ink);border-radius:10px;
+  font-size:.85rem;font-weight:900;color:var(--ink);text-decoration:none;background:#fff}
+.dig a.btnlink.primary{background:#000;color:#fff}
+.dig a.btnlink:hover{background:var(--pink);color:#000;border-color:#000}
+.related{margin:0;padding:0;list-style:none;display:grid;gap:4px}
+.related-h{margin:0;font-size:.8rem;font-weight:900;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.related a{font-size:.88rem;font-weight:800;color:var(--link);display:inline-block;padding:.35em 0}
+.related .rsrc{font-weight:900;color:#000}
+
+/* ---------- events */
+.events-list{display:grid;grid-template-columns:1fr;gap:12px}
+@media (min-width:900px){ .events-list{grid-template-columns:1fr 1fr} }
+.ev-day{grid-column:1 / -1;margin:8px 0 -2px;font-size:1.15rem;font-weight:900;border-bottom:3px solid var(--pink);padding-bottom:2px}
+.ev{border:2px solid var(--line);border-radius:14px;overflow:hidden;background:#fff;display:flex;flex-direction:column}
+.ev-media{position:relative;aspect-ratio:2 / 1;background:#eee;overflow:hidden;min-height:0}
+.ev-media img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.ev-ph{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:#000;
+  background:repeating-linear-gradient(135deg,#e5fbfb 0 18px,#fff 18px 36px);border-bottom:3px solid var(--turq)}
+.ev-ph b{font-size:2.2rem;line-height:1}
+.ev-ph span{font-size:.75rem;font-weight:800;color:#333;background:#fff;border:2px solid #000;border-radius:999px;padding:0 .6em}
+.ev-when{position:absolute;left:8px;top:8px;background:#000;color:#fff;font-weight:900;font-size:.8rem;border-radius:8px;padding:.15em .5em}
+.ev-body{padding:10px 12px 12px;display:flex;flex-direction:column;gap:6px}
+.ev h3{margin:0;font-size:1.15rem;line-height:1.25;font-weight:900}
+.ev h3 a{color:var(--ink);text-decoration:none}
+.ev h3 a:hover{text-decoration:underline}
+.ev-line{font-size:.88rem;font-weight:700;display:flex;gap:6px;align-items:flex-start}
+.ev-line > span:first-child{flex:0 0 1.4em;text-align:center}
+.ev-sum{font-size:.85rem;margin:0;color:var(--ink2)}
+.ev-venue{display:flex;gap:10px;align-items:flex-start}
+.ev-venue .txt{flex:1;min-width:0}
+.ev-venue .txt a{font-weight:900}
+.minimap{flex:0 0 auto;width:112px;height:84px;border-radius:10px;border:2px solid var(--line);overflow:hidden;position:relative;background:#dfe7ee;display:block}
+.minimap img{position:absolute;width:256px;height:256px;max-width:none}
+.minimap .pin{position:absolute;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;background:var(--pink);border:3px solid #000}
+.price{display:inline-block;font-weight:900;font-size:.85rem;border:2px solid #000;border-radius:8px;padding:.05em .5em}
+.price.free{background:#1e7a34;color:#fff;border-color:#1e7a34}
+.price.paid{background:var(--orange);color:#000}
+.price.check{background:#fff;color:var(--link);border-color:var(--link);text-decoration:underline}
+.ev-wx{font-size:.85rem;font-weight:800;background:#eef6ff;border:2px solid #0a3d8f;border-radius:10px;padding:4px 8px;display:flex;align-items:center;gap:8px}
+.ev-wx img{width:36px;height:36px;border-radius:6px;flex:0 0 auto}
+.ev-wx.na{background:#f4f3ef;border-color:var(--line);color:var(--muted)}
+.ev-src{font-size:.78rem;font-weight:700;color:var(--muted)}
+.ev-src a{color:var(--link)}
+.ev-links{display:flex;flex-wrap:wrap;gap:6px}
+.ev-links a{display:inline-flex;align-items:center;min-height:44px;padding:.15em .7em;border:2px solid var(--ink);border-radius:10px;font-size:.85rem;font-weight:900;color:var(--ink);text-decoration:none}
+.ev-links a.primary{background:#000;color:#fff}
+#ongoing-sec summary{cursor:pointer;list-style:none}
+#ongoing-sec summary h2{display:inline}
+#ongoing-sec summary::before{content:"▸ ";font-weight:900;font-size:1.4rem}
+#ongoing-sec details[open] summary::before{content:"▾ "}
+@media (max-width:600px){
+  .ev h3{font-size:1.1rem}
+  .minimap{width:96px;height:72px}
 }

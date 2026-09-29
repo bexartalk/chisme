@@ -3,6 +3,7 @@
   "use strict";
   const WEATHER_MS = 10 * 60 * 1000;
   const NEWS_MS = 15 * 60 * 1000;
+  const EVENTS_MS = 30 * 60 * 1000;
   const MOVE_KM = 3;                      // refresh when the user moves farther than this
   const DEFAULT_LOC = { lat: 29.4241, lon: -98.4936, source: "default", label: "San Antonio, TX" };
   const LOC_KEY = "chisme-location";
@@ -24,7 +25,7 @@
   const DEVICE_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
   let TZ = DEVICE_TZ;
   let lastWeather = null;
-  const rendered = { weather: null, news: null };  // which location each section is showing
+  const rendered = { weather: null, news: null, events: null };  // which location each section is showing
   const tzAbbr = (d = new Date()) => {
     try { return new Intl.DateTimeFormat("en-US", { timeZone: TZ, timeZoneName: "short" }).formatToParts(d).find((p) => p.type === "timeZoneName").value; }
     catch { return ""; }
@@ -44,7 +45,7 @@
   const kmhToMph = (k) => (k == null ? null : Math.round(k * 0.621371));
   const compass = (deg) => deg == null ? "" :
     ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"][Math.round(deg / 22.5) % 16];
-  const icon = (url, size = "medium") => url ? url.replace(/size=\w+/, "size=" + size) : null;
+  const icon = (url, size = "medium") => url && navigator.onLine ? url.replace(/size=\w+/, "size=" + size) : null;
   const kmBetween = (a, b) => {
     const R = 6371, rad = Math.PI / 180;
     const dLat = (b.lat - a.lat) * rad, dLon = (b.lon - a.lon) * rad;
@@ -67,8 +68,8 @@
     const b = $("#offline-banner");
     const saved = Object.values(offlineFrom).filter((v) => typeof v === "number");
     if (!navigator.onLine || saved.length) {
-      const when = saved.length ? " Showing saved news & weather from " + dateTimeT(new Date(Math.min(...saved) * 1000)) + "." : "";
-      b.textContent = "📴 You're offline." + when + " Chisme will refresh when you're back online.";
+      const when = saved.length ? " No worries — here's your saved chisme from " + dateTimeT(new Date(Math.min(...saved) * 1000)) + "." : "";
+      b.textContent = "📴 You're offline." + when + " We'll refresh as soon as you're back online.";
       b.hidden = false;
     } else b.hidden = true;
   }
@@ -89,15 +90,16 @@
   let loc = (() => { try { const s = JSON.parse(localStorage.getItem(LOC_KEY)); if (s && isFinite(s.lat) && isFinite(s.lon)) return s; } catch {} return { ...DEFAULT_LOC }; })();
   const q = () => `lat=${(+loc.lat).toFixed(3)}&lon=${(+loc.lon).toFixed(3)}`;
   const placeName = () => loc.label || "your area";
-  const shortPlace = () => (loc.place && (loc.place.neighborhood || loc.place.city)) || placeName();
+  const shortPlace = () => (loc.source === "default" ? loc.place && loc.place.city
+    : loc.place && (loc.place.neighborhood || loc.place.city)) || placeName();
   function saveLoc() { localStorage.setItem(LOC_KEY, JSON.stringify(loc)); }
   function renderLocLabel() {
     const pre = loc.source === "default" ? "Default: " : "Near: ";
     $("#loc-label").textContent = pre + placeName();
     $("#loc-btn").setAttribute("aria-label", `${pre}${placeName()}. Change location`);
     const city = loc.place && loc.place.city;
-    $("#nav-city").textContent = city ? city : "More news";
     $("#city-title").textContent = city ? `More ${city} news` : "More local news";
+    renderGreeting();
     if (lastWeather && rendered.weather === q()) renderAlerts(lastWeather);  // keep alert wording in sync
   }
   async function lookupPlace() {
@@ -120,6 +122,20 @@
     if (map) recenter(moved > 50 ? 8 : null);
     refreshAll();          // start loading right away (shows "Loading…" instead of the old place)
     await lookupPlace();   // then fill in the neighborhood/city label
+  }
+
+
+  // ---------- personality (UI copy only — headlines and story text are never rewritten)
+  const pick = (arr) => arr[Math.floor(Date.now() / 36e5) % arr.length];   // changes hourly, stable between renders
+  function localHour() { try { return +fmt(new Date(), { hour: "numeric", hourCycle: "h23" }); } catch { return new Date().getHours(); } }
+  function renderGreeting() {
+    const h = localHour(), who = shortPlace();
+    const hi = h >= 5 && h < 12 ? `¡Buenos días, ${who}! ☀️`
+      : h >= 12 && h < 18 ? `¡Buenas tardes, ${who}! 🌵`
+      : h >= 18 && h < 22 ? `¡Buenas noches, ${who}! 🌙` : `Hey there, night owl 🦉`;
+    $("#greet-hi").textContent = hi;
+    $("#greet-sub").textContent = h >= 22 || h < 5 ? `Here's the latest from around ${who} while the city sleeps.`
+      : pick([`Here's what the neighborhood is talking about.`, `Your local news, closest stories first.`, `Pull up a chair — here's the latest from around ${who}.`]);
   }
 
   // ---------- location panel (friendly pre-prompt, denied fallback, change location)
@@ -213,7 +229,40 @@
   });
 
   // ---------- weather
+  function renderAlertStrip(w) {
+    const strip = $("#alert-strip"), alerts = (w && w.alerts) || [];
+    if (!alerts.length) { strip.hidden = true; strip.replaceChildren(); return; }
+    const b = el("button", { type: "button", text: `⚠ ${alerts[0].event}${alerts.length > 1 ? ` (+${alerts.length - 1} more)` : ""} for your area — tap for details` });
+    b.onclick = () => goView("weather", { scrollTo: "alerts" });
+    strip.replaceChildren(b);
+    strip.hidden = false;
+  }
+  function weatherBlurb(w) {
+    const box = $("#wx-blurb");
+    box.classList.remove("serious");
+    if (!w || w.supported === false) { box.hidden = true; return; }
+    if ((w.alerts || []).length) {
+      box.textContent = "Heads up: the National Weather Service has active alerts for your area. Please read the details below and stay safe.";
+      box.classList.add("serious"); box.hidden = false; return;
+    }
+    const t = cToF(w.current && w.current.temp_c);
+    const today = (w.forecast || [])[0] || {};
+    const pop = Math.max(today.pop || 0, ((w.forecast || [])[1] || {}).pop || 0);
+    const sky = (today.shortForecast || "").toLowerCase();
+    let line;
+    if (/thunder/.test(sky) && pop >= 40) line = "Thunderstorms in the forecast — keep an eye on the radar and the sky. ⛈️";
+    else if (pop >= 50) line = "Rain's in the chisme today — bring the paraguas. ☔";
+    else if (t == null) line = pick(["Here's the sky report.", "Your forecast, fresh from the National Weather Service."]);
+    else if (t >= 100) line = "¡Qué calor! Triple digits — agua, shade and sunscreen, mija. 🥵";
+    else if (t >= 90) line = "Hot one out there. Keep the agua fría handy. 🌞";
+    else if (t >= 78) line = "Warm and pleasant — patio weather, ¿qué no? 😎";
+    else if (t >= 62) line = "Sweater-optional weather. Enjoy it while it lasts!";
+    else if (t >= 45) line = "Chilly out — grab a chaqueta on the way out. 🧥";
+    else line = "¡Brrr! Bundle up, it's legit cold out there. 🥶";
+    box.textContent = line; box.hidden = false;
+  }
   function renderAlerts(w) {
+    renderAlertStrip(w);
     const box = $("#alerts");
     box.replaceChildren();
     if (w && w.supported === false) {
@@ -306,7 +355,7 @@
   let wxSeq = 0;
   async function loadWeather() {
     const seq = ++wxSeq;
-    if (rendered.weather !== q()) $("#current").replaceChildren(el("p", { class: "loading", text: `Loading weather for ${placeName()}…` }));
+    if (rendered.weather !== q()) $("#current").replaceChildren(el("p", { class: "loading", text: `Checking the sky over ${placeName()}…` }));
     try {
       const w = await getJSON(`/api/weather?${q()}`);
       if (seq !== wxSeq) return;  // a newer location won
@@ -315,6 +364,7 @@
       if (w.location && w.location.tz) { TZ = w.location.tz; $("#tz-name").textContent = `${w.location.city || "local"} time (${tzAbbr()})`; }
       else { TZ = DEVICE_TZ; $("#tz-name").textContent = `your device's time (${tzAbbr()})`; }
       renderAlerts(w);
+      weatherBlurb(w);
       if (w.supported === false) renderUnsupported(w);
       else {
         renderCurrent(w.current); renderHourly(w.hourly); renderForecast(w.forecast);
@@ -326,7 +376,7 @@
     } catch (e) {
       if (seq !== wxSeq) return;
       $("#wx-updated").textContent = "";
-      $("#current").replaceChildren(el("p", { class: "error", text: "Couldn't load weather: " + e.message + ". Will retry." }));
+      $("#current").replaceChildren(el("p", { class: "error", text: "¡Ay! Couldn't reach the weather service (" + e.message + "). We'll try again shortly." }));
     }
   }
 
@@ -334,9 +384,11 @@
   let map = null, youMarker = null, frames = [], layers = {}, idx = 0, timer = null, playing = true, radarHost = "";
   function initMap() {
     map = L.map("map", { center: [loc.lat, loc.lon], zoom: 8, minZoom: 3, maxZoom: 12, scrollWheelZoom: false });
-    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    const base = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    }).addTo(map);
+    });
+    // offline: don't request map tiles that can't load; add them once the connection is back
+    if (navigator.onLine) base.addTo(map); else window.addEventListener("online", () => base.addTo(map), { once: true });
     youMarker = L.circleMarker([loc.lat, loc.lon], { radius: 10, color: "#000", weight: 3, fillColor: "#EF426F", fillOpacity: 1 })
       .addTo(map).bindTooltip("You are here", { permanent: true, direction: "right", className: "zip-label" });
     map.attributionControl.addAttribution('Radar &copy; <a href="https://www.rainviewer.com/" target="_blank" rel="noopener">RainViewer</a>');
@@ -407,17 +459,38 @@
       body.append(el("div", { class: "tags" }, ...it.local_terms.slice(0, 4).map((t) => el("span", { class: "tag", text: t }))));
     }
     const kids = [body];
-    if (it.image) {
+    if (it.image && navigator.onLine) {
       const img = el("img", { src: it.image, alt: "", loading: "lazy", referrerpolicy: "no-referrer" });
       img.onerror = () => img.remove();
       kids.push(img);
     }
+    kids.push(digDeeper(it));
     return el("article", { class: "story" + (showTags && it.tier === "near" ? " near" : "") }, ...kids);
+  }
+
+  // Links at the end of each story: the original article, the same story from other outlets we
+  // fetched, and a Google News search for the topic. Every URL comes from the feeds/server.
+  const ext = (href, text, cls) => el("a", { href, target: "_blank", rel: "noopener", class: cls, text });
+  function digDeeper(it) {
+    const viaGoogle = /^https:\/\/news\.google\.com\//.test(it.link);
+    const read = ext(it.link, `Read full story · ${it.source} ↗`, "btnlink primary");
+    if (viaGoogle) read.title = "Opens the original article through Google News";
+    const more = it.search_url ? ext(it.search_url, "🔎 More coverage ↗", "btnlink") : null;
+    if (more) more.setAttribute("aria-label", "More coverage: search Google News for this story");
+    const row = el("div", { class: "dig-row" }, read, more);
+    const box = el("div", { class: "dig" });
+    if (it.related && it.related.length) {
+      box.append(el("p", { class: "related-h", text: "Also reported by" }),
+        el("ul", { class: "related" }, ...it.related.map((r) => el("li", {},
+          el("a", { href: r.link, target: "_blank", rel: "noopener" }, el("span", { class: "rsrc", text: r.source + ": " }), r.title + " ↗")))));
+    }
+    box.append(row);
+    return box;
   }
   let newsSeq = 0;
   async function loadNews() {
     const seq = ++newsSeq;
-    $("#near-list").replaceChildren(el("p", { class: "loading", text: `Loading news near ${placeName()}…` }));
+    $("#near-list").replaceChildren(el("p", { class: "loading", text: `Gathering the chisme near ${placeName()}…` }));
     try {
       const n = await getJSON(`/api/news?${q()}`);
       if (seq !== newsSeq) return;
@@ -426,9 +499,9 @@
       const names = (p.nearby || []).slice(0, 5).map((x) => x.name);
       $("#near-hint").textContent = "Closest first: " + [names.length ? names.join(", ") : null, p.city, p.county].filter(Boolean).join(" → ") + ".";
       $("#near-list").replaceChildren(...(n.near.length ? n.near.map((i) => story(i, true))
-        : [el("p", { class: "loading", text: `No stories naming ${placeName()} in the latest feeds yet.` })]));
+        : [el("p", { class: "loading", text: `No stories naming ${placeName()} in the latest feeds yet — check back in a bit.` })]));
       $("#city-list").replaceChildren(...(n.more.length ? n.more.map((i) => story(i, false))
-        : [el("p", { class: "loading", text: "No other local stories right now." })]));
+        : [el("p", { class: "loading", text: "No other local stories right now. The newsrooms must be on a coffee break. ☕" })]));
       $("#sa-sec").hidden = !(n.san_antonio && n.san_antonio.length);
       $("#sa-list").replaceChildren(...(n.san_antonio || []).map((i) => story(i, false)));
       $("#news-updated").textContent = offlineFrom["/api/news"] && n.generated
@@ -437,24 +510,288 @@
         text: (f.ok ? `${f.name}: ${f.count} items` : `${f.name}: unavailable (${f.error})`) + (f.query ? ` — search: ${f.query}` : "") })));
     } catch (e) {
       if (seq !== newsSeq) return;
-      $("#near-list").replaceChildren(el("p", { class: "error", text: "Couldn't load news: " + e.message + ". Will retry." }));
+      $("#near-list").replaceChildren(el("p", { class: "error", text: "¡Ay, no! Couldn't reach the news feeds (" + e.message + "). We'll try again shortly." }));
     }
   }
 
+  // ---------- events
+  const CAT_EMOJI = [[/music|concert|band|jazz|dj|tour/i, "🎶"], [/food|culinary|cooking|taco|wine|beer|brew|dinner|market/i, "🌮"],
+    [/art|museum|exhibit|gallery|lecture|theat|dance|film/i, "🎨"], [/kid|family|zoo|halloween|boo/i, "🎃"],
+    [/run|5k|sport|fitness|yoga|pilates|scrimmage|game/i, "🏃"], [/career|job|business|workshop|training|expo/i, "💼"]];
+  const catEmoji = (e) => { const t = e.title + " " + (e.categories || []).join(" "); for (const [rx, em] of CAT_EMOJI) if (rx.test(t)) return em; return "🎉"; };
+  const dayKey = (d) => fmt(d, { year: "numeric", month: "2-digit", day: "2-digit" });
+  function dayLabel(d) {
+    const k = dayKey(d), today = dayKey(new Date()), tmr = dayKey(new Date(Date.now() + 864e5));
+    const long = fmt(d, { weekday: "long", month: "short", day: "numeric" });
+    return k === today ? "Today · " + long : k === tmr ? "Tomorrow · " + long : long;
+  }
+  function whenText(e) {
+    const s = new Date(e.start), en = e.end ? new Date(e.end) : null;
+    const dShort = (d) => fmt(d, { weekday: "short", month: "short", day: "numeric" });
+    const multi = en && dayKey(en) !== dayKey(s);
+    if (e.ongoing) return "Through " + dShort(en) + (e.recurrence ? " · " + e.recurrence : "");
+    let t = dShort(s);
+    if (e.has_time) t += " · " + fmt(s, { hour: "numeric", minute: "2-digit" });
+    if (multi) t += " – " + dShort(en);
+    else if (!e.has_time) t += " · time on the event page";
+    return t;
+  }
+  function tileFor(lat, lon, z = 15) {
+    const n = 2 ** z, r = lat * Math.PI / 180;
+    const x = (lon + 180) / 360 * n, y = (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * n;
+    return { z, x: Math.floor(x), y: Math.floor(y), px: (x % 1) * 256, py: (y % 1) * 256 };
+  }
+  function miniMap(e, href) {
+    const W = 112, H = 84, t = tileFor(e.lat, e.lon);
+    const left = Math.min(0, Math.max(W - 256, W / 2 - t.px)), top = Math.min(0, Math.max(H - 256, H / 2 - t.py));
+    const img = el("img", { src: `https://tile.openstreetmap.org/${t.z}/${t.x}/${t.y}.png`, alt: "", loading: "lazy", width: 256, height: 256 });
+    img.style.left = left + "px"; img.style.top = top + "px";
+    const pin = el("span", { class: "pin" }); pin.style.left = (t.px + left) + "px"; pin.style.top = (t.py + top) + "px";
+    const a = el("a", { class: "minimap", href, target: "_blank", rel: "noopener", "aria-label": `Map: ${e.venue || "event location"} (opens OpenStreetMap)` }, img, pin);
+    img.onerror = () => a.remove();
+    return a;
+  }
+  // Not a photo, and it says so: shown when the listing has no picture (or we're offline).
+  function placeholder(e) {
+    const why = e.image ? "Photo loads when you're online" : "No photo from the listing";
+    return el("div", { class: "ev-ph", role: "img", "aria-label": why },
+      el("b", { text: catEmoji(e), "aria-hidden": "true" }), el("span", { text: why }));
+  }
+  function priceBadge(e) {
+    const p = e.price;
+    if (p && p.free) return el("span", { class: "price free", text: p.text && !/^free$/i.test(p.text) ? "FREE · " + p.text : "FREE" });
+    if (p && p.text) return el("span", { class: "price paid", text: /^[\d.]+$/.test(p.text) ? "Admission: " + p.text : p.text });
+    return ext(e.url, "Check price ↗", "price check");
+  }
+  function outlook(e) {
+    const w = e.weather || {};
+    if (w.available) {
+      return el("div", { class: "ev-wx" }, w.icon ? el("img", { src: icon(w.icon, "small"), alt: "", loading: "lazy" }) : null,
+        el("span", { text: `${w.name}: ${w.short}, ${w.day ? "high" : "low"} ${w.temp}°${w.unit || "F"}${w.pop ? ` · 💧 ${w.pop}% chance of rain` : ""}` }));
+    }
+    return el("div", { class: "ev-wx na", text: w.reason === "beyond" ? "🔮 Forecast not available yet — the National Weather Service forecasts 7 days out."
+      : "Forecast unavailable for this spot right now." });
+  }
+  function eventCard(e) {
+    const hasGeo = e.lat != null && e.lon != null && !e.approx;
+    const osm = hasGeo ? `https://www.openstreetmap.org/?mlat=${e.lat.toFixed(5)}&mlon=${e.lon.toFixed(5)}#map=17/${e.lat.toFixed(5)}/${e.lon.toFixed(5)}` : null;
+    const q = [e.venue, e.address].filter(Boolean).join(", ");
+    const gmaps = hasGeo ? `https://www.google.com/maps/search/?api=1&query=${e.lat.toFixed(5)}%2C${e.lon.toFixed(5)}`
+      : q ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}` : null;
+    const media = el("div", { class: "ev-media" });
+    if (e.image && navigator.onLine) {
+      const img = el("img", { src: e.image, alt: "", loading: "lazy", referrerpolicy: "no-referrer" });
+      img.onerror = () => img.replaceWith(placeholder(e));
+      media.append(img);
+    } else media.append(placeholder(e));
+    const venueTxt = el("div", { class: "txt" },
+      e.venue ? el("div", {}, el("b", { text: e.address && e.address.toLowerCase().startsWith(e.venue.toLowerCase()) ? e.address : e.venue })) : null,
+      e.address && !(e.venue && e.address.toLowerCase().startsWith(e.venue.toLowerCase())) ? el("div", { text: e.address }) : null,
+      e.km != null && !e.approx ? el("div", { text: `${(e.km * 0.621371).toFixed(1)} mi from you` }) : null,
+      !e.venue && !e.address ? el("div", { text: "Location on the event page" }) : null);
+    const venue = el("div", { class: "ev-line ev-venue" }, el("span", { text: "📍", "aria-hidden": "true" }), venueTxt, hasGeo && navigator.onLine ? miniMap(e, osm) : null);
+    const also = (e.also || []).map((a, k) => [k ? ", " : " · also on ", ext(a.url, a.source)]).flat();
+    return el("article", { class: "ev" }, media,
+      el("div", { class: "ev-body" },
+        el("h3", {}, ext(e.url, e.title)),
+        el("div", { class: "ev-line" }, el("span", { text: "🗓", "aria-hidden": "true" }), el("span", { text: whenText(e) })),
+        venue,
+        el("div", { class: "ev-line" }, el("span", { text: "🎟", "aria-hidden": "true" }), priceBadge(e)),
+        outlook(e),
+        e.summary ? el("p", { class: "ev-sum", text: e.summary }) : null,
+        el("div", { class: "ev-links" }, ext(e.url, `Event page (${e.source}) ↗`, "primary"),
+          gmaps ? ext(gmaps, "🗺 Map & directions ↗") : null,
+          e.website && e.website !== e.url ? ext(e.website, "Organizer site ↗") : null),
+        el("p", { class: "ev-src" }, "Listed on " + e.source, ...also)));
+  }
+  let evSeq = 0, evRetry = null, evRetries = 0;
+  async function loadEvents() {
+    const seq = ++evSeq;
+    clearTimeout(evRetry);
+    if (rendered.events !== q()) $("#events-list").replaceChildren(el("p", { class: "loading", text: `Rounding up the pachangas near ${shortPlace()}…` }));
+    try {
+      const n = await getJSON(`/api/events?${q()}`);
+      if (seq !== evSeq) return;
+      rendered.events = q();
+      const where = shortPlace();
+      const list = n.events || [], ongoing = n.ongoing || [];
+      $("#events-title").textContent = n.place && n.place.city ? `What's happening in ${n.place.city}` : "What's happening";
+      $("#events-intro").textContent = list.length
+        ? pick([`¡Órale! ${list.length} things going on around ${where} in the next few weeks.`,
+                `¿Qué hay de nuevo? ${list.length} upcoming events near ${where} — pick your pachanga.`,
+                `Get off the couch, ${where}! ${list.length} events coming up nearby.`])
+        : n.message ? `${n.message} ¡Lo siento! News, radar and search still work here.`
+        : `Quiet around here, huh? No upcoming events found near ${where} right now — check back soon.`;
+      const kids = [];
+      let last = null;
+      for (const e of list) {
+        const k = dayKey(new Date(e.start));
+        if (k !== last) { kids.push(el("h3", { class: "ev-day", text: dayLabel(new Date(e.start)) })); last = k; }
+        kids.push(eventCard(e));
+      }
+      $("#events-list").replaceChildren(...(kids.length ? kids : n.message ? [] : [el("p", { class: "loading", text: "No events on the calendar yet. ¡Ni modo! Try again later." })]));
+      $("#ongoing-sec").hidden = !ongoing.length;
+      $("#ongoing-list").replaceChildren(...ongoing.map(eventCard));
+      $("#events-updated").textContent = offlineFrom["/api/events"] && n.generated
+        ? "Saved copy from " + timeT(new Date(n.generated * 1000)) : "Updated " + timeT(new Date());
+      $("#event-sources").replaceChildren(...(n.sources || []).map((f) => el("li", { class: f.ok ? "" : "bad" },
+        ext(f.url, f.name), f.ok ? `: ${f.count} listings` : `: unavailable (${f.error})`)));
+      // prices/venues are still being looked up in the background: check back shortly
+      if (n.pending && !offlineFrom["/api/events"] && evRetries < 4) { evRetries++; evRetry = setTimeout(loadEvents, 35000); }
+      else evRetries = 0;
+    } catch (e) {
+      if (seq !== evSeq) return;
+      $("#events-list").replaceChildren(el("p", { class: "error", text: "¡Ay! Couldn't reach the event calendars (" + e.message + "). We'll try again in a bit." }));
+    }
+  }
+
+  // ---------- views: News | Weather | Events (tap the sticky buttons or swipe sideways)
+  const VIEWS = ["news", "weather", "events"];
+  const GAP = 24;
+  const track = $("#track"), viewsEl = $("#views"), tabsEl = $("#tabs");
+  const panes = VIEWS.map((v) => $("#view-" + v));
+  let cur = 0;
+  const savedY = {};
+  const tabsH = () => tabsEl.offsetHeight;
+  const setTabsVar = () => document.documentElement.style.setProperty("--tabs-h", tabsH() + "px");
+  setTabsVar(); window.addEventListener("resize", setTabsVar);
+  const viewsTop = () => viewsEl.getBoundingClientRect().top + window.scrollY;
+  const pos = (i, dx = 0) => { track.style.transform = `translateX(calc(${-i} * (100% + ${GAP}px) + ${dx}px))`; };
+  function updateTabs(scrollId) {
+    for (const t of document.querySelectorAll(".tab")) {
+      const on = t.dataset.view === VIEWS[cur] && !t.dataset.scroll;
+      t.toggleAttribute("aria-current", false);
+      if (on) t.setAttribute("aria-current", "page");
+      t.classList.toggle("sub-current", !!t.dataset.scroll && t.dataset.scroll === scrollId);
+    }
+  }
+  // Where the page should be scrolled once view i is showing (keeps the header if it's visible).
+  function targetY(i, beforeDocH, activeH) {
+    const top = Math.max(0, viewsTop() - tabsH());
+    let t = window.scrollY <= top ? window.scrollY : (savedY[VIEWS[i]] ?? top);
+    const afterDocH = beforeDocH - activeH + panes[i].offsetHeight;
+    return Math.max(0, Math.min(t, afterDocH - window.innerHeight));
+  }
+  let peekI = null, peekY = 0;
+  function peek(i) {
+    if (peekI === i) return;
+    unpeek();
+    if (i < 0 || i >= VIEWS.length) return;
+    const docH = document.documentElement.scrollHeight, activeH = panes[cur].offsetHeight;
+    panes[i].classList.add("peek");
+    peekY = targetY(i, docH, activeH);
+    panes[i].style.transform = `translateY(${window.scrollY - peekY}px)`;
+    peekI = i;
+  }
+  function unpeek() {
+    if (peekI != null && peekI !== cur) { panes[peekI].classList.remove("peek"); panes[peekI].style.transform = ""; }
+    peekI = null;
+  }
+  function finish(i, scrollId) {
+    savedY[VIEWS[cur]] = window.scrollY;
+    const y = peekI === i ? peekY : window.scrollY;
+    panes.forEach((p, k) => { p.classList.toggle("active", k === i); p.classList.remove("peek"); p.style.transform = ""; p.inert = k !== i; });
+    peekI = null;
+    cur = i;
+    track.classList.remove("animating");
+    pos(i);
+    window.scrollTo({ top: y, behavior: "instant" });
+    updateTabs(scrollId);
+    if (VIEWS[i] === "weather" && map) map.invalidateSize();
+    if (VIEWS[i] === "events" && rendered.events !== q()) loadEvents();
+    if (scrollId) { const t = document.getElementById(scrollId); if (t) window.scrollTo({ top: t.getBoundingClientRect().top + window.scrollY - tabsH() - 8, behavior: "instant" }); }
+    localStorage.setItem("chisme-swiped", "1");
+  }
+  let animT = null;
+  function goView(name, opts = {}) {
+    const i = typeof name === "number" ? name : VIEWS.indexOf(name);
+    if (i < 0) return;
+    if (i === cur) { unpeek(); track.classList.add("animating"); pos(i); if (opts.scrollTo) finish(i, opts.scrollTo); else updateTabs(); return; }
+    if (opts.instant || matchMedia("(prefers-reduced-motion: reduce)").matches) { peek(i); finish(i, opts.scrollTo); return; }
+    peek(i);
+    track.classList.add("animating");
+    pos(i);
+    clearTimeout(animT);
+    const done = () => { clearTimeout(animT); track.removeEventListener("transitionend", onEnd); finish(i, opts.scrollTo); };
+    const onEnd = (ev) => { if (ev.target === track) done(); };
+    track.addEventListener("transitionend", onEnd);
+    animT = setTimeout(done, 450);
+  }
+  for (const t of document.querySelectorAll(".tab")) t.onclick = () => goView(t.dataset.view, { scrollTo: t.dataset.scroll });
+
+  // Swipe: only horizontal touch drags that start outside the radar map, the hourly strip and
+  // form controls. touch-action: pan-y (CSS) leaves vertical scrolling to the browser.
+  const NO_SWIPE = ".leaflet-container, .hourly, input, select, textarea, .no-swipe";
+  let drag = null, justDragged = false;
+  viewsEl.addEventListener("pointerdown", (e) => {
+    if (e.pointerType === "mouse" || !e.isPrimary || e.target.closest(NO_SWIPE)) { drag = null; return; }
+    drag = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), lock: null, dx: 0 };
+  });
+  window.addEventListener("pointermove", (e) => {
+    if (!drag || e.pointerId !== drag.id) return;
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    if (!drag.lock) {
+      if (Math.abs(dx) < 12 && Math.abs(dy) < 12) return;
+      if (Math.abs(dx) > Math.abs(dy) * 1.3) { drag.lock = "x"; track.classList.remove("animating"); }
+      else { drag = null; return; }
+    }
+    const nb = cur + (dx < 0 ? 1 : -1);
+    const edge = nb < 0 || nb >= VIEWS.length;
+    if (!edge) peek(nb); else unpeek();
+    drag.dx = edge ? dx / 3 : dx;
+    drag.lastX = e.clientX; drag.lastT = performance.now();
+    pos(cur, drag.dx);
+  }, { passive: true });
+  function endDrag(e, cancelled) {
+    if (!drag || e.pointerId !== drag.id) return;
+    const d = drag; drag = null;
+    if (d.lock !== "x") return;
+    justDragged = true; setTimeout(() => { justDragged = false; }, 350);
+    const w = viewsEl.clientWidth, v = d.dx / Math.max(1, performance.now() - d.t);
+    const nb = cur + (d.dx < 0 ? 1 : -1);
+    if (!cancelled && nb >= 0 && nb < VIEWS.length && (Math.abs(d.dx) > w * 0.22 || Math.abs(v) > 0.45)) goView(nb);
+    else { track.classList.add("animating"); pos(cur); setTimeout(() => { if (!drag) unpeek(); }, 340); }
+  }
+  window.addEventListener("pointerup", (e) => endDrag(e, false));
+  window.addEventListener("pointercancel", (e) => endDrag(e, !drag || drag.lock !== "x"));
+  window.addEventListener("click", (e) => { if (justDragged) { e.preventDefault(); e.stopPropagation(); } }, true);
+  document.addEventListener("keydown", (e) => {
+    if (e.target.closest("input, textarea, select, .leaflet-container") || e.altKey || e.ctrlKey || e.metaKey) return;
+    if (e.key === "ArrowRight" && e.target.closest(".tabs")) goView(Math.min(VIEWS.length - 1, cur + 1));
+    if (e.key === "ArrowLeft" && e.target.closest(".tabs")) goView(Math.max(0, cur - 1));
+  });
+  if (localStorage.getItem("chisme-swiped")) $("#swipe-hint").hidden = true;
+  // Deep links (manifest shortcuts): #weather, #radar-sec, #events. Otherwise News opens first.
+  const HASH_VIEW = { "#weather": ["weather"], "#forecast-sec": ["weather", "forecast-sec"], "#radar-sec": ["weather", "radar-sec"],
+    "#alerts": ["weather", "alerts"], "#events": ["events"], "#near": ["news", "near"], "#city": ["news", "city"] };
+  pos(0); updateTabs();
+
   // ---------- boot + auto refresh
-  let lastWx = 0, lastNews = 0;
-  function refreshAll() { loadWeather(); loadNews(); loadRadar(); lastWx = lastNews = Date.now(); }
+  let lastWx = 0, lastNews = 0, lastEv = 0, evBoot = null;
+  function refreshAll() {
+    loadNews(); loadWeather(); loadRadar(); lastWx = lastNews = Date.now();
+    // events load right after news (and immediately if the Events view is open), so they're saved for offline too
+    clearTimeout(evBoot);
+    if (VIEWS[cur] === "events") loadEvents(); else evBoot = setTimeout(loadEvents, 1200);
+    lastEv = Date.now();
+  }
   renderLocLabel();
   initMap();
+  const hv = HASH_VIEW[location.hash];
+  if (hv && hv[0] !== "news") goView(hv[0], { instant: true });
   refreshAll();
+  if (hv && hv[1]) setTimeout(() => goView(hv[0], { scrollTo: hv[1] }), 50);
   lookupPlace();
   initGeo();
   setInterval(() => { loadWeather(); loadRadar(); lastWx = Date.now(); }, WEATHER_MS);
-  setInterval(() => { loadNews(); lastNews = Date.now(); }, NEWS_MS);
+  setInterval(() => { loadNews(); lastNews = Date.now(); renderGreeting(); }, NEWS_MS);
+  setInterval(() => { loadEvents(); lastEv = Date.now(); }, EVENTS_MS);
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState !== "visible") return;
+    renderGreeting();
     if (Date.now() - lastWx > WEATHER_MS) { loadWeather(); loadRadar(); lastWx = Date.now(); }
     if (Date.now() - lastNews > NEWS_MS) { loadNews(); lastNews = Date.now(); }
+    if (Date.now() - lastEv > EVENTS_MS) { loadEvents(); lastEv = Date.now(); }
   });
 
   // ---------- PWA: service worker, install button (Android/desktop Chrome), iOS hint
@@ -489,5 +826,6 @@
 
   // expose for testing
   window.__chisme = { get frames() { return frames; }, get map() { return map; }, get loc() { return loc; },
-    get ready() { return rendered.weather === q() && rendered.news === q(); } };
+    get ready() { return rendered.weather === q() && rendered.news === q(); },
+    get eventsReady() { return rendered.events === q(); }, get view() { return VIEWS[cur]; }, goView };
 })();

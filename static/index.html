@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Chisme — local news &amp; weather near you</title>
-  <meta name="description" content="Chisme: local news, NWS weather, alerts and live rain radar for wherever you are.">
+  <meta name="description" content="Chisme: local news, NWS weather, alerts, live rain radar and local events for wherever you are.">
   <meta name="theme-color" content="#00C9CD">
   <meta name="application-name" content="Chisme">
   <meta name="mobile-web-app-capable" content="yes">
@@ -41,11 +41,18 @@
         <span aria-hidden="true">📍</span> <span id="loc-label">Near: San Antonio, TX</span> <span class="loc-change">Change</span>
       </button>
     </div>
-    <nav class="wrap nav" aria-label="Sections">
-      <a href="#weather">Weather</a><a href="#radar-sec">Radar</a><a href="#near">Near You</a><a href="#city" id="nav-city">More news</a>
-    </nav>
     <div class="picado" aria-hidden="true"></div>
   </header>
+
+  <!-- Section buttons: always on screen (sticky), also on phones -->
+  <nav id="tabs" class="tabs" aria-label="Sections">
+    <div class="wrap tabs-inner">
+      <button type="button" class="tab" data-view="news" aria-controls="view-news" aria-current="page"><span aria-hidden="true">📰</span> News</button>
+      <button type="button" class="tab" data-view="weather" aria-controls="view-weather"><span aria-hidden="true">🌤️</span> Weather</button>
+      <button type="button" class="tab" data-view="weather" data-scroll="radar-sec" aria-controls="view-weather" id="tab-radar"><span aria-hidden="true">📡</span> Radar</button>
+      <button type="button" class="tab" data-view="events" aria-controls="view-events"><span aria-hidden="true">🎉</span> Events</button>
+    </div>
+  </nav>
 
   <section id="loc-panel" class="loc-panel wrap" hidden aria-labelledby="loc-title">
     <div class="loc-inner">
@@ -86,62 +93,100 @@
     </div>
   </div>
 
-  <main class="wrap">
-    <section id="alerts" aria-live="polite"></section>
+  <div id="alert-strip" class="alert-strip wrap" hidden></div>
 
-    <section id="weather" class="card">
-      <div class="sec-head">
-        <h2>Weather now</h2>
-        <span class="stamp" id="wx-updated"></span>
-      </div>
-      <div id="current" class="current"><p class="loading">Loading current conditions…</p></div>
-      <div id="hourly" class="hourly" aria-label="Next 12 hours"></div>
-    </section>
+  <main id="views" class="wrap views">
+    <div id="track" class="track">
+      <!-- ============ NEWS (first view on open) ============ -->
+      <section id="view-news" class="view active" aria-label="News" data-view="news">
+        <div class="greet card slim">
+          <p class="greet-hi" id="greet-hi">¡Hola, San Antonio!</p>
+          <p class="greet-sub" id="greet-sub">Here's what the neighborhood is talking about.</p>
+          <p class="swipe-hint" id="swipe-hint">Swipe <span aria-hidden="true">👈</span> for weather &amp; events, or tap the buttons up top.</p>
+        </div>
 
-    <section id="forecast-sec" class="card">
-      <div class="sec-head"><h2>7-day forecast</h2><span class="stamp" id="fc-updated"></span></div>
-      <div id="forecast" class="forecast"><p class="loading">Loading forecast…</p></div>
-      <p class="credit" id="fc-credit">Source: National Weather Service (api.weather.gov)</p>
-    </section>
+        <section id="near" class="card">
+          <div class="sec-head"><h2>Near You</h2><span class="stamp" id="news-updated"></span></div>
+          <p class="hint" id="near-hint">Stories ranked by how close the places they mention are to you.</p>
+          <div id="near-list" class="news-list"><p class="loading">Gathering the chisme…</p></div>
+        </section>
 
-    <section id="radar-sec" class="card">
-      <div class="sec-head"><h2>Live rain radar</h2><span class="stamp" id="radar-time"></span></div>
-      <div id="map" role="region" aria-label="Radar map centered on your location"></div>
-      <div class="radar-controls">
-        <button type="button" id="r-prev" aria-label="Previous frame">◀</button>
-        <button type="button" id="r-play" class="primary" aria-label="Play or pause radar">❚❚ Pause</button>
-        <button type="button" id="r-next" aria-label="Next frame">▶</button>
-        <button type="button" id="r-center" aria-label="Recenter map on your location">📍 Recenter</button>
-        <input type="range" id="r-slider" min="0" max="0" value="0" aria-label="Radar frame">
-      </div>
-      <p class="credit">Radar: <a href="https://www.rainviewer.com/" target="_blank" rel="noopener">RainViewer</a> (past ~2 hours, 10-min frames). Map © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors.</p>
-    </section>
+        <section id="city" class="card">
+          <div class="sec-head"><h2 id="city-title">More local news</h2></div>
+          <div id="city-list" class="news-list"><p class="loading">Loading news…</p></div>
+        </section>
 
-    <section id="near" class="card">
-      <div class="sec-head"><h2>Near You</h2><span class="stamp" id="news-updated"></span></div>
-      <p class="hint" id="near-hint">Stories ranked by how close the places they mention are to you.</p>
-      <div id="near-list" class="news-list"><p class="loading">Loading local news…</p></div>
-    </section>
+        <section id="sa-sec" class="card" hidden>
+          <details>
+            <summary><h2>San Antonio headlines</h2></summary>
+            <div id="sa-list" class="news-list"></div>
+          </details>
+        </section>
 
-    <section id="city" class="card">
-      <div class="sec-head"><h2 id="city-title">More local news</h2></div>
-      <div id="city-list" class="news-list"><p class="loading">Loading news…</p></div>
-    </section>
+        <section class="card slim">
+          <details class="feeds-status"><summary>News sources for this location</summary><ul id="feeds"></ul></details>
+        </section>
+      </section>
 
-    <section id="sa-sec" class="card" hidden>
-      <details>
-        <summary><h2>San Antonio headlines</h2></summary>
-        <div id="sa-list" class="news-list"></div>
-      </details>
-    </section>
+      <!-- ============ WEATHER ============ -->
+      <section id="view-weather" class="view" aria-label="Weather" data-view="weather" inert>
+        <section id="alerts" aria-live="polite"></section>
 
-    <section class="card slim">
-      <details class="feeds-status"><summary>News sources for this location</summary><ul id="feeds"></ul></details>
-    </section>
+        <section id="weather" class="card">
+          <div class="sec-head">
+            <h2 id="wx-title">Weather now</h2>
+            <span class="stamp" id="wx-updated"></span>
+          </div>
+          <p class="blurb" id="wx-blurb" hidden></p>
+          <div id="current" class="current"><p class="loading">Checking the sky…</p></div>
+          <div id="hourly" class="hourly" aria-label="Next 12 hours"></div>
+        </section>
+
+        <section id="forecast-sec" class="card">
+          <div class="sec-head"><h2>7-day forecast</h2><span class="stamp" id="fc-updated"></span></div>
+          <div id="forecast" class="forecast"><p class="loading">Loading forecast…</p></div>
+          <p class="credit" id="fc-credit">Source: National Weather Service (api.weather.gov)</p>
+        </section>
+
+        <section id="radar-sec" class="card">
+          <div class="sec-head"><h2>Live rain radar</h2><span class="stamp" id="radar-time"></span></div>
+          <div id="map" role="region" aria-label="Radar map centered on your location"></div>
+          <div class="radar-controls">
+            <button type="button" id="r-prev" aria-label="Previous frame">◀</button>
+            <button type="button" id="r-play" class="primary" aria-label="Play or pause radar">❚❚ Pause</button>
+            <button type="button" id="r-next" aria-label="Next frame">▶</button>
+            <button type="button" id="r-center" aria-label="Recenter map on your location">📍 Recenter</button>
+            <input type="range" id="r-slider" min="0" max="0" value="0" aria-label="Radar frame">
+          </div>
+          <p class="credit">Radar: <a href="https://www.rainviewer.com/" target="_blank" rel="noopener">RainViewer</a> (past ~2 hours, 10-min frames). Map © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors.</p>
+        </section>
+      </section>
+
+      <!-- ============ EVENTS ============ -->
+      <section id="view-events" class="view" aria-label="Events" data-view="events" inert>
+        <section id="events" class="card">
+          <div class="sec-head"><h2 id="events-title">What's happening</h2><span class="stamp" id="events-updated"></span></div>
+          <p class="blurb" id="events-intro">¡Órale! Here's what's going on around town.</p>
+          <div id="events-list" class="events-list"><p class="loading">Rounding up the pachangas…</p></div>
+        </section>
+        <section id="ongoing-sec" class="card" hidden>
+          <details>
+            <summary><h2>Still going on</h2></summary>
+            <p class="hint">Exhibits, tours and seasonal happenings that already started.</p>
+            <div id="ongoing-list" class="events-list"></div>
+          </details>
+        </section>
+        <section class="card slim">
+          <details class="feeds-status"><summary>Event sources</summary>
+            <p class="hint">Prices, photos and times come straight from each listing. When a listing doesn't state a price we say “Check price” — always confirm on the event page. Weather outlooks are from the National Weather Service forecast for the venue's area (7 days out).</p>
+            <ul id="event-sources"></ul></details>
+        </section>
+      </section>
+    </div>
   </main>
 
   <footer class="wrap foot">
-    <p>Weather refreshes every 10 minutes, news every 15 minutes. Headlines link to the original publishers. Times are shown in <span id="tz-name">your local time</span>. Location data: © OpenStreetMap contributors (Nominatim).</p>
+    <p>Weather refreshes every 10 minutes, news every 15 minutes, events every 30 minutes. Headlines link to the original publishers; story text is theirs, unedited. Times are shown in <span id="tz-name">your local time</span>. Location data: © OpenStreetMap contributors (Nominatim).</p>
   </footer>
 
   <script src="/static/vendor/leaflet/leaflet.js"></script>

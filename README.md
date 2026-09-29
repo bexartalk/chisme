@@ -8,9 +8,13 @@ It uses large, bold, high-contrast text, and it's an **installable phone app (PW
 * **Weather:** current conditions from the nearest NWS observation station, the next 12 hours, a 7-day forecast and **active NWS alerts for your exact point**. Alerts appear as red banners at the top. Times are shown in the location's own time zone.
 * **Outside the U.S.:** the National Weather Service only covers the U.S. and its territories. For other places Chisme says so clearly, and the radar and news keep working.
 * **Live rain radar:** a Leaflet map centered on you with a **"You are here"** marker and a **📍 Recenter** button. It uses OpenStreetMap tiles plus RainViewer radar, loops through the past ~2 hours of 10-minute frames, and has play/pause, back/forward and a slider.
+* **Three views, News first:** the app always opens on **News**. The black section bar (**📰 News · 🌤️ Weather · 📡 Radar · 🎉 Events**) sticks to the top of the screen on every device while the rest of the header scrolls away. **Swipe sideways** anywhere on the page to move News ↔ Weather ↔ Events: the page follows your finger and snaps. Vertical scrolling is still handled by the browser (`touch-action: pan-y`). Swipes that start on the radar map, the hourly strip or a slider are ignored, so the map still pans normally. Each view remembers its scroll position.
+* **Dig deeper on every story:** each story ends with **Read full story · {outlet} ↗** (the article's own link from the feed), **Also reported by** (up to 3 stories on the same topic from *other* outlets, found by matching headlines among the feeds Chisme already fetched), and **🔎 More coverage ↗** (a Google News search for the headline's key words). Chisme never builds or guesses article URLs.
+* **Events near you:** upcoming events with the listing's photo (or a clearly labeled "No photo from the listing" placeholder), date/time, venue + address, a small map tile and a **Map & directions** link, **cost** (FREE / price, *only* when the listing says so; otherwise **Check price ↗** linking to the listing), and the **NWS outlook** for that day at the venue's area. Beyond the NWS 7-day window it says "Forecast not available yet." Seasonal exhibits and tours that already started are under **Still going on**.
+* **Personality:** greetings by time of day ("¡Buenos días, South San!"), weather blurbs ("Rain's in the chisme today — bring the paraguas"), and playful loading, empty and error states. When NWS alerts are active, the weather blurb turns serious. **News headlines and summaries are shown exactly as the publisher wrote them**, with no jokes or rewording next to them.
 * **Local news, ranked by distance:** **Near You** lists stories that name your neighborhood or nearby neighborhoods first, then your city, then your county. Each story has tags like `South San` or `Downtown` / `Austin`. The rest of your city's news goes under **More {city} news**. When you're outside San Antonio, a collapsible **San Antonio headlines** section keeps the SA newsrooms handy.
-* **Auto-refresh:** weather + radar every 10 min, news every 15 min, and when you return to the app if the data is stale.
-* **Installable and offline:** manifest, icon set and service worker. The **last location's** news and weather are saved on the phone and shown with an "offline, saved copy" banner when there's no signal.
+* **Auto-refresh:** weather + radar every 10 min, news every 15 min, events every 30 min, and when you return to the app if the data is stale.
+* **Installable and offline:** manifest, icon set and service worker. The **last location's** news, weather and events are saved on the phone and shown with an "offline, saved copy" banner when there's no signal.
 * A−/A+ buttons change the text size (saved on the device).
 
 No API keys are needed. All data is live, with nothing made up.
@@ -54,7 +58,7 @@ The app shows a short reminder card on iPhone with these steps. Tap ✕ to hide 
 
 **Desktop Chrome/Edge:** click **📲 Install** in the header, or the install icon in the address bar.
 
-**Offline:** once you've opened Chisme with a connection, the service worker keeps the app itself plus the latest news and weather **for the last location you viewed**. With no signal you'll see that saved copy and a yellow "You're offline" banner. The radar needs a live connection.
+**Offline:** once you've opened Chisme with a connection, the service worker keeps the app itself plus the latest news, weather and events **for the last location you viewed**. With no signal you'll see that saved copy and a yellow "You're offline" banner. The radar needs a live connection.
 
 ## How it works
 
@@ -70,6 +74,7 @@ The app shows a short reminder card on iPhone with these steps. Tap ✕ to hide 
 | `GET /api/weather?lat&lon` | NWS `/points/{lat},{lon}` (per cell, 24 h) → forecast + hourly (per NWS grid), latest observation (nearest station, with fallback), `/alerts/active?point=…` (per cell). Outside NWS coverage it returns `supported:false` and a message | 5 min, alerts 3 min |
 | `GET /api/news?lat&lon` | builds the feed list for the place (below), fetches it in parallel, cleans it up, drops near-duplicate headlines, and ranks it | 10 min per feed |
 | `GET /api/radar` | RainViewer `weather-maps.json` (list of frames) | 2 min |
+| `GET /api/events?lat&lon` | upcoming events within 45 km / 45 days: merged, de-duplicated across sources, with price (when stated), venue, coordinates and the NWS outlook per event day. Details (Visit SA venue/photo/admission, Eventbrite prices) are fetched politely in the background, and the response's `pending` count tells the page to re-check | lists 30 min, details 24 h, outlook 30 min |
 | `GET /healthz` | health check | – |
 
 If an upstream request fails, the server keeps serving the last good copy. A feed that fails is skipped and listed as unavailable under "News sources" at the bottom of the page.
@@ -132,6 +137,18 @@ Always included (San Antonio newsrooms):
 
 For the "strict" searches (county, neighborhood, South Side), a result is kept only if its **headline** names the place. Obituaries, social-media posts and roster pages are filtered out. Feeds are listed in `SA_FEEDS` / `feeds_for()` in `app.py`.
 
+### Event sources (verified 2026-09-29, all free and keyless)
+
+| Source | How | Gives | Limits |
+| --- | --- | --- | --- |
+| **Visit San Antonio** | RSS `https://www.visitsanantonio.com/event/rss/`, plus each event page's schema.org JSON-LD and its `admission` note | ~30 current/featured SA events: photo, dates, venue + coordinates, admission text, organizer site | Only within ~60 km of SA. Dates only (no start times). The RSS is capped at 30 items. robots.txt asks for a 2 s crawl delay, so detail pages are fetched one at a time in the background (~1 min for a cold cache) |
+| **Eventbrite** | public city page `https://www.eventbrite.com/d/{state}--{city}/events/` (pages 1–2): the event JSON embedded in the page. Prices come from each event page's JSON-LD `offers` | local start time, venue + coordinates, photo, price range / Free | Works for any U.S. city (Bexar County suburbs use San Antonio's page). `/api/v3/destination/events/` is disallowed by robots.txt and isn't used. Up to 40 event pages are looked up per area (1/s, cached a day). Heavy on business/networking events |
+| **AllEvents** | public city page `https://allevents.in/{city}/all`, schema.org JSON-LD | big concerts/festivals: photo, date, venue + coordinates | Dates only. No prices, so they show "Check price". Ticket-resale listings ("… Tickets") are skipped |
+
+Not used: **Ticketmaster Discovery** needs an API key. **SA Current's** calendar is a CitySpark widget (no public feed). **SA Report** has no public events feed. **San Antonio Public Library** events load from BiblioCommons' private gateway (403). **Do210** blocks non-browser clients. The City's `sa.gov` has no public calendar feed. **Meetup** listings were mostly online/low-signal.
+
+Events outside the U.S. aren't available. The Events view says so.
+
 ## Checks
 
 ```bash
@@ -139,10 +156,15 @@ For the "strict" searches (county, neighborhood, South Side), a result is kept o
 ./venv/bin/python shoot.py                   # desktop 1280x900 + phone 390x844 screenshots + radar/news/forecast checks
 ./venv/bin/python location_test.py           # geolocation: South Side SA, Austin, moving, permission denied + manual search, Paris
 ./venv/bin/python pwa_check.py               # manifest + Chrome installability errors, SW control, offline reload, install/iOS UI
+./venv/bin/python update_test.py             # phone: News first, sticky bar, swipe News↔Weather↔Events, map pan, story links, events, offline
 npx lighthouse@11 http://localhost:8211/ --only-categories=pwa,accessibility,best-practices   # v11 still has the PWA category
 ```
 
-Last run (2026-09-29, about 5:02 AM CT):
+Last run (2026-09-29, about 6:00 AM CT, after the views/events update):
+* `update_test.py` (390×844): opens on News. The section bar is at the top after scrolling 2,300 px. A swipe on a story switches News → Weather, and swiping back restores the News scroll position. Vertical drags scroll (~520 px) without switching. A sideways drag on the radar pans the map without switching. A small wiggle snaps back. 110 stories, each with read + search links, 23 with "Also reported by". Every link was checked against the feed data. 60 events with 59 real photos + 1 labeled placeholder, 57 mini-maps, 9 free / 21 priced / 30 "Check price", 37 with an NWS outlook and 23 "not available yet". Offline reload shows news, forecast and all 60 events. No console errors.
+* Lighthouse 11.7: **PWA 100, Accessibility 100, Best Practices 100** (also Accessibility 100 on `/#events`).
+
+Earlier run (2026-09-29, about 5:02 AM CT):
 * Chrome `Page.getInstallabilityErrors`: **none**.
 * Lighthouse 11: **PWA 100, Accessibility 100, Best Practices 100** (report in `screenshots/lighthouse.report.html`).
 * Offline reload kept all news and the forecast.
@@ -185,6 +207,8 @@ docker build -t chisme . && docker run -p 8080:8080 -e APP_USER_AGENT="Chisme/1.
 * **NWS is U.S.-only.** Outside the U.S. (and in some offshore spots) there's no forecast, observation or alerts, only a clear message. Radar coverage outside the U.S. depends on RainViewer.
 * **Radar resolution:** RainViewer's free tiles stop at **zoom 7** (higher zooms return a "Zoom Level Not Supported" image). Leaflet stretches the zoom-7 image (`maxNativeZoom: 7`), so the radar gets blocky at neighborhood scale. The radar isn't available offline.
 * **OpenStreetMap tiles:** `tile.openstreetmap.org` is fine for personal use but has a [usage policy](https://operations.osmfoundation.org/policies/tiles/). For a public, high-traffic deployment, use a tile provider.
+* **Events:** prices appear only when a listing states them. Many say "Check price", and prices can change, so confirm on the event page. Visit SA and AllEvents give dates without start times. Two sources sometimes disagree on a date; both listings are shown as published. Sources are HTML pages and a feed, so a site redesign can break one. It then shows as "unavailable" under Event sources and the others keep working. Event photos and map tiles need a connection (offline shows "Photo loads when you're online").
+* **"Also reported by"** matches headlines by shared key words (≥3 words, ≥50% overlap, within 5 days), so it can occasionally link a closely related story rather than the exact same one.
 * **Offline** shows only the **last location's** saved data. Moving to a new place while offline keeps showing the old place until you're back online.
 * **Current conditions** come from the nearest airport station and are usually 30–60 minutes old.
 * **iOS:** there's no automatic install prompt (Apple doesn't allow one), only the Share → Add to Home Screen hint. iOS may clear saved offline data for a home-screen app that hasn't been opened in a few weeks.

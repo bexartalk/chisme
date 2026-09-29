@@ -1,6 +1,6 @@
 /* Chisme service worker: caches the app shell and the last-loaded news/weather
    so the app opens (and shows the last saved data) without a connection. */
-const VERSION = "chisme-v13";
+const VERSION = "chisme-v14";
 const SHELL_CACHE = `${VERSION}-shell`;
 const DATA_CACHE = `${VERSION}-data`;
 const SHELL = [

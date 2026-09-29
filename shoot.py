@@ -19,7 +19,10 @@ CHECK_JS = """() => {
     radarTilesVisibleLoaded: vis.filter(i => i.complete && i.naturalWidth > 0).length,
     radarTileSample: vis[0] && vis[0].src,
     baseTilesLoaded: base.filter(i => i.complete && i.naturalWidth > 0).length,
+    view: window.__chisme.view,
     near: document.querySelectorAll('#near-list .story').length,
+    events: document.querySelectorAll('#events-list .ev').length,
+    storyLinks: document.querySelectorAll('.story .dig a.btnlink').length,
     city: document.querySelectorAll('#city-list .story').length,
     thumbs: [...document.querySelectorAll('.story img')].filter(i => i.complete && i.naturalWidth > 0).length,
     forecastDays: document.querySelectorAll('#forecast .day').length,
@@ -46,9 +49,9 @@ async def main():
             page.on("requestfailed", lambda r: logs.append(f"requestfailed: {r.url[:120]} {r.failure}"))
             await page.goto(URL, wait_until="networkidle", timeout=60000)
             await page.wait_for_selector("#city-list .story", timeout=60000)
-            await page.wait_for_selector("#forecast .day", timeout=60000)
+            await page.wait_for_selector("#forecast .day", state="attached", timeout=60000)  # lives in the Weather view
             # pause radar on latest frame so the screenshot is deterministic
-            await page.click("#r-play") if await page.text_content("#r-play") != "► Play" else None
+            await page.evaluate("document.querySelector('#r-play').textContent !== '► Play' && document.querySelector('#r-play').click()")
             await page.evaluate("document.querySelector('#r-slider').value = document.querySelector('#r-slider').max; document.querySelector('#r-slider').dispatchEvent(new Event('input'))")
             await page.wait_for_timeout(4000)
             res = await page.evaluate(CHECK_JS)
@@ -60,10 +63,19 @@ async def main():
             res["thumbsAfterEager"] = await page.evaluate("[...document.querySelectorAll('.story img')].filter(i => i.complete && i.naturalWidth > 0).length")
             await page.screenshot(path=str(OUT / f"{name}-top.png"))
             await page.screenshot(path=str(OUT / f"{name}-full.png"), full_page=True)
+            await page.locator("#near").screenshot(path=str(OUT / f"{name}-near.png"))
+            # radar + forecast live in the Weather view (News opens first)
+            await page.evaluate("window.__chisme.goView('weather', {instant: true})")
+            await page.wait_for_timeout(500)
+            await page.screenshot(path=str(OUT / f"{name}-weather.png"))
             await page.locator("#radar-sec").scroll_into_view_if_needed()
             await page.wait_for_timeout(1500)
             await page.locator("#radar-sec").screenshot(path=str(OUT / f"{name}-radar.png"))
-            await page.locator("#near").screenshot(path=str(OUT / f"{name}-near.png"))
+            await page.evaluate("window.__chisme.goView('events', {instant: true})")
+            await page.wait_for_function("() => window.__chisme.eventsReady", timeout=90000)
+            await page.wait_for_timeout(1500)
+            await page.screenshot(path=str(OUT / f"{name}-events.png"))
+            await page.evaluate("window.__chisme.goView('news', {instant: true})")
             await ctx.close()
         await b.close()
         print(json.dumps(results, indent=2))
