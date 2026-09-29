@@ -154,9 +154,11 @@ h2{margin:0;font-size:1.55rem;font-weight:900;color:var(--ink);letter-spacing:-.
 
 /* ---------- location */
 .brand-home{flex:0 0 auto;line-height:0}
-.loc-pill{display:inline-flex;align-items:center;gap:.3em;margin-top:6px;min-height:40px;padding:.2em .7em;border:2px solid #000;border-radius:999px;
-  background:#fff;color:#000;font-size:.85rem;font-weight:800;text-align:left;line-height:1.2;max-width:100%}
-.loc-pill .loc-change{text-decoration:underline;text-underline-offset:3px;white-space:nowrap;color:#000;background:var(--orange);border-radius:6px;padding:0 .3em}
+.loc-row{padding-bottom:8px}
+.loc-pill{display:inline-flex;align-items:center;gap:.4em;min-height:44px;padding:.2em .5em .2em .8em;border:2px solid #000;border-radius:999px;
+  background:#fff;color:#000;font-size:.9rem;font-weight:800;text-align:left;line-height:1.2;max-width:100%}
+#loc-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.loc-pill .loc-change{margin-left:auto;text-decoration:underline;text-underline-offset:3px;white-space:nowrap;color:#000;background:var(--orange);border-radius:6px;padding:0 .3em}
 .loc-panel{margin-top:12px}
 .loc-panel[hidden]{display:none}
 .loc-inner{background:#fff;border:3px solid #000;border-left:12px solid var(--pink);border-radius:16px;padding:14px 16px}
@@ -183,6 +185,9 @@ h2{margin:0;font-size:1.55rem;font-weight:900;color:var(--ink);letter-spacing:-.
 #sa-sec .news-list{margin-top:10px}
 .feeds-status li{margin:.2em 0;overflow-wrap:anywhere}
 @media (max-width:600px){
-  .loc-pill{font-size:.78rem;min-height:36px}
-  .brand-text{flex:1}
+  .loc-pill{display:flex;width:100%;font-size:.85rem}
+  /* on phones the header scrolls away so stories get the whole screen */
+  .topbar{position:relative}
+  .topbar .topbar-inner{padding-top:8px;padding-bottom:6px}
+  .card,#alerts{scroll-margin-top:10px}
 }

@@ -21,7 +21,10 @@
     return n;
   };
   // Times use the location's time zone (from NWS) or the device's.
-  let TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const DEVICE_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  let TZ = DEVICE_TZ;
+  let lastWeather = null;
+  const rendered = { weather: null, news: null };  // which location each section is showing
   const tzAbbr = (d = new Date()) => {
     try { return new Intl.DateTimeFormat("en-US", { timeZone: TZ, timeZoneName: "short" }).formatToParts(d).find((p) => p.type === "timeZoneName").value; }
     catch { return ""; }
@@ -89,15 +92,19 @@
   const shortPlace = () => (loc.place && (loc.place.neighborhood || loc.place.city)) || placeName();
   function saveLoc() { localStorage.setItem(LOC_KEY, JSON.stringify(loc)); }
   function renderLocLabel() {
-    const pre = loc.source === "default" ? "Showing: " : "Near: ";
-    $("#loc-label").textContent = pre + placeName() + (loc.source === "default" ? " (default)" : "");
+    const pre = loc.source === "default" ? "Default: " : "Near: ";
+    $("#loc-label").textContent = pre + placeName();
+    $("#loc-btn").setAttribute("aria-label", `${pre}${placeName()}. Change location`);
     const city = loc.place && loc.place.city;
     $("#nav-city").textContent = city ? city : "More news";
     $("#city-title").textContent = city ? `More ${city} news` : "More local news";
+    if (lastWeather && rendered.weather === q()) renderAlerts(lastWeather);  // keep alert wording in sync
   }
   async function lookupPlace() {
+    const forQ = q();
     try {
-      const p = await getJSON(`/api/place?${q()}`);
+      const p = await getJSON(`/api/place?${forQ}`);
+      if (forQ !== q()) return;  // location changed while we were waiting
       loc.place = { neighborhood: p.neighborhood, city: p.city, county: p.county, state: p.state_abbr || p.state, country_code: p.country_code };
       // manual searches keep their typed label (e.g. a ZIP) unless we have something nicer
       if (loc.source !== "manual" || !loc.label || /^\d{5}/.test(loc.label)) loc.label = p.label || loc.label;
@@ -289,13 +296,13 @@
     }
   }
   function renderUnsupported(w) {
-    const msg = `${w.message} ${placeName()} is outside NWS coverage, so there's no forecast here. Radar and news still work.`;
+    const msg = `${w.message} This location is outside NWS coverage, so there's no forecast here. Radar and news still work.`;
     $("#current").replaceChildren(el("p", { class: "notice", text: "🌎 " + msg }));
     $("#hourly").replaceChildren();
     $("#forecast").replaceChildren(el("p", { class: "notice", text: "Forecasts are available for U.S. locations only." }));
     $("#fc-updated").textContent = "";
+    $("#fc-credit").textContent = "Weather data: National Weather Service (U.S. only, api.weather.gov)";
   }
-  const rendered = { weather: null, news: null };  // which location each section is showing (for tests)
   let wxSeq = 0;
   async function loadWeather() {
     const seq = ++wxSeq;
@@ -304,7 +311,9 @@
       const w = await getJSON(`/api/weather?${q()}`);
       if (seq !== wxSeq) return;  // a newer location won
       rendered.weather = q();
+      lastWeather = w;
       if (w.location && w.location.tz) { TZ = w.location.tz; $("#tz-name").textContent = `${w.location.city || "local"} time (${tzAbbr()})`; }
+      else { TZ = DEVICE_TZ; $("#tz-name").textContent = `your device's time (${tzAbbr()})`; }
       renderAlerts(w);
       if (w.supported === false) renderUnsupported(w);
       else {

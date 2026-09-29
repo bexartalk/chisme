@@ -38,11 +38,10 @@ async def ready(page, label_re, timeout=90000):
     await page.wait_for_timeout(2500)
 
 async def shots(page, name):
-    await page.evaluate("window.scrollTo(0,0)")
+    await page.evaluate("document.documentElement.style.scrollBehavior='auto'; window.scrollTo(0,0)")
     await page.wait_for_timeout(400)
     await page.screenshot(path=str(OUT / f"{name}.png"))
-    await page.locator("#near").scroll_into_view_if_needed()
-    await page.evaluate("window.scrollBy(0, -170)")
+    await page.evaluate("document.documentElement.style.scrollBehavior='auto'; window.scrollTo(0, document.querySelector('#near').getBoundingClientRect().top + window.scrollY - 8)")
     await page.wait_for_timeout(600)
     await page.screenshot(path=str(OUT / f"{name}-news.png"))
 
@@ -94,7 +93,7 @@ async def main():
         await ready(pg, "San Antonio")
         await pg.fill("#loc-q", "Houston, TX")
         report["c_denied_default"] = await pg.evaluate(STATE_JS)
-        await pg.evaluate("window.scrollTo(0,0)")
+        await pg.evaluate("document.documentElement.style.scrollBehavior='auto'; window.scrollTo(0,0)")
         await pg.screenshot(path=str(OUT / "location-denied.png"))
         await pg.click("#loc-form button[type=submit]")
         await pg.wait_for_selector("#loc-results .loc-result", timeout=30000)   # "Houston, TX" vs "Houston County"
@@ -118,7 +117,7 @@ async def main():
         await pg.goto(URL, wait_until="domcontentloaded")
         await ready(pg, "Near: .*(Paris|France)")
         report["d_non_us"] = await pg.evaluate(STATE_JS)
-        await pg.evaluate("window.scrollTo(0,0)")
+        await pg.evaluate("document.documentElement.style.scrollBehavior='auto'; window.scrollTo(0,0)")
         await pg.screenshot(path=str(OUT / "location-nonus.png"))
         await c.close()
         await b.close()

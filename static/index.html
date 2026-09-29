@@ -26,9 +26,6 @@
         <a href="/" class="brand-home"><img src="/static/icons/header-icon.png" alt="Chisme home" width="52" height="52"></a>
         <div class="brand-text">
           <h1 class="brand-name">Chisme</h1>
-          <button type="button" id="loc-btn" class="loc-pill" aria-haspopup="dialog" aria-controls="loc-panel">
-            <span aria-hidden="true">📍</span> <span id="loc-label">Near: San Antonio, TX</span> <span class="loc-change">Change</span>
-          </button>
         </div>
       </div>
       <div class="actions">
@@ -38,6 +35,11 @@
           <button type="button" id="font-up" aria-label="A+ bigger text">A+</button>
         </div>
       </div>
+    </div>
+    <div class="wrap loc-row">
+      <button type="button" id="loc-btn" class="loc-pill" aria-haspopup="dialog" aria-controls="loc-panel">
+        <span aria-hidden="true">📍</span> <span id="loc-label">Near: San Antonio, TX</span> <span class="loc-change">Change</span>
+      </button>
     </div>
     <nav class="wrap nav" aria-label="Sections">
       <a href="#weather">Weather</a><a href="#radar-sec">Radar</a><a href="#near">Near You</a><a href="#city" id="nav-city">More news</a>
@@ -56,7 +58,7 @@
       <form id="loc-form" autocomplete="off">
         <label for="loc-q">Or type a city or ZIP code</label>
         <div class="loc-search">
-          <input id="loc-q" name="q" type="search" inputmode="search" placeholder="City, State or ZIP code" minlength="2" maxlength="120" required>
+          <input id="loc-q" name="q" type="search" inputmode="search" placeholder="City or ZIP code" minlength="2" maxlength="120" required>
           <button type="submit" class="primary">Search</button>
         </div>
       </form>
