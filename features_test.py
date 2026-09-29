@@ -41,7 +41,7 @@ with sync_playwright() as p:
 
     # ---- nav: News, Sports, Weather, Events (no Radar tab); A−/A+ not on the home screen
     tabs = page.eval_on_selector_all(".tab", "ts => ts.map(t => t.textContent.trim())")
-    check([t.split()[-1] for t in tabs] == ["News", "Sports", "Weather", "Events"], f"nav tabs {tabs}")
+    check([t.split()[-1] for t in tabs] == ["News", "Sports", "dieta?", "Weather", "Events"], f"nav tabs {tabs}")
     check(not page.is_visible("#font-up"), "A−/A+ are no longer on the home screen")
     check(page.eval_on_selector("#tabs", "e => getComputedStyle(e).position") == "fixed", "nav is position:fixed")
 
@@ -136,8 +136,8 @@ with sync_playwright() as p:
     fs1 = page.evaluate("getComputedStyle(document.documentElement).fontSize")
     check(fs1 != fs0 and page.evaluate("localStorage.getItem('chisme-font-px')"), f"A+ in Settings: {fs0} → {fs1} (saved)")
     page.click("#font-down"); page.wait_for_timeout(200)
-    page.check("#settings input[name=greet][value=chismosa]")
-    check("chismosa" in page.eval_on_selector("#greet-hi", "e => e.textContent"), "chismosa choice updates the greeting")
+    check(not page.query_selector("#settings input[name=greet]") and not page.query_selector(".greet-switch"), "no chismoso/chismosa choice (Settings or home card)")
+    check(page.eval_on_selector("#greet-hi", "e => e.textContent").endswith(", chismosos!"), "greeting is plural: " + page.eval_on_selector("#greet-hi", "e => e.textContent"))
     page.check("#settings input[name=deftab][value=sports]")
     page.fill("#set-loc-q", "78704"); page.click("#set-loc-form button[type=submit]")
     page.wait_for_function("/Austin/.test(document.querySelector('#set-loc-now').textContent)", timeout=60000)
@@ -163,11 +163,11 @@ with sync_playwright() as p:
     page.click("#settings-close"); page.wait_for_timeout(300)
     check(not page.evaluate("document.querySelector('#settings').open"), "Done closes Settings")
 
-    # persisted: reload opens on Sports, dark, chismosa
+    # persisted: reload opens on Sports, dark (greeting stays plural)
     page.reload()
     page.wait_for_function("window.__chisme && __chisme.ready", timeout=120000)
     st = page.evaluate("() => ({ theme: document.documentElement.dataset.theme, view: __chisme.view, greet: document.querySelector('#greet-hi').textContent, ls: {...localStorage} })")
-    check(st["theme"] == "dark" and st["view"] == "sports" and "chismosa" in st["greet"], f"settings persist across reload: theme {st['theme']}, opens on {st['view']}, '{st['greet']}'")
+    check(st["theme"] == "dark" and st["view"] == "sports" and "chismosos" in st["greet"] and "chisme-greeting-word" not in st["ls"], f"settings persist across reload: theme {st['theme']}, opens on {st['view']}, '{st['greet']}'")
     keys = sorted(k for k in st["ls"] if k.startswith("chisme-"))
     print("    localStorage:", {k: st["ls"][k] for k in keys if k in ("chisme-theme", "chisme-default-tab", "chisme-greeting-word", "chisme-reduce-motion", "chisme-font-px", "chisme-sports-league")})
 
@@ -197,7 +197,7 @@ with sync_playwright() as p:
     side_by_side(dark_shots, OUT / "dark-mode.png")
     page.click("#settings-close")
     # light mode contrast on the new Sports view too
-    page.evaluate("localStorage.setItem('chisme-theme', 'light'); localStorage.setItem('chisme-default-tab', 'news'); localStorage.setItem('chisme-greeting-word', 'chismoso')")
+    page.evaluate("localStorage.setItem('chisme-theme', 'light'); localStorage.setItem('chisme-default-tab', 'news')")
     page.reload(); page.wait_for_function("window.__chisme && __chisme.ready", timeout=120000)
     check(page.evaluate("__chisme.view") == "news", "default tab back to News")
     if AXE.exists():

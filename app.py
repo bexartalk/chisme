@@ -14,6 +14,7 @@ and serves the single-page PWA frontend."""
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import html
 import json
 import math
@@ -538,10 +539,63 @@ def score_item(it: dict, terms: list[dict], city_context: bool = False) -> tuple
     return score, best, labels, title_hit
 
 
-def feeds_for(place: dict) -> list[dict]:
+# ---------------------------------------------------------------- metros: the app follows you anywhere in the U.S.
+# data/metros.json lists metros with hand-verified local outlets (San Antonio, Houston, Austin, Dallas–Fort Worth,
+# Miami). Anywhere else: Google News for the city/county, the city's event pages, NWS for the point, nearest teams.
+try:
+    METROS = json.loads((BASE / "data" / "metros.json").read_text())["metros"]
+except Exception:
+    METROS = []
+try:
+    PRO_TEAMS = json.loads((BASE / "data" / "pro_teams.json").read_text())
+except Exception:
+    PRO_TEAMS = {"nba": [], "nfl": []}
+
+
+def metro_for(lat: float, lon: float, place: dict | None = None) -> dict | None:
+    """The curated metro around this point (by distance, or by county), else None."""
+    best = None
+    for m in METROS:
+        d = km_between(lat, lon, m["lat"], m["lon"])
+        by_county = bool(place and place.get("county") in m.get("counties", []) and
+                         (place.get("state_abbr") or place.get("state")) in (m["state"], None))
+        if d <= m["radius_km"] or by_county:
+            if best is None or d < best[0]:
+                best = (d, m)
+    return best[1] if best else None
+
+
+def in_metro_core(place: dict, m: dict | None) -> bool:
+    """Is the point in the metro's own city/counties (so every story from its outlets counts as local)?"""
+    if not m:
+        return False
+    return place.get("city") == m["name"] or place.get("county") in m.get("counties", [])
+
+
+def metro_news_feeds(m: dict | None) -> list[dict]:
+    if not m:
+        return []
+    if m["feeds"] == "SA_FEEDS":
+        return list(SA_FEEDS)
+    out = []
+    for f in m["feeds"]:
+        g = gnews(f["id"], f["name"], f["gnews"]) if f.get("gnews") else {"id": f["id"], "name": f["name"], "kind": "direct", "url": f["url"]}
+        out.append(dict(g, sa=True))   # "sa" = one of the metro's own outlets (named before Chisme left San Antonio)
+    return out
+
+
+def metro_info(lat: float, lon: float, place: dict) -> dict:
+    """What the page needs to adapt its copy, header skyline and defaults."""
+    m = metro_for(lat, lon, place)
+    city = place.get("city") or (m and m["name"]) or place.get("county")
+    return {"id": m["id"] if m else None, "name": m["name"] if m else city, "skyline": m["skyline"] if m else "city",
+            "city": city, "state": place.get("state_abbr") or place.get("state"), "in_sa": bool(m and m["id"] == "sa")}
+
+
+def feeds_for(place: dict, metro: dict | None = None) -> list[dict]:
     city, st, county = place.get("city"), place.get("state_abbr") or place.get("state") or "", place.get("county")
-    in_sa = city == "San Antonio" or county == "Bexar County"
-    feeds = list(SA_FEEDS)
+    in_sa = bool(metro and metro["id"] == "sa" and in_metro_core(place, metro))
+    feeds = metro_news_feeds(metro)   # only the local outlets of the metro you're in (none outside the curated metros)
     if city and not in_sa:
         feeds.append(gnews("city", f"Google News: {city}", f'"{city}" {st} when:3d'.strip()))
     if county:
@@ -623,9 +677,10 @@ async def build_news(lat: float, lon: float) -> dict:
         except Exception:
             pass
     terms = build_terms(place)
-    feeds = feeds_for(place)
+    metro = metro_for(lat, lon, place)
+    feeds = feeds_for(place, metro)
     results = await asyncio.gather(*(fetch_feed(f) for f in feeds))
-    in_sa = place.get("city") == "San Antonio" or place.get("county") == "Bexar County"
+    in_sa = in_metro_core(place, metro)   # in the metro's own city/counties: all of its outlets' stories are local
     now = time.time()
     seen: set[str] = set()
     near, more, sa_other = [], [], []
@@ -674,12 +729,13 @@ async def build_news(lat: float, lon: float) -> dict:
         "place": {k: place.get(k) for k in ("label", "neighborhood", "city", "county", "state", "state_abbr",
                                             "country_code", "south_side", "postcode")}
                  | {"nearby": [{"name": n["name"], "km": n["km"]} for n in place["nearby"][:10]]},
-        "in_san_antonio": in_sa,
+        "in_san_antonio": bool(metro and metro["id"] == "sa" and in_sa),
+        "metro": metro_info(lat, lon, place),
         "near": near,
         "more": more,
-        "san_antonio": sa_other,
+        "metro_other": sa_other,   # the metro's outlets, for a suburb that isn't in the metro's core counties
         "feeds": [r["status"] for r in results],
-    }
+    } | ({"san_antonio": sa_other} if metro and metro["id"] == "sa" else {})   # v23 clients read this key
 
 
 # ---------------------------------------------------------------- weather (NWS)
@@ -1552,11 +1608,13 @@ async def _fetch_food(src: dict) -> list[dict]:
         if src.get("gnews"):
             pub = (e.get("source") or {}).get("title")
             title = re.sub(r"\s+-\s+" + re.escape(pub) + r"$", "", title) if pub else re.sub(r"\s+-\s+[^-]{2,60}$", "", title)
+            if src["id"] == "gn-food" and pub:
+                outlet = pub   # a city-wide food search: credit the publisher, not the search
         if src.get("food_only") and not FOOD_RX.search(title):
             continue
         if src.get("sa_only") and not SA_RX.search(title):
             continue
-        if src["kind"] == "outlet" and ELSEWHERE_RX.search(title) and not SA_RX.search(title):
+        if src["kind"] == "outlet" and not src.get("anywhere") and ELSEWHERE_RX.search(title) and not SA_RX.search(title):
             continue  # statewide food desks: keep it local
         if src["kind"] == "creator":
             title = re.sub(r"(\s*#[\w]+)+\s*$", "", title).strip() or title  # trailing hashtag soup
@@ -1570,33 +1628,141 @@ async def _fetch_food(src: dict) -> list[dict]:
     return out
 
 
+# --- curated TikTok food videos (data/food_tiktok.json). TikTok has no public RSS or keyless listing API, so
+# Chisme only shows video links a person picked; each is looked up with TikTok's official oEmbed endpoint and
+# played with TikTok's official embed player (https://www.tiktok.com/player/v1/<id>). Nothing is scraped.
+TIKTOK_FILE = BASE / "data" / "food_tiktok.json"
+TT_VIDEO_RX = re.compile(r"^https://(?:www\.|m\.)?tiktok\.com/@([\w.]+)/video/(\d{15,20})\b")
+
+
+def tiktok_curated() -> dict:
+    try:
+        d = json.loads(TIKTOK_FILE.read_text())
+        return {"creators": [c for c in d.get("creators", []) if c.get("handle")], "videos": list(d.get("videos", []))}
+    except Exception:
+        return {"creators": [], "videos": []}
+
+
+def tiktok_sources() -> list[dict]:
+    d = tiktok_curated()
+    out = []
+    for c in d["creators"]:
+        h = c["handle"].lower().lstrip("@")
+        ids = sorted({m.group(2) for v in d["videos"] if (m := TT_VIDEO_RX.match(v.strip())) and m.group(1).lower() == h})
+        out.append({"id": "tt-" + h, "kind": "creator", "platform": "tiktok", "handle": h, "ids": ids,
+                    "name": f"{c.get('name') or h} (TikTok)", "creator_name": c.get("name") or h,
+                    "home": f"https://www.tiktok.com/@{h}",
+                    "url": f"tiktok:@{h}:" + hashlib.sha1(",".join(ids).encode()).hexdigest()[:10]})  # new links → new cache key
+    return out
+
+
+async def _tiktok_oembed(vid_url: str) -> dict:
+    r = await client().get("https://www.tiktok.com/oembed", params={"url": vid_url})
+    r.raise_for_status()
+    return r.json()
+
+
+async def _fetch_tiktok(src: dict) -> list[dict]:
+    async def one(vid):
+        url = f"https://www.tiktok.com/@{src['handle']}/video/{vid}"
+        try:
+            o = await cached("ttoembed:" + vid, 12 * 3600, lambda: _tiktok_oembed(url))
+        except Exception:
+            return None   # removed / private / TikTok down: just skip it
+        if (o.get("author_unique_id") or "").lower() != src["handle"]:
+            return None   # only the listed creator's own videos
+        caption = re.sub(r"\s+", " ", o.get("title") or "").strip()
+        title = re.sub(r"(\s*#[\w\u00C0-\u024F]+)+\s*$", "", caption).strip()   # trailing hashtag soup
+        title = clean_text(title, 200) or f"TikTok by @{src['handle']}"
+        return {"title": title, "url": url, "creator": src["creator_name"], "outlet": src["creator_name"], "author": None,
+                "kind": "creator", "platform": "tiktok", "tiktok": vid, "video": True,
+                "published": float(int(vid) >> 32),   # TikTok ids start with the upload time (unix seconds)
+                "image": o.get("thumbnail_url"), "summary": "", "source_id": src["id"],
+                "place": guess_place(re.sub(r"#[\w\u00C0-\u024F]+", " ", caption))}
+    res = await asyncio.gather(*(one(v) for v in src["ids"]))
+    return [r for r in res if r]
+
+
+async def _frameable(url: str) -> bool:
+    """Can this site be shown in an <iframe> inside Chisme? (no X-Frame-Options, no restrictive frame-ancestors)"""
+    try:
+        r = await client().get(url, follow_redirects=True)
+    except Exception:
+        return False
+    if r.status_code >= 400 or not str(r.url).startswith("https://"):
+        return False
+    xfo = (r.headers.get("x-frame-options") or "").lower()
+    if "deny" in xfo or "sameorigin" in xfo:
+        return False
+    for csp in r.headers.get_list("content-security-policy"):
+        m = re.search(r"frame-ancestors([^;]*)", csp, re.I)
+        if m and "*" not in m.group(1).split():
+            return False
+    return True
+
+
+def food_sources_for(metro: dict | None, place: dict) -> list[dict]:
+    """San Antonio: its creators + food desks. Elsewhere: that metro's food desks (if curated), a Google News food
+    search for the city, and San Antonio's creators kept but labeled as San Antonio (road-trip picks)."""
+    if metro and metro["id"] == "sa":
+        return FOOD_SOURCES + tiktok_sources()
+    out = []
+    for f in (metro or {}).get("food", []):
+        out.append({"id": f["id"], "kind": "outlet", "name": f["name"], "home": f["home"], "anywhere": True, "gnews": bool(f.get("gnews")),
+                    "food_only": bool(f.get("gnews")),   # site-wide searches: keep only headlines about food
+                    "url": GN + urllib.parse.quote(f["gnews"]) if f.get("gnews") else f["url"]})
+    city, st = place.get("city") or (metro or {}).get("name"), place.get("state_abbr") or ""
+    if city:
+        q = f'"{city}" {st} (restaurant OR restaurants OR "food truck" OR bakery OR chef OR tacos OR barbecue OR brunch) when:30d'.replace("  ", " ")
+        out.append({"id": "gn-food", "kind": "outlet", "name": f"Google News: {city} food", "gnews": True, "anywhere": True, "food_only": True,
+                    "url": GN + urllib.parse.quote(q), "home": "https://news.google.com/search?q=" + urllib.parse.quote(q)})
+    for c in [x for x in FOOD_SOURCES if x["kind"] == "creator"] + tiktok_sources():
+        out.append(dict(c, elsewhere="San Antonio", name=c["name"] + " · San Antonio"))
+    return out
+
+
 async def build_food(lat: float, lon: float) -> dict:
-    if km_between(lat, lon, *SA_CENTER) > 80:
-        return {"generated": time.time(), "items": [], "sources": [],
-                "message": "Food reviews are San Antonio-only for now."}
+    try:
+        place = dict(await get_place(lat, lon))
+    except Exception:
+        place = {}
+    metro = metro_for(lat, lon, place)
 
     async def one(src):
         t0 = time.time()
         try:
-            items = await cached("food:" + src["url"], FOOD_TTL, lambda: _fetch_food(src))
+            fetch = _fetch_tiktok if src.get("platform") == "tiktok" else _fetch_food
+            items = await cached("food:" + src["url"], FOOD_TTL, lambda: fetch(src))
+            if src["kind"] == "outlet":   # in-app reader: frame the article only where the site allows it
+                ok = False
+                if items and not src.get("gnews"):   # Google News redirect links never allow framing
+                    host = urllib.parse.urlsplit(items[0]["url"]).netloc
+                    ok = await cached("frame:" + host, 12 * 3600, lambda: _frameable(items[0]["url"]))
+                for it in items:
+                    it["frame"] = ok
+            if src.get("elsewhere"):   # San Antonio creators shown elsewhere: labeled, never mixed in as "local"
+                items = [dict(i, elsewhere=src["elsewhere"]) for i in items]
             return items, {"id": src["id"], "name": src["name"], "kind": src["kind"], "home": src["home"], "ok": True,
+                           "platform": src.get("platform", "rss"), "listed": len(src["ids"]) if "ids" in src else None,
                            "count": len(items), "ms": int((time.time() - t0) * 1000)}
         except Exception as ex:
             return [], {"id": src["id"], "name": src["name"], "kind": src["kind"], "home": src["home"], "ok": False,
                         "error": f"{type(ex).__name__}: {ex}"[:200]}
 
-    res = await asyncio.gather(*(one(s) for s in FOOD_SOURCES))
+    sources = food_sources_for(metro, place)   # re-reads the TikTok list each build, so edits need no restart
+    res = await asyncio.gather(*(one(s) for s in sources))
     cutoff = time.time() - FOOD_DAYS * 86400
     items, seen = [], set()
-    for its, _ in res:
-        for it in sorted((i for i in its if (i["published"] or 0) >= cutoff), key=lambda i: -(i["published"] or 0))[:8]:
+    for its, _ in res:   # hand-picked TikToks skip the age cutoff: someone chose them
+        for it in sorted((i for i in its if i.get("tiktok") or (i["published"] or 0) >= cutoff), key=lambda i: -(i["published"] or 0))[:8]:
             k = norm_title(it["title"])
             if k not in seen:
                 seen.add(k)
                 items.append(it)
     items.sort(key=lambda i: -(i["published"] or 0))
-    return {"generated": time.time(), "items": items, "days": FOOD_DAYS, "message": None,
-            "sources": [st for _, st in res]}
+    info = metro_info(lat, lon, place)
+    return {"generated": time.time(), "items": items, "days": FOOD_DAYS, "message": None, "metro": info, "city": info["city"],
+            "sources": [dict(st, elsewhere=src.get("elsewhere")) for (_, st), src in zip(res, sources)]}
 
 
 
@@ -1635,7 +1801,7 @@ def _espn_score(x):
     return v if v not in (None, "") else None
 
 
-def espn_game(e: dict, league: str) -> dict:
+def espn_game(e: dict, league: str, fav: set | None = None) -> dict:
     cc = (e.get("competitions") or [{}])[0]
     st = (cc.get("status") or e.get("status") or {}).get("type") or {}
     side = {}
@@ -1653,7 +1819,8 @@ def espn_game(e: dict, league: str) -> dict:
     return {"id": str(e.get("id")), "league": league, "date": e.get("date"), "state": st.get("state") or "pre",
             "detail": st.get("shortDetail") or st.get("detail") or st.get("description"), "home": side.get("home"), "away": side.get("away"),
             "note": notes[0] if notes else ((e.get("seasonType") or {}).get("name") if (e.get("seasonType") or {}).get("type") in (1, 3) else None),
-            "tv": ", ".join(tv[:2]) or None, "link": link, "texas": bool(abbrs & TX_TEAMS.get(league, set()))}
+            "tv": ", ".join(tv[:2]) or None, "link": link,
+            "texas": bool(abbrs & (fav if fav is not None else TX_TEAMS.get(league, set())))}   # "texas" = one of your home-state teams
 
 
 def espn_articles(d: dict, limit: int = 12) -> list[dict]:
@@ -1715,9 +1882,9 @@ def _texas_first(games: list[dict]) -> list[dict]:
     return sorted(games, key=lambda g: (not g["texas"], order.get(g["state"], 3), g["date"] or ""))
 
 
-async def espn_scoreboard(league: str, path: str) -> list[dict]:
+async def espn_scoreboard(league: str, path: str, fav: set | None = None) -> list[dict]:
     d = await sjson(f"{ESPN}/{path}/scoreboard", 120)
-    return _texas_first([espn_game(e, league) for e in d.get("events") or []])
+    return _texas_first([espn_game(e, league, fav) for e in d.get("events") or []])
 
 
 async def espn_news(path: str, team: str | None = None, limit: int = 12) -> list[dict]:
@@ -1737,15 +1904,27 @@ async def feed_items(feed: dict) -> list[dict]:
     return out
 
 
-async def spurs_block(log: SportsLog) -> dict:
-    team = await log.run("ESPN: Spurs team page", "https://www.espn.com/nba/team/_/name/sa/san-antonio-spurs",
-                         sjson(f"{ESPN}/basketball/nba/teams/{SPURS_ID}", 15 * 60), {})
+def _nba_fan_feeds(tm: dict, metro: dict | None) -> list[dict]:
+    """Spurs: the hand-picked fan feeds. Other teams: the metro's SB Nation blog (if curated) + a Google News search."""
+    if tm["id"] == SPURS_ID:
+        return SPURS_FEEDS
+    feeds = [dict(f, kind="blog") for f in (metro or {}).get("nba_fans", []) if metro and _nearest_nba(metro["lat"], metro["lon"])["id"] == tm["id"]]
+    feeds.append(dict(gnews("gn-spurs", f"Google News: {tm['short']}", f'"{tm["name"]}" when:3d'), home="https://news.google.com/"))
+    return feeds
+
+
+async def spurs_block(log: SportsLog, tm: dict | None = None, metro: dict | None = None) -> dict:
+    """The home NBA team's page (the Spurs in San Antonio; the nearest NBA team anywhere else)."""
+    tm = tm or next(t for t in PRO_TEAMS["nba"] if t["id"] == SPURS_ID)
+    TEAM_ID, nm, ab = tm["id"], tm["short"], tm["abbr"].lower()
+    espn_home = f"https://www.espn.com/nba/team/_/name/{ab}/{tm.get('slug') or ''}"
+    team = await log.run(f"ESPN: {nm} team page", espn_home, sjson(f"{ESPN}/basketball/nba/teams/{TEAM_ID}", 15 * 60), {})
     t = (team or {}).get("team") or {}
     rec = ((t.get("record") or {}).get("items") or [{}])[0].get("summary")
     # schedule: this season (preseason + regular season + playoffs)
     async def sched(qs):
         try:
-            d = await sjson(f"{ESPN}/basketball/nba/teams/{SPURS_ID}/schedule{qs}", 10 * 60)
+            d = await sjson(f"{ESPN}/basketball/nba/teams/{TEAM_ID}/schedule{qs}", 10 * 60)
             return d, [espn_game(e, "nba") for e in d.get("events") or []]
         except Exception:
             return {}, []
@@ -1761,13 +1940,13 @@ async def spurs_block(log: SportsLog) -> dict:
         last_season = f"{season - 2}-{str(season - 1)[2:]}"
     live = [g for g in games if g["state"] == "in"]
     upcoming = [g for g in games if g["state"] == "pre"][:6]
-    log.sources.append({"name": "ESPN: Spurs schedule", "home": "https://www.espn.com/nba/team/schedule/_/name/sa", "ok": bool(games or done), "count": len(games)})
+    log.sources.append({"name": f"ESPN: {nm} schedule", "home": f"https://www.espn.com/nba/team/schedule/_/name/{ab}", "ok": bool(games or done), "count": len(games)})
     # standings: this season, or last season's final table before any games are played
     standings = None
     try:
         async def table(qs=""):
             d = await sjson(f"{ESPN_STANDINGS}/basketball/nba/standings{qs}", 30 * 60)
-            west = next(ch for ch in d["children"] if "West" in ch["name"])
+            west = next(ch for ch in d["children"] if tm.get("conf", "West") in ch["name"])
             rows = []
             for e in west["standings"]["entries"]:
                 st = {x["name"]: x for x in e["stats"]}
@@ -1775,7 +1954,7 @@ async def spurs_block(log: SportsLog) -> dict:
                 disp = lambda k: (st.get(k) or {}).get("displayValue")
                 rows.append({"team": e["team"].get("displayName"), "abbr": e["team"].get("abbreviation"), "seed": val("playoffSeed"),
                              "w": int(val("wins") or 0), "l": int(val("losses") or 0), "gb": disp("gamesBehind"), "streak": disp("streak"),
-                             "spurs": str(e["team"].get("id")) == SPURS_ID})
+                             "spurs": str(e["team"].get("id")) == TEAM_ID})   # "spurs" = your team's row
             rows.sort(key=lambda r: (r["seed"] or 99, -r["w"]))
             return {"season": west["standings"].get("seasonDisplayName"), "conference": west["name"], "rows": rows}
         standings = await table()
@@ -1785,19 +1964,24 @@ async def spurs_block(log: SportsLog) -> dict:
         log.sources.append({"name": "ESPN: NBA standings", "home": "https://www.espn.com/nba/standings", "ok": True, "count": len(standings["rows"])})
     except Exception as ex:
         log.sources.append({"name": "ESPN: NBA standings", "home": "https://www.espn.com/nba/standings", "ok": False, "error": f"{type(ex).__name__}: {ex}"[:160]})
-    news = await log.run("ESPN: Spurs news", "https://www.espn.com/nba/team/_/name/sa/san-antonio-spurs",
-                         espn_news("basketball/nba", SPURS_ID, 16), [])
-    feeds = await asyncio.gather(*(log.run(f["name"], f["home"], feed_items(f), []) for f in SPURS_FEEDS))
-    by = {f["id"]: items for f, items in zip(SPURS_FEEDS, feeds)}
+    news = await log.run(f"ESPN: {nm} news", espn_home, espn_news("basketball/nba", TEAM_ID, 16), [])
+    fan_feeds = _nba_fan_feeds(tm, metro)
+    feeds = await asyncio.gather(*(log.run(f["name"], f["home"], feed_items(f), []) for f in fan_feeds))
+    by = {f["id"]: items for f, items in zip(fan_feeds, feeds)}
+    names = {f["id"]: f["name"] for f in fan_feeds}
     now = time.time()
     fresh = lambda items, days: [i for i in items if not i.get("published") or now - i["published"] < days * 86400]
     return {"record": rec, "standing": t.get("standingSummary"), "season": (d1.get("season") or {}).get("displayName"),
             "live": live, "last": done[-3:][::-1], "last_season": last_season, "upcoming": upcoming, "standings": standings,
-            "news": _merge_news(news, fresh(by["gn-spurs"], 3), limit=14),
-            "reddit": by["reddit"][:8], "videos": fresh(by["yt-spurs"], 21)[:8], "blog": fresh(by["ptr"], 14)[:6]}
+            "news": _merge_news(news, fresh(by.get("gn-spurs", []), 3), limit=14),
+            "reddit": by.get("reddit", [])[:8], "videos": fresh(by.get("yt-spurs", []), 21)[:8],
+            "blog": fresh(by.get("ptr", by.get("blog", [])), 14)[:6],
+            "team": {k: tm.get(k) for k in ("id", "abbr", "name", "short", "location", "conf", "slug")},
+            "fans": {"blog": names.get("ptr") or names.get("blog"), "reddit": "r/NBASpurs" if "reddit" in names else None,
+                     "youtube": names.get("yt-spurs")}}
 
 
-def mlb_game(g: dict, league: str = "mlb") -> dict:
+def mlb_game(g: dict, league: str = "mlb", fav: set | None = None) -> dict:
     st = g.get("status") or {}
     code = st.get("abstractGameCode")
     state = {"F": "post", "L": "in"}.get(code, "pre")
@@ -1822,14 +2006,14 @@ def mlb_game(g: dict, league: str = "mlb") -> dict:
     link = f"https://www.mlb.com/gameday/{g['gamePk']}" if league == "mlb" else f"https://www.milb.com/gameday/{g['gamePk']}"
     return {"id": str(g["gamePk"]), "league": league, "date": g.get("gameDate"), "state": state, "detail": detail,
             "home": side["home"], "away": side["away"], "note": g.get("seriesDescription") if g.get("gameType") not in ("R", None) else None,
-            "tv": None, "link": link, "texas": bool(ids & MLB_TX_IDS) or league == "milb",
+            "tv": None, "link": link, "texas": bool(ids & (fav if fav is not None else MLB_TX_IDS)) or league == "milb",
             "venue": (g.get("venue") or {}).get("name")}
 
 
-async def mlb_scores() -> dict:
+async def mlb_scores(fav: set | None = None) -> dict:
     today = datetime.now(ZoneInfo("America/Chicago")).date()
     d = await sjson(f"{MLBAPI}/schedule?sportId=1&startDate={today - timedelta(days=3)}&endDate={today + timedelta(days=3)}&hydrate=linescore,team", 90)
-    dates = {x["date"]: [mlb_game(g) for g in x["games"]] for x in d.get("dates") or []}
+    dates = {x["date"]: [mlb_game(g, "mlb", fav) for g in x["games"]] for x in d.get("dates") or []}
     t = str(today)
     show = t if t in dates else max([k for k in dates if k < t], default=None) or min(dates, default=None)
     nxt = min([k for k in dates if k > (show or t)], default=None)
@@ -1837,52 +2021,114 @@ async def mlb_scores() -> dict:
             "next": _texas_first(dates.get(nxt, []))[:6] if nxt and show != t else []}
 
 
-async def missions_block(log: SportsLog) -> dict:
+async def missions_block(log: SportsLog, tm: dict | None = None) -> dict:
+    """The local Minor League team (the Double-A Missions in San Antonio; the nearest MiLB club within 60 km elsewhere)."""
+    tm = tm or {"id": MISSIONS_ID, "name": "San Antonio Missions", "short": "Missions", "sport": 12, "league_id": TEXAS_LEAGUE_ID,
+                "league": "Texas League", "parent": "San Diego Padres"}
+    TID, nm = tm["id"], tm["short"]
     today = datetime.now(ZoneInfo("America/Chicago")).date()
     year = today.year
     async def season_games(y):
-        d = await sjson(f"{MLBAPI}/schedule?sportId=12&teamId={MISSIONS_ID}&startDate={y}-01-01&endDate={y}-12-31&hydrate=linescore,team", 10 * 60)
+        d = await sjson(f"{MLBAPI}/schedule?sportId={tm['sport']}&teamId={TID}&startDate={y}-01-01&endDate={y}-12-31&hydrate=linescore,team", 10 * 60)
         return [mlb_game(g, "milb") for x in d.get("dates") or [] for g in x["games"]]
-    games = await log.run("MLB Stats API: Missions schedule", "https://www.milb.com/san-antonio/schedule", season_games(year), []) or []
+    games = await log.run(f"MLB Stats API: {nm} schedule", "https://www.milb.com/", season_games(year), []) or []
     done = [g for g in games if g["state"] == "post" and g["home"]["score"] is not None]
     if not done:
         done = [g for g in (await season_games(year - 1) if True else []) if g["state"] == "post"]
     standings = None
     try:
-        d = await sjson(f"{MLBAPI}/standings?leagueId={TEXAS_LEAGUE_ID}&season={year}&standingsTypes=regularSeason&hydrate=team,division", 30 * 60)
+        d = await sjson(f"{MLBAPI}/standings?leagueId={tm['league_id']}&season={year}&standingsTypes=regularSeason&hydrate=team,division", 30 * 60)
         for rec in d.get("records") or []:
             rows = [{"team": tr["team"].get("name"), "short": tr["team"].get("teamName") or tr["team"].get("name"), "w": tr["wins"], "l": tr["losses"],
-                     "gb": tr.get("gamesBack"), "pct": tr.get("winningPercentage"), "spurs": tr["team"]["id"] == MISSIONS_ID} for tr in rec["teamRecords"]]
+                     "gb": tr.get("gamesBack"), "pct": tr.get("winningPercentage"), "spurs": tr["team"]["id"] == TID} for tr in rec["teamRecords"]]
             if any(r["spurs"] for r in rows):
-                standings = {"division": (rec.get("division") or {}).get("name") or "Texas League South", "season": str(year), "rows": rows}
-        log.sources.append({"name": "MLB Stats API: Texas League standings", "home": "https://www.milb.com/texas/standings", "ok": bool(standings), "count": 5})
+                standings = {"division": (rec.get("division") or {}).get("name") or tm["league"], "season": str(year), "rows": rows}
+        log.sources.append({"name": f"MLB Stats API: {tm['league']} standings", "home": "https://www.milb.com/standings", "ok": bool(standings), "count": len(standings["rows"]) if standings else 0})
     except Exception as ex:
-        log.sources.append({"name": "MLB Stats API: Texas League standings", "home": "https://www.milb.com/texas/standings", "ok": False, "error": f"{type(ex).__name__}: {ex}"[:160]})
-    news = await log.run(MISSIONS_GN["name"], "https://news.google.com/", feed_items(MISSIONS_GN), []) or []
-    news = [n for n in news if not MISSIONS_NOT.search(n["title"])][:10]
+        log.sources.append({"name": f"MLB Stats API: {tm['league']} standings", "home": "https://www.milb.com/standings", "ok": False, "error": f"{type(ex).__name__}: {ex}"[:160]})
+    gn = MISSIONS_GN if TID == MISSIONS_ID else gnews("gn-milb", f"Google News: {tm['name']}", f'"{tm["name"]}" baseball when:60d')
+    news = await log.run(gn["name"], "https://news.google.com/", feed_items(gn), []) or []
+    news = [n for n in news if not (TID == MISSIONS_ID and MISSIONS_NOT.search(n["title"]))][:10]
     upcoming = [g for g in games if g["state"] == "pre"][:5]
     return {"last": done[-4:][::-1], "upcoming": upcoming, "standings": standings, "news": news,
-            "season_over": not upcoming and bool(done), "record": standings and next((f"{r['w']}-{r['l']}" for r in standings["rows"] if r["spurs"]), None)}
+            "season_over": not upcoming and bool(done), "record": standings and next((f"{r['w']}-{r['l']}" for r in standings["rows"] if r["spurs"]), None),
+            "team": {k: tm.get(k) for k in ("id", "name", "short", "league", "parent", "sport")},
+            "level": {11: "Triple-A", 12: "Double-A", 13: "High-A", 14: "Single-A"}.get(tm.get("sport"))}
 
 
-async def build_sports() -> dict:
+def _nearest_nba(lat: float, lon: float) -> dict:
+    return min(PRO_TEAMS["nba"], key=lambda t: km_between(lat, lon, t["lat"], t["lon"]))
+
+
+async def mlb_team_list() -> list[dict]:
+    """MLB + affiliated MiLB clubs with their ballpark's coordinates (MLB Stats API, cached for a week)."""
+    d = await sjson(f"{MLBAPI}/teams?sportIds=1,11,12,13,14&hydrate=venue(location)&season={datetime.now().year}", 7 * 86400)
+    out = []
+    for t in d.get("teams") or []:
+        loc = ((t.get("venue") or {}).get("location") or {})
+        c = loc.get("defaultCoordinates")
+        if not c or t.get("active") is False:
+            continue
+        out.append({"id": t["id"], "name": t["name"], "short": t.get("teamName") or t.get("clubName") or t["name"], "abbr": t.get("abbreviation"),
+                    "sport": t["sport"]["id"], "league_id": (t.get("league") or {}).get("id"), "league": (t.get("league") or {}).get("name"),
+                    "parent": t.get("parentOrgName"), "lat": c["latitude"], "lon": c["longitude"], "state": loc.get("stateAbbrev")})
+    return out
+
+
+async def espn_mlb_ids() -> dict:
+    d = await sjson(f"{ESPN}/baseball/mlb/teams", 7 * 86400)
+    return {t["team"]["displayName"]: str(t["team"]["id"]) for t in d["sports"][0]["leagues"][0]["teams"]}
+
+
+async def pick_teams(lat: float, lon: float, state: str | None) -> dict:
+    """Your teams: the nearest NBA/NFL/MLB clubs, every club in your state listed first on scoreboards,
+    and the nearest Minor League club within 60 km (if any)."""
+    near = lambda rows: sorted(rows, key=lambda t: km_between(lat, lon, t["lat"], t["lon"]))
+    try:
+        mt = await mlb_team_list()
+    except Exception:
+        mt = []
+    nba, nfl, mlb = near(PRO_TEAMS["nba"]), near(PRO_TEAMS["nfl"]), near([t for t in mt if t["sport"] == 1])
+    milb = [t for t in near([t for t in mt if t["sport"] in (11, 12, 13, 14)]) if km_between(lat, lon, t["lat"], t["lon"]) <= 60]
+    home = lambda rows: ([rows[0]] if rows else []) + [t for t in rows[1:] if state and t["state"] == state]
+    return {"nba": nba[0], "nfl": home(nfl), "mlb": home(mlb), "milb": milb[0] if milb else None, "state": state,
+            "fav": {"nba": {t["abbr"] for t in home(nba)}, "nfl": {t["abbr"] for t in home(nfl)}, "mlb": {t["id"] for t in home(mlb)}}}
+
+
+async def build_sports(lat: float = DEFAULT_LAT, lon: float = DEFAULT_LON, place: dict | None = None) -> dict:
     log = SportsLog()
-    nfl_g, nfl_n, cowboys, texans, nba_g, nba_n, mlb_s, mlb_n, rangers, astros, spurs, missions = await asyncio.gather(
-        log.run("ESPN: NFL scoreboard", "https://www.espn.com/nfl/scoreboard", espn_scoreboard("nfl", "football/nfl"), []),
+    place = place or {}
+    metro = metro_for(lat, lon, place)
+    tp = await pick_teams(lat, lon, place.get("state_abbr") or ("TX" if not place else None))
+    fav = tp["fav"]
+    nfl_teams, mlb_teams = tp["nfl"][:2], tp["mlb"][:2]
+    try:
+        espn_mlb = await espn_mlb_ids()
+    except Exception:
+        espn_mlb = {}
+    nfl_news_jobs = [log.run(f"ESPN: {t['short']} news", f"https://www.espn.com/nfl/team/_/name/{t['abbr'].lower()}/{t.get('slug') or ''}",
+                             espn_news("football/nfl", t["id"], 5), []) for t in nfl_teams]
+    mlb_news_jobs = [log.run(f"ESPN: {t['short']} news", "https://www.espn.com/mlb/", espn_news("baseball/mlb", espn_mlb[t["name"]], 5), [])
+                     for t in mlb_teams if t["name"] in espn_mlb]
+    milb_job = missions_block(log, tp["milb"]) if tp["milb"] else asyncio.sleep(0, None)
+    res = await asyncio.gather(
+        log.run("ESPN: NFL scoreboard", "https://www.espn.com/nfl/scoreboard", espn_scoreboard("nfl", "football/nfl", fav["nfl"]), []),
         log.run("ESPN: NFL news", "https://www.espn.com/nfl/", espn_news("football/nfl", None, 12), []),
-        log.run("ESPN: Cowboys news", "https://www.espn.com/nfl/team/_/name/dal/dallas-cowboys", espn_news("football/nfl", "6", 5), []),
-        log.run("ESPN: Texans news", "https://www.espn.com/nfl/team/_/name/hou/houston-texans", espn_news("football/nfl", "34", 5), []),
-        log.run("ESPN: NBA scoreboard", "https://www.espn.com/nba/scoreboard", espn_scoreboard("nba", "basketball/nba"), []),
+        log.run("ESPN: NBA scoreboard", "https://www.espn.com/nba/scoreboard", espn_scoreboard("nba", "basketball/nba", fav["nba"]), []),
         log.run("ESPN: NBA news", "https://www.espn.com/nba/", espn_news("basketball/nba", None, 10), []),
-        log.run("MLB Stats API: MLB scores", "https://www.mlb.com/scores", mlb_scores(), {"games": []}),
+        log.run("MLB Stats API: MLB scores", "https://www.mlb.com/scores", mlb_scores(fav["mlb"]), {"games": []}),
         log.run("ESPN: MLB news", "https://www.espn.com/mlb/", espn_news("baseball/mlb", None, 12), []),
-        log.run("ESPN: Rangers news", "https://www.espn.com/mlb/team/_/name/tex/texas-rangers", espn_news("baseball/mlb", "13", 5), []),
-        log.run("ESPN: Astros news", "https://www.espn.com/mlb/team/_/name/hou/houston-astros", espn_news("baseball/mlb", "18", 5), []),
-        spurs_block(log), missions_block(log))
+        spurs_block(log, tp["nba"], metro), milb_job, *nfl_news_jobs, *mlb_news_jobs)
+    nfl_g, nfl_n, nba_g, nba_n, mlb_s, mlb_n, spurs, missions = res[:8]
+    nfl_team_news, mlb_team_news = res[8:8 + len(nfl_news_jobs)], res[8 + len(nfl_news_jobs):]
+    short = lambda t: {k: t.get(k) for k in ("id", "abbr", "name", "short")}
     return {"generated": time.time(),
-            "nfl": {"games": nfl_g, "news": _merge_news(cowboys, texans, nfl_n, limit=14)},
+            "teams": {"nba": short(tp["nba"]), "nfl": [short(t) for t in nfl_teams], "mlb": [short(t) for t in mlb_teams],
+                      "milb": missions["team"] if missions else None, "state": tp["state"],
+                      "place": place.get("city") or (metro or {}).get("name")},
+            "nfl": {"games": nfl_g, "news": _merge_news(*nfl_team_news, nfl_n, limit=14)},
             "nba": {"games": nba_g, "news": nba_n, "spurs": spurs},
-            "mlb": {**mlb_s, "news": _merge_news(rangers, astros, mlb_n, limit=14)},
+            "mlb": {**mlb_s, "news": _merge_news(*mlb_team_news, mlb_n, limit=14)},
             "missions": missions,
             "sources": log.sources}
 
@@ -1946,16 +2192,29 @@ async def api_food(lat: float | None = Query(None), lon: float | None = Query(No
     except ValueError as ex:
         return _err(ex, 400)
     try:
-        near = km_between(la, lo, *SA_CENTER) <= 80
-        return await cached(f"foodlist:{near}", 60, lambda: build_food(la, lo), stale=3600)
+        place = await get_place(la, lo)
+        m = metro_for(la, lo, place)
+        key = m["id"] if m else f"{place.get('city')}|{place.get('state_abbr')}"
+        return await cached(f"foodlist:{key}", 60, lambda: build_food(la, lo), stale=3600)
     except Exception as ex:
         return _err(ex)
 
 
 @app.get("/api/sports")
-async def api_sports():
+async def api_sports(lat: float | None = Query(None), lon: float | None = Query(None)):
     try:
-        return await cached("sports", 3 * 60, build_sports, stale=6 * 3600)
+        la, lo = _coords(lat, lon)
+    except ValueError as ex:
+        return _err(ex, 400)
+    try:
+        try:
+            place = await get_place(la, lo)
+        except Exception:
+            place = {}
+        tp = await pick_teams(la, lo, place.get("state_abbr"))
+        key = f"sports:{tp['nba']['abbr']}:{','.join(t['abbr'] for t in tp['nfl'][:2])}:{','.join(str(t['id']) for t in tp['mlb'][:2])}:" \
+              f"{tp['milb'] and tp['milb']['id']}:{tp['state']}"
+        return await cached(key, 3 * 60, lambda: build_sports(la, lo, place), stale=6 * 3600)
     except Exception as ex:
         return _err(ex)
 
@@ -1966,8 +2225,13 @@ async def api_place(lat: float = Query(...), lon: float = Query(...)):
         return _err(ValueError("lat/lon out of range"), 400)
     try:
         p = await get_place(lat, lon)
-        return {k: v for k, v in p.items() if k != "display_name"} | {"nearby": [
-            {"name": n["name"], "km": n["km"]} for n in p.get("nearby", [])]}
+        tz = None
+        try:   # the point's time zone (NWS points, cached a day): times on the page follow you to Miami, Denver…
+            tz = (await asyncio.wait_for(get_points(lat, lon), 6)).get("timeZone")
+        except Exception:
+            pass
+        return {k: v for k, v in p.items() if k != "display_name"} | {"tz": tz, "nearby": [
+            {"name": n["name"], "km": n["km"]} for n in p.get("nearby", [])], "metro": metro_info(lat, lon, p)}
     except Exception as ex:
         return _err(ex)
 
@@ -2047,7 +2311,7 @@ async def warm():
     async def _w():  # warm caches for the default location
         await asyncio.gather(api_news(DEFAULT_LAT, DEFAULT_LON), api_weather(DEFAULT_LAT, DEFAULT_LON), api_radar(),
                              api_events(DEFAULT_LAT, DEFAULT_LON),
-                             api_food(DEFAULT_LAT, DEFAULT_LON), api_sports(),
+                             api_food(DEFAULT_LAT, DEFAULT_LON), api_sports(DEFAULT_LAT, DEFAULT_LON),
                              return_exceptions=True)
     asyncio.create_task(_w())
 

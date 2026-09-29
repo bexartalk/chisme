@@ -1,0 +1,246 @@
+{
+ "_about": "Metros with hand-verified local sources (checked 2026-09-29). Anywhere else in the U.S. Chisme uses Google News searches for the city/county, the city's Eventbrite/AllEvents pages, NWS for the point and the nearest pro teams. 'feeds' = local news RSS, 'food' = local food desks, 'skyline' = header silhouette id.",
+ "metros": [
+  {
+   "id": "sa",
+   "name": "San Antonio",
+   "state": "TX",
+   "lat": 29.4241,
+   "lon": -98.4936,
+   "radius_km": 60,
+   "counties": [
+    "Bexar County"
+   ],
+   "skyline": "sa",
+   "feeds": "SA_FEEDS",
+   "food": "FOOD_SOURCES"
+  },
+  {
+   "id": "houston",
+   "name": "Houston",
+   "state": "TX",
+   "lat": 29.7604,
+   "lon": -95.3698,
+   "radius_km": 70,
+   "counties": [
+    "Harris County",
+    "Fort Bend County",
+    "Montgomery County"
+   ],
+   "skyline": "houston",
+   "feeds": [
+    {
+     "id": "khou",
+     "name": "KHOU 11",
+     "url": "https://www.khou.com/feeds/syndication/rss/news/local"
+    },
+    {
+     "id": "kprc",
+     "name": "KPRC 2 Click2Houston",
+     "url": "https://www.click2houston.com/arc/outboundfeeds/rss/category/news/local/?outputType=xml"
+    },
+    {
+     "id": "hpm",
+     "name": "Houston Public Media",
+     "url": "https://www.houstonpublicmedia.org/feed/"
+    },
+    {
+     "id": "chron",
+     "name": "Houston Chronicle (via Google News)",
+     "gnews": "site:houstonchronicle.com when:3d"
+    }
+   ],
+   "food": [
+    {
+     "id": "eater-hou",
+     "name": "Eater Houston",
+     "url": "https://houston.eater.com/rss/index.xml",
+     "home": "https://houston.eater.com/"
+    },
+    {
+     "id": "chron-food",
+     "name": "Houston Chronicle · Food",
+     "gnews": "site:houstonchronicle.com (restaurant OR restaurants OR dining OR chef OR barbecue OR tacos) when:30d",
+     "home": "https://www.houstonchronicle.com/food-culture/"
+    }
+   ],
+   "nba_fans": [
+    {
+     "id": "blog",
+     "name": "The Dream Shake (SB Nation)",
+     "url": "https://www.thedreamshake.com/rss/index.xml",
+     "home": "https://www.thedreamshake.com/"
+    }
+   ]
+  },
+  {
+   "id": "austin",
+   "name": "Austin",
+   "state": "TX",
+   "lat": 30.2672,
+   "lon": -97.7431,
+   "radius_km": 50,
+   "counties": [
+    "Travis County",
+    "Williamson County",
+    "Hays County"
+   ],
+   "skyline": "austin",
+   "feeds": [
+    {
+     "id": "kvue",
+     "name": "KVUE",
+     "url": "https://www.kvue.com/feeds/syndication/rss/news/local"
+    },
+    {
+     "id": "kxan",
+     "name": "KXAN",
+     "url": "https://www.kxan.com/news/local/feed/"
+    },
+    {
+     "id": "kut",
+     "name": "KUT News",
+     "url": "https://www.kut.org/news.rss"
+    },
+    {
+     "id": "statesman",
+     "name": "Austin American-Statesman (via Google News)",
+     "gnews": "site:statesman.com when:3d"
+    }
+   ],
+   "food": [
+    {
+     "id": "eater-atx",
+     "name": "Eater Austin",
+     "url": "https://austin.eater.com/rss/index.xml",
+     "home": "https://austin.eater.com/"
+    },
+    {
+     "id": "statesman-food",
+     "name": "Austin American-Statesman · Food",
+     "gnews": "site:statesman.com (restaurant OR restaurants OR dining OR chef OR barbecue OR tacos) when:30d",
+     "home": "https://www.statesman.com/entertainment/dining/"
+    }
+   ],
+   "college": {
+    "name": "Texas Longhorns",
+    "espn": "football/college-football",
+    "id": "251",
+    "home": "https://www.espn.com/college-football/team/_/id/251/texas-longhorns"
+   }
+  },
+  {
+   "id": "dallas",
+   "name": "Dallas–Fort Worth",
+   "state": "TX",
+   "lat": 32.7767,
+   "lon": -96.797,
+   "radius_km": 70,
+   "counties": [
+    "Dallas County",
+    "Tarrant County",
+    "Collin County",
+    "Denton County"
+   ],
+   "skyline": "dallas",
+   "feeds": [
+    {
+     "id": "wfaa",
+     "name": "WFAA",
+     "url": "https://www.wfaa.com/feeds/syndication/rss/news/local"
+    },
+    {
+     "id": "nbcdfw",
+     "name": "NBC 5 DFW",
+     "url": "https://www.nbcdfw.com/news/local/feed/"
+    },
+    {
+     "id": "kera",
+     "name": "KERA News",
+     "url": "https://www.keranews.org/news.rss"
+    },
+    {
+     "id": "dallasobs",
+     "name": "Dallas Observer",
+     "url": "https://www.dallasobserver.com/dallas/Rss.xml"
+    },
+    {
+     "id": "dmn",
+     "name": "Dallas Morning News (via Google News)",
+     "gnews": "site:dallasnews.com when:3d"
+    }
+   ],
+   "food": [
+    {
+     "id": "eater-dal",
+     "name": "Eater Dallas",
+     "url": "https://dallas.eater.com/rss/index.xml",
+     "home": "https://dallas.eater.com/"
+    },
+    {
+     "id": "dmn-food",
+     "name": "Dallas Morning News · Food",
+     "gnews": "site:dallasnews.com (restaurant OR restaurants OR dining OR chef OR barbecue OR tacos) when:30d",
+     "home": "https://www.dallasnews.com/food/"
+    }
+   ],
+   "nba_fans": [
+    {
+     "id": "blog",
+     "name": "Mavs Moneyball (SB Nation)",
+     "url": "https://www.mavsmoneyball.com/rss/index.xml",
+     "home": "https://www.mavsmoneyball.com/"
+    }
+   ]
+  },
+  {
+   "id": "miami",
+   "name": "Miami",
+   "state": "FL",
+   "lat": 25.7617,
+   "lon": -80.1918,
+   "radius_km": 60,
+   "counties": [
+    "Miami-Dade County",
+    "Broward County"
+   ],
+   "skyline": "miami",
+   "feeds": [
+    {
+     "id": "wsvn",
+     "name": "WSVN 7News",
+     "url": "https://wsvn.com/news/local/feed/"
+    },
+    {
+     "id": "wplg",
+     "name": "WPLG Local 10",
+     "url": "https://www.local10.com/arc/outboundfeeds/rss/category/news/local/?outputType=xml"
+    },
+    {
+     "id": "mnt",
+     "name": "Miami New Times",
+     "url": "https://www.miaminewtimes.com/miami/Rss.xml"
+    },
+    {
+     "id": "herald",
+     "name": "Miami Herald (via Google News)",
+     "gnews": "site:miamiherald.com when:3d"
+    }
+   ],
+   "food": [
+    {
+     "id": "eater-mia",
+     "name": "Eater Miami",
+     "url": "https://miami.eater.com/rss/index.xml",
+     "home": "https://miami.eater.com/"
+    },
+    {
+     "id": "herald-food",
+     "name": "Miami Herald · Food",
+     "gnews": "site:miamiherald.com (restaurant OR restaurants OR dining OR chef OR cafe) when:30d",
+     "home": "https://www.miamiherald.com/food-drink/"
+    }
+   ]
+  }
+ ]
+}

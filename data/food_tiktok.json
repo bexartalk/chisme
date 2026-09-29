@@ -1,0 +1,17 @@
+{
+  "_readme": "Curated TikTok food videos for the ¿Cuál dieta? tab. TikTok has no public RSS and no keyless listing API, so Chisme only shows videos listed here. Add a creator under 'creators' (verified handle), then paste video links under 'videos' (https://www.tiktok.com/@handle/video/ID). Chisme looks each link up with TikTok's official oEmbed (title, thumbnail, author) and plays it with TikTok's official embed player (tiktok.com/player/v1/ID). Videos whose author isn't a listed creator are ignored. Newest first is not required; Chisme sorts by the date inside the video ID.",
+  "creators": [
+    {
+      "handle": "bootlegfoodreview",
+      "name": "Bootleg Food Review",
+      "person": "Jason Longoria",
+      "city": "San Antonio",
+      "instagram": "bootlegfoodreview",
+      "youtube": null,
+      "verified": "2026-09-29: TikTok @bootlegfoodreview (BootlegFoodReview, ~513K followers, bio: P.O. Box, San Antonio, TX 78223, linktr.ee/BootlegFoodReview); Instagram @bootlegfoodreview (Jason Longoria, ~126K followers, linked from his Linktree). No YouTube channel is linked anywhere of his; youtube.com/@bootlegfoodreview exists but has 0 uploads and no tie to him, so it is not used."
+    }
+  ],
+  "videos": [
+    "https://www.tiktok.com/@bootlegfoodreview/video/7652897855673306382"
+  ]
+}

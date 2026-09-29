@@ -1,7 +1,7 @@
 /* Chisme — frontend (location-aware) */
 // Build of this file. Must equal the number in sw.js VERSION ("chisme-v22"); the page compares it
 // with the build the HTML was served for and reloads once if an old cached app.js got mixed in.
-window.CHISME_APP_BUILD = "23";
+window.CHISME_APP_BUILD = "24";
 (() => {
   "use strict";
   const WEATHER_MS = 10 * 60 * 1000;
@@ -190,13 +190,16 @@ window.CHISME_APP_BUILD = "23";
   if (hadSavedPlace && !localStorage.getItem(SETUP_KEY)) localStorage.setItem(SETUP_KEY, "1");
   const firstRun = () => !localStorage.getItem(SETUP_KEY);
   const finishSetup = () => { localStorage.setItem(SETUP_KEY, "1"); };
-  // Header skyline: San Antonio's (Tower of the Americas) for SA / Bexar County, the default and
-  // unknown places; a generic skyline anywhere else.
+  // Where are we? The server tells us the metro (San Antonio, Houston, Austin, Dallas–Fort Worth, Miami, or none).
+  const metroOf = () => (loc.place && loc.place.metro) || null;
+  const inSA = () => loc.source === "default" || (metroOf() ? metroOf().id === "sa" : kmBetween(loc, DEFAULT_LOC) < 60);
+  const cityName = () => (loc.source === "default" ? "San Antonio" : (metroOf() && metroOf().city) || (loc.place && (loc.place.city || loc.place.county)) || "your area");
+  // Header skyline: San Antonio's (Tower of the Americas) for SA, the default and while the place is loading;
+  // simple silhouettes for Houston, Austin, Dallas and Miami; a generic skyline anywhere else.
   function renderSkyline() {
-    const p = loc.place || {};
-    const sa = loc.source === "default" || kmBetween(loc, DEFAULT_LOC) < 40 || /san antonio/i.test(p.city || "") || /bexar/i.test(p.county || "")
-      || (!p.city && !p.county);
-    $("#topbar").dataset.skyline = sa ? "sa" : "city";
+    const p = loc.place || {}, m = metroOf();
+    const sky = loc.source === "default" ? "sa" : m ? m.skyline : (!p.city && !p.county) ? (kmBetween(loc, DEFAULT_LOC) < 60 ? "sa" : "city") : "city";
+    $("#topbar").dataset.skyline = sky;
   }
   function renderLocLabel() {
     renderSkyline();
@@ -211,7 +214,8 @@ window.CHISME_APP_BUILD = "23";
     try {
       const p = await getJSON(`/api/place?${forQ}`);
       if (forQ !== q()) return;  // location changed while we were waiting
-      loc.place = { neighborhood: p.neighborhood, city: p.city, county: p.county, state: p.state_abbr || p.state, country_code: p.country_code };
+      if (p.tz) TZ = p.tz;       // the new place's time zone, before its weather arrives
+      loc.place = { neighborhood: p.neighborhood, city: p.city, county: p.county, state: p.state_abbr || p.state, country_code: p.country_code, metro: p.metro || null };
       // manual searches keep their typed label (e.g. a ZIP) unless we have something nicer
       if (loc.source !== "manual" || !loc.label || /^\d{5}/.test(loc.label)) loc.label = p.label || loc.label;
       if (loc.source === "default") loc.label = DEFAULT_LOC.label;
@@ -219,7 +223,11 @@ window.CHISME_APP_BUILD = "23";
     } catch { /* offline: keep the saved label */ }
   }
   async function setLocation(n, source) {
+    // Bug fix (v24): picking a city in Settings used to leave the GPS watch running, and its next update
+    // (iOS sends them often) switched the app straight back to the phone's position. Manual = GPS off.
+    if (source === "manual") stopWatch();
     const moved = kmBetween(loc, n);
+    if (moved > 50) TZ = DEVICE_TZ;   // don't label the new city's times with the old city's zone
     loc = { lat: +(+n.lat).toFixed(4), lon: +(+n.lon).toFixed(4), source, label: n.label || null, ts: Date.now() };
     saveLoc(); renderLocLabel();
     finishSetup(); hidePanel();
@@ -232,20 +240,13 @@ window.CHISME_APP_BUILD = "23";
   // ---------- personality (UI copy only — headlines and story text are never rewritten)
   const pick = (arr) => arr[Math.floor(Date.now() / 36e5) % arr.length];   // changes hourly, stable between renders
   function localHour() { try { return +fmt(new Date(), { hour: "numeric", hourCycle: "h23" }); } catch { return new Date().getHours(); } }
-  // Greeting: "¡Buenos días / Buenas tardes / Buenas noches, chismoso!" (or chismosa — the
-  // switch next to the greeting; saved on this device, default chismoso).
-  const GREET_KEY = "chisme-greeting-word";
-  const greetWord = () => (localStorage.getItem(GREET_KEY) === "chismosa" ? "chismosa" : "chismoso");
+  // Greeting: "¡Buenos días / Buenas tardes / Buenas noches, chismosos!" (plural, for everyone, by the
+  // place's time of day). The old chismoso/chismosa choice (v22–v23) is gone; its saved key is cleared.
+  try { localStorage.removeItem("chisme-greeting-word"); } catch {}
   function renderGreeting() {
-    const h = localHour(), w = greetWord();
-    const hi = h >= 5 && h < 12 ? `¡Buenos días, ${w}!` : h >= 12 && h < 18 ? `¡Buenas tardes, ${w}!` : `¡Buenas noches, ${w}!`;
-    $("#greet-hi").textContent = hi;
-    for (const b of document.querySelectorAll(".greet-switch button")) b.setAttribute("aria-pressed", String(b.dataset.word === w));
-    $("#greet-sub").textContent = h >= 22 || h < 5 ? "Here's the latest from around the barrio while the city sleeps."
-      : pick(["Here's what the neighborhood is talking about.", "Your local news, closest stories first.", "Pull up a chair — here's the latest from around town."]);
-  }
-  for (const b of document.querySelectorAll(".greet-switch button")) {
-    b.onclick = () => { localStorage.setItem(GREET_KEY, b.dataset.word); renderGreeting(); };
+    const h = localHour();
+    $("#greet-hi").textContent = h >= 5 && h < 12 ? "¡Buenos días, chismosos!" : h >= 12 && h < 18 ? "¡Buenas tardes, chismosos!" : "¡Buenas noches, chismosos!";
+    $("#greet-sub").textContent = "Pull up a chair, grab the tea, here’s the latest chisme.";
   }
 
   // ---------- location panel (friendly pre-prompt, denied fallback, change location)
@@ -308,7 +309,8 @@ window.CHISME_APP_BUILD = "23";
   function onPos(p) {
     lastFixAt = Date.now();
     const n = { lat: p.coords.latitude, lon: p.coords.longitude };
-    if (loc.source !== "gps" || kmBetween(loc, n) > MOVE_KM) setLocation(n, "gps");
+    if (loc.source === "manual") { stopWatch(); return; }   // a typed city wins until "Use my location" is tapped again
+    if (loc.source !== "gps" || kmBetween(loc, n) > MOVE_KM) setLocation(n, "gps");   // live GPS follows you city to city
   }
   function onPosErr(err, fromButton) {
     if (fromButton && inSettings()) {
@@ -338,6 +340,7 @@ window.CHISME_APP_BUILD = "23";
     const t = setTimeout(() => { if (settled) return; settled = true; gpsBusy = false; onPosErr({ code: 3 }, fromButton); }, GPS_WAIT_MS);
     navigator.geolocation.getCurrentPosition((p) => {
       settled = true; gpsBusy = false; clearTimeout(t); lastFixAt = Date.now();   // a late fix is still welcome
+      if (!fromButton && loc.source === "manual") return;   // the user typed a place meanwhile: keep it
       const n = { lat: p.coords.latitude, lon: p.coords.longitude };
       if (fromButton || loc.source !== "gps" || kmBetween(loc, n) > MOVE_KM) setLocation(n, "gps");
       if (fromButton) locStatus().textContent = inSettings() ? "Using your current location." : "";
@@ -720,8 +723,10 @@ window.CHISME_APP_BUILD = "23";
         : [el("p", { class: "loading", text: `No stories naming ${placeName()} in the latest feeds yet — check back in a bit.` })]));
       $("#city-list").replaceChildren(...(n.more.length ? withArt(n.more.map((i) => story(i, false)))
         : [el("p", { class: "loading", text: "No other local stories right now. The newsrooms must be on a coffee break. ☕" })]));
-      $("#sa-sec").hidden = !(n.san_antonio && n.san_antonio.length);
-      $("#sa-list").replaceChildren(...withArt((n.san_antonio || []).map((i) => story(i, false))));
+      const other = n.metro_other || n.san_antonio || [];   // the metro's outlets, for suburbs outside its core
+      $("#sa-sec").hidden = !other.length;
+      $("#sa-title").textContent = `${(n.metro && n.metro.name) || "San Antonio"} headlines`;
+      $("#sa-list").replaceChildren(...withArt(other.map((i) => story(i, false))));
       saveArtCursor();
       $("#news-updated").textContent = stampFor(saved, n);
       $("#feeds").replaceChildren(...(n.feeds || []).map((f) => el("li", { class: f.ok ? "" : "bad",
@@ -833,9 +838,6 @@ window.CHISME_APP_BUILD = "23";
     "free-classes": { test: (e) => (e.tags || []).includes("classes") && e.free,
       intro: (k) => `🎓 Learn something, pay nothing: ${k} free ${k === 1 ? "class, talk or workshop" : "classes, talks & workshops"}.`,
       empty: "No free classes or workshops on the calendars right now. Check back soon — or tap “All” for paid ones." },
-    food: { test: (e) => (e.tags || []).includes("food"),
-      intro: () => "🌮 ¡Provecho! What local food creators are eating, plus food & drink events coming up.",
-      empty: "No food & drink events on the calendars right now — the reviews above will have to hold you over. 🌮" },
   };
   let evData = null, evIntro = "", foodData = null, foodSeq = 0;
   let evCat = CATS[localStorage.getItem(CAT_KEY)] ? localStorage.getItem(CAT_KEY) : "all";
@@ -850,7 +852,6 @@ window.CHISME_APP_BUILD = "23";
     }
     const list = all.filter(c.test), ongoing = ongoingAll.filter(c.test);
     $("#events-intro").textContent = evCat === "all" || !(all.length + ongoingAll.length) ? evIntro : c.intro(list.length + ongoing.length);
-    if (evCat === "food") renderFood();
     const kids = [];
     let last = null;
     for (const e of list) {
@@ -864,13 +865,11 @@ window.CHISME_APP_BUILD = "23";
       : [el("p", { class: "loading", text: empty })]));
     $("#ongoing-sec").hidden = !ongoing.length;
     $("#ongoing-list").replaceChildren(...ongoing.map(eventCard));
-    syncFoodView();
   }
   for (const b of document.querySelectorAll("#ev-chips .chip")) {
     b.onclick = () => {
       evCat = b.dataset.cat; localStorage.setItem(CAT_KEY, evCat);
-      renderEventList(); syncFoodView();
-      if (evCat === "food" && !foodData) loadFood();
+      renderEventList();
     };
   }
   const shortDate = (t) => fmt(new Date(t * 1000), { month: "short", day: "numeric" });
@@ -888,12 +887,14 @@ window.CHISME_APP_BUILD = "23";
     const name = ((p && p.name) || "").trim().slice(0, 80), address = ((p && p.address) || "").trim().slice(0, 160);
     return name || address ? { name: name || null, address: address || null, guessed: !!(p && p.guessed) } : null;
   };
-  const snapshot = (it) => ({
+  const snapshot = (it) => it.savedAt ? { ...it, savedAt: Date.now() } : ({   // (re-saving an item from the Saved list keeps it as is)
     url: it.url, title: it.title, image: it.image || null, video: !!it.video, kind: it.kind,
     source: it.kind === "creator" ? it.creator : [it.outlet, it.author].filter(Boolean).join(" · "),
-    published: it.published || null, place: it.place ? cleanPlace({ ...it.place, guessed: true }) : null, savedAt: Date.now(),
+    published: it.published || null, place: it.place ? cleanPlace({ ...it.place, guessed: true }) : null,
+    summary: it.summary || null, frame: !!it.frame, savedAt: Date.now(),
+    city: it.elsewhere ? "San Antonio, TX" : [cityName(), loc.place && loc.place.state].filter(Boolean).join(", "),   // for Directions by name
   });
-  const mapsUrl = (p) => "https://maps.apple.com/?daddr=" + encodeURIComponent(p.address || `${p.name}, San Antonio, TX`) + "&dirflg=d";
+  const mapsUrl = (p, city) => "https://maps.apple.com/?daddr=" + encodeURIComponent(p.address || `${p.name}, ${city || "San Antonio, TX"}`) + "&dirflg=d";
   const bmIcon = () => {
     const NS = "http://www.w3.org/2000/svg", svg = document.createElementNS(NS, "svg"), path = document.createElementNS(NS, "path");
     svg.setAttribute("viewBox", "0 0 12 16"); svg.setAttribute("class", "bm"); svg.setAttribute("aria-hidden", "true"); svg.setAttribute("focusable", "false");
@@ -902,16 +903,15 @@ window.CHISME_APP_BUILD = "23";
     return svg;
   };
   function saveButton(it) {
-    const b = el("button", { type: "button", class: "fr-save", "data-url": it.url });
+    const b = el("button", { type: "button", class: "fr-save", "data-url": it.url, "data-title": it.title });
     b.onclick = () => toggleSaved(it);
     paintSave(b);
     return b;
   }
   function paintSave(b) {
-    const on = isSaved(b.dataset.url), t = b.closest(".fr") && b.closest(".fr").querySelector("h4");
+    const on = isSaved(b.dataset.url);
     b.setAttribute("aria-pressed", String(on));
-    b.replaceChildren(bmIcon(), on ? "Saved" : "Save",
-      el("span", { class: "sr-only", text: t ? ": " + t.textContent : "" }));
+    b.replaceChildren(bmIcon(), on ? "Saved" : "Save", el("span", { class: "sr-only", text: ": " + (b.dataset.title || "") }));
   }
   function syncSaved() {
     for (const b of document.querySelectorAll(".fr-save")) paintSave(b);
@@ -962,7 +962,9 @@ window.CHISME_APP_BUILD = "23";
     return f;
   }
   function savedItem(s) {
-    const thumb = el("a", { class: "fr-thumb", href: s.url, target: "_blank", rel: "noopener", tabindex: "-1", "aria-hidden": "true" });
+    const open = (a) => openPlayer(s, a);
+    const thumb = el("a", { class: "fr-thumb", href: s.url, tabindex: "-1", "aria-hidden": "true" });
+    thumb.onclick = (e) => { e.preventDefault(); open(row.querySelector("h4 a")); };
     const ph = () => el("div", { class: "ev-ph", role: "img", "aria-label": s.image ? "Photo loads when you're online" : "No photo in the feed" },
       el("b", { text: s.video ? "🎥" : "📰", "aria-hidden": "true" }), el("span", { text: s.image ? "offline" : "no photo" }));
     if (s.image) {  // try even offline: the browser cache often still has it
@@ -974,11 +976,9 @@ window.CHISME_APP_BUILD = "23";
     const p = s.place;
     const row = el("article", { class: "fr fs", "data-url": s.url }, thumb,
       el("div", { class: "fr-body" },
-        el("h4", {}, ext(s.url, s.title)),
+        el("h4", {}, openLink(s.url, s.title, null, open)),
         el("p", { class: "fr-by" }, el("b", { text: s.source || "" }), s.published ? " · " + shortDate(s.published) : ""),
-        p ? el("p", { class: "fs-place" }, el("span", { "aria-hidden": "true", text: "📍 " }),
-          el("b", { text: p.name || p.address }), p.name && p.address ? " · " + p.address : "",
-          p.guessed ? el("span", { class: "fs-guess", text: " (from the title)" }) : "") : null));
+        p ? el("p", { class: "fs-place" }, ...placeLine(p)) : null));
     const edit = el("button", { type: "button", class: "fs-edit", text: p ? "Edit place" : "📍 Add place" });
     edit.setAttribute("aria-label", (p ? "Edit place for " : "Add place for ") + s.title);
     edit.onclick = () => {
@@ -989,10 +989,10 @@ window.CHISME_APP_BUILD = "23";
     const rm = el("button", { type: "button", class: "fs-rm", text: "Remove" });
     rm.setAttribute("aria-label", "Remove " + s.title);
     rm.onclick = () => removeSaved(s);
-    const dir = p ? ext(mapsUrl(p), "Directions ↗", "fs-dir") : null;
+    const dir = p ? ext(mapsUrl(p, s.city), "Directions ↗", "fs-dir") : null;
     if (dir) dir.setAttribute("aria-label", `Directions to ${p.name || p.address} in Apple Maps`);
-    row.append(el("div", { class: "fs-act" }, ext(s.url, s.video ? "▶ Watch" : "Read", "fs-open"), dir, edit, rm));
-    return row;
+    row.append(el("div", { class: "fs-act" }, openLink(s.url, s.video ? "▶ Watch" : "Read", "fs-open", open), dir, edit, rm));
+    return tapCard(row, open);
   }
   function renderSaved() {
     const box = $("#food-saved");
@@ -1001,24 +1001,140 @@ window.CHISME_APP_BUILD = "23";
       : [el("p", { class: "loading", text: "Nothing saved yet. Tap 🔖 Save on any review and it'll wait here — even offline." })]));
   }
   function syncFoodView() {
-    const sv = foodView === "saved", food = evCat === "food";
-    $("#food-block").hidden = !food;
+    const sv = foodView === "saved";
     for (const b of document.querySelectorAll("#food-view .chip")) b.setAttribute("aria-pressed", String(b.dataset.fv === foodView));
-    $("#food-saved-view").hidden = !sv; $("#food-latest").hidden = sv; $("#food-events-h").hidden = sv;
-    $("#events-list").hidden = food && sv;
-    if (food && sv) $("#ongoing-sec").hidden = true;
+    $("#food-saved-view").hidden = !sv; $("#food-latest").hidden = sv;
+    $("#food-desk").hidden = sv || !$("#food-outlets").children.length;   // desk reports: Latest only, at the bottom
   }
   for (const b of document.querySelectorAll("#food-view .chip")) {
     b.onclick = () => {
       foodView = b.dataset.fv; localStorage.setItem(FV_KEY, foodView);
       syncFoodView();
-      if (foodView === "latest") renderEventList();
     };
   }
   addEventListener("storage", (e) => { if (e.key === SAVED_KEY) { savedSpots = readSaved(); syncSaved(); } });
   syncSaved(); syncFoodView();
+  // ---------- in-app player / reader sheet: food videos play inside Chisme (YouTube's privacy-enhanced embed),
+  // articles open in a reader sheet (framed only where the site allows it)
+  const ytId = (u) => { const m = /(?:youtube(?:-nocookie)?\.com\/(?:watch\?(?:[^#]*&)?v=|shorts\/|embed\/|live\/)|youtu\.be\/)([\w-]{11})/.exec(u || ""); return m ? m[1] : null; };
+  const isShort = (u) => /youtube\.com\/shorts\//.test(u || "");
+  const ttId = (u) => { const m = /tiktok\.com\/(?:@[\w.]+\/video|player\/v1|embed(?:\/v2)?)\/(\d{15,20})/.exec(u || ""); return m ? m[1] : null; };
+  const vidOf = (it) => { if (!it.video) return null; const y = ytId(it.url); if (y) return { yt: y }; const t = ttId(it.url); return t ? { tt: t } : null; };
+  const hostOf = (u) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } };
+  function openLink(href, text, cls, open) {   // a real link (long-press/copy still work), but a tap opens the sheet
+    const a = el("a", { href, class: cls, text, "aria-haspopup": "dialog" });
+    a.onclick = (e) => { if (e.metaKey || e.ctrlKey || e.shiftKey || e.button > 0) return; e.preventDefault(); open(a); };
+    return a;
+  }
+  function tapCard(card, open) {   // tapping anywhere on the card (not on its buttons/links) opens it too
+    card.classList.add("tappable");
+    card.addEventListener("click", (e) => { if (!e.target.closest("a, button, input, form, summary")) open(card.querySelector("h4 a") || card); });
+    return card;
+  }
+  const player = $("#player");
+  let playerItem = null, playerOpener = null;
+  function placeLine(p) {
+    return [el("span", { "aria-hidden": "true", text: "📍 " }), el("b", { text: p.name || p.address }), p.name && p.address ? " · " + p.address : "",
+      p.guessed ? el("span", { class: "fs-guess", text: " (from the title)" }) : ""];
+  }
+  function renderPlayerMedia() {
+    const it = playerItem, box = $("#player-media"), v = vidOf(it), id = v && (v.yt || v.tt);
+    box.className = "player-media " + (id ? "video" + (v.tt || isShort(it.url) ? " tall" : "") + (v.tt ? " tiktok" : "") : it.frame ? "article framed" : "article");
+    if (!navigator.onLine) {
+      box.className = "player-media offline";
+      box.replaceChildren(el("div", { class: "player-off", role: "status" },
+        el("b", { text: "📡 You're offline" }),
+        el("span", { text: id ? "This video will play here as soon as you're back online." : "The article will load when you're back online." }),
+        it.noSave ? "" : el("span", { text: isSaved(it.url) ? "It's safe in 🔖 Saved spots." : "Tap 🔖 Save to keep it for later." })));
+      return;
+    }
+    if (v && v.tt) {   // TikTok's official embed player (developers.tiktok.com/doc/embed-player)
+      box.replaceChildren(el("iframe", { src: `https://www.tiktok.com/player/v1/${v.tt}?autoplay=1&rel=0&music_info=0&description=0`,
+        title: "TikTok video: " + it.title, allow: "autoplay; encrypted-media; picture-in-picture; fullscreen", allowfullscreen: "",
+        referrerpolicy: "strict-origin-when-cross-origin" }));
+    } else if (id) {
+      box.replaceChildren(el("iframe", { src: `https://www.youtube-nocookie.com/embed/${id}?playsinline=1&rel=0&modestbranding=1&autoplay=1`,
+        title: "YouTube video: " + it.title, allow: "autoplay; encrypted-media; picture-in-picture; fullscreen", allowfullscreen: "",
+        referrerpolicy: "strict-origin-when-cross-origin" }));
+    } else if (it.frame) {   // sandboxed: the page can't navigate Chisme away
+      box.replaceChildren(el("iframe", { src: it.url, title: "Article: " + it.title, referrerpolicy: "strict-origin-when-cross-origin",
+        sandbox: "allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms" }));
+    } else if (it.image) {
+      const img = el("img", { src: it.image, alt: "", referrerpolicy: "no-referrer", class: "player-img" });
+      img.onerror = () => img.remove();
+      box.replaceChildren(img);
+    } else box.replaceChildren();
+  }
+  function renderPlayer() {
+    const it = playerItem, v = vidOf(it), vid = !!v;
+    const saved = savedSpots.find((s) => s.url === it.url);
+    const p = saved ? saved.place : it.place ? cleanPlace({ ...it.place, guessed: it.place.guessed !== false }) : null;
+    $("#player-kind").textContent = vid ? "▶ Video" : "📰 Article";
+    $("#player-close").setAttribute("aria-label", vid ? "Close video" : "Close article");
+    $("#player-title").textContent = it.title;
+    $("#player-by").replaceChildren(el("b", { text: it.source || "" }), it.published ? " · " + shortDate(it.published) : "");
+    $("#player-place").hidden = !p; $("#player-place").replaceChildren(...(p ? placeLine(p) : []));
+    const sum = !vid && it.summary;
+    $("#player-sum").hidden = !sum; $("#player-sum").textContent = sum || "";
+    const acts = it.noSave ? [] : [saveButton(saved || it.raw || it)];
+    if (p) { const d = ext(mapsUrl(p, saved ? saved.city : it.elsewhere ? "San Antonio, TX" : [cityName(), loc.place && loc.place.state].filter(Boolean).join(", ")), "Directions ↗", "fs-dir"); d.setAttribute("aria-label", `Directions to ${p.name || p.address} in Apple Maps`); acts.push(d); }
+    if (!vid) {
+      const host = hostOf(it.url), gn = host === "news.google.com";
+      acts.unshift(ext(it.url, "Open article ↗", "fs-open"));
+      $("#player-note").hidden = false;
+      const site = it.source ? it.source.split(" · ")[0] : host;
+      $("#player-note").textContent = it.frame ? `Showing ${host} inside Chisme. “Open article” opens it in your browser.`
+        : gn ? `This story's link goes through Google News, which can't open inside other apps, so “Open article” opens ${site} in your browser.`
+        : `${site} doesn't allow its stories inside other apps, so “Open article” opens it in your browser.`;
+    } else if (v.tt) {
+      $("#player-note").hidden = false;
+      $("#player-note").textContent = "Playing in TikTok's official player. Chisme only shows TikToks picked for this list.";
+    } else $("#player-note").hidden = true;
+    $("#player-actions").replaceChildren(...acts);
+    renderPlayerMedia();
+  }
+  function openPlayer(raw, opener, opts = {}) {
+    playerItem = { ...raw, raw, noSave: !!opts.noSave, source: raw.source || (raw.kind === "creator" ? raw.creator : [raw.outlet, raw.author].filter(Boolean).join(" · ")) };
+    playerOpener = opener || document.activeElement;
+    renderPlayer();
+    if (!player.open) player.showModal();
+    player.scrollTop = 0; player.style.transform = "";
+  }
+  player.addEventListener("close", () => {
+    $("#player-media").replaceChildren();   // stops the video
+    player.style.transform = ""; player.classList.remove("dragging"); playerItem = null;
+    if (playerOpener && playerOpener.isConnected) playerOpener.focus({ preventScroll: true });
+  });
+  player.addEventListener("click", (e) => { if (e.target === player) player.close(); });   // tap outside the sheet
+  $("#player-close").onclick = () => player.close();
+  addEventListener("online", () => { if (player.open && playerItem && $("#player-media").classList.contains("offline")) renderPlayerMedia(); });
+  // swipe down to close (from the top bar, or anywhere while the sheet is scrolled to the top; the video itself keeps its own touches)
+  let sheetDrag = null;
+  player.addEventListener("touchstart", (e) => {
+    if (e.touches.length !== 1 || (player.scrollTop > 0 && !e.target.closest(".player-head"))) { sheetDrag = null; return; }
+    sheetDrag = { y: e.touches[0].clientY, x: e.touches[0].clientX, dy: 0, lock: null };
+  }, { passive: true });
+  player.addEventListener("touchmove", (e) => {
+    if (!sheetDrag) return;
+    const dy = e.touches[0].clientY - sheetDrag.y, dx = e.touches[0].clientX - sheetDrag.x;
+    if (!sheetDrag.lock) { if (Math.abs(dy) < 8 && Math.abs(dx) < 8) return; sheetDrag.lock = dy > 0 && dy > Math.abs(dx) ? "y" : "no"; }
+    if (sheetDrag.lock !== "y") return;
+    e.preventDefault();
+    sheetDrag.dy = Math.max(0, dy);
+    player.classList.add("dragging"); player.style.transform = `translateY(${sheetDrag.dy}px)`;
+  }, { passive: false });
+  const endSheetDrag = () => {
+    if (!sheetDrag) return;
+    const go = sheetDrag.lock === "y" && sheetDrag.dy > 90;
+    player.classList.remove("dragging"); player.style.transform = "";
+    sheetDrag = null;
+    if (go) player.close();
+  };
+  player.addEventListener("touchend", endSheetDrag); player.addEventListener("touchcancel", endSheetDrag);
   function foodItem(it) {
-    const thumb = el("a", { class: "fr-thumb", href: it.url, target: "_blank", rel: "noopener", tabindex: "-1", "aria-hidden": "true" });
+    const open = (a) => openPlayer(it, a);
+    const thumb = el("a", { class: "fr-thumb", href: it.url, tabindex: "-1", "aria-hidden": "true" });
+    thumb.onclick = (e) => { e.preventDefault(); open(thumb.parentNode.querySelector("h4 a")); };
     const ph = () => el("div", { class: "ev-ph", role: "img", "aria-label": it.image ? "Photo loads when you're online" : "No photo in the feed" },
       el("b", { text: it.video ? "🎥" : "📰", "aria-hidden": "true" }), el("span", { text: it.image ? "offline" : "no photo" }));
     if (it.image && navigator.onLine) {
@@ -1027,38 +1143,55 @@ window.CHISME_APP_BUILD = "23";
       thumb.append(img);
       if (it.video) thumb.append(el("span", { class: "play", text: "▶" }));
     } else thumb.append(ph());
-    const by = it.kind === "creator" ? `${it.creator}` : [it.outlet, it.author].filter(Boolean).join(" · ");
-    return el("article", { class: "fr" + (it.kind === "creator" ? " fr-card" : "") }, thumb,
+    const by = it.kind === "creator" ? `${it.creator}` + (it.platform === "tiktok" ? " · TikTok" : "") : [it.outlet, it.author].filter(Boolean).join(" · ");
+    return tapCard(el("article", { class: "fr" + (it.kind === "creator" ? " fr-card" : "") }, thumb,
       el("div", { class: "fr-body" },
-        el("h4", {}, ext(it.url, it.title)),
+        el("h4", {}, openLink(it.url, it.title, null, open)),
         el("p", { class: "fr-by" }, el("b", { text: by }), it.published ? " · " + shortDate(it.published) : ""),
         it.summary ? el("p", { class: "fr-sum", text: it.summary }) : null,
-        el("div", { class: "fr-actions" }, ext(it.url, it.video ? "▶ Watch on YouTube ↗" : "Read it ↗", "fr-go"), saveButton(it))));
+        el("div", { class: "fr-actions" }, openLink(it.url, it.video ? "▶ Watch" : "Read", "fr-go", open), saveButton(it)))), open);
+  }
+  function deskItem(it) {   // food desk reports: a compact text list (most come without photos)
+    const open = (a) => openPlayer(it, a);
+    return tapCard(el("article", { class: "desk" },
+      el("div", { class: "desk-body" },
+        el("h4", {}, openLink(it.url, it.title, null, open)),
+        el("p", { class: "fr-by" }, el("b", { text: [it.outlet, it.author].filter(Boolean).join(" · ") }), it.published ? " · " + shortDate(it.published) : "")),
+      saveButton(it)), open);
   }
   function renderFood() {
     const n = foodData;
     if (!n) return;
     if (n.message) {
       $("#food-creators").replaceChildren(el("p", { class: "loading", text: n.message + " ¡Lo siento!" }));
-      $("#food-outlets").replaceChildren();
+      $("#food-outlets").replaceChildren(); syncFoodView();
       return;
     }
+    const m = n.metro || {}, sa = n.metro ? !!m.in_sa : true, city = n.city || m.city || "your area";
     const cr = n.items.filter((i) => i.kind === "creator"), out = n.items.filter((i) => i.kind === "outlet");
-    const group = (items, max, emptyText) => {
-      if (!items.length) return [el("p", { class: "loading", text: emptyText })];
-      const first = items.slice(0, max).map(foodItem), rest = items.slice(max);
-      if (!rest.length) return first;
-      return [...first, el("details", { class: "more-food" }, el("summary", { text: `${rest.length} more` }), ...rest.map(foodItem))];
-    };
+    // San Antonio: its creators first, the food desks at the bottom. Elsewhere: that city's food news first, then
+    // San Antonio's creators, clearly labeled as San Antonio (they review SA spots).
+    $("#antojos-intro").textContent = sa
+      ? "Diet? Not today. San Antonio's food creators taste-test so you don't have to guess. Watch right here, and 🔖 save the spots worth the drive."
+      : `Diet? Not today. Here's what's cooking in ${city}: fresh from the local food desks. Tap to read right here, and 🔖 save the spots worth the drive.`;
+    $("#food-latest-h").textContent = sa ? "Fresh from local food creators" : "Road-trip picks: San Antonio's food creators";
+    $("#food-intro").textContent = sa ? "Swipe sideways for more. The reviews are theirs; tap one to watch it right here, or 🔖 Save it for later."
+      : `These creators review San Antonio spots, not ${city} — save one for your next trip to SA. Swipe sideways for more.`;
+    $("#food-desk-h").textContent = sa ? "From the food desks" : `${city} food news`;
+    if (sa) $("#food-block").after($("#food-desk")); else $("#food-latest").before($("#food-desk"));
     $("#food-creators").replaceChildren(...(cr.length ? cr.map(foodItem) : [el("p", { class: "loading", text: "The creators are between bites — no new videos lately." })]));
-    $("#food-outlets").replaceChildren(...group(out, 5, "No new food coverage in the feeds right now."));
-    for (const b of document.querySelectorAll("#food-latest .fr-save")) paintSave(b);
+    const bySrc = {}; for (const i of out) (bySrc[i.source_id] = bySrc[i.source_id] || []).push(i);
+    const desk = [], queues = Object.values(bySrc);   // take the newest from each food desk in turn, 5 max
+    while (desk.length < 5 && queues.some((q) => q.length)) for (const q of queues) if (q.length && desk.length < 5) desk.push(q.shift());
+    desk.sort((a, b) => (b.published || 0) - (a.published || 0));
+    $("#food-outlets").replaceChildren(...(desk.length ? desk.map(deskItem) : [el("p", { class: "loading", text: "No new food coverage in the feeds right now." })]));
+    syncFoodView();
     $("#food-sources").replaceChildren(...(n.sources || []).map((f) => el("li", { class: f.ok ? "" : "bad" },
-      ext(f.home, f.name), f.ok ? `: ${f.count} recent ${f.kind === "creator" ? "videos" : "stories"}` : `: unavailable right now (${f.error})`)));
+      ext(f.home, f.name), f.elsewhere && !(n.metro || {}).in_sa ? " (San Antonio creator)" : "", f.ok ? (f.platform === "tiktok" ? `: ${f.count} hand-picked TikTok${f.count === 1 ? "" : "s"}` : `: ${f.count} recent ${f.kind === "creator" ? "videos" : "stories"}`) : `: unavailable right now (${f.error})`)));
   }
   section("food", {
     url: () => `/api/food?${q()}`,
-    apply: (n, { saved }) => { foodData = n; foodFresh = foodFresh || !saved; renderFood(); },
+    apply: (n, { saved }) => { foodData = n; foodFresh = foodFresh || !saved; renderFood(); $("#food-updated").textContent = stampFor(saved, n); },
     fail: (e) => { if (!foodData) $("#food-creators").replaceChildren(el("p", { class: "error", text: "¡Ay! Couldn't reach the food feeds (" + e.message + "). We'll keep trying." })); },
   });
   let foodFresh = false;
@@ -1155,10 +1288,12 @@ window.CHISME_APP_BUILD = "23";
   const scoreStrip = (games, label) => games.length
     ? el("div", { class: "scores", role: "group", "aria-label": label + ", scroll sideways" }, ...games.map((g) => gameCard(g)))
     : null;
+  const vidLink = (href, text, meta) => ytId(href)   // Sports YouTube clips play in the in-app player (no Save: not a food spot)
+    ? openLink(href, text, null, (a) => openPlayer({ url: href, video: true, ...meta }, a, { noSave: true })) : ext(href, text);
   function spNews(it) {
     const d = it.published ? new Date(it.published * 1000) : null;
     const kids = [el("div", { class: "sn-body" },
-      el("h4", {}, ext(it.link, it.title)),
+      el("h4", {}, vidLink(it.link, it.title, { title: it.title, source: it.source, published: it.published })),
       el("p", { class: "sn-meta" }, el("b", { text: it.source }), d ? " · " + ago(d) : "", it.video ? el("span", { class: "vtag", text: " ▶ Video" }) : null),
       it.summary ? el("p", { class: "sn-sum", text: it.summary }) : null)];
     if (it.image && it.source === "ESPN" && navigator.onLine) {   // only ESPN's own story thumbnails
@@ -1173,7 +1308,7 @@ window.CHISME_APP_BUILD = "23";
   const h3 = (t, id) => el("h3", { class: "sp-h", id, text: t });
   const linkList = (items, cls, max) => el("ul", { class: "sp-links " + (cls || "") }, ...items.slice(0, max || 8).map((i) => {
     const d = i.published ? new Date(i.published * 1000) : null;
-    return el("li", {}, ext(i.link, (i.video ? "▶ " : "") + i.title), el("span", { class: "sn-meta", text: (d ? " · " + ago(d) : "") }));
+    return el("li", {}, vidLink(i.link, (i.video ? "▶ " : "") + i.title, { title: i.title, source: i.source, published: i.published }), el("span", { class: "sn-meta", text: (d ? " · " + ago(d) : "") }));
   }));
   function standingsTable(st, caption, cols) {
     const t = el("table", { class: "standings" }, el("caption", { text: caption }),
@@ -1181,88 +1316,108 @@ window.CHISME_APP_BUILD = "23";
       el("tbody", {}, ...st.map((r) => el("tr", { class: r.spurs ? "us" : "" }, ...cols.map((c, k) => el(k === 1 ? "th" : "td", k === 1 ? { scope: "row" } : {}, String(c[1](r) ?? "")))))));
     return el("div", { class: "table-wrap" }, t);
   }
+  // Your NBA team: the Spurs in San Antonio, the nearest team anywhere else (the server picks it).
   function renderSpurs(sp, nba) {
     const out = [];
+    const T = sp.team || { abbr: "SA", name: "San Antonio Spurs", short: "Spurs", conf: "West" }, isSA = T.abbr === "SA", nm = T.short;
     const st = sp.standings, us = st && st.rows.find((r) => r.spurs);
     const lines = [];
-    if (sp.live.length) lines.push("Game on — the Spurs are playing right now.");
-    if (st && st.final && us) lines.push(`${st.season}: ${us.w}-${us.l}, ${ord(us.seed)} in the West.`);
+    if (sp.live.length) lines.push(`Game on — the ${nm} are playing right now.`);
+    if (st && st.final && us) lines.push(`${st.season}: ${us.w}-${us.l}, ${ord(us.seed)} in the ${T.conf || "West"}.`);
     else if (sp.record && sp.record !== "0-0") lines.push(`${sp.season}: ${sp.record}${sp.standing ? ", " + sp.standing : ""}.`);
     const last = sp.last[0];
     if (last && /Finals/.test(last.note || "") && last.home && last.away) {
-      const spurs = [last.home, last.away].find((t) => t.abbr === "SA"), opp = [last.home, last.away].find((t) => t.abbr !== "SA");
+      const spurs = [last.home, last.away].find((t) => t.abbr === T.abbr), opp = [last.home, last.away].find((t) => t.abbr !== T.abbr);
       if (spurs && opp) lines.push(spurs.winner ? `Won the ${last.note.replace(/ - Game \d+/, "")} against the ${opp.short}.` : `The season ended in the ${last.note.replace(/ - Game \d+/, "")}, falling to the ${opp.short}.`);
     }
     const next = sp.upcoming[0];
-    if (next) { const w = gameWhen(new Date(next.date)); const home = next.home && next.home.abbr === "SA"; const opp = home ? next.away : next.home;
+    if (next) { const w = gameWhen(new Date(next.date)); const home = next.home && next.home.abbr === T.abbr; const opp = home ? next.away : next.home;
       lines.push(`Next: ${next.note ? next.note + " " : ""}${home ? "vs." : "at"} ${opp ? opp.short : "TBD"}, ${w.day} at ${w.time}.`); }
-    out.push(el("div", { class: "spurs-hero" }, spPhoto(SP_PHOTOS.spursArena),
-      el("div", { class: "spurs-card" }, el("p", { class: "kicker", text: "San Antonio Spurs" }), el("h3", { text: sp.live.length ? "Live now" : "The latest on the Spurs" }),
+    out.push(el("div", { class: "spurs-hero" + (isSA ? "" : " no-photo") }, isSA ? spPhoto(SP_PHOTOS.spursArena) : null,
+      el("div", { class: "spurs-card" }, el("p", { class: "kicker", text: T.name }), el("h3", { text: sp.live.length ? "Live now" : `The latest on the ${nm}` }),
         ...lines.map((l) => el("p", { class: "spurs-line", text: l })))));
     if (sp.live.length) { out.push(h3("Live")); out.push(...sp.live.map((g) => gameCard(g, { wide: true }))); }
     if (sp.last.length) {
       out.push(h3(sp.last_season ? `Latest scores (${sp.last_season} season)` : "Latest scores"));
-      out.push(scoreStrip(sp.last, "Latest Spurs scores"));
+      out.push(scoreStrip(sp.last, `Latest ${nm} scores`));
     }
     if (sp.upcoming.length) {
       out.push(h3(`Schedule · ${sp.season || "this season"}`));
       out.push(el("ol", { class: "sched" }, ...sp.upcoming.map((g) => {
-        const w = gameWhen(new Date(g.date)), home = g.home && g.home.abbr === "SA", opp = home ? g.away : g.home;
+        const w = gameWhen(new Date(g.date)), home = g.home && g.home.abbr === T.abbr, opp = home ? g.away : g.home;
         return el("li", {}, el("span", { class: "sd", text: w.day }), el("span", { class: "so" }, el("b", { text: (home ? "vs " : "@ ") + (opp ? opp.short : "TBD") }),
           g.note ? el("span", { class: "tag", text: g.note }) : null), el("span", { class: "st", text: w.time + (g.tv ? " · " + g.tv : "") }));
       })));
     }
     if (st) {
-      out.push(h3(`${st.conference || "Western Conference"} standings${st.final ? ` (${st.season} final)` : ""}`));
+      out.push(h3(`${st.conference || T.conf + "ern Conference"} standings${st.final ? ` (${st.season} final)` : ""}`));
       const rows = st.rows.slice(0, 10);
       out.push(standingsTable(rows, `${st.conference} standings, ${st.season}`, [["#", (r) => r.seed || ""], ["Team", (r) => r.team], ["W", (r) => r.w], ["L", (r) => r.l], ["GB", (r) => r.gb]]));
     }
-    out.push(h3("Spurs news"));
-    out.push(newsList(sp.news, "No fresh Spurs stories right now — even Coyote takes a day off."));
-    out.push(spPhoto(SP_PHOTOS.spursBlue));
-    out.push(h3("Trending in Spurs Nation"));
+    out.push(h3(`${nm} news`));
+    out.push(newsList(sp.news, isSA ? "No fresh Spurs stories right now — even Coyote takes a day off." : `No fresh ${nm} stories right now.`));
+    if (isSA) out.push(spPhoto(SP_PHOTOS.spursBlue));
+    const fans = sp.fans || {};
     const trend = el("div", { class: "trend" });
-    if (sp.reddit.length) trend.append(el("p", { class: "trend-h", text: "🔥 Top on r/NBASpurs this week" }), linkList(sp.reddit, "reddit", 6));
-    else trend.append(el("p", { class: "hint" }, "Reddit isn't answering our server right now — ", ext("https://www.reddit.com/r/NBASpurs/top/?t=week", "see the top r/NBASpurs posts ↗"), "."));
-    if (sp.videos.length) trend.append(el("p", { class: "trend-h", text: "▶ New from the Spurs on YouTube" }), linkList(sp.videos.map((v) => ({ ...v, video: true })), "yt", 6));
-    if (sp.blog.length) trend.append(el("p", { class: "trend-h", text: "📝 Pounding The Rock (SB Nation)" }), linkList(sp.blog, "blog", 5));
-    out.push(trend);
+    if (sp.reddit.length) trend.append(el("p", { class: "trend-h", text: `🔥 Top on ${fans.reddit || "r/NBASpurs"} this week` }), linkList(sp.reddit, "reddit", 6));
+    else if (isSA) trend.append(el("p", { class: "hint" }, "Reddit isn't answering our server right now — ", ext("https://www.reddit.com/r/NBASpurs/top/?t=week", "see the top r/NBASpurs posts ↗"), "."));
+    if (sp.videos.length) trend.append(el("p", { class: "trend-h", text: `▶ New from the ${nm} on YouTube` }), linkList(sp.videos.map((v) => ({ ...v, video: true })), "yt", 6));
+    if (sp.blog.length) trend.append(el("p", { class: "trend-h", text: `📝 ${fans.blog || "Pounding The Rock (SB Nation)"}` }), linkList(sp.blog, "blog", 5));
+    if (trend.children.length) { out.push(h3(isSA ? "Trending in Spurs Nation" : `Trending with ${nm} fans`)); out.push(trend); }
     out.push(h3("Around the NBA"));
     const strip = scoreStrip(nba.games || [], "NBA scores");
     out.push(strip || el("p", { class: "hint", text: "No NBA games on the board today." }));
     out.push(newsList((nba.news || []).slice(0, 8), "No NBA headlines right now."));
     return out;
   }
+  // Your Minor League club: the Missions in San Antonio, the nearest MiLB team (within 60 km) elsewhere.
   function renderMissions(m) {
-    const out = [spPhoto(SP_PHOTOS.wolff)];
+    const T = m.team || { id: 510, name: "San Antonio Missions", short: "Missions", parent: "San Diego Padres" }, isSA = T.id === 510, nm = T.short;
+    const out = isSA ? [spPhoto(SP_PHOTOS.wolff)] : [];
     const us = m.standings && m.standings.rows.find((r) => r.spurs);
     const place = us ? m.standings.rows.indexOf(us) + 1 : null;
+    const parent = (T.parent || "").replace(/^.* /, "");
     out.push(el("p", { class: "blurb", text: m.season_over
-      ? `The ${m.standings ? m.standings.season : ""} season is in the books: ${m.record || ""}${place ? `, ${ord(place)} in the ${m.standings.division}` : ""}. Baseball returns to Wolff Stadium in April. 🌵`
-      : `Double-A ball, big-league dreams: the Padres' top prospects, right here in San Antonio.${m.record ? " Record: " + m.record + "." : ""}` }));
-    if (m.upcoming.length) { out.push(h3("Up next")); out.push(scoreStrip(m.upcoming, "Upcoming Missions games")); }
-    if (m.last.length) { out.push(h3(m.season_over ? "Final games of the season" : "Latest scores")); out.push(scoreStrip(m.last, "Latest Missions scores")); }
+      ? `The ${m.standings ? m.standings.season : ""} season is in the books: ${m.record || ""}${place ? `, ${ord(place)} in the ${m.standings.division}` : ""}. ${isSA ? "Baseball returns to Wolff Stadium in April. 🌵" : "Baseball returns in April. ⚾"}`
+      : isSA ? `Double-A ball, big-league dreams: the Padres' top prospects, right here in San Antonio.${m.record ? " Record: " + m.record + "." : ""}`
+        : `${m.level || "Minor League"} ball close to home: the ${T.name}${parent ? `, the ${parent}' affiliate` : ""}.${m.record ? " Record: " + m.record + "." : ""}` }));
+    if (m.upcoming.length) { out.push(h3("Up next")); out.push(scoreStrip(m.upcoming, `Upcoming ${nm} games`)); }
+    if (m.last.length) { out.push(h3(m.season_over ? "Final games of the season" : "Latest scores")); out.push(scoreStrip(m.last, `Latest ${nm} scores`)); }
     if (m.standings) {
       out.push(h3(`${m.standings.division} standings`));
       out.push(standingsTable(m.standings.rows, `${m.standings.division}, ${m.standings.season}`, [["", (r) => ""], ["Team", (r) => r.short], ["W", (r) => r.w], ["L", (r) => r.l], ["GB", (r) => r.gb]]));
     }
-    out.push(h3("Missions news"));
-    out.push(newsList(m.news, "No Missions headlines lately — the bullpen's quiet."));
-    out.push(spPhoto(SP_PHOTOS.missions26));
-    out.push(spPhoto(SP_PHOTOS.missionsOF));
+    out.push(h3(`${nm} news`));
+    out.push(newsList(m.news, `No ${nm} headlines lately — the bullpen's quiet.`));
+    if (isSA) { out.push(spPhoto(SP_PHOTOS.missions26)); out.push(spPhoto(SP_PHOTOS.missionsOF)); }
     return out;
   }
+  const teamList = (ts) => { const n = (ts || []).map((t) => t.short); return n.length > 1 ? n.slice(0, -1).join(", ") + " and " + n[n.length - 1] : n[0] || ""; };
+  const isTX = (d) => !d.teams || d.teams.state === "TX";
   const INTROS = {
-    nba: (d) => (d.nba.spurs.live.length ? "¡Ándale! The Spurs are on right now. 🏀" : pick(["Go Spurs Go! Scores, schedule and the real reporting, with a side of fan chisme. 🏀",
+    nba: (d) => { const T = d.nba.spurs.team; if (T && T.abbr !== "SA") return d.nba.spurs.live.length ? `¡Ándale! The ${T.short} are on right now. 🏀`
+        : pick([`Scores, schedule and the real reporting on the ${T.short}, with a side of fan chisme. 🏀`, `The latest on the ${T.name}, then the rest of the league.`]);
+      return INTROS.spurs(d); },
+    spurs: (d) => (d.nba.spurs.live.length ? "¡Ándale! The Spurs are on right now. 🏀" : pick(["Go Spurs Go! Scores, schedule and the real reporting, with a side of fan chisme. 🏀",
       "Spurs Nation, this one's for you: the latest on Wemby & company, then the rest of the league.", "Silver and black and read all over — your Spurs report."])),
-    nfl: () => pick(["Football, Texas style: Cowboys and Texans first, then everybody else. 🏈", "Tailgate-ready: the scores and stories from around the NFL, Texas teams up top."]),
-    mlb: (d) => ((d.mlb.games || []).some((g) => /Wild Card|Division|Championship|World Series/.test(g.note || ""))
-      ? "October baseball! 🎉 Rangers and Astros first, then the rest of the playoff picture."
-      : "Peanuts, Cracker Jack and box scores — Rangers and Astros first. ⚾"),
-    missions: () => "San Antonio's own: the Double-A Missions of the Texas League. 🌵",
+    nfl: (d) => isTX(d) ? pick(["Football, Texas style: Cowboys and Texans first, then everybody else. 🏈", "Tailgate-ready: the scores and stories from around the NFL, Texas teams up top."])
+      : `Tailgate-ready: the ${teamList(d.teams.nfl)} up top, then everybody else. 🏈`,
+    mlb: (d) => { const who = isTX(d) ? "Rangers and Astros" : `the ${teamList(d.teams.mlb)}`;
+      return (d.mlb.games || []).some((g) => /Wild Card|Division|Championship|World Series/.test(g.note || ""))
+        ? `October baseball! 🎉 ${who[0].toUpperCase() + who.slice(1)} first, then the rest of the playoff picture.`
+        : `Peanuts, Cracker Jack and box scores — ${who} first. ⚾`; },
+    missions: (d) => { const T = d.missions && d.missions.team; return !T || T.id === 510 ? "San Antonio's own: the Double-A Missions of the Texas League. 🌵"
+      : `The home team: the ${d.missions.level || "Minor League"} ${T.name} of the ${T.league}. ⚾`; },
   };
   function renderSports() {
     const d = spData;
+    if (d && d.teams) {   // chips follow your teams: "NBA · Rockets", the local MiLB club (hidden if there isn't one)
+      if (!d.missions && spLg === "missions") spLg = "nba";
+      const nb = document.querySelector('#sp-chips [data-lg="nba"]'), mi = document.querySelector('#sp-chips [data-lg="missions"]');
+      nb.replaceChildren(el("span", { "aria-hidden": "true", text: "🏀" }), ` NBA · ${d.teams.nba.short}`);
+      mi.hidden = !d.missions;
+      if (d.missions) mi.replaceChildren(el("span", { "aria-hidden": "true", text: d.missions.team.id === 510 ? "🌵" : "⚾" }), ` ${d.missions.team.short}`);
+    }
     for (const b of document.querySelectorAll("#sp-chips .chip")) b.setAttribute("aria-pressed", String(b.dataset.lg === spLg));
     if (!d) return;
     $("#sports-intro").textContent = INTROS[spLg](d);
@@ -1284,7 +1439,7 @@ window.CHISME_APP_BUILD = "23";
     b.onclick = () => { spLg = b.dataset.lg; localStorage.setItem(SP_KEY, spLg); renderSports(); };
   }
   section("sports", {
-    url: () => "/api/sports",
+    url: () => `/api/sports?${q()}`,   // your teams follow your location
     loading: () => $("#sports-body").replaceChildren(el("p", { class: "loading", text: "Warming up in the bullpen…" })),
     fail: (e) => $("#sports-body").replaceChildren(el("p", { class: "error", text: "¡Ay! Couldn't reach the scoreboards (" + e.message + "). We'll keep trying." })),
     apply: (d, { saved }) => {
@@ -1298,8 +1453,8 @@ window.CHISME_APP_BUILD = "23";
   });
   const loadSports = () => load("sports");
 
-  // ---------- views: News | Sports | Weather | Events (tap the fixed buttons or swipe sideways)
-  const VIEWS = ["news", "sports", "weather", "events"];
+  // ---------- views: News | Sports | ¿Cuál dieta? | Weather | Events (tap the fixed buttons or swipe sideways)
+  const VIEWS = ["news", "sports", "antojos", "weather", "events"];
   const GAP = 24;
   const track = $("#track"), viewsEl = $("#views"), tabsEl = $("#tabs");
   const panes = VIEWS.map((v) => $("#view-" + v));
@@ -1354,6 +1509,7 @@ window.CHISME_APP_BUILD = "23";
     if (VIEWS[i] === "weather" && map) map.invalidateSize();
     if (VIEWS[i] === "events" && rendered.events !== q()) loadEvents();
     if (VIEWS[i] === "sports" && !rendered.sports) loadSports();
+    if (VIEWS[i] === "antojos" && (!foodData || secs.food.shownUrl !== secs.food.url())) loadFood();   // new place → new city's food
     if (scrollId) { const t = document.getElementById(scrollId); if (t) window.scrollTo({ top: t.getBoundingClientRect().top + window.scrollY - tabsH() - 8, behavior: "instant" }); }
     localStorage.setItem("chisme-swiped", "1");
   }
@@ -1418,7 +1574,7 @@ window.CHISME_APP_BUILD = "23";
   if (localStorage.getItem("chisme-swiped")) $("#swipe-hint").hidden = true;
   // Deep links (manifest shortcuts): #sports, #weather, #radar-sec, #events. Otherwise the default tab (News unless changed in Settings).
   const HASH_VIEW = { "#weather": ["weather"], "#forecast-sec": ["weather", "forecast-sec"], "#radar-sec": ["weather", "radar-sec"], "#radar": ["weather", "radar-sec"],
-    "#alerts": ["weather", "alerts"], "#events": ["events"], "#food": ["events"], "#near": ["news", "near"], "#city": ["news", "city"],
+    "#alerts": ["weather", "alerts"], "#events": ["events"], "#antojos": ["antojos"], "#cual-dieta": ["antojos"], "#dieta": ["antojos"], "#food": ["antojos"], "#near": ["news", "near"], "#city": ["news", "city"],
     "#sports": ["sports"], "#spurs": ["sports"], "#nfl": ["sports"], "#mlb": ["sports"], "#missions": ["sports"], "#news": ["news"] };
   pos(0); updateTabs();
 
@@ -1439,7 +1595,6 @@ window.CHISME_APP_BUILD = "23";
   const dlg = $("#settings");
   function syncSettings() {
     for (const r of dlg.querySelectorAll('input[name="theme"]')) r.checked = r.value === themePref();
-    for (const r of dlg.querySelectorAll('input[name="greet"]')) r.checked = r.value === greetWord();
     for (const r of dlg.querySelectorAll('input[name="deftab"]')) r.checked = r.value === defaultTab();
     $("#set-motion").checked = localStorage.getItem(RM_KEY) === "1";
     $("#set-motion-note").textContent = matchMedia("(prefers-reduced-motion: reduce)").matches
@@ -1451,7 +1606,6 @@ window.CHISME_APP_BUILD = "23";
   $("#settings-btn").onclick = () => { syncSettings(); dlg.showModal(); };
   dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });   // tap outside the sheet
   for (const r of dlg.querySelectorAll('input[name="theme"]')) r.onchange = () => { localStorage.setItem(THEME_KEY, r.value); applyTheme(); };
-  for (const r of dlg.querySelectorAll('input[name="greet"]')) r.onchange = () => { localStorage.setItem(GREET_KEY, r.value); renderGreeting(); };
   for (const r of dlg.querySelectorAll('input[name="deftab"]')) r.onchange = () => localStorage.setItem(TAB_KEY, r.value);
   $("#set-motion").onchange = (e) => {
     localStorage.setItem(RM_KEY, e.target.checked ? "1" : "0");
@@ -1471,11 +1625,11 @@ window.CHISME_APP_BUILD = "23";
     clearTimeout(evBoot); clearTimeout(spBoot);
     if (VIEWS[cur] === "events") loadEvents(); else evBoot = setTimeout(loadEvents, 1200);
     if (VIEWS[cur] === "sports") loadSports(); else spBoot = setTimeout(loadSports, 1800);
+    if (VIEWS[cur] === "antojos") loadFood();
     lastEv = Date.now();
   }
   renderLocLabel();
   initMap();
-  if (location.hash === "#food") { evCat = "food"; localStorage.setItem(CAT_KEY, evCat); }
   const LG_HASH = { "#spurs": "nba", "#nfl": "nfl", "#mlb": "mlb", "#missions": "missions" };
   if (LG_HASH[location.hash]) { spLg = LG_HASH[location.hash]; localStorage.setItem(SP_KEY, spLg); }
   const hv = HASH_VIEW[location.hash] || [defaultTab()];
@@ -1556,7 +1710,7 @@ window.CHISME_APP_BUILD = "23";
     navigator.serviceWorker.addEventListener("message", (e) => {
       const v = e.data && e.data.chismeVersion;
       if (!v || v === "chisme-v" + window.CHISME_APP_BUILD) return;
-      const busy = $("#settings").open || (document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName));
+      const busy = $("#settings").open || $("#player").open || (document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName));
       if (!busy && document.visibilityState === "visible") { location.reload(); return; }
       pendingReload = true;
       $("#update-toast").hidden = false;
@@ -1598,7 +1752,7 @@ window.CHISME_APP_BUILD = "23";
     // ready = showing this location's news + weather (fresh or the saved copy); fresh = straight from the server
     get ready() { return secs.weather.shownUrl === secs.weather.url() && secs.news.shownUrl === secs.news.url(); },
     get fresh() { return rendered.weather === q() && rendered.news === q(); },
-    get eventsReady() { return secs.events.shownUrl === secs.events.url(); }, get foodReady() { return !!foodData; },
+    get newsReady() { return secs.news.shownUrl === secs.news.url(); }, get sportsReady() { return secs.sports.shownUrl === secs.sports.url(); }, get eventsReady() { return secs.events.shownUrl === secs.events.url(); }, get foodReady() { return !!foodData; },
     get sync() { return { busy: [...Sync.busy], failed: [...Sync.failed.keys()], lastOk: Sync.lastOk }; }, refreshNow, get evCat() { return evCat; }, get view() { return VIEWS[cur]; }, goView,
     get sportsReady() { return !!rendered.sports; }, get spLg() { return spLg; } };
   window.__chismeBooted = true;

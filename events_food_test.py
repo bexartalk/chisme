@@ -1,5 +1,5 @@
 """Phone (390x844): Events category chips filter the list; swiping the chip row doesn't switch views;
-Food chip shows real food reviews (local creators + food desks) with thumbnails and outbound links; works offline.
+The 🌮 ¿Cuál dieta? tab (was the Food chip) shows real food reviews (local creators + food desks) with thumbnails and outbound links; works offline.
 Usage: ./venv/bin/python events_food_test.py [url]"""
 import asyncio, json, sys
 from pathlib import Path
@@ -62,21 +62,22 @@ async def main():
                 await page.wait_for_timeout(1500)
                 await page.screenshot(path=str(OUT / "events-categories.png"))
         # Food
-        await page.tap("#ev-chips .chip[data-cat='food']")
+        rep["food_chip_gone"] = await page.evaluate("!document.querySelector(\"#ev-chips [data-cat='food']\")")
+        await page.tap("#tabs [data-view='antojos']")
         await page.wait_for_function("() => window.__chisme.foodReady && document.querySelectorAll('#food-creators .fr').length", timeout=60000)
         await page.wait_for_timeout(500)
         rep["food_state"] = await page.evaluate(STATE_JS)
-        await page.evaluate("document.querySelector('#food-block').scrollIntoView({block: 'start', behavior: 'instant'})")
+        await page.evaluate("document.querySelector('#antojos').scrollIntoView({block: 'start', behavior: 'instant'})")
         await page.evaluate("window.scrollBy(0, -130)")
         await page.wait_for_timeout(2500)
         rep["food"] = await page.evaluate("""() => { const items = [...document.querySelectorAll('#food-block .fr')];
             const imgs = [...document.querySelectorAll('#food-block .fr-thumb img')];
-            return { creators: document.querySelectorAll('#food-creators .fr').length, outlets: document.querySelectorAll('#food-outlets .fr').length,
+            return { creators: document.querySelectorAll('#food-creators .fr').length, outlets: document.querySelectorAll('#food-outlets .desk').length,
                      imgs: imgs.length, imgsLoaded: imgs.filter(i => i.complete && i.naturalWidth > 0).length,
                      placeholders: document.querySelectorAll('#food-block .fr-thumb .ev-ph').length,
-                     hosts: [...new Set([...document.querySelectorAll('#food-block .fr h4 a')].map(a => new URL(a.href).host))],
+                     hosts: [...new Set([...document.querySelectorAll('#food-block .fr h4 a, #food-desk .desk h4 a')].map(a => new URL(a.href).host))],
                      sample: items.slice(0, 4).map(i => i.querySelector('h4').innerText + ' — ' + i.querySelector('.fr-by').innerText),
-                     sources: [...document.querySelectorAll('#food-sources li')].map(l => l.innerText) }; }""")
+                     sources: [...document.querySelectorAll('#food-sources li')].map(l => l.textContent.trim()) }; }""")
         await page.screenshot(path=str(OUT / "food-reviews.png"))
         sb = await page.locator("#food-creators").bounding_box()
         await drag(cdp, 360, 40, sb["y"] + sb["height"] / 2)
@@ -85,7 +86,7 @@ async def main():
         # food links must come from the API (never invented)
         food = await page.evaluate("fetch('/api/food').then(r => r.json())")
         api_urls = {i["url"] for i in food["items"]}
-        dom_urls = await page.evaluate("[...document.querySelectorAll('#food-block .fr h4 a')].map(a => a.href)")
+        dom_urls = await page.evaluate("[...document.querySelectorAll('#food-block .fr h4 a, #food-desk .desk h4 a')].map(a => a.href)")
         rep["food_links_not_from_api"] = [u for u in dom_urls if u not in api_urls]
         # persistence + offline
         await page.reload(wait_until="domcontentloaded")
@@ -114,7 +115,7 @@ async def main():
         await pg.wait_for_function("() => window.__chisme && window.__chisme.eventsReady && window.__chisme.foodReady", timeout=60000)
         await pg.wait_for_timeout(3000)
         rep["offline"] = await pg.evaluate("""() => ({ onLine: navigator.onLine, cat: window.__chisme.evCat,
-            creators: document.querySelectorAll('#food-creators .fr').length, outlets: document.querySelectorAll('#food-outlets .fr').length,
+            creators: document.querySelectorAll('#food-creators .fr').length, outlets: document.querySelectorAll('#food-outlets .desk').length,
             events: document.querySelectorAll('#events-list .ev').length, thumbPlaceholders: document.querySelectorAll('#food-block .fr-thumb .ev-ph').length,
             imgs: document.querySelectorAll('#food-block img').length, banner: !document.querySelector('#offline-banner').hidden,
             stamp: document.querySelector('#events-updated').textContent })""")

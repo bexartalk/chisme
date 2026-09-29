@@ -70,8 +70,8 @@ async def main():
         # 3. story links are real (every href is in the /api/news payload)
         news = api("/api/news?lat=29.350&lon=-98.560")
         real = set()
-        for sec in ("near", "more", "san_antonio"):
-            for it in news[sec]:
+        for sec in ("near", "more", "metro_other"):
+            for it in news.get(sec, []):
                 real.add(it["link"]); real.add(it["search_url"]); real.update(r["link"] for r in it.get("related", []))
         links = await page.evaluate("""() => [...document.querySelectorAll('.story')].map(s => ({
             head: s.querySelector('h3 a').href, read: s.querySelector('.dig a.btnlink.primary')?.href,
@@ -118,7 +118,7 @@ async def main():
         c1 = await page.evaluate("(() => { const c = window.__chisme.map.getCenter(); return [c.lat, c.lng]; })()")
         rep["6_map_pan"] = {"view": await page.evaluate("window.__chisme.view"), "map_center_moved_deg": round(abs(c1[1] - c0[1]), 4)}
         await page.evaluate("window.__chisme.map.setView([window.__chisme.loc.lat, window.__chisme.loc.lon], 8)")
-        # swipe back (weather -> sports)
+        # swipe back (weather -> ¿Cuál dieta?, the tab before Weather)
         await page.evaluate("window.scrollTo({top: document.querySelector('#weather').getBoundingClientRect().top + scrollY - 90, behavior: 'instant'})")
         await swipe(cdp, 60, 330, 420)
         await page.wait_for_timeout(700)

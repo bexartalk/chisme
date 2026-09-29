@@ -2,7 +2,12 @@
   * two skylines on a 1600 x 140 canvas, centered on x = 800 (the phone shows x 605..995 at 1:1):
       - San Antonio: low downtown blocks, the Tower of the Americas (slim shaft, flared pod, spire),
         a stepped tower with a pyramid roof, a slant-topped tower and the Alamo's curved parapet
-      - generic city: blocks + a few tall towers (used outside San Antonio / Bexar County)
+      - Houston: Williams Tower (left), Pennzoil Place's twin slant-topped towers, the stepped gables of the
+        Bank of America Center and the tall JPMorgan Chase Tower
+      - Austin: the Texas Capitol dome (left), the Frost Bank Tower's notched crown, the UT Tower, The Independent
+      - Dallas–Fort Worth: Reunion Tower's ball (left), Fountain Place's faceted prism, Bank of America Plaza
+      - Miami: palms + the Freedom Tower's cupola (left), Brickell slabs, a palm
+      - generic city: blocks + a few tall towers (anywhere else)
   * the app icon's own speech bubble (smooth hand-drawn oval, one curved tail at the bottom-left), its
     'Chisme' lettering and the confetti inside it, vector-traced from the icon by tools/trace_icon_bubble.py
     (tools/icon_bubble.json), plus Fiesta confetti in the icon's colours around it
@@ -72,6 +77,82 @@ city_blocks = blocks(11, 12, 40, keep_out=[(TOWER_X - 16, TOWER_X + 16, 14)])
 city = city_blocks + [spire_tower(TOWER_X - 11, 22, 64), spire_tower(CX + 96, 26, 58), slant_top(CX + 60, 24, 48),
                       f"M{CX + 130} {GROUND}V{GROUND - 52}H{CX + 152}V{GROUND}Z", ground]
 
+# --- other metros (simple flat silhouettes; landmark left of the bubble at TOWER_X, the rest right of it)
+def williams_tower(x, w=18, h=84):
+    t = GROUND - h
+    return f"M{x} {GROUND}V{t + 8}L{x + 3} {t + 2}H{x + w - 3}L{x + w} {t + 8}V{GROUND}Z M{x + w / 2 - 1} {t + 2}V{t - 8}H{x + w / 2 + 1}V{t + 2}Z"
+
+def pennzoil(x, w=16, h=58, gap=3):
+    t = GROUND - h
+    return (f"M{x} {GROUND}V{t + 10}L{x + w} {t}V{GROUND}Z "
+            f"M{x + w + gap} {GROUND}V{t}L{x + 2 * w + gap} {t + 10}V{GROUND}Z")
+
+def gables(x, w=30, h=60):
+    t = GROUND - h
+    return (f"M{x} {GROUND}V{t + 22}L{x + 4} {t + 14}L{x + 8} {t + 22}V{t + 12}L{x + 12} {t + 4}L{x + 15} {t - 4}"
+            f"L{x + 18} {t + 4}L{x + 22} {t + 12}V{t + 22}L{x + 26} {t + 14}L{x + w} {t + 22}V{GROUND}Z")
+
+def bevel_box(x, w=24, h=78, b=5):
+    t = GROUND - h
+    return f"M{x} {GROUND}V{t + b}L{x + b} {t}H{x + w}V{GROUND}Z"
+
+def capitol(x, w=64):
+    m = x + w / 2; b = GROUND - 14
+    return (f"M{x} {GROUND}V{b}H{m - 12}V{b - 10}H{m - 9}V{b - 16}"
+            f"C{m - 9} {b - 30} {m + 9} {b - 30} {m + 9} {b - 16}V{b - 10}H{m + 12}V{b}H{x + w}V{GROUND}Z "
+            f"M{m - 2} {b - 27}V{b - 34}H{m - 1}V{b - 40}H{m + 1}V{b - 34}H{m + 2}V{b - 27}Z")
+
+def frost_tower(x, w=22, h=70):
+    t = GROUND - h
+    return (f"M{x} {GROUND}V{t + 22}L{x + 3} {t + 16}V{t + 12}L{x + 6} {t + 8}V{t + 4}L{x + w / 2} {t - 8}"
+            f"L{x + w - 6} {t + 4}V{t + 8}L{x + w - 3} {t + 12}V{t + 16}L{x + w} {t + 22}V{GROUND}Z")
+
+def ut_tower(x, w=14, h=56):
+    t = GROUND - h; m = x + w / 2
+    return f"M{x} {GROUND}V{t + 8}H{x + 2}V{t + 2}H{x + w - 2}V{t + 8}H{x + w}V{GROUND}Z M{m - 3} {t + 2}V{t - 3}L{m} {t - 7}L{m + 3} {t - 3}V{t + 2}Z"
+
+def independent(x, h=64):
+    parts, y, off = [], GROUND, 0
+    for k, (dw, dh) in enumerate(((22, 16), (20, 14), (22, 12), (18, 12), (16, 10))):
+        off = (4, -3, 5, -2, 3)[k]
+        parts.append(f"M{x + off} {y}V{y - dh}H{x + off + dw}V{y}Z"); y -= dh
+    return " ".join(parts)
+
+def reunion(x, r=10, h=72):
+    t = GROUND - h
+    return (f"M{x - 3} {GROUND}L{x - 1.5} {t + r}H{x + 1.5}L{x + 3} {GROUND}Z "
+            f"M{x - r} {t}A{r} {r} 0 1 0 {x + r} {t}A{r} {r} 0 1 0 {x - r} {t}Z M{x - 1} {t - r}V{t - r - 8}H{x + 1}V{t - r}Z")
+
+def fountain_place(x, w=26, h=72):
+    t = GROUND - h
+    return f"M{x} {GROUND}V{t + 18}L{x + 8} {t}L{x + w} {t + 26}V{GROUND}Z"
+
+def freedom_tower(x, w=22, h=56):
+    t = GROUND - h; m = x + w / 2
+    return (f"M{x - 8} {GROUND}V{GROUND - 18}H{x}V{t + 16}H{x + 3}V{t + 8}H{x + w - 3}V{t + 16}H{x + w}V{GROUND - 18}H{x + w + 8}V{GROUND}Z "
+            f"M{m - 4} {t + 8}V{t}C{m - 4} {t - 6} {m + 4} {t - 6} {m + 4} {t}V{t + 8}Z M{m - 0.8} {t - 5}V{t - 14}H{m + 0.8}V{t - 5}Z")
+
+def palm(x, h=58, lean=6):
+    t = GROUND - h; tx = x + lean
+    trunk = f"M{x - 2} {GROUND}Q{x + lean * 0.2} {t + h / 2} {tx - 1} {t}H{tx + 1}Q{x + lean * 0.4} {t + h / 2} {x + 2} {GROUND}Z"
+    fronds = "".join(f"M{tx} {t}Q{tx + dx * 0.5} {t - 10 + dy} {tx + dx} {t + dy}Q{tx + dx * 0.5} {t - 5 + dy} {tx} {t + 1}Z"
+                     for dx, dy in ((-16, 6), (-12, 12), (16, 6), (12, 12), (-6, -1), (7, -1)))
+    return trunk + " " + fronds
+
+hou = blocks(21, 12, 38, keep_out=[(TOWER_X - 20, TOWER_X + 20, 14)]) + [
+    williams_tower(TOWER_X - 9), pennzoil(CX + 52), gables(CX + 96, 30, 58), bevel_box(CX + 134, 24, 80),
+    f"M{CX + 164} {GROUND}V{GROUND - 50}H{CX + 184}V{GROUND}Z", ground]
+atx = blocks(31, 10, 30, keep_out=[(TOWER_X - 40, TOWER_X + 40, 10)]) + [
+    capitol(TOWER_X - 32), frost_tower(CX + 60), ut_tower(CX + 100), independent(CX + 128),
+    f"M{CX + 160} {GROUND}V{GROUND - 44}H{CX + 180}V{GROUND}Z", ground]
+dal = blocks(41, 12, 36, keep_out=[(TOWER_X - 16, TOWER_X + 16, 12)]) + [
+    reunion(TOWER_X), fountain_place(CX + 60), bevel_box(CX + 98, 24, 84, 0), spire_tower(CX + 132, 20, 60),
+    f"M{CX + 160} {GROUND}V{GROUND - 48}H{CX + 180}V{GROUND}Z", ground]
+mia = blocks(51, 10, 28, keep_out=[(TOWER_X - 46, TOWER_X + 40, 10)]) + [
+    palm(TOWER_X - 36, 50, -5), freedom_tower(TOWER_X - 6), palm(TOWER_X + 30, 44, 6),
+    bevel_box(CX + 58, 20, 70, 0), bevel_box(CX + 82, 18, 82, 6), f"M{CX + 104} {GROUND}V{GROUND - 60}H{CX + 124}V{GROUND}Z",
+    palm(CX + 140, 52, 5), f"M{CX + 156} {GROUND}V{GROUND - 40}H{CX + 178}V{GROUND}Z", ground]
+
 ICON = json.loads((pathlib.Path(__file__).resolve().parent / "icon_bubble.json").read_text())
 bx0, by0, bx1, by1 = ICON["bubble_box"]; M = 6                 # icon pixels; margin for the dark-mode outline
 BUBBLE_VB = f"{bx0 - M} {by0 - M} {bx1 - bx0 + 2 * M} {by1 - by0 + 2 * M}"
@@ -94,6 +175,10 @@ ART = f'''<!-- HEADER-ART (generated by tools/make_header_art.py): flat skyline 
       <g class="confetti">{sky_conf}</g>
       <g class="sky-sa"><path d="{"".join(sa)}"/></g>
       <g class="sky-city"><path d="{"".join(city)}"/></g>
+      <g class="sky-houston"><path d="{"".join(hou)}"/></g>
+      <g class="sky-austin"><path d="{"".join(atx)}"/></g>
+      <g class="sky-dallas"><path d="{"".join(dal)}"/></g>
+      <g class="sky-miami"><path d="{"".join(mia)}"/></g>
     </svg>
     <button type="button" id="settings-btn" class="brand-bubble" aria-label="Settings" aria-haspopup="dialog" aria-controls="settings">
       <svg class="bubble" viewBox="{BUBBLE_VB}" aria-hidden="true" focusable="false">

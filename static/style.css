@@ -157,16 +157,22 @@ h2{margin:0;font-size:1.55rem;font-weight:900;color:var(--ink);letter-spacing:-.
   padding-top:env(safe-area-inset-top,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);
   transform:translateZ(0)}
 body{padding-top:var(--tabs-h,calc(66px + env(safe-area-inset-top,0px)))}
-.tabs-inner{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding-top:6px;padding-bottom:6px}
-.tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;min-height:52px;padding:.2em .2em;
-  background:#000;color:#fff;border:2px solid #000;border-radius:12px;font-size:min(.85rem,18px);font-weight:900;line-height:1.1;white-space:nowrap}
+/* 5 tabs: labels are capped by the screen width (3.4vw), so even the largest Text size fits at 320 px; if a label
+   ever can't fit, the columns keep their content width and the row scrolls sideways instead of clipping */
+.tabs-inner{display:grid;grid-template-columns:repeat(5,minmax(min-content,1fr));gap:4px;padding-top:6px;padding-bottom:6px;
+  overflow-x:auto;scrollbar-width:none;overscroll-behavior-x:contain}
+.tabs-inner::-webkit-scrollbar{display:none}
+@media (max-width:420px){ .tabs .tabs-inner{padding-left:6px;padding-right:6px;gap:3px} }
+.tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;min-height:52px;padding:.2em .25em;min-width:0;
+  background:#000;color:#fff;border:2px solid #000;border-radius:12px;font-size:min(.85rem,18px,3.4vw);font-weight:900;line-height:1.1;white-space:nowrap}
 .tab span{font-size:1.15em;line-height:1}
+.tab .tl{font:inherit;white-space:normal;text-align:center;line-height:1.02;overflow-wrap:normal;hyphens:none}  /* '¿Cuál dieta?' may wrap to 2 lines on phones */
 .tab[aria-current="page"]{background:var(--turq);color:#000;border-color:var(--turq)}
 .tab.sub-current{box-shadow:inset 0 -4px 0 var(--pink)}
 .tab:hover{border-color:var(--pink)}
-@media (min-width:601px){ .tab{flex-direction:row;gap:.4em;font-size:.9rem} }
+@media (min-width:601px){ .tab{flex-direction:row;gap:.4em;font-size:min(.9rem,18px)} }
 
-/* ---------- views: News | Weather | Events, side by side; swipe or tap to move */
+/* ---------- views: News | Sports | Weather | Events | ¿Cuál dieta? (food), side by side; swipe or tap to move */
 .views{overflow:hidden;padding-top:14px;touch-action:pan-y pinch-zoom}
 .track{display:flex;align-items:flex-start;gap:24px;will-change:transform}
 .track.animating{transition:transform .32s cubic-bezier(.2,.8,.2,1)}
@@ -179,13 +185,6 @@ main{padding-top:0}
 /* personality: greeting + blurbs */
 .greet{background:linear-gradient(135deg,#e5fbfb,#fff 60%);border-color:var(--turq)}
 .greet-hi{margin:0;font-size:1.35rem;font-weight:900;line-height:1.2}
-.greet-top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px}
-.greet-switch{display:inline-flex;border:2px solid #000;border-radius:999px;overflow:hidden;flex:0 0 auto}
-.greet-switch button{border:0;border-radius:0;min-height:44px;padding:.1em .8em;font-size:.85rem;font-weight:900;background:#fff;color:#000}
-.greet-switch button + button{border-left:2px solid #000}
-.greet-switch button[aria-pressed="true"]{background:#000;color:#fff}
-.greet-switch button[aria-pressed="true"]::before{content:"✓ "}
-.greet-switch button:focus-visible{outline:4px solid #f5b400;outline-offset:-4px}
 .greet-sub{margin:.15em 0 0;font-size:.95rem;font-weight:700}
 .swipe-hint{margin:.35em 0 0;font-size:.8rem;font-weight:700;color:var(--muted)}
 @media (min-width:901px){ .swipe-hint{display:none} }
@@ -301,6 +300,51 @@ main{padding-top:0}
 .more-food summary{cursor:pointer;font-weight:900;padding:8px 0;min-height:44px}
 .more-food .fr{margin-top:10px}
 @media (max-width:360px){.fr{grid-template-columns:5.5rem 1fr}}
+/* tappable food cards open the in-app player / reader sheet */
+.tappable{cursor:pointer}
+.fr.tappable:active,.desk.tappable:active{transform:scale(.99)}
+/* food desk reports: compact text list at the bottom of Food */
+.food-desk[hidden]{display:none}
+.food-desk{margin-top:14px}
+.desk-list{display:grid;gap:0;border-top:2px solid var(--line)}
+.desk{display:flex;align-items:center;gap:10px;padding:8px 2px;border-bottom:2px solid var(--line)}
+.desk-body{flex:1;min-width:0}
+.desk h4{margin:0 0 2px;font-size:1rem;line-height:1.3}
+.desk .fr-save{margin-left:0;flex:none}
+/* player / reader sheet */
+.player .player-head{touch-action:none;padding-top:18px}
+.player .grab{position:absolute;left:50%;top:6px;width:44px;height:5px;margin-left:-22px;border-radius:3px;background:rgba(0,0,0,.4)}
+.player-kind{margin:0;font-weight:900;font-size:1.1rem}
+.player.dragging{transition:none;animation:none}
+.player:not(.dragging){transition:transform .18s ease}
+.player-body{padding:0 16px calc(18px + env(safe-area-inset-bottom))}
+.player-media{margin:0 -16px 12px;background:#000}
+.player-media:empty{display:none}
+.player-media iframe{display:block;width:100%;border:0}
+.player-media.video iframe{aspect-ratio:16/9;height:auto}
+.player-media.video.tall{display:flex;justify-content:center}
+.player-media.video.tall iframe{width:auto;height:min(48dvh,440px);aspect-ratio:9/16}
+.player-media.article{background:#e5fbfb}
+.player-media.framed iframe{height:min(68dvh,760px);background:#fff}
+.player-img{display:block;width:100%;max-height:38dvh;object-fit:cover}
+.player-media.offline{background:#10272a}
+.player-off{display:grid;gap:6px;place-items:center;text-align:center;padding:30px 18px;min-height:170px;color:#fff;font-size:.95rem}
+.player-off b{font-size:1.15rem}
+.player-title{font-size:1.1rem;line-height:1.25;margin:0 0 4px;color:var(--ink);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.player-sum{margin:8px 0 0}
+.player-place[hidden],#player-place[hidden],#player-sum[hidden],#player-note[hidden]{display:none}
+#player-place{margin-top:6px}
+.player-act{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.player-act .fr-save{margin-left:0}
+.player-act a{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:.2em .8em;border:2px solid var(--ink);border-radius:10px;font-weight:900;font-size:.95rem;text-decoration:none;color:var(--ink);background:#fff}
+.player-act .fs-open{background:#000;color:#fff;border-color:#000}
+.player-act .fs-dir{background:#0066CC;color:#fff;border-color:#0066CC}
+.player-note{margin:10px 0 0}
+[data-theme="dark"] .player .grab{background:rgba(255,255,255,.5)}
+[data-theme="dark"] .player-act a{background:#101a1d;color:var(--ink);border-color:var(--ink)}
+[data-theme="dark"] .player-act .fs-open{background:var(--turq);color:#000;border-color:var(--turq)}
+[data-theme="dark"] .player-act .fs-dir{background:#64b5ff;color:#000;border-color:#64b5ff}
+[data-theme="dark"] .player-media.article{background:#0f2a2b}
 /* save toggle + saved spots */
 .fr-actions{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;margin-top:2px}
 .fr-actions .fr-go{margin-top:0}
@@ -529,10 +573,6 @@ body { overscroll-behavior-y: contain; }
 [data-theme="dark"] .tabs{background:#000}
 [data-theme="dark"] .card{background:var(--card);border-color:var(--line)}
 [data-theme="dark"] .greet{background:linear-gradient(135deg,#0f3a3c,var(--card) 65%);border-color:var(--turq)}
-[data-theme="dark"] .greet-switch{border-color:var(--ink)}
-[data-theme="dark"] .greet-switch button{background:var(--card);color:var(--ink)}
-[data-theme="dark"] .greet-switch button + button{border-left-color:var(--ink)}
-[data-theme="dark"] .greet-switch button[aria-pressed="true"]{background:var(--turq);color:#000}
 [data-theme="dark"] .story{background:#101a1d}
 [data-theme="dark"] .story.near{background:var(--near);border-color:var(--near-line)}
 [data-theme="dark"] .story .src{color:var(--turq)}
@@ -616,7 +656,8 @@ body { overscroll-behavior-y: contain; }
    Sized in px on purpose, so the Text size setting never reflows the header. */
 .sr-only{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 .skyline{position:absolute;left:0;bottom:14px;width:100%;height:140px;display:block;fill:#000;pointer-events:none}
-.topbar[data-skyline="sa"] .sky-city, .topbar[data-skyline="city"] .sky-sa{display:none}
+.skyline g[class^="sky-"]{display:none}   /* one skyline per metro: sa, houston, austin, dallas, miami, else the generic city */
+.topbar[data-skyline="sa"] .sky-sa, .topbar[data-skyline="city"] .sky-city, .topbar[data-skyline="houston"] .sky-houston, .topbar[data-skyline="austin"] .sky-austin, .topbar[data-skyline="dallas"] .sky-dallas, .topbar[data-skyline="miami"] .sky-miami{display:inline}
 .brand-bubble{position:absolute;left:50%;top:6px;width:188px;height:146px;margin:0 0 0 -94px;padding:0;border:0;border-radius:50% 50% 50% 50% / 44% 44% 56% 56%;
   background:transparent;box-shadow:none;min-height:0;cursor:pointer;-webkit-appearance:none;appearance:none;-webkit-tap-highlight-color:transparent;
   transition:transform .15s ease;transform-origin:30% 90%}
