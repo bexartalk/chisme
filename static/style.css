@@ -321,3 +321,16 @@ main{padding-top:0}
 .more-food summary{cursor:pointer;font-weight:900;padding:8px 0;min-height:44px}
 .more-food .fr{margin-top:10px}
 @media (max-width:360px){.fr{grid-template-columns:5.5rem 1fr}}
+
+/* Texas art & landmark photos between stories */
+.art{margin:0;border:3px solid #000;border-radius:16px;overflow:hidden;background:#fff;box-shadow:0 4px 0 var(--turq)}
+.art.mural{box-shadow:0 4px 0 var(--pink)}
+.art-frame{background:#10302f;display:flex;justify-content:center}
+.art-frame img{display:block;width:100%;height:auto;max-height:min(70vh,560px);object-fit:contain;-webkit-user-drag:none;user-select:none;-webkit-touch-callout:none}
+.art figcaption{padding:10px 14px 12px;border-top:3px solid #000}
+.art-kicker{margin:0;font-size:.8rem;font-weight:900;letter-spacing:.04em;text-transform:uppercase;color:var(--ink2)}
+.art-cap{margin:2px 0 0;font-size:1.2rem;line-height:1.25;font-weight:900;color:var(--ink)}
+.art-artist{margin:2px 0 0;font-size:1rem;font-weight:800;color:var(--ink2)}
+.art-credit{margin:6px 0 0;font-size:.85rem;font-weight:600;color:var(--muted);line-height:1.6}
+.art-credit a{display:inline-block;min-height:24px;padding:2px 0;font-weight:800}
+.news-list .art{grid-column:1 / -1}

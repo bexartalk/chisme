@@ -1,6 +1,6 @@
 /* Chisme service worker: caches the app shell and the last-loaded news/weather
    so the app opens (and shows the last saved data) without a connection. */
-const VERSION = "chisme-v17";
+const VERSION = "chisme-v18";
 const SHELL_CACHE = `${VERSION}-shell`;
 const DATA_CACHE = `${VERSION}-data`;
 const SHELL = [
@@ -19,10 +19,14 @@ const SHELL = [
   "/static/icons/favicon.ico",
   "/static/icons/apple-touch-icon.png",
 ];
+// Texas art & landmark photos shown between stories (~2 MB): precached best-effort so they work offline.
+const ART = ["/static/art/art.json", ...Array.from({ length: 13 }, (_, i) => `/static/art/${String(i + 1).padStart(2, "0")}.webp`)];
 const API_TIMEOUT_MS = 10000;
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(SHELL_CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  event.waitUntil(caches.open(SHELL_CACHE)
+    .then((c) => c.addAll(SHELL).then(() => Promise.allSettled(ART.map((u) => c.add(u)))))
+    .then(() => self.skipWaiting()));
 });
 
 self.addEventListener("activate", (event) => {

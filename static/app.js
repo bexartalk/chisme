@@ -512,6 +512,44 @@
     box.append(row);
     return box;
   }
+  // ---------- Texas art & landmark photos between stories (Wikimedia Commons, credited on each card)
+  const ART_EVERY = 4, ART_KEY = "chisme-art-next";
+  let ART = [];
+  const artReady = fetch("/static/art/art.json").then((r) => r.json()).then((j) => { ART = j.items || []; }).catch(() => {});
+  function artCard(a) {
+    const img = el("img", { src: a.src, alt: a.alt, width: a.w, height: a.h, loading: "lazy", decoding: "async", draggable: "false" });
+    img.onerror = () => fig.remove();
+    const lic = a.license_url ? ext(a.license_url, a.license) : el("span", { text: a.license });
+    const fig = el("figure", { class: "art" + (a.mural ? " mural" : ""), "data-art": String(a.n) },
+      el("div", { class: "art-frame" }, img),
+      el("figcaption", {},
+        el("p", { class: "art-kicker", text: a.mural ? "🎨 Arte local" : "📍 Postal de Texas" }),
+        el("p", { class: "art-cap", text: `${a.subject} · ${a.city}` }),
+        a.artist ? el("p", { class: "art-artist", text: a.artist }) : null,
+        el("p", { class: "art-credit" }, "Photo: ", el("b", { text: a.author }), " · ", lic, " · ",
+          ext(a.source_url, "Source: Wikimedia Commons ↗"))));
+    return fig;
+  }
+  // One photo after every 4 stories (only between stories), rotating through the set; the next
+  // starting photo is saved so each refresh shows different ones.
+  let artCursor = +localStorage.getItem(ART_KEY) || 0, artStart = artCursor;
+  function withArt(nodes) {
+    if (!ART.length || nodes.length <= ART_EVERY) return nodes;
+    const out = [];
+    nodes.forEach((n, i) => {
+      out.push(n);
+      if ((i + 1) % ART_EVERY === 0 && i < nodes.length - 1) out.push(artCard(ART[artCursor++ % ART.length]));
+    });
+    return out;
+  }
+  function saveArtCursor() {
+    const N = ART.length || 1;
+    artCursor %= N;
+    if (artCursor === artStart % N) artCursor = (artCursor + 1) % N;  // used a whole number of rounds: still move on
+    artStart = artCursor;
+    localStorage.setItem(ART_KEY, String(artCursor));
+  }
+
   let newsSeq = 0;
   async function loadNews() {
     const seq = ++newsSeq;
@@ -523,12 +561,15 @@
       const p = n.place || {};
       const names = (p.nearby || []).slice(0, 5).map((x) => x.name);
       $("#near-hint").textContent = "Closest first: " + [names.length ? names.join(", ") : null, p.city, p.county].filter(Boolean).join(" → ") + ".";
-      $("#near-list").replaceChildren(...(n.near.length ? n.near.map((i) => story(i, true))
+      await artReady;
+      if (seq !== newsSeq) return;
+      $("#near-list").replaceChildren(...(n.near.length ? withArt(n.near.map((i) => story(i, true)))
         : [el("p", { class: "loading", text: `No stories naming ${placeName()} in the latest feeds yet — check back in a bit.` })]));
-      $("#city-list").replaceChildren(...(n.more.length ? n.more.map((i) => story(i, false))
+      $("#city-list").replaceChildren(...(n.more.length ? withArt(n.more.map((i) => story(i, false)))
         : [el("p", { class: "loading", text: "No other local stories right now. The newsrooms must be on a coffee break. ☕" })]));
       $("#sa-sec").hidden = !(n.san_antonio && n.san_antonio.length);
-      $("#sa-list").replaceChildren(...(n.san_antonio || []).map((i) => story(i, false)));
+      $("#sa-list").replaceChildren(...withArt((n.san_antonio || []).map((i) => story(i, false))));
+      saveArtCursor();
       $("#news-updated").textContent = offlineFrom["/api/news"] && n.generated
         ? "Saved copy from " + timeT(new Date(n.generated * 1000)) : "Updated " + timeT(new Date());
       $("#feeds").replaceChildren(...n.feeds.map((f) => el("li", { class: f.ok ? "" : "bad",
