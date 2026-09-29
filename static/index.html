@@ -29,6 +29,14 @@
       <button type="button" class="tab" data-view="events" aria-controls="view-events"><span aria-hidden="true">🎉</span> Events</button>
     </div>
   </nav>
+  <div id="sync" class="sync" role="status" aria-live="polite" data-state="done" hidden>
+    <span class="sync-ico" aria-hidden="true"></span><span id="sync-msg"></span>
+    <button type="button" id="sync-retry" hidden>Retry now</button>
+  </div>
+  <div id="ptr" class="ptr" aria-hidden="true" hidden>↻</div>
+  <div id="update-toast" class="update-toast" role="status" hidden>
+    <span>✨ Chisme was updated.</span> <button type="button" id="update-reload" class="primary">Reload</button>
+  </div>
   <header class="topbar">
     <div class="wrap topbar-inner">
       <div class="brand">

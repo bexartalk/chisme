@@ -54,27 +54,108 @@
   };
   document.addEventListener("error", (e) => { if (e.target.tagName === "IMG" && !e.target.closest(".leaflet-container")) e.target.style.visibility = "hidden"; }, true);
 
-  // Tracks which data came from the service worker's saved copy (offline).
+  // Tracks which data came from the service worker's saved copy (network unreachable).
   const offlineFrom = {};
-  async function getJSON(url, key = url.split("?")[0]) {
-    const r = await fetch(url, { cache: "no-store" });
-    const j = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(j.error || ("HTTP " + r.status));
-    if (r.headers.get("X-Chisme-Offline")) offlineFrom[key] = j.generated || true; else delete offlineFrom[key];
-    updateOfflineBanner();
-    return j;
+  // A free Render instance can take ~50 s to wake up, then a few seconds to build the news, so
+  // requests get a generous timeout (and the saved copy is on screen meanwhile).
+  const API_TIMEOUT = 75000;
+  async function getJSON(url, { key = url.split("?")[0], timeout = API_TIMEOUT } = {}) {
+    const ctl = "AbortController" in window ? new AbortController() : null;
+    const t = ctl && setTimeout(() => ctl.abort(), timeout);
+    try {
+      const r = await fetch(url, { cache: "no-store", signal: ctl && ctl.signal });
+      const json = /json/.test(r.headers.get("content-type") || "");
+      const j = json ? await r.json().catch(() => null) : null;
+      if (!r.ok || !j) throw Object.assign(new Error(j && j.error ? j.error : r.ok || r.status >= 502 ? "the server is waking up" : "HTTP " + r.status), { status: r.status });
+      if (r.headers.get("X-Chisme-Offline")) offlineFrom[key] = j.generated || true; else delete offlineFrom[key];
+      updateOfflineBanner();
+      return j;
+    } catch (e) {
+      if (e.name === "AbortError") throw new Error("the server took too long to answer");
+      if (e instanceof TypeError) throw new Error(navigator.onLine ? "couldn't connect" : "you're offline");
+      throw e;
+    } finally { clearTimeout(t); }
+  }
+  // The last good copy the service worker saved for this exact URL (or, first time, for any location).
+  async function fromCache(url, anyLocation) {
+    if (!("caches" in window)) return null;
+    try {
+      const u = new URL(url, location.href);
+      const r = (await caches.match(u.href)) || (anyLocation ? await caches.match(u.origin + u.pathname) : null);
+      const j = r && r.ok ? await r.json() : null;
+      return j && !j.error ? j : null;
+    } catch { return null; }
   }
   function updateOfflineBanner() {
     const b = $("#offline-banner");
     const saved = Object.values(offlineFrom).filter((v) => typeof v === "number");
     if (!navigator.onLine || saved.length) {
       const when = saved.length ? " No worries — here's your saved chisme from " + dateTimeT(new Date(Math.min(...saved) * 1000)) + "." : "";
-      b.textContent = "📴 You're offline." + when + " We'll refresh as soon as you're back online.";
+      b.textContent = (navigator.onLine ? "📴 Can't reach Chisme right now." : "📴 You're offline.") + when + " We'll refresh as soon as we can.";
       b.hidden = false;
     } else b.hidden = true;
   }
   window.addEventListener("offline", updateOfflineBanner);
   window.addEventListener("online", () => { updateOfflineBanner(); refreshAll(); });
+
+  // ---------- sync: show the saved copy right away, refresh in the background, retry with backoff
+  // Status pill under the nav: "Updating…" → (slow) "Waking up the server…" → "✓ Updated 8:45 AM".
+  const BACKOFF = [5e3, 15e3, 30e3, 60e3, 120e3, 300e3];
+  const secs = {}, Sync = { busy: new Set(), failed: new Map(), lastOk: 0, slow: false, slowT: null, hideT: null };
+  const clock = (d) => d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  function syncUI() {
+    const box = $("#sync"), msg = $("#sync-msg"), retry = $("#sync-retry");
+    clearTimeout(Sync.hideT);
+    if (Sync.busy.size) {
+      box.dataset.state = "busy"; retry.hidden = true;
+      msg.textContent = Sync.slow ? "Waking up the server — this can take up to a minute. Your saved chisme is below." : "Updating…";
+    } else if (Sync.failed.size) {
+      const f = [...Sync.failed.values()].sort((a, b) => a.at - b.at)[0];
+      const s = Math.max(1, Math.round((f.at - Date.now()) / 1000));
+      box.dataset.state = "fail"; retry.hidden = false;
+      msg.textContent = `Couldn't update (${f.why}). Showing the saved copy; trying again in ${s < 90 ? s + " s" : Math.round(s / 60) + " min"}.`;
+    } else if (Sync.lastOk) {
+      box.dataset.state = "ok"; retry.hidden = true;
+      msg.textContent = "Updated " + clock(new Date(Sync.lastOk));
+      Sync.hideT = setTimeout(() => { box.dataset.state = "done"; }, 4000);
+    } else { box.dataset.state = "done"; }
+    box.hidden = false;
+  }
+  function setBusy(name, on) {
+    if (on) Sync.busy.add(name); else Sync.busy.delete(name);
+    if (on && !Sync.slowT && !Sync.slow) Sync.slowT = setTimeout(() => { Sync.slowT = null; if (Sync.busy.size) { Sync.slow = true; syncUI(); } }, 8000);
+    if (!Sync.busy.size) { clearTimeout(Sync.slowT); Sync.slowT = null; Sync.slow = false; }
+    syncUI();
+  }
+  // name → { url(), apply(data, {saved}), loading(), fail(err), key }
+  function section(name, o) { secs[name] = { seq: 0, tries: 0, timer: null, shownUrl: null, key: o.key || "/api/" + name, ...o }; }
+  async function load(name) {
+    const s = secs[name], url = s.url(), seq = ++s.seq;
+    clearTimeout(s.timer); s.timer = null;
+    if (s.shownUrl !== url) {
+      const c = await fromCache(url, s.shownUrl == null);
+      if (seq !== s.seq) return;
+      if (c) { try { s.apply(c, { saved: true }); s.shownUrl = url; } catch (e) { console.warn("saved copy", e); } }
+      else s.loading && s.loading();
+    }
+    setBusy(name, true);
+    try {
+      const j = await getJSON(url, { key: s.key });
+      if (seq !== s.seq) return;
+      const saved = !!offlineFrom[s.key];
+      if (!(saved && s.shownUrl === url)) { s.apply(j, { saved }); s.shownUrl = url; }
+      if (saved) throw Object.assign(new Error(navigator.onLine ? "couldn't reach Chisme" : "you're offline"), { soft: true });
+      s.tries = 0; s.okAt = Date.now(); Sync.failed.delete(name); Sync.lastOk = Date.now();
+    } catch (e) {
+      if (seq !== s.seq) return;
+      if (s.shownUrl !== url && s.fail) s.fail(e);
+      const d = BACKOFF[Math.min(s.tries++, BACKOFF.length - 1)];
+      Sync.failed.set(name, { at: Date.now() + d, why: e.message });
+      s.timer = setTimeout(() => load(name), d);
+    } finally { if (seq === s.seq) setBusy(name, false); }
+  }
+  const retryFailed = () => { for (const n of Sync.failed.keys()) load(n); };
+  setInterval(() => { if (!Sync.busy.size && Sync.failed.size) syncUI(); }, 5000);  // keep the countdown honest
 
   // ---------- text size
   const FS_KEY = "chisme-font-px";
@@ -193,14 +274,17 @@
   };
 
   // ---------- geolocation
-  let watchId = null;
+  let watchId = null, gpsBusy = false, lastFixAt = 0;
+  const GPS_WAIT_MS = 12000;
   function onPos(p) {
+    lastFixAt = Date.now();
     const n = { lat: p.coords.latitude, lon: p.coords.longitude };
     if (loc.source !== "gps" || kmBetween(loc, n) > MOVE_KM) setLocation(n, "gps");
   }
-  function onPosErr(err) {
+  function onPosErr(err, fromButton) {
     if (err.code === 1) { stopWatch(); if (loc.source !== "manual") showPanel("denied"); }
     else if (loc.source === "default") showPanel("unavailable");
+    else if (fromButton) $("#loc-status").textContent = `Couldn't get a location fix — still showing ${placeName()}. Try again, or type a city or ZIP.`;
   }
   function startWatch() {
     if (watchId != null || !("geolocation" in navigator)) return;
@@ -210,12 +294,21 @@
   function requestGPS(fromButton) {
     if (!window.isSecureContext) { showPanel("insecure"); return; }
     if (!("geolocation" in navigator)) { showPanel("unavailable"); return; }
+    // iOS home-screen apps can leave getCurrentPosition hanging forever, so we keep our own timer.
+    // News/weather never wait for this: they load for the saved (or default) location first.
+    if (!fromButton && (gpsBusy || Date.now() - lastFixAt < 5 * 60e3)) return;
     if (fromButton) $("#loc-status").textContent = "Finding you…";
+    gpsBusy = true;
+    let settled = false;
+    const t = setTimeout(() => { if (settled) return; settled = true; gpsBusy = false; onPosErr({ code: 3 }, fromButton); }, GPS_WAIT_MS);
     navigator.geolocation.getCurrentPosition((p) => {
+      settled = true; gpsBusy = false; clearTimeout(t); lastFixAt = Date.now();   // a late fix is still welcome
       const n = { lat: p.coords.latitude, lon: p.coords.longitude };
       if (fromButton || loc.source !== "gps" || kmBetween(loc, n) > MOVE_KM) setLocation(n, "gps");
+      else if (fromButton) $("#loc-status").textContent = "";
       startWatch();
-    }, onPosErr, { enableHighAccuracy: false, maximumAge: 5 * 60e3, timeout: 30e3 });
+    }, (err) => { if (settled) return; settled = true; gpsBusy = false; clearTimeout(t); onPosErr(err, fromButton); },
+    { enableHighAccuracy: false, maximumAge: 10 * 60e3, timeout: GPS_WAIT_MS - 2000 });
   }
   async function initGeo() {
     if (!window.isSecureContext || !("geolocation" in navigator)) {
@@ -377,14 +470,16 @@
     $("#fc-updated").textContent = "";
     $("#fc-credit").textContent = "Weather data: National Weather Service (U.S. only, api.weather.gov)";
   }
-  let wxSeq = 0;
-  async function loadWeather() {
-    const seq = ++wxSeq;
-    if (rendered.weather !== q()) $("#current").replaceChildren(el("p", { class: "loading", text: `Checking the sky over ${placeName()}…` }));
-    try {
-      const w = await getJSON(`/api/weather?${q()}`);
-      if (seq !== wxSeq) return;  // a newer location won
-      rendered.weather = q();
+  const stampFor = (saved, n) => saved && n.generated ? "Saved copy from " + timeT(new Date(n.generated * 1000)) : "Updated " + timeT(new Date());
+  section("weather", {
+    url: () => `/api/weather?${q()}`,
+    loading: () => $("#current").replaceChildren(el("p", { class: "loading", text: `Checking the sky over ${placeName()}…` })),
+    fail: (e) => {
+      $("#wx-updated").textContent = "";
+      $("#current").replaceChildren(el("p", { class: "error", text: "¡Ay! Couldn't reach the weather service (" + e.message + "). We'll keep trying." }));
+    },
+    apply: (w, { saved }) => {
+      if (!saved) rendered.weather = q();
       lastWeather = w;
       if (w.location && w.location.tz) { TZ = w.location.tz; $("#tz-name").textContent = `${w.location.city || "local"} time (${tzAbbr()})`; }
       else { TZ = DEVICE_TZ; $("#tz-name").textContent = `your device's time (${tzAbbr()})`; }
@@ -396,14 +491,10 @@
         if (w.forecast_updated) $("#fc-updated").textContent = "NWS issued " + dateTimeT(new Date(w.forecast_updated));
         $("#fc-credit").textContent = `Source: National Weather Service ${w.location.office || ""} office, grid ${w.location.grid ? w.location.grid.join(",") : ""} (api.weather.gov)`;
       }
-      $("#wx-updated").textContent = offlineFrom["/api/weather"] && w.generated
-        ? "Saved copy from " + timeT(new Date(w.generated * 1000)) : "Updated " + timeT(new Date());
-    } catch (e) {
-      if (seq !== wxSeq) return;
-      $("#wx-updated").textContent = "";
-      $("#current").replaceChildren(el("p", { class: "error", text: "¡Ay! Couldn't reach the weather service (" + e.message + "). We'll try again shortly." }));
-    }
-  }
+      $("#wx-updated").textContent = stampFor(saved, w);
+    },
+  });
+  const loadWeather = () => load("weather");
 
   // ---------- radar
   let map = null, youMarker = null, frames = [], layers = {}, idx = 0, timer = null, playing = true, radarHost = "";
@@ -452,7 +543,9 @@
       if (idx === frames.length - 1) { clearInterval(timer); setTimeout(() => playing && setPlaying(true), 1500); }
     }, 700);
   }
+  let radarRetry = null;
   async function loadRadar() {
+    clearTimeout(radarRetry);
     try {
       const j = await getJSON("/api/radar");
       if (offlineFrom["/api/radar"]) { $("#radar-time").textContent = "Radar needs a connection"; return; }
@@ -466,6 +559,7 @@
       setPlaying(playing);
     } catch (e) {
       $("#radar-time").textContent = navigator.onLine ? "Radar unavailable: " + e.message : "Radar needs a connection";
+      clearTimeout(radarRetry); radarRetry = setTimeout(loadRadar, 30000);
     }
   }
   $("#r-play").onclick = () => setPlaying(!playing);
@@ -550,19 +644,26 @@
     localStorage.setItem(ART_KEY, String(artCursor));
   }
 
-  let newsSeq = 0;
-  async function loadNews() {
-    const seq = ++newsSeq;
-    $("#near-list").replaceChildren(el("p", { class: "loading", text: `Gathering the chisme near ${placeName()}…` }));
-    try {
-      const n = await getJSON(`/api/news?${q()}`);
-      if (seq !== newsSeq) return;
-      rendered.news = q();
+  // Existing stories stay on screen while the news refreshes (no more blank "Gathering…" on every
+  // refresh); the saved copy shows first on a cold start.
+  let artWait = null;
+  section("news", {
+    url: () => `/api/news?${q()}`,
+    loading: () => $("#near-list").replaceChildren(el("p", { class: "loading", text: `Gathering the chisme near ${placeName()}…` })),
+    fail: (e) => $("#near-list").replaceChildren(el("p", { class: "error", text: "¡Ay, no! Couldn't reach the news (" + e.message + "). We'll keep trying." })),
+    apply: (n, { saved }) => {
+      if (!ART.length && !artWait) { artWait = artReady.then(() => { artWait = null; if (lastNewsData) renderNews(lastNewsData, lastNewsSaved); }); }
+      if (!saved) rendered.news = q();
+      renderNews(n, saved);
+    },
+  });
+  let lastNewsData = null, lastNewsSaved = false;
+  function renderNews(n, saved) {
+    lastNewsData = n; lastNewsSaved = saved;
+    {
       const p = n.place || {};
       const names = (p.nearby || []).slice(0, 5).map((x) => x.name);
       $("#near-hint").textContent = "Closest first: " + [names.length ? names.join(", ") : null, p.city, p.county].filter(Boolean).join(" → ") + ".";
-      await artReady;
-      if (seq !== newsSeq) return;
       $("#near-list").replaceChildren(...(n.near.length ? withArt(n.near.map((i) => story(i, true)))
         : [el("p", { class: "loading", text: `No stories naming ${placeName()} in the latest feeds yet — check back in a bit.` })]));
       $("#city-list").replaceChildren(...(n.more.length ? withArt(n.more.map((i) => story(i, false)))
@@ -570,15 +671,12 @@
       $("#sa-sec").hidden = !(n.san_antonio && n.san_antonio.length);
       $("#sa-list").replaceChildren(...withArt((n.san_antonio || []).map((i) => story(i, false))));
       saveArtCursor();
-      $("#news-updated").textContent = offlineFrom["/api/news"] && n.generated
-        ? "Saved copy from " + timeT(new Date(n.generated * 1000)) : "Updated " + timeT(new Date());
-      $("#feeds").replaceChildren(...n.feeds.map((f) => el("li", { class: f.ok ? "" : "bad",
+      $("#news-updated").textContent = stampFor(saved, n);
+      $("#feeds").replaceChildren(...(n.feeds || []).map((f) => el("li", { class: f.ok ? "" : "bad",
         text: (f.ok ? `${f.name}: ${f.count} items` : `${f.name}: unavailable (${f.error})`) + (f.query ? ` — search: ${f.query}` : "") })));
-    } catch (e) {
-      if (seq !== newsSeq) return;
-      $("#near-list").replaceChildren(el("p", { class: "error", text: "¡Ay, no! Couldn't reach the news feeds (" + e.message + "). We'll try again shortly." }));
     }
   }
+  const loadNews = () => load("news");
 
   // ---------- events
   const CAT_EMOJI = [[/music|concert|band|jazz|dj|tour/i, "🎶"], [/food|culinary|cooking|taco|wine|beer|brew|dinner|market/i, "🌮"],
@@ -762,29 +860,22 @@
     $("#food-sources").replaceChildren(...(n.sources || []).map((f) => el("li", { class: f.ok ? "" : "bad" },
       ext(f.home, f.name), f.ok ? `: ${f.count} recent ${f.kind === "creator" ? "videos" : "stories"}` : `: unavailable right now (${f.error})`)));
   }
-  async function loadFood() {
-    const seq = ++foodSeq;
-    try {
-      const n = await getJSON(`/api/food?${q()}`);
-      if (seq !== foodSeq) return;
-      foodData = n;
-      renderFood();
-    } catch (e) {
-      if (seq !== foodSeq) return;
-      if (!foodData) $("#food-creators").replaceChildren(el("p", { class: "error", text: "¡Ay! Couldn't reach the food feeds (" + e.message + "). We'll try again in a bit." }));
-    }
-  }
+  section("food", {
+    url: () => `/api/food?${q()}`,
+    apply: (n, { saved }) => { foodData = n; foodFresh = foodFresh || !saved; renderFood(); },
+    fail: (e) => { if (!foodData) $("#food-creators").replaceChildren(el("p", { class: "error", text: "¡Ay! Couldn't reach the food feeds (" + e.message + "). We'll keep trying." })); },
+  });
+  let foodFresh = false;
+  const loadFood = () => load("food");
 
-  let evSeq = 0, evRetry = null, evRetries = 0;
-  async function loadEvents() {
-    const seq = ++evSeq;
-    clearTimeout(evRetry);
-    if (rendered.events !== q()) $("#events-list").replaceChildren(el("p", { class: "loading", text: `Rounding up the pachangas near ${shortPlace()}…` }));
-    try {
-      loadFood();
-      const n = await getJSON(`/api/events?${q()}`);
-      if (seq !== evSeq) return;
-      rendered.events = q();
+  let evRetry = null, evRetries = 0;
+  section("events", {
+    url: () => `/api/events?${q()}`,
+    loading: () => $("#events-list").replaceChildren(el("p", { class: "loading", text: `Rounding up the pachangas near ${shortPlace()}…` })),
+    fail: (e) => $("#events-list").replaceChildren(el("p", { class: "error", text: "¡Ay! Couldn't reach the event calendars (" + e.message + "). We'll keep trying." })),
+    apply: (n, { saved }) => {
+      clearTimeout(evRetry);
+      if (!saved) rendered.events = q();
       const where = shortPlace();
       const list = n.events || [], ongoing = n.ongoing || [];
       $("#events-title").textContent = n.place && n.place.city ? `What's happening in ${n.place.city}` : "What's happening";
@@ -797,18 +888,16 @@
       evData = n;
       evIntro = $("#events-intro").textContent;
       renderEventList();
-      $("#events-updated").textContent = offlineFrom["/api/events"] && n.generated
-        ? "Saved copy from " + timeT(new Date(n.generated * 1000)) : "Updated " + timeT(new Date());
+      $("#events-updated").textContent = stampFor(saved, n);
       $("#event-sources").replaceChildren(...(n.sources || []).map((f) => el("li", { class: f.ok ? "" : "bad" },
         ext(f.url, f.name), f.ok ? `: ${f.count} listings` : `: unavailable (${f.error})`)));
       // prices/venues are still being looked up in the background: check back shortly
-      if (n.pending && !offlineFrom["/api/events"] && evRetries < 4) { evRetries++; evRetry = setTimeout(loadEvents, 35000); }
+      if (saved) return;
+      if (n.pending && evRetries < 4) { evRetries++; evRetry = setTimeout(() => load("events"), 35000); }
       else evRetries = 0;
-    } catch (e) {
-      if (seq !== evSeq) return;
-      $("#events-list").replaceChildren(el("p", { class: "error", text: "¡Ay! Couldn't reach the event calendars (" + e.message + "). We'll try again in a bit." }));
-    }
-  }
+    },
+  });
+  function loadEvents() { loadFood(); return load("events"); }
 
   // ---------- views: News | Weather | Events (tap the sticky buttons or swipe sideways)
   const VIEWS = ["news", "weather", "events"];
@@ -959,11 +1048,68 @@
     if (Date.now() - lastWx > WEATHER_MS) { loadWeather(); loadRadar(); lastWx = Date.now(); }
     if (Date.now() - lastNews > NEWS_MS) { loadNews(); lastNews = Date.now(); }
     if (Date.now() - lastEv > EVENTS_MS) { loadEvents(); lastEv = Date.now(); }
+    retryFailed();   // back in the app: don't wait out the backoff
   });
+  // Manual refresh (pull down at the top, "Retry now", or Settings → Refresh now)
+  function refreshNow() {
+    for (const s of Object.values(secs)) s.tries = 0;
+    Sync.failed.clear();
+    refreshAll();
+  }
+  $("#sync-retry").onclick = refreshNow;
+
+  // ---------- pull to refresh (home-screen apps have no browser reload button)
+  const ptr = $("#ptr"), PTR_GO = 70;
+  let pull = null;
+  document.addEventListener("touchstart", (e) => {
+    if (e.touches.length !== 1 || window.scrollY > 0 || e.target.closest(NO_SWIPE + ", dialog")) { pull = null; return; }
+    pull = { x: e.touches[0].clientX, y: e.touches[0].clientY, dy: 0, lock: null };
+  }, { passive: true });
+  document.addEventListener("touchmove", (e) => {
+    if (!pull) return;
+    const dx = e.touches[0].clientX - pull.x, dy = e.touches[0].clientY - pull.y;
+    if (!pull.lock) {
+      if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+      pull.lock = dy > 0 && dy > Math.abs(dx) * 1.3 && window.scrollY <= 0 ? "y" : "no";
+    }
+    if (pull.lock !== "y") return;
+    pull.dy = Math.max(0, dy);
+    const d = Math.min(110, pull.dy * 0.55);
+    ptr.hidden = false;
+    ptr.style.transform = `translate(-50%, ${d}px) rotate(${d * 3}deg)`;
+    ptr.classList.toggle("go", d >= PTR_GO);
+  }, { passive: true });
+  const endPull = () => {
+    if (!pull) return;
+    const go = pull.lock === "y" && pull.dy * 0.55 >= PTR_GO;
+    pull = null;
+    ptr.classList.remove("go");
+    if (go) { ptr.classList.add("spin"); refreshNow(); setTimeout(() => { ptr.classList.remove("spin"); ptr.hidden = true; ptr.style.transform = ""; }, 900); }
+    else { ptr.hidden = true; ptr.style.transform = ""; }
+  };
+  document.addEventListener("touchend", endPull);
+  document.addEventListener("touchcancel", endPull);
 
   // ---------- PWA: service worker, install button (Android/desktop Chrome), iOS hint
+  // The app shell is served from the service worker's cache (instant open, even on a sleeping
+  // server). A new version installs in the background; we offer a reload, and reload by
+  // ourselves the next time the app is reopened.
   if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js").catch((e) => console.warn("SW failed", e)));
+    const hadController = !!navigator.serviceWorker.controller;
+    let reg = null, lastCheck = 0, pendingReload = false;
+    window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" })
+      .then((r) => { reg = r; lastCheck = Date.now(); }).catch((e) => console.warn("SW failed", e)));
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") return;
+      if (pendingReload) { location.reload(); return; }
+      if (reg && Date.now() - lastCheck > 60e3) { lastCheck = Date.now(); reg.update().catch(() => {}); }
+    });
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (!hadController) return;           // first install, nothing changed on screen
+      pendingReload = true;
+      $("#update-toast").hidden = false;
+    });
+    $("#update-reload").onclick = () => location.reload();
   }
   const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
   let deferredPrompt = null;
@@ -993,6 +1139,9 @@
 
   // expose for testing
   window.__chisme = { get frames() { return frames; }, get map() { return map; }, get loc() { return loc; },
-    get ready() { return rendered.weather === q() && rendered.news === q(); },
-    get eventsReady() { return rendered.events === q(); }, get foodReady() { return !!foodData; }, get evCat() { return evCat; }, get view() { return VIEWS[cur]; }, goView };
+    // ready = showing this location's news + weather (fresh or the saved copy); fresh = straight from the server
+    get ready() { return secs.weather.shownUrl === secs.weather.url() && secs.news.shownUrl === secs.news.url(); },
+    get fresh() { return rendered.weather === q() && rendered.news === q(); },
+    get eventsReady() { return secs.events.shownUrl === secs.events.url(); }, get foodReady() { return !!foodData; },
+    get sync() { return { busy: [...Sync.busy], failed: [...Sync.failed.keys()], lastOk: Sync.lastOk }; }, refreshNow, get evCat() { return evCat; }, get view() { return VIEWS[cur]; }, goView };
 })();

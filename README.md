@@ -63,6 +63,8 @@ The app shows a short reminder card on iPhone with these steps. Tap ✕ to hide 
 
 **Offline:** once you've opened Chisme with a connection, the service worker keeps the app itself plus the latest news, weather and events **for the last location you viewed**. With no signal you'll see that saved copy and a yellow "You're offline" banner. The radar needs a live connection.
 
+**Sleeping server (Render free plan):** the app opens from the phone's saved copy right away. A small pill under the section buttons says **"Updating…"**. If the server is still waking up (up to ~50 s), after 8 s it changes to "Waking up the server — this can take up to a minute". When the fresh data arrives it says **"✓ Updated 8:45 AM"**. If an update fails, the stories stay on screen and it retries automatically (5 s, 15 s, 30 s, 1 min, 2 min, then every 5 min), again when you come back to the app or reconnect, or right away with **Retry now**. **Pull down** at the top of any section to refresh by hand.
+
 ## How it works
 
 `app.py` is a small FastAPI server. It exists because RSS feeds block browser CORS, because browsers can't set the `User-Agent` header that NWS and Nominatim require, and so geocoding can be cached and rate-limited in one place. Every data endpoint takes `lat` and `lon`. Caches are keyed by a **rounded grid cell** (0.01°, about 1 km), so nearby users and small GPS jitter share cached results.
@@ -72,7 +74,7 @@ The app shows a short reminder card on iPhone with these steps. Tap ✕ to hide 
 | `GET /` | the single-page app (`static/index.html`, `app.js`, `style.css`; Leaflet is bundled in `static/vendor`) | – |
 | `GET /manifest.webmanifest` | PWA manifest (name, turquoise theme `#00C9CD`, icons, screenshots, shortcuts) | – |
 | `GET /sw.js` | service worker, served from the root so it covers the whole site | – |
-| `GET /api/place?lat&lon` | reverse geocode (Nominatim `/reverse`, zoom 16). Returns `label` ("South San, San Antonio"), neighborhood, city, county, state, country, ZIP and a list of **nearby neighborhoods** with distances | 7 days per cell |
+| `GET /api/place?lat&lon` | reverse geocode (Nominatim `/reverse`, zoom 16; falls back to Photon, then NWS — see below). Returns `label` ("South San, San Antonio"), neighborhood, city, county, state, country, ZIP and a list of **nearby neighborhoods** with distances | 7 days per cell |
 | `GET /api/geocode?q=` | city/ZIP search for the manual fallback. A 5-digit ZIP is looked up as a U.S. postal code; anything else is a free-text search. Up to 5 results | 30 days |
 | `GET /api/weather?lat&lon` | NWS `/points/{lat},{lon}` (per cell, 24 h) → forecast + hourly (per NWS grid), latest observation (nearest station, with fallback), `/alerts/active?point=…` (per cell). Outside NWS coverage it returns `supported:false` and a message | 5 min, alerts 3 min |
 | `GET /api/news?lat&lon` | builds the feed list for the place (below), fetches it in parallel, cleans it up, drops near-duplicate headlines, and ranks it | 10 min per feed |
@@ -80,9 +82,9 @@ The app shows a short reminder card on iPhone with these steps. Tap ✕ to hide 
 | `GET /api/events?lat&lon` | upcoming events within 45 km / 45 days: merged, de-duplicated across sources, with price (when stated), venue, coordinates and the NWS outlook per event day. Details (Visit SA venue/photo/admission, Eventbrite prices) are fetched politely in the background, and the response's `pending` count tells the page to re-check | lists 30 min, details 24 h, outlook 30 min |
 | `GET /healthz` | health check | – |
 
-If an upstream request fails, the server keeps serving the last good copy. A feed that fails is skipped and listed as unavailable under "News sources" at the bottom of the page.
+If an upstream request fails, the server keeps serving the last good copy. News, events and food are also **stale-while-revalidate**: an expired copy (news up to 6 h old, events/food 1 h) is returned immediately while a fresh one is built in the background, so a request never waits on slow feeds when there's anything to show. Static files are sent with `Cache-Control: no-cache` (JS/CSS/JSON revalidate via ETag, images cache for a day) and API responses with `no-store`; every response carries `X-Chisme: 1` so the service worker never saves a hosting "waking up" page. A feed that fails is skipped and listed as unavailable under "News sources" at the bottom of the page.
 
-**Geocoding (Nominatim / OpenStreetMap):** requests follow the [Nominatim usage policy](https://operations.osmfoundation.org/policies/nominatim/). They send an identifying `User-Agent`, are serialized to **at most 1 request per second**, and every result is cached. Place data © OpenStreetMap contributors (ODbL). The neighborhood list comes from the reverse-geocode result plus a few extra reverse lookups around the point. San Antonio's neighborhoods aren't mapped as areas in OSM, so `data/sa_neighborhoods.json` adds a small gazetteer of **40 SA neighborhoods/landmarks** (Harlandale, Palm Heights, Nogalitos, Port San Antonio, Southtown, Alamo Heights, …). Any within 5 km count as "nearby". It was built with `tools/build_sa_gazetteer.py`.
+**Geocoding (Nominatim / OpenStreetMap):** requests follow the [Nominatim usage policy](https://operations.osmfoundation.org/policies/nominatim/). They send an identifying `User-Agent`, are serialized to **at most 1 request per second**, and every result is cached. **Fallbacks:** Nominatim blocks busy shared IPs (Render's free-plan egress got `429 Too Many Requests`, which made `/api/news` fail with HTTP 502). Now a 403/429/503 from Nominatim pauses it for 15 minutes and reverse lookups go to [Photon](https://photon.komoot.io) (komoot's OSM geocoder), then to the NWS `/points` "relative location" (U.S.), and finally to a plain coordinate label, so news never fails because of geocoding. Searches fall back to Photon, and ZIPs to [Zippopotam.us](https://api.zippopotam.us). Places found through a fallback are cached for 15 minutes instead of 7 days. Place data © OpenStreetMap contributors (ODbL). The neighborhood list comes from the reverse-geocode result plus a few extra reverse lookups around the point. San Antonio's neighborhoods aren't mapped as areas in OSM, so `data/sa_neighborhoods.json` adds a small gazetteer of **40 SA neighborhoods/landmarks** (Harlandale, Palm Heights, Nogalitos, Port San Antonio, Southtown, Alamo Heights, …). Any within 5 km count as "nearby". It was built with `tools/build_sa_gazetteer.py`.
 
 **News ranking ("Near You"):**
 1. **Neighborhood tier:** the headline or summary names your neighborhood or a nearby one (closest first), or your ZIP. Common names like "Downtown" or "Midtown" only count if the city is also named. Within the SA newsrooms' feeds, the city is implied when you're in San Antonio.
@@ -92,11 +94,14 @@ If an upstream request fails, the server keeps serving the last good copy. A fee
 Near You shows up to 18 neighborhood stories, filled with city/county stories up to 30, newest first within each tier. **South Side boost:** only when you're on San Antonio's South Side, the classic South Side word list (South Side, South San, Harlandale, Palm Heights, Nogalitos, Zarzamora, SW Military, Kelly Field, Port San Antonio, Southcross, Pleasanton Rd, Palo Alto College, South Park Mall, …) also counts as neighborhood tier, and two extra South Side searches are added.
 
 **Service worker (`static/sw.js`):**
-* **Pre-caches the app shell** (page, CSS, JS, Leaflet, icons).
-* `/api/*` is **network-first**: it waits up to 10 s and stores the response. When offline it falls back to the saved copy for that exact location, or else the **last location's** copy, marked `X-Chisme-Offline`. Geocode searches aren't cached.
-* Pages are network-first with the cached shell as fallback. Static files use stale-while-revalidate.
+* **Pre-caches the app shell** (page, CSS, JS, Leaflet, icons, art photos) with `cache: "reload"`, so a new version never precaches a stale HTTP-cached file. Only responses marked `X-Chisme: 1` are saved.
+* **Pages open from the cached shell instantly** (no waiting on a sleeping server). Shell files come from the current version's cache, so HTML, JS and CSS always match. Other static files use stale-while-revalidate.
+* `/api/*` is **network-first with no short timeout**. A sleeping Render instance can take ~50 s, and the old 10 s cutoff threw the late answer away and showed "You're offline". The page reads the saved copy itself and shows it at once, and the network answer replaces it when it arrives. The SW falls back to the saved copy (for that exact location, or else the **last location's**, marked `X-Chisme-Offline`) only when the network actually fails. Geocode searches aren't cached.
+* **Updates:** registered with `updateViaCache: "none"`, and checked again whenever the app comes back to the foreground (at most once a minute). When a new version takes over, a "✨ Chisme was updated · Reload" toast appears, and the app reloads by itself the next time you reopen it.
 * Cross-origin requests (map/radar tiles, news thumbnails, NWS icons) always go to the network.
 * When you change front-end files, bump `VERSION` in `sw.js` so phones pick up the update.
+
+**Page loading:** each section (news, weather, events, food) first shows the saved copy for your location ("Saved copy from 8:40 AM"), then refreshes without clearing the screen. Requests time out after 75 s (long enough for a Render wake-up plus a cold news build). Failures retry with backoff. **Geolocation never blocks anything:** data loads for the saved (or default San Antonio) location first. Chisme keeps its own 12 s timer on `getCurrentPosition`, because iOS home-screen apps can leave it hanging, and it doesn't re-ask more than once every 5 minutes.
 
 ### App icon
 
@@ -195,11 +200,17 @@ All from Wikimedia Commons. CC BY / CC BY-SA photos are shown unmodified except 
 ./venv/bin/python update_test.py             # phone: News first, sticky bar, swipe News↔Weather↔Events, map pan, story links, events, offline
 ./venv/bin/python nav_forecast_test.py       # phone: fixed nav after scrolling far down each view; 7-day strip scrolls sideways w/o switching views; tap a day
 ./venv/bin/python events_food_test.py        # phone: category chips filter correctly, chip/food strips don't switch views, food reviews + links, offline
+./venv/bin/python coldstart_test.py          # phone: proxy holds requests 50 s (sleeping Render) → saved news instantly, "Updating…" → "Waking up…" → "Updated"; 502s retried with backoff; pull-to-refresh; hanging geolocation
 ./venv/bin/python art_test.py                # phone: a photo after every 4 stories, all 13 rotate, captions/credits match art.json, swipe on photos, offline
 npx lighthouse@11 http://localhost:8211/ --only-categories=pwa,accessibility,best-practices   # v11 still has the PWA category
 ```
 
-Last run (2026-09-29, about 8:45 AM CT, art between stories):
+Last run (2026-09-29, about 9:05 AM CT, "buffering / not updating" fix):
+* `coldstart_test.py` (50 s simulated wake-up): saved news on screen **0.1 s** after opening, stamp "Saved copy from …", pill "Updating…", then "Waking up the server…" after 8 s. No offline banner. **"Updated 9:02 AM"** after 51 s, with fresh news + weather. Two 502s from `/api/news` were retried after 5 s and 15 s, and the stories stayed on screen with a "Retry now" button. Pull-to-refresh shows its indicator and refreshes. A geolocation call that never answers gives up after 12 s, and news loads without it. No console errors.
+* With Nominatim mocked to always answer 429: `/api/news` 200 in 2.3 s (30 + 80 stories, "South San, San Antonio" via Photon), `/api/place` for Austin → "Downtown, Austin", `/api/geocode` for "Houston, TX" and 78211 work.
+* All other checks re-run and pass. Lighthouse 11.7: PWA 100, Accessibility 100, Best Practices 100.
+
+Earlier run (2026-09-29, about 8:45 AM CT, art between stories):
 * `art_test.py`: on the News view (30 + 80 stories), 26 photo cards, each after exactly 4 stories and never at the end of a list, cycling through all 13. Alt text, caption, artist, author, license and links match `art.json` for all 13, and all load. A vertical drag on a photo scrolls (~360 px); a sideways swipe on a photo goes to Weather and back. The next load starts on a different photo. Offline (clean profile): 14 art files precached, all 26 cards load, 0 failed requests, 0 console errors. No console errors online.
 * Re-ran `nav_forecast_test.py`, `events_food_test.py`, `update_test.py` and `pwa_check.py`: all pass. Lighthouse 11.7 on `/`: PWA 100, Accessibility 100, Best Practices 100.
 
@@ -224,10 +235,10 @@ The app is one stateless Python process with an in-memory cache. Both options be
 **Render:**
 1. Push this folder to a GitHub repo.
 2. In Render, choose **New → Blueprint** and pick the repo. It reads `render.yaml`: service `chisme`, build `pip install -r requirements.txt`, start `uvicorn app:app --host 0.0.0.0 --port $PORT`, health check `/healthz`.
-3. Set `APP_USER_AGENT` to include your email.
+3. Set `APP_USER_AGENT` to include your email (e.g. `Chisme/1.0 (you@example.com)`). Nominatim throttles anonymous-looking traffic from shared hosting IPs; Chisme falls back to Photon when that happens, but a real contact helps.
 4. Open `https://chisme.onrender.com` (or whatever URL Render shows) on your phone and install it as described above.
 
-Free instances sleep when idle, so the first open after a nap takes a few seconds. After you've installed it, the saved copy shows right away.
+Free instances sleep when idle, and the first request after a nap takes **~50 s** while Render wakes the service. The installed app shows the saved copy immediately with "Waking up the server…", and then "Updated h:mm" when fresh data arrives.
 
 **Fly.io:** uses the included `Dockerfile` and `fly.toml` (app `chisme`, region `dfw`):
 ```bash
@@ -247,6 +258,7 @@ docker build -t chisme . && docker run -p 8080:8080 -e APP_USER_AGENT="Chisme/1.
 ## Limitations
 
 * **Geolocation needs HTTPS or localhost.** On plain `http://` from another device, the browser refuses, and Chisme falls back to the city/ZIP search. iOS Safari asks again in some situations, and the in-app "Use my location" button re-requests it. If you've blocked location for the site, it has to be re-allowed in browser/phone settings.
+* **On Render's free plan, Nominatim may refuse requests** (shared IP → 429). Places then come from Photon or NWS, which can be less precise (e.g. the city instead of the neighborhood) until Nominatim answers again.
 * **Nominatim is rate-limited (1 request/second) and shared.** The first visit to a new ~1 km area makes a few lookups (place + nearby neighborhoods), so the first load there can take **~5–8 s**. After that it's cached. For a busy public deployment, use your own or a commercial geocoder (`NOMINATIM_URL`).
 * **Neighborhood names are approximate.** OSM has few neighborhood boundaries in Texas cities, so "Near:" uses the nearest named place from Nominatim, which can be a subdivision name or the ZIP's area. San Antonio uses the built-in gazetteer's *points*, not boundaries. The Overpass API (for full neighborhood polygons) wasn't reachable from the build box, so it isn't used.
 * **"Near You" is keyword-based.** It can miss stories that don't name a place, and it can match a different place with the same name. Common names are guarded by requiring the city too, but some false positives remain (e.g. a story about a "Downtown Austin" altercation involving San Marcos officials).

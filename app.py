@@ -36,7 +36,7 @@ from fastapi.staticfiles import StaticFiles
 # ---------------------------------------------------------------- config
 DEFAULT_LAT, DEFAULT_LON = 29.4241, -98.4936  # San Antonio, TX (used until the user picks)
 UA = os.environ.get(
-    "APP_USER_AGENT", "Chisme/1.0 (personal local news+weather app; contact: set APP_USER_AGENT)"
+    "APP_USER_AGENT", "Chisme/1.0 (local news+weather PWA; +https://github.com/bexartalk/chisme)"
 )
 WEATHER_TTL = 5 * 60        # server caches; the browser refreshes weather every 10 min
 ALERTS_TTL = 3 * 60
@@ -142,14 +142,28 @@ def client() -> httpx.AsyncClient:
     return _client
 
 
-async def cached(key: str, ttl: int, producer):
+_bg: dict[str, asyncio.Task] = {}
+
+
+async def cached(key: str, ttl: int, producer, stale: int = 0):
+    """Memory cache. With stale>0, an expired value younger than ttl+stale is returned right away and
+    refreshed in the background, so a slow upstream never makes the user wait twice."""
     hit = _cache.get(key)
     if hit and time.time() - hit[0] < ttl:
+        return hit[1]
+    if hit and stale and time.time() - hit[0] < ttl + stale:
+        if key not in _bg or _bg[key].done():
+            async def _refresh():
+                try:
+                    await cached(key, 0, producer)
+                except Exception:
+                    pass
+            _bg[key] = asyncio.create_task(_refresh())
         return hit[1]
     lock = _locks.setdefault(key, asyncio.Lock())
     async with lock:
         hit = _cache.get(key)
-        if hit and time.time() - hit[0] < ttl:
+        if hit and time.time() - hit[0] < max(ttl, 1):
             return hit[1]
         try:
             value = await producer()
@@ -192,9 +206,21 @@ _nomi_lock = asyncio.Lock()
 _nomi_last = 0.0
 
 
+_nomi_blocked_until = 0.0
+NOMI_BLOCK_S = 15 * 60
+
+
+class GeocoderUnavailable(Exception):
+    pass
+
+
 async def nominatim(path: str, params: dict) -> Any:
-    """Nominatim usage policy: identify the app (User-Agent), max 1 request/second, cache results."""
-    global _nomi_last
+    """Nominatim usage policy: identify the app (User-Agent), max 1 request/second, cache results.
+    On shared hosting (e.g. Render's free tier) Nominatim often answers 429/403 for the shared IP;
+    then we stop asking for 15 minutes and use the fallbacks below instead."""
+    global _nomi_last, _nomi_blocked_until
+    if time.time() < _nomi_blocked_until:
+        raise GeocoderUnavailable("nominatim rate-limited; using fallback")
     async with _nomi_lock:
         wait = 1.1 - (time.time() - _nomi_last)
         if wait > 0:
@@ -204,8 +230,75 @@ async def nominatim(path: str, params: dict) -> Any:
                                    headers={"Accept-Language": "en"})
         finally:
             _nomi_last = time.time()
+    if r.status_code in (403, 429, 503):
+        _nomi_blocked_until = time.time() + NOMI_BLOCK_S
+        raise GeocoderUnavailable(f"nominatim HTTP {r.status_code}")
     r.raise_for_status()
     return r.json()
+
+
+PHOTON = os.environ.get("PHOTON_URL", "https://photon.komoot.io")
+US_STATES = {"Alabama": "AL", "Alaska": "AK", "Arizona": "AZ", "Arkansas": "AR", "California": "CA", "Colorado": "CO",
+             "Connecticut": "CT", "Delaware": "DE", "District of Columbia": "DC", "Florida": "FL", "Georgia": "GA", "Hawaii": "HI",
+             "Idaho": "ID", "Illinois": "IL", "Indiana": "IN", "Iowa": "IA", "Kansas": "KS", "Kentucky": "KY", "Louisiana": "LA",
+             "Maine": "ME", "Maryland": "MD", "Massachusetts": "MA", "Michigan": "MI", "Minnesota": "MN", "Mississippi": "MS",
+             "Missouri": "MO", "Montana": "MT", "Nebraska": "NE", "Nevada": "NV", "New Hampshire": "NH", "New Jersey": "NJ",
+             "New Mexico": "NM", "New York": "NY", "North Carolina": "NC", "North Dakota": "ND", "Ohio": "OH", "Oklahoma": "OK",
+             "Oregon": "OR", "Pennsylvania": "PA", "Rhode Island": "RI", "South Carolina": "SC", "South Dakota": "SD",
+             "Tennessee": "TN", "Texas": "TX", "Utah": "UT", "Vermont": "VT", "Virginia": "VA", "Washington": "WA",
+             "West Virginia": "WV", "Wisconsin": "WI", "Wyoming": "WY", "Puerto Rico": "PR"}
+
+
+def _photon_addr(pr: dict) -> dict:
+    """Photon (komoot, OSM-based, keyless) feature properties -> a Nominatim-style address dict."""
+    cc = (pr.get("countrycode") or "").lower()
+    county = pr.get("county")
+    if county and cc == "us" and not re.search(r"(County|Parish|Borough)$", county):
+        county += " County"
+    a = {"city": pr.get("city") or (pr.get("name") if pr.get("osm_value") in ("city", "town", "village") else None),
+         "county": county, "state": pr.get("state"), "country_code": cc or None, "country": pr.get("country"),
+         "postcode": pr.get("postcode")}
+    hood = pr.get("locality") or pr.get("district")
+    if hood and hood != a["city"]:
+        a["neighbourhood"] = hood
+    if cc == "us" and pr.get("state") in US_STATES:
+        a["ISO3166-2-lvl4"] = "US-" + US_STATES[pr["state"]]
+    return a
+
+
+async def photon_reverse(lat: float, lon: float) -> dict:
+    r = await client().get(PHOTON + "/reverse", params={"lat": lat, "lon": lon, "lang": "en", "limit": 1})
+    r.raise_for_status()
+    feats = r.json().get("features") or []
+    if not feats:
+        raise GeocoderUnavailable("photon: no result")
+    pr = feats[0]["properties"]
+    return {"address": _photon_addr(pr), "display_name": ", ".join(x for x in [pr.get("name"), pr.get("city"), pr.get("state")] if x)}
+
+
+async def reverse_any(lat: float, lon: float) -> tuple[dict | None, str]:
+    """Reverse geocode with fallbacks: Nominatim -> Photon -> NWS points (U.S. city/state)."""
+    try:
+        rev = await nominatim("/reverse", {"lat": lat, "lon": lon, "zoom": 16, "addressdetails": 1})
+        if isinstance(rev, dict) and "error" not in rev:
+            return rev, "nominatim"
+    except Exception:
+        pass
+    try:
+        return await photon_reverse(lat, lon), "photon"
+    except Exception:
+        pass
+    try:
+        r = await client().get(f"https://api.weather.gov/points/{lat:.4f},{lon:.4f}", headers={"Accept": "application/geo+json"})
+        r.raise_for_status()
+        rl = ((r.json().get("properties") or {}).get("relativeLocation") or {}).get("properties") or {}
+        if rl.get("city"):
+            st = rl.get("state")
+            return {"address": {"city": rl["city"], "state": st, "country_code": "us", "ISO3166-2-lvl4": f"US-{st}"},
+                    "display_name": f"{rl['city']}, {st}"}, "nws"
+    except Exception:
+        pass
+    return None, "none"
 
 
 def _addr_city(a: dict) -> str | None:
@@ -218,10 +311,11 @@ def _state_abbr(a: dict) -> str | None:
 
 
 async def build_place(lat: float, lon: float) -> dict:
-    rev = await nominatim("/reverse", {"lat": lat, "lon": lon, "zoom": 16, "addressdetails": 1})
-    if not isinstance(rev, dict) or "error" in rev:
+    rev, via = await reverse_any(lat, lon)
+    if not isinstance(rev, dict):
         return {"lat": lat, "lon": lon, "label": f"{lat:.3f}, {lon:.3f}", "city": None, "county": None,
-                "state": None, "country_code": None, "neighborhood": None, "nearby": [], "south_side": False}
+                "state": None, "country_code": None, "neighborhood": None, "nearby": [], "south_side": False,
+                "geocoder": via, "degraded": True}
     a = rev.get("address", {})
     city, county, cc = _addr_city(a), a.get("county"), a.get("country_code")
     nearby: list[dict] = []
@@ -248,12 +342,16 @@ async def build_place(lat: float, lon: float) -> dict:
     return {"lat": lat, "lon": lon, "label": label, "neighborhood": hood, "city": city, "county": county,
             "state": a.get("state"), "state_abbr": st, "country_code": cc, "country": a.get("country"),
             "postcode": a.get("postcode"), "nearby": nearby[:12], "south_side": south_side,
-            "display_name": rev.get("display_name")}
+            "display_name": rev.get("display_name"), "geocoder": via, "degraded": via != "nominatim"}
 
 
 async def get_place(lat: float, lon: float) -> dict:
     c = cell(lat, lon, 0.01)  # ~1 km
-    return await cached(f"place:{c}", PLACE_TTL, lambda: build_place(*c))
+    key = f"place:{c}"
+    p = await cached(key, PLACE_TTL, lambda: build_place(*c))
+    if p.get("degraded") and key in _cache and _cache[key][0] > time.time() - 60:
+        _cache[key] = (time.time() - PLACE_TTL + 15 * 60, p)  # fallback answer: try Nominatim again in 15 min
+    return p
 
 
 async def get_nearby_osm(lat: float, lon: float) -> list[dict]:
@@ -264,6 +362,8 @@ async def get_nearby_osm(lat: float, lon: float) -> list[dict]:
         out = []
         d = 0.0135  # ~1.5 km
         for dlat, dlon in ((d, 0), (-d, 0), (0, d / math.cos(math.radians(c[0]))), (0, -d / math.cos(math.radians(c[0])))):
+            if time.time() < _nomi_blocked_until:
+                raise GeocoderUnavailable("nominatim rate-limited")  # don't cache an empty list for a month
             try:
                 rev = await nominatim("/reverse", {"lat": c[0] + dlat, "lon": c[1] + dlon, "zoom": 16, "addressdetails": 1})
             except Exception:
@@ -698,7 +798,10 @@ async def geocode(q: str) -> list[dict]:
         params |= {"postalcode": q[:5], "countrycodes": "us"}
     else:
         params["q"] = q
-    res = await nominatim("/search", params)
+    try:
+        res = await nominatim("/search", params)
+    except Exception:
+        return await geocode_fallback(q)
     out = []
     for x in res or []:
         a = x.get("address", {})
@@ -710,6 +813,36 @@ async def geocode(q: str) -> list[dict]:
                     "display_name": x.get("display_name"), "country_code": a.get("country_code")})
     return out
 
+
+
+async def geocode_fallback(q: str) -> list[dict]:
+    """When Nominatim is unavailable: U.S. ZIPs via Zippopotam.us, everything else via Photon."""
+    if re.fullmatch(r"\d{5}(-\d{4})?", q):
+        r = await client().get(f"https://api.zippopotam.us/us/{q[:5]}")
+        if r.status_code == 404:
+            return []
+        r.raise_for_status()
+        pl = (r.json().get("places") or [])
+        return [{"lat": round(float(x["latitude"]), 4), "lon": round(float(x["longitude"]), 4),
+                 "label": f"{q[:5]}, {x['place name']}, {x['state abbreviation']}",
+                 "display_name": f"{x['place name']}, {x['state']} {q[:5]}", "country_code": "us"} for x in pl[:1]]
+    r = await client().get(PHOTON + "/api", params={"q": q, "limit": 8, "lang": "en"})
+    r.raise_for_status()
+    out = []
+    for f in r.json().get("features") or []:
+        pr = f["properties"]
+        if pr.get("osm_key") not in ("place", "boundary") and pr.get("type") not in ("city", "district", "locality", "county"):
+            continue
+        a = _photon_addr(pr)
+        city = pr.get("name") or a.get("city")
+        label = ", ".join(x for x in [city, _state_abbr(a), pr.get("country") if a.get("country_code") != "us" else None] if x)
+        lon_, lat_ = f["geometry"]["coordinates"]
+        out.append({"lat": round(lat_, 4), "lon": round(lon_, 4), "label": label,
+                    "display_name": ", ".join(x for x in [pr.get("name"), pr.get("county"), pr.get("state"), pr.get("country")] if x),
+                    "country_code": a.get("country_code")})
+        if len(out) >= 5:
+            break
+    return out
 
 
 # ---------------------------------------------------------------- events
@@ -1450,7 +1583,7 @@ async def api_news(lat: float | None = Query(None), lon: float | None = Query(No
         return _err(ex, 400)
     try:
         c = cell(la, lo, 0.01)
-        return await cached(f"news:{c}", 5 * 60, lambda: build_news(*c))
+        return await cached(f"news:{c}", 5 * 60, lambda: build_news(*c), stale=6 * 3600)
     except Exception as ex:
         return _err(ex)
 
@@ -1463,7 +1596,7 @@ async def api_events(lat: float | None = Query(None), lon: float | None = Query(
         return _err(ex, 400)
     try:
         c = cell(la, lo, 0.02)  # ~2 km: events are city-wide anyway
-        return await cached(f"events:{c}", 45, lambda: build_events(*c))
+        return await cached(f"events:{c}", 45, lambda: build_events(*c), stale=3600)
     except Exception as ex:
         return _err(ex)
 
@@ -1476,7 +1609,7 @@ async def api_food(lat: float | None = Query(None), lon: float | None = Query(No
         return _err(ex, 400)
     try:
         near = km_between(la, lo, *SA_CENTER) <= 80
-        return await cached(f"foodlist:{near}", 60, lambda: build_food(la, lo))
+        return await cached(f"foodlist:{near}", 60, lambda: build_food(la, lo), stale=3600)
     except Exception as ex:
         return _err(ex)
 
@@ -1537,13 +1670,29 @@ async def index():
     return FileResponse(BASE / "static" / "index.html", headers={"Cache-Control": "no-cache"})
 
 
+@app.middleware("http")
+async def cache_headers(request, call_next):
+    """Code/styles/data must revalidate (cheap 304s via ETag) so phones never run a stale app.js;
+    images can be cached for a day. Without this, browsers cache /static/* heuristically."""
+    resp = await call_next(request)
+    resp.headers["X-Chisme"] = "1"   # lets the service worker tell our responses from a host "waking up" page
+    path = request.url.path
+    if path.startswith("/static/") and "cache-control" not in resp.headers:
+        resp.headers["Cache-Control"] = ("public, max-age=86400" if re.search(r"\.(png|webp|jpe?g|ico|svg)$", path)
+                                         else "no-cache")
+    elif path.startswith("/api/") and "cache-control" not in resp.headers:
+        resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+
 app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
 
 
 @app.on_event("startup")
 async def warm():
     async def _w():  # warm caches for the default location
-        await asyncio.gather(api_weather(DEFAULT_LAT, DEFAULT_LON), api_radar(), api_events(DEFAULT_LAT, DEFAULT_LON),
+        await asyncio.gather(api_news(DEFAULT_LAT, DEFAULT_LON), api_weather(DEFAULT_LAT, DEFAULT_LON), api_radar(),
+                             api_events(DEFAULT_LAT, DEFAULT_LON),
                              api_food(DEFAULT_LAT, DEFAULT_LON),
                              return_exceptions=True)
     asyncio.create_task(_w())
