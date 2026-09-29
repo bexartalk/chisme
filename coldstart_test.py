@@ -121,11 +121,11 @@ with sync_playwright() as p:
     page2.goto(BASE)
     page2.wait_for_selector("#near-list .story", timeout=10000)
     check(page2.locator("#near-list .story").count() > 3, "news shows without waiting for location")
-    page2.evaluate("document.querySelector('#loc-panel').hidden && document.querySelector('#loc-btn').click()")
+    page2.click("#settings-btn")                     # location lives in Settings now
     t1 = time.time()
-    page2.click("#loc-gps")
-    page2.wait_for_function("document.querySelector('#loc-title').textContent === \"Couldn't find your location\"", timeout=16000)
-    check(True, f"hanging geolocation gives up after {time.time() - t1:.0f}s: " + page2.eval_on_selector("#loc-msg", "e => e.textContent"))
+    page2.click("#set-gps")
+    page2.wait_for_function("/Couldn't get a location fix/.test(document.querySelector('#set-loc-status').textContent)", timeout=16000)
+    check(True, f"hanging geolocation gives up after {time.time() - t1:.0f}s: " + page2.eval_on_selector("#set-loc-status", "e => e.textContent"))
     ctx.close()
 
 check(not errors, f"no console errors ({errors[:3]})")

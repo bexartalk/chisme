@@ -43,12 +43,12 @@ async def main():
         page.on("pageerror", lambda e: logs.append(f"pageerror: {e}"))
         page.on("console", lambda m: logs.append(f"console.{m.type}: {m.text}") if m.type in ("error", "warning") else None)
         await page.goto(URL, wait_until="domcontentloaded")
-        await page.wait_for_function("() => window.__chisme && window.__chisme.ready && /Near:/.test(document.querySelector('#loc-label').textContent)", timeout=120000)
+        await page.wait_for_function("() => window.__chisme && window.__chisme.ready && /^(Using your location|Showing): /.test(document.querySelector('#set-loc-now').textContent)", timeout=120000)
         await page.wait_for_timeout(1500)
         cdp = await ctx.new_cdp_session(page)
 
         # 1. news first on open
-        rep["1_open"] = await page.evaluate("""() => ({ view: window.__chisme.view, label: document.querySelector('#loc-label').textContent,
+        rep["1_open"] = await page.evaluate("""() => ({ view: window.__chisme.view, label: document.querySelector('#set-loc-now').textContent,
             greeting: document.querySelector('#greet-hi').textContent, greetSub: document.querySelector('#greet-sub').textContent,
             newsVisible: document.querySelector('#view-news').getBoundingClientRect().height > 100,
             weatherHidden: document.querySelector('#view-weather').getBoundingClientRect().height === 0,

@@ -1,14 +1,15 @@
 /* Chisme service worker: caches the app shell and the last-loaded news/weather
    so the app opens instantly (and shows the last saved data) even when the server is asleep
    or there's no connection. */
-const VERSION = "chisme-v21";
+const VERSION = "chisme-v22";
+const BUILD = VERSION.replace("chisme-v", "");          // index.html asks for app.js?v=<BUILD>
 const SHELL_CACHE = `${VERSION}-shell`;
 const DATA_CACHE = `${VERSION}-data`;
 const SHELL = [
   "/",
   "/manifest.webmanifest",
-  "/static/style.css",
-  "/static/app.js",
+  `/static/style.css?v=${BUILD}`,
+  `/static/app.js?v=${BUILD}`,
   "/static/vendor/leaflet/leaflet.css",
   "/static/vendor/leaflet/leaflet.js",
   "/static/vendor/leaflet/images/layers.png",
@@ -47,8 +48,12 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
-    await Promise.all(keys.filter((k) => !k.startsWith(VERSION)).map((k) => caches.delete(k)));
+    const old = keys.filter((k) => !k.startsWith(VERSION + "-"));
+    await Promise.all(old.map((k) => caches.delete(k)));
     await self.clients.claim();
+    // Tell open pages which version now controls them; a page from another build reloads itself
+    // once. (WindowClient.navigate() is not used: WebKit can leave that navigation hanging.)
+    await tellVersion();
   })());
 });
 
@@ -103,15 +108,24 @@ async function pageCacheFirst(request) {
 // worker, so HTML, JS and CSS always match); anything else stale-while-revalidate.
 async function staticCacheFirst(request) {
   const cache = await caches.open(SHELL_CACHE);
-  const path = new URL(request.url).pathname;
-  const hit = await cache.match(request, { ignoreSearch: true });
-  if (hit && (SHELL.includes(path) || ART.includes(path))) return hit;
+  const u = new URL(request.url);
+  // Exact match (query included): app.js?v=22 never gets an older build's copy.
+  const hit = await cache.match(request);
+  if (hit && (SHELL.includes(u.pathname + u.search) || ART.includes(u.pathname))) return hit;
   const net = fetch(request, { cache: "no-cache" }).then((resp) => {
     if (ours(resp)) cache.put(request, resp.clone());
     return resp;
   }).catch(() => null);
   return hit || (await net) || Response.error();
 }
+
+async function tellVersion(client) {
+  const to = client ? [client] : await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+  for (const c of to) { try { c.postMessage({ chismeVersion: VERSION }); } catch (e) {} }
+}
+self.addEventListener("message", (event) => {
+  if (event.data === "chisme-version") event.waitUntil(tellVersion(event.source || null));
+});
 
 self.addEventListener("fetch", (event) => {
   const req = event.request;

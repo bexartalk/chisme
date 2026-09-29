@@ -30,7 +30,7 @@ from zoneinfo import ZoneInfo
 import feedparser
 import httpx
 from fastapi import FastAPI, Query
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 # ---------------------------------------------------------------- config
@@ -1961,9 +1961,17 @@ async def service_worker():
                         headers={"Cache-Control": "no-cache", "Service-Worker-Allowed": "/"})
 
 
+def app_build() -> str:
+    """Build number from sw.js VERSION ("chisme-v22" -> "22"): the one place it's defined."""
+    m = re.search(r'VERSION\s*=\s*"chisme-v(\d+)"', (BASE / "static" / "sw.js").read_text())
+    return m.group(1) if m else "0"
+
+
 @app.get("/")
 async def index():
-    return FileResponse(BASE / "static" / "index.html", headers={"Cache-Control": "no-cache"})
+    # app.js / style.css are requested with ?v=<build>, so the page never runs with an older cached script
+    page = (BASE / "static" / "index.html").read_text().replace("__BUILD__", app_build())
+    return HTMLResponse(page, headers={"Cache-Control": "no-cache"})
 
 
 @app.middleware("http")

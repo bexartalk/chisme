@@ -17,8 +17,11 @@
   <link rel="icon" href="/static/icons/icon-192.png" type="image/png" sizes="192x192">
   <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png" sizes="180x180">
   <link rel="stylesheet" href="/static/vendor/leaflet/leaflet.css">
-  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/style.css?v=__BUILD__">
   <script>
+    /* The server fills in the build; app.js and style.css are requested with ?v=<build>, so an
+       older service worker's cached copies can never be mixed with this page. */
+    window.CHISME_BUILD = "__BUILD__";
     /* Settings that must apply before the first paint (no light flash in dark mode) */
     (function () {
       var d = document.documentElement, pref = "system", fs = 0, rm = "";
@@ -62,11 +65,6 @@
         <button type="button" id="install-btn" class="install" hidden>📲 Install</button>
       </div>
     </div>
-    <div class="wrap loc-row">
-      <button type="button" id="loc-btn" class="loc-pill" aria-haspopup="dialog" aria-controls="loc-panel">
-        <span aria-hidden="true">📍</span> <span id="loc-label">Near: San Antonio, TX</span> <span class="loc-change">Change</span>
-      </button>
-    </div>
     <div class="picado" aria-hidden="true"></div>
   </header>
 
@@ -74,7 +72,7 @@
   <section id="loc-panel" class="loc-panel wrap" hidden aria-labelledby="loc-title">
     <div class="loc-inner">
       <h2 id="loc-title">Show news &amp; weather for where you are?</h2>
-      <p id="loc-msg">Chisme uses your location only to look up your forecast, weather alerts, radar and nearby stories. It's saved on this device, and you can change it any time.</p>
+      <p id="loc-msg">Chisme uses your location only to look up your forecast, weather alerts, radar and nearby stories. It's saved on this device. You'll only be asked once: to change it later, tap the Chisme logo for Settings.</p>
       <div class="loc-actions">
         <button type="button" id="loc-gps" class="install">📍 Use my location</button>
         <button type="button" id="loc-close">Not now</button>
@@ -332,6 +330,32 @@
   </footer>
 
   <script src="/static/vendor/leaflet/leaflet.js"></script>
-  <script src="/static/app.js"></script>
+  <script src="/static/app.js?v=__BUILD__"></script>
+  <div id="boot-fail" class="boot-fail" role="alert" hidden>
+    <p><b>Chisme didn't start properly.</b> <span id="boot-fail-why">This usually fixes itself with a reload.</span></p>
+    <button type="button" id="boot-fail-reload">Reload Chisme</button>
+  </div>
+  <script>
+    /* Safety net: if the app.js that ran isn't this page's build (an old cache) or it crashed while
+       starting, reload once; if that didn't help, say so with a Reload button instead of blank views. */
+    (function () {
+      var want = window.CHISME_BUILD, got = window.CHISME_APP_BUILD, ok = got === want && window.__chismeBooted;
+      var KEY = "chisme-boot-retry", tried = null;
+      try { tried = sessionStorage.getItem(KEY); } catch (e) {}
+      if (ok) { try { sessionStorage.removeItem(KEY); } catch (e) {} return; }
+      if (tried !== want && navigator.onLine !== false) {
+        try { sessionStorage.setItem(KEY, want); } catch (e) {}
+        location.reload(); return;
+      }
+      var box = document.getElementById("boot-fail");
+      if (got && got !== want) document.getElementById("boot-fail-why").textContent = "An old copy of the app got mixed in (build " + got + " instead of " + want + "). Reload to finish updating.";
+      box.hidden = false;
+      document.getElementById("boot-fail-reload").onclick = function () {
+        var done = function () { location.reload(); };
+        if (window.caches && caches.keys) caches.keys().then(function (ks) { return Promise.all(ks.filter(function (k) { return k.indexOf("chisme-v" + want + "-") !== 0; }).map(function (k) { return caches.delete(k); })); }).then(done, done);
+        else done();
+      };
+    })();
+  </script>
 </body>
 </html>

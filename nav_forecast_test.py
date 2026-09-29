@@ -43,7 +43,7 @@ async def main():
         page.on("pageerror", lambda e: logs.append(f"pageerror: {e}"))
         page.on("console", lambda m: logs.append(f"console.{m.type}: {m.text}") if m.type in ("error", "warning") else None)
         await page.goto(URL, wait_until="domcontentloaded")
-        await page.wait_for_function("() => window.__chisme && window.__chisme.ready && /Near:/.test(document.querySelector('#loc-label').textContent)", timeout=120000)
+        await page.wait_for_function("() => window.__chisme && window.__chisme.ready && /^(Using your location|Showing): /.test(document.querySelector('#set-loc-now').textContent)", timeout=120000)
         await page.wait_for_timeout(1200)
         cdp = await ctx.new_cdp_session(page)
         rep["top_of_page"] = await page.evaluate(NAV_JS)   # header starts below the nav, nothing hidden

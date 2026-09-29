@@ -1,4 +1,7 @@
 /* Chisme — frontend (location-aware) */
+// Build of this file. Must equal the number in sw.js VERSION ("chisme-v22"); the page compares it
+// with the build the HTML was served for and reloads once if an old cached app.js got mixed in.
+window.CHISME_APP_BUILD = "22";
 (() => {
   "use strict";
   const WEATHER_MS = 10 * 60 * 1000;
@@ -180,10 +183,14 @@
   const shortPlace = () => (loc.source === "default" ? loc.place && loc.place.city
     : loc.place && (loc.place.neighborhood || loc.place.city)) || placeName();
   function saveLoc() { localStorage.setItem(LOC_KEY, JSON.stringify(loc)); }
+  // The home screen asks about location only on first launch. Once a place is set (or the
+  // user says "Not now"), location lives only in Settings.
+  const SETUP_KEY = "chisme-location-setup";
+  const hadSavedPlace = loc.source === "gps" || loc.source === "manual";
+  if (hadSavedPlace && !localStorage.getItem(SETUP_KEY)) localStorage.setItem(SETUP_KEY, "1");
+  const firstRun = () => !localStorage.getItem(SETUP_KEY);
+  const finishSetup = () => { localStorage.setItem(SETUP_KEY, "1"); };
   function renderLocLabel() {
-    const pre = loc.source === "default" ? "Default: " : "Near: ";
-    $("#loc-label").textContent = pre + placeName();
-    $("#loc-btn").setAttribute("aria-label", `${pre}${placeName()}. Change location`);
     const city = loc.place && loc.place.city;
     $("#city-title").textContent = city ? `More ${city} news` : "More local news";
     $("#set-loc-now").textContent = (loc.source === "default" ? "Showing the default: " : loc.source === "gps" ? "Using your location: " : "Showing: ") + placeName();
@@ -206,7 +213,7 @@
     const moved = kmBetween(loc, n);
     loc = { lat: +(+n.lat).toFixed(4), lon: +(+n.lon).toFixed(4), source, label: n.label || null, ts: Date.now() };
     saveLoc(); renderLocLabel();
-    hidePanel();
+    finishSetup(); hidePanel();
     if (map) recenter(moved > 50 ? 8 : null);
     refreshAll();          // start loading right away (shows "Loading…" instead of the old place)
     await lookupPlace();   // then fill in the neighborhood/city label
@@ -235,17 +242,21 @@
   // ---------- location panel (friendly pre-prompt, denied fallback, change location)
   const PANEL = {
     ask: ["Show news & weather for where you are?",
-      "Chisme uses your location only to look up your forecast, weather alerts, radar and nearby stories. It's saved on this device, and you can change it any time. Until then we're showing San Antonio, TX."],
+      "Chisme uses your location only to look up your forecast, weather alerts, radar and nearby stories. It's saved on this device. You'll only be asked once: to change it later, tap the Chisme logo for Settings. Until then we're showing San Antonio, TX."],
     denied: ["Location is turned off for Chisme",
       "No problem — type a city or ZIP code below. (To use your location later, allow it for this site in your browser or phone settings, then tap “Use my location.”)"],
     unavailable: ["Couldn't find your location",
       "Your device didn't share a location. Type a city or ZIP code below, or try again."],
     insecure: ["Location needs a secure (https) connection",
       "Browsers only share location with https sites. Type a city or ZIP code below instead."],
-    change: ["Change location", "Use your current location, or type a city or ZIP code."],
   };
+  // First-run card on the home screen. After setup, messages go to Settings instead (never the home screen).
   function showPanel(mode) {
-    const [t, m] = PANEL[mode] || PANEL.change;
+    if (!firstRun()) {
+      if (inSettings() && mode !== "ask") locStatus().textContent = (PANEL[mode] || [""])[0] + ". " + ((PANEL[mode] || [])[1] || "");
+      return;
+    }
+    const [t, m] = PANEL[mode] || PANEL.ask;
     $("#loc-title").textContent = t;
     $("#loc-msg").textContent = m;
     $("#loc-panel").dataset.mode = mode;
@@ -258,8 +269,7 @@
   function hidePanel() { $("#loc-panel").hidden = true; }
   const inSettings = () => $("#settings").open;
   const locStatus = () => inSettings() ? $("#set-loc-status") : $("#loc-status");
-  $("#loc-btn").onclick = () => { if ($("#loc-panel").hidden) { showPanel("change"); $("#loc-panel").scrollIntoView({ block: "start" }); } else hidePanel(); };
-  $("#loc-close").onclick = () => { hidePanel(); if (loc.source === "default") sessionStorage.setItem("chisme-ask-later", "1"); };
+  $("#loc-close").onclick = () => { hidePanel(); finishSetup(); };   // "Not now": keep San Antonio; change it in Settings
   $("#loc-gps").onclick = () => requestGPS(true);
   async function searchPlaces(text, status, results) {
     if (text.length < 2) return;
@@ -337,7 +347,7 @@
     if (state === "granted") requestGPS(false);               // refresh on app open, then watch
     else if (state === "denied") showPanel("denied");
     else if (loc.source === "gps") requestGPS(false);          // previously allowed
-    else if (!sessionStorage.getItem("chisme-ask-later")) showPanel("ask");  // friendly pre-prompt
+    else if (firstRun()) showPanel("ask");                      // one-time friendly pre-prompt
   }
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible" && loc.source === "gps") requestGPS(false);
@@ -525,6 +535,12 @@
     // offline: don't request map tiles that can't load; add them once the connection is back
     if (navigator.onLine) baseLayer.addTo(map); else window.addEventListener("online", () => baseLayer.addTo(map), { once: true });
   }
+  // A touch that lands on the radar while the page is still momentum-scrolling can't be cancelled;
+  // Leaflet tries anyway and Chrome logs an error. The page is scrolling, so the map shouldn't pan:
+  // those moves never reach Leaflet. (Our swipe / pull-to-refresh already ignore touches on the map.)
+  window.addEventListener("touchmove", (e) => {
+    if (!e.cancelable && e.target && e.target.closest && e.target.closest(".leaflet-container")) e.stopImmediatePropagation();
+  }, { capture: true, passive: true });
   function initMap() {
     map = L.map("map", { center: [loc.lat, loc.lon], zoom: 8, minZoom: 3, maxZoom: 12, scrollWheelZoom: false, zoomControl: false });
     L.control.zoom({ position: "topright" }).addTo(map);
@@ -1292,7 +1308,7 @@
   };
   $("#set-gps").onclick = () => requestGPS(true);
   $("#set-refresh").onclick = () => { refreshNow(); $("#set-refresh-note").textContent = "Updating…"; };
-  $("#set-version").textContent = "· build 21";   // keep in step with VERSION in sw.js
+  $("#set-version").textContent = "· build " + window.CHISME_APP_BUILD;
 
   // ---------- boot + auto refresh
   let lastWx = 0, lastNews = 0, lastEv = 0, evBoot = null;
@@ -1382,11 +1398,21 @@
       if (pendingReload) { location.reload(); return; }
       if (reg && Date.now() - lastCheck > 60e3) { lastCheck = Date.now(); reg.update().catch(() => {}); }
     });
-    navigator.serviceWorker.addEventListener("controllerchange", () => {
-      if (!hadController) return;           // first install, nothing changed on screen
+    // A new version took over. Ask it which build it is: if it isn't this page's build, reload once
+    // right away so HTML, JS and CSS all come from the new version (or, if you're in the middle of
+    // something, offer it with the toast and reload the next time the app is reopened).
+    navigator.serviceWorker.addEventListener("message", (e) => {
+      const v = e.data && e.data.chismeVersion;
+      if (!v || v === "chisme-v" + window.CHISME_APP_BUILD) return;
+      const busy = $("#settings").open || (document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName));
+      if (!busy && document.visibilityState === "visible") { location.reload(); return; }
       pendingReload = true;
       $("#update-toast").hidden = false;
     });
+    const askVersion = () => { const c = navigator.serviceWorker.controller; if (c) c.postMessage("chisme-version"); };
+    navigator.serviceWorker.addEventListener("controllerchange", () => { if (hadController) askVersion(); });
+    if (navigator.serviceWorker.startMessages) navigator.serviceWorker.startMessages();   // WebKit queues them otherwise
+    askVersion();                            // also catches a page that opened under an older worker
     $("#update-reload").onclick = () => location.reload();
   }
   const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
@@ -1423,4 +1449,5 @@
     get eventsReady() { return secs.events.shownUrl === secs.events.url(); }, get foodReady() { return !!foodData; },
     get sync() { return { busy: [...Sync.busy], failed: [...Sync.failed.keys()], lastOk: Sync.lastOk }; }, refreshNow, get evCat() { return evCat; }, get view() { return VIEWS[cur]; }, goView,
     get sportsReady() { return !!rendered.sports; }, get spLg() { return spLg; } };
+  window.__chismeBooted = true;
 })();

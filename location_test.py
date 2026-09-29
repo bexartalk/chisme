@@ -11,7 +11,8 @@ OUT = Path(__file__).parent / "screenshots"
 PHONE = dict(viewport={"width": 390, "height": 844}, device_scale_factor=2, is_mobile=True, has_touch=True)
 
 STATE_JS = """() => ({
-  label: document.querySelector('#loc-label').textContent,
+  label: document.querySelector('#set-loc-now').textContent,   // location now lives in Settings
+  homeLocUI: !!document.querySelector('#loc-btn, .loc-pill'),
   loc: window.__chisme.loc,
   panel: document.querySelector('#loc-panel').hidden ? null : document.querySelector('#loc-panel').dataset.mode,
   alerts: document.querySelector('#alerts').innerText.slice(0, 120),
@@ -32,7 +33,7 @@ STATE_JS = """() => ({
 })"""
 
 async def ready(page, label_re, timeout=90000):
-    await page.wait_for_function(f"() => /{label_re}/.test(document.querySelector('#loc-label').textContent)", timeout=timeout)
+    await page.wait_for_function(f"() => /{label_re}/.test(document.querySelector('#set-loc-now').textContent)", timeout=timeout)
     # weather + news rendered for the *current* location
     await page.wait_for_function("() => window.__chisme && window.__chisme.ready", timeout=timeout)
     await page.wait_for_timeout(2500)
@@ -62,12 +63,12 @@ async def main():
         c, pg = await ctx_for(geolocation={"latitude": 29.35, "longitude": -98.56}, permissions=["geolocation"],
                               timezone_id="America/Chicago")
         await pg.goto(URL, wait_until="domcontentloaded")
-        await ready(pg, "Near: .*San Antonio")
+        await ready(pg, "(?:Using your location|Showing): .*San Antonio")
         report["a_san_antonio"] = await pg.evaluate(STATE_JS)
         await shots(pg, "location-sa")
         # move > 3 km: emulate driving to Austin while the app is open (watchPosition)
         await c.set_geolocation({"latitude": 30.27, "longitude": -97.74})
-        await ready(pg, "Near: .*Austin")
+        await ready(pg, "(?:Using your location|Showing): .*Austin")
         report["a_moved_to_austin"] = {k: v for k, v in (await pg.evaluate(STATE_JS)).items() if k in ("label", "loc", "mapCenter", "temp", "station")}
         await c.close()
 
@@ -75,7 +76,7 @@ async def main():
         c, pg = await ctx_for(geolocation={"latitude": 30.27, "longitude": -97.74}, permissions=["geolocation"],
                               timezone_id="America/Chicago")
         await pg.goto(URL, wait_until="domcontentloaded")
-        await ready(pg, "Near: .*Austin")
+        await ready(pg, "(?:Using your location|Showing): .*Austin")
         report["b_austin"] = await pg.evaluate(STATE_JS)
         await shots(pg, "location-austin")
         await c.close()
@@ -100,14 +101,19 @@ async def main():
         report["c_search_choices"] = await pg.locator("#loc-results .loc-result b").all_text_contents()
         await pg.screenshot(path=str(OUT / "location-denied-search.png"))
         await pg.locator("#loc-results .loc-result").first.click()
-        await ready(pg, "Near: .*Houston")
+        await ready(pg, "(?:Using your location|Showing): .*Houston")
         report["c_manual_houston"] = await pg.evaluate(STATE_JS)
         await shots(pg, "location-denied-manual")
-        # ZIP entry via the Change control
-        await pg.click("#loc-btn")
-        await pg.fill("#loc-q", "78211")
-        await pg.click("#loc-form button[type=submit]")
-        await ready(pg, "Near: .*San Antonio")
+        # after a place is set, the home screen has no location UI; reload keeps it that way
+        await pg.reload(wait_until="domcontentloaded")
+        await ready(pg, "(?:Using your location|Showing): .*Houston")
+        report["c_after_setup_reload"] = await pg.evaluate("() => ({ panelHidden: document.querySelector('#loc-panel').hidden, pill: !!document.querySelector('#loc-btn, .loc-pill') })")
+        # ZIP entry via Settings (the only place to change location now)
+        await pg.click("#settings-btn")
+        await pg.fill("#set-loc-q", "78211")
+        await pg.click("#set-loc-form button[type=submit]")
+        await ready(pg, "(?:Using your location|Showing): .*San Antonio")
+        await pg.click("#settings-close")
         report["c_manual_zip"] = {k: v for k, v in (await pg.evaluate(STATE_JS)).items() if k in ("label", "loc", "near", "temp")}
         await c.close()
 
@@ -115,7 +121,7 @@ async def main():
         c, pg = await ctx_for(geolocation={"latitude": 48.8566, "longitude": 2.3522}, permissions=["geolocation"],
                               timezone_id="Europe/Paris")
         await pg.goto(URL, wait_until="domcontentloaded")
-        await ready(pg, "Near: .*(Paris|France)")
+        await ready(pg, "(?:Using your location|Showing): .*(Paris|France)")
         report["d_non_us"] = await pg.evaluate(STATE_JS)
         await pg.evaluate("document.documentElement.style.scrollBehavior='auto'; window.scrollTo(0,0)")
         await pg.screenshot(path=str(OUT / "location-nonus.png"))
