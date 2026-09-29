@@ -323,10 +323,11 @@
         el("div", { class: "p", text: h.pop ? "💧" + h.pop + "%" : "\u00a0" })));
     }
   }
+  let fcOpen = null;   // key of the day whose details are showing
   function renderForecast(periods) {
-    const box = $("#forecast");
+    const box = $("#forecast"), detail = $("#fc-detail");
     box.replaceChildren();
-    if (!periods || !periods.length) { box.append(el("p", { class: "error", text: "Forecast unavailable right now." })); return; }
+    if (!periods || !periods.length) { detail.hidden = true; box.append(el("p", { class: "error", text: "Forecast unavailable right now." })); return; }
     const days = [];
     for (const p of periods) {
       const key = fmt(new Date(p.startTime), { year: "numeric", month: "2-digit", day: "2-digit" });
@@ -334,27 +335,45 @@
       if (!d) { d = { key, day: null, night: null }; days.push(d); }
       if (p.isDaytime) d.day = p; else d.night = p;
     }
-    for (const d of days.slice(0, 7)) {
+    const today = fmt(new Date(), { year: "numeric", month: "2-digit", day: "2-digit" });
+    const list = days.slice(0, 7);
+    if (!list.some((d) => d.key === fcOpen)) fcOpen = null;
+    const show = (d) => {
+      detail.replaceChildren(el("h3", { text: (d.day || d.night).name + (d.day && d.night ? " & night" : "") }),
+        d.day ? el("p", {}, el("b", { text: d.day.name + ": " }), d.day.detailedForecast) : null,
+        d.night ? el("p", {}, el("b", { text: d.night.name + ": " }), d.night.detailedForecast) : null);
+      detail.hidden = false;
+    };
+    for (const d of list) {
       const main = d.day || d.night;
       const pop = Math.max(d.day?.pop || 0, d.night?.pop || 0);
+      const name = d.key === today ? (d.day ? "Today" : "Tonight") : fmt(new Date(main.startTime), { weekday: "short" });
       const temps = el("div", { class: "temps" });
       if (d.day) temps.append(d.day.temperature + "°");
       if (d.night) temps.append(d.day ? " / " : "Low ", el("span", { class: "lo", text: d.night.temperature + "°" }));
-      box.append(el("article", { class: "day" },
-        el("img", { src: icon(main.icon, "medium"), alt: "" }),
-        el("div", { class: "dn", text: d.day ? d.day.name : main.name }), temps,
-        el("div", { class: "sf", text: main.shortForecast }),
-        pop ? el("div", { class: "pop", text: "💧 " + pop + "% chance of rain" }) : null,
-        el("details", {}, el("summary", { text: "Details" }),
-          d.day ? el("p", { text: d.day.name + ": " + d.day.detailedForecast }) : null,
-          d.night ? el("p", { text: d.night.name + ": " + d.night.detailedForecast }) : null)));
+      const card = el("button", { type: "button", class: "day", "aria-controls": "fc-detail", "aria-expanded": String(d.key === fcOpen),
+        "aria-label": `${main.name}: ${main.shortForecast}. ${d.day ? "High " + d.day.temperature + "°" : ""}${d.night ? (d.day ? ", low " : "Low ") + d.night.temperature + "°" : ""}. ${pop ? pop + "% chance of rain" : "Little or no rain"}. Show details` },
+        el("span", { class: "dn", text: name }),
+        icon(main.icon, "medium") ? el("img", { src: icon(main.icon, "medium"), alt: "" }) : null,
+        temps,
+        el("span", { class: "pop" + (pop ? "" : " dry"), text: pop ? "💧 " + pop + "%" : "💧 0%" }));
+      card.title = main.shortForecast;
+      card.onclick = () => {
+        fcOpen = fcOpen === d.key ? null : d.key;
+        for (const c of box.querySelectorAll(".day")) c.setAttribute("aria-expanded", "false");
+        if (fcOpen) { card.setAttribute("aria-expanded", "true"); show(d); } else detail.hidden = true;
+      };
+      box.append(card);
+      if (d.key === fcOpen) show(d);
     }
+    if (!fcOpen) detail.hidden = true;
   }
   function renderUnsupported(w) {
     const msg = `${w.message} This location is outside NWS coverage, so there's no forecast here. Radar and news still work.`;
     $("#current").replaceChildren(el("p", { class: "notice", text: "🌎 " + msg }));
     $("#hourly").replaceChildren();
     $("#forecast").replaceChildren(el("p", { class: "notice", text: "Forecasts are available for U.S. locations only." }));
+    $("#fc-detail").hidden = true;
     $("#fc-updated").textContent = "";
     $("#fc-credit").textContent = "Weather data: National Weather Service (U.S. only, api.weather.gov)";
   }
@@ -610,12 +629,118 @@
           e.website && e.website !== e.url ? ext(e.website, "Organizer site ↗") : null),
         el("p", { class: "ev-src" }, "Listed on " + e.source, ...also)));
   }
+  // ---------- event categories + food reviews
+  const CAT_KEY = "chisme-events-cat";
+  const CATS = {
+    all: { test: () => true },
+    concerts: { test: (e) => (e.tags || []).includes("concerts"),
+      intro: (k) => `🎸 Turn it up: ${k} ${k === 1 ? "show" : "shows"} coming up around ${shortPlace()}.`,
+      empty: "No concerts on the calendars right now. Hum something to yourself and check back soon. 🎶" },
+    festivals: { test: (e) => (e.tags || []).includes("festivals"),
+      intro: (k) => `🎉 Fiesta mode: ${k} ${k === 1 ? "festival or market" : "festivals & markets"} on the way.`,
+      empty: "No festivals listed right now — ¡pero ya viene Fiesta! Check back soon." },
+    "free-classes": { test: (e) => (e.tags || []).includes("classes") && e.free,
+      intro: (k) => `🎓 Learn something, pay nothing: ${k} free ${k === 1 ? "class, talk or workshop" : "classes, talks & workshops"}.`,
+      empty: "No free classes or workshops on the calendars right now. Check back soon — or tap “All” for paid ones." },
+    food: { test: (e) => (e.tags || []).includes("food"),
+      intro: () => "🌮 ¡Provecho! What local food creators are eating, plus food & drink events coming up.",
+      empty: "No food & drink events on the calendars right now — the reviews above will have to hold you over. 🌮" },
+  };
+  let evData = null, evIntro = "", foodData = null, foodSeq = 0;
+  let evCat = CATS[localStorage.getItem(CAT_KEY)] ? localStorage.getItem(CAT_KEY) : "all";
+  function renderEventList() {
+    const n = evData;
+    if (!n) return;
+    const c = CATS[evCat], all = n.events || [], ongoingAll = n.ongoing || [];
+    for (const b of document.querySelectorAll("#ev-chips .chip")) b.setAttribute("aria-pressed", String(b.dataset.cat === evCat));
+    for (const k of Object.keys(CATS)) {
+      const span = $("#n-" + k);
+      if (span) { const cnt = [...all, ...ongoingAll].filter(CATS[k].test).length; span.textContent = cnt ? `(${cnt})` : "(0)"; }
+    }
+    const list = all.filter(c.test), ongoing = ongoingAll.filter(c.test);
+    $("#events-intro").textContent = evCat === "all" || !(all.length + ongoingAll.length) ? evIntro : c.intro(list.length + ongoing.length);
+    $("#food-block").hidden = evCat !== "food";
+    if (evCat === "food") renderFood();
+    const kids = [];
+    let last = null;
+    for (const e of list) {
+      const k = dayKey(new Date(e.start));
+      if (k !== last) { kids.push(el("h3", { class: "ev-day", text: dayLabel(new Date(e.start)) })); last = k; }
+      kids.push(eventCard(e));
+    }
+    const empty = evCat === "all" ? "No events on the calendar yet. ¡Ni modo! Try again later." : c.empty;
+    $("#events-list").replaceChildren(...(kids.length ? kids : n.message && evCat === "all" ? []
+      : ongoing.length ? [el("p", { class: "loading", text: "Nothing new coming up in this category — see “Still going on” below." })]
+      : [el("p", { class: "loading", text: empty })]));
+    $("#ongoing-sec").hidden = !ongoing.length;
+    $("#ongoing-list").replaceChildren(...ongoing.map(eventCard));
+  }
+  for (const b of document.querySelectorAll("#ev-chips .chip")) {
+    b.onclick = () => {
+      evCat = b.dataset.cat; localStorage.setItem(CAT_KEY, evCat);
+      renderEventList();
+      if (evCat === "food" && !foodData) loadFood();
+    };
+  }
+  const shortDate = (t) => fmt(new Date(t * 1000), { month: "short", day: "numeric" });
+  function foodItem(it) {
+    const thumb = el("a", { class: "fr-thumb", href: it.url, target: "_blank", rel: "noopener", tabindex: "-1", "aria-hidden": "true" });
+    const ph = () => el("div", { class: "ev-ph", role: "img", "aria-label": it.image ? "Photo loads when you're online" : "No photo in the feed" },
+      el("b", { text: it.video ? "🎥" : "📰", "aria-hidden": "true" }), el("span", { text: it.image ? "offline" : "no photo" }));
+    if (it.image && navigator.onLine) {
+      const img = el("img", { src: it.image, alt: "", loading: "lazy", referrerpolicy: "no-referrer" });
+      img.onerror = () => img.replaceWith(ph());
+      thumb.append(img);
+      if (it.video) thumb.append(el("span", { class: "play", text: "▶" }));
+    } else thumb.append(ph());
+    const by = it.kind === "creator" ? `${it.creator}` : [it.outlet, it.author].filter(Boolean).join(" · ");
+    return el("article", { class: "fr" + (it.kind === "creator" ? " fr-card" : "") }, thumb,
+      el("div", { class: "fr-body" },
+        el("h4", {}, ext(it.url, it.title)),
+        el("p", { class: "fr-by" }, el("b", { text: by }), it.published ? " · " + shortDate(it.published) : ""),
+        it.summary ? el("p", { class: "fr-sum", text: it.summary }) : null,
+        ext(it.url, it.video ? "▶ Watch on YouTube ↗" : "Read it ↗", "fr-go")));
+  }
+  function renderFood() {
+    const n = foodData;
+    if (!n) return;
+    if (n.message) {
+      $("#food-creators").replaceChildren(el("p", { class: "loading", text: n.message + " ¡Lo siento!" }));
+      $("#food-outlets").replaceChildren();
+      return;
+    }
+    const cr = n.items.filter((i) => i.kind === "creator"), out = n.items.filter((i) => i.kind === "outlet");
+    const group = (items, max, emptyText) => {
+      if (!items.length) return [el("p", { class: "loading", text: emptyText })];
+      const first = items.slice(0, max).map(foodItem), rest = items.slice(max);
+      if (!rest.length) return first;
+      return [...first, el("details", { class: "more-food" }, el("summary", { text: `${rest.length} more` }), ...rest.map(foodItem))];
+    };
+    $("#food-creators").replaceChildren(...(cr.length ? cr.map(foodItem) : [el("p", { class: "loading", text: "The creators are between bites — no new videos lately." })]));
+    $("#food-outlets").replaceChildren(...group(out, 5, "No new food coverage in the feeds right now."));
+    $("#food-sources").replaceChildren(...(n.sources || []).map((f) => el("li", { class: f.ok ? "" : "bad" },
+      ext(f.home, f.name), f.ok ? `: ${f.count} recent ${f.kind === "creator" ? "videos" : "stories"}` : `: unavailable right now (${f.error})`)));
+  }
+  async function loadFood() {
+    const seq = ++foodSeq;
+    try {
+      const n = await getJSON(`/api/food?${q()}`);
+      if (seq !== foodSeq) return;
+      foodData = n;
+      renderFood();
+    } catch (e) {
+      if (seq !== foodSeq) return;
+      if (!foodData) $("#food-creators").replaceChildren(el("p", { class: "error", text: "¡Ay! Couldn't reach the food feeds (" + e.message + "). We'll try again in a bit." }));
+    }
+  }
+
   let evSeq = 0, evRetry = null, evRetries = 0;
   async function loadEvents() {
     const seq = ++evSeq;
     clearTimeout(evRetry);
     if (rendered.events !== q()) $("#events-list").replaceChildren(el("p", { class: "loading", text: `Rounding up the pachangas near ${shortPlace()}…` }));
     try {
+      loadFood();
       const n = await getJSON(`/api/events?${q()}`);
       if (seq !== evSeq) return;
       rendered.events = q();
@@ -628,16 +753,9 @@
                 `Get off the couch, ${where}! ${list.length} events coming up nearby.`])
         : n.message ? `${n.message} ¡Lo siento! News, radar and search still work here.`
         : `Quiet around here, huh? No upcoming events found near ${where} right now — check back soon.`;
-      const kids = [];
-      let last = null;
-      for (const e of list) {
-        const k = dayKey(new Date(e.start));
-        if (k !== last) { kids.push(el("h3", { class: "ev-day", text: dayLabel(new Date(e.start)) })); last = k; }
-        kids.push(eventCard(e));
-      }
-      $("#events-list").replaceChildren(...(kids.length ? kids : n.message ? [] : [el("p", { class: "loading", text: "No events on the calendar yet. ¡Ni modo! Try again later." })]));
-      $("#ongoing-sec").hidden = !ongoing.length;
-      $("#ongoing-list").replaceChildren(...ongoing.map(eventCard));
+      evData = n;
+      evIntro = $("#events-intro").textContent;
+      renderEventList();
       $("#events-updated").textContent = offlineFrom["/api/events"] && n.generated
         ? "Saved copy from " + timeT(new Date(n.generated * 1000)) : "Updated " + timeT(new Date());
       $("#event-sources").replaceChildren(...(n.sources || []).map((f) => el("li", { class: f.ok ? "" : "bad" },
@@ -661,6 +779,7 @@
   const tabsH = () => tabsEl.offsetHeight;
   const setTabsVar = () => document.documentElement.style.setProperty("--tabs-h", tabsH() + "px");
   setTabsVar(); window.addEventListener("resize", setTabsVar);
+  if ("ResizeObserver" in window) new ResizeObserver(setTabsVar).observe(tabsEl);  // A−/A+ or rotation changes its height
   const viewsTop = () => viewsEl.getBoundingClientRect().top + window.scrollY;
   const pos = (i, dx = 0) => { track.style.transform = `translateX(calc(${-i} * (100% + ${GAP}px) + ${dx}px))`; };
   function updateTabs(scrollId) {
@@ -727,7 +846,7 @@
 
   // Swipe: only horizontal touch drags that start outside the radar map, the hourly strip and
   // form controls. touch-action: pan-y (CSS) leaves vertical scrolling to the browser.
-  const NO_SWIPE = ".leaflet-container, .hourly, input, select, textarea, .no-swipe";
+  const NO_SWIPE = ".leaflet-container, .hourly, .forecast, .chips, .food-strip, input, select, textarea, .no-swipe";
   let drag = null, justDragged = false;
   viewsEl.addEventListener("pointerdown", (e) => {
     if (e.pointerType === "mouse" || !e.isPrimary || e.target.closest(NO_SWIPE)) { drag = null; return; }
@@ -769,7 +888,7 @@
   if (localStorage.getItem("chisme-swiped")) $("#swipe-hint").hidden = true;
   // Deep links (manifest shortcuts): #weather, #radar-sec, #events. Otherwise News opens first.
   const HASH_VIEW = { "#weather": ["weather"], "#forecast-sec": ["weather", "forecast-sec"], "#radar-sec": ["weather", "radar-sec"],
-    "#alerts": ["weather", "alerts"], "#events": ["events"], "#near": ["news", "near"], "#city": ["news", "city"] };
+    "#alerts": ["weather", "alerts"], "#events": ["events"], "#food": ["events"], "#near": ["news", "near"], "#city": ["news", "city"] };
   pos(0); updateTabs();
 
   // ---------- boot + auto refresh
@@ -783,6 +902,7 @@
   }
   renderLocLabel();
   initMap();
+  if (location.hash === "#food") { evCat = "food"; localStorage.setItem(CAT_KEY, evCat); }
   const hv = HASH_VIEW[location.hash];
   if (hv && hv[0] !== "news") goView(hv[0], { instant: true });
   refreshAll();
@@ -833,5 +953,5 @@
   // expose for testing
   window.__chisme = { get frames() { return frames; }, get map() { return map; }, get loc() { return loc; },
     get ready() { return rendered.weather === q() && rendered.news === q(); },
-    get eventsReady() { return rendered.events === q(); }, get view() { return VIEWS[cur]; }, goView };
+    get eventsReady() { return rendered.events === q(); }, get foodReady() { return !!foodData; }, get evCat() { return evCat; }, get view() { return VIEWS[cur]; }, goView };
 })();

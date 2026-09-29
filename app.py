@@ -8,7 +8,8 @@ Small FastAPI backend that
     user's neighborhood / city / county, ranked by how close the named places are, with
     "related coverage" links (the same story from other fetched outlets),
   * builds an upcoming local events list (Visit San Antonio RSS, Eventbrite and AllEvents public
-    pages) with photos, venue, price (only when the source states it) and the NWS outlook,
+    pages) with photos, venue, price (only when the source states it), keyword categories and the NWS outlook,
+  * collects San Antonio food reviews from local creators' YouTube feeds and local food-desk feeds,
 and serves the single-page PWA frontend."""
 from __future__ import annotations
 
@@ -1025,8 +1026,26 @@ def allevents_url(place: dict) -> str | None:
     return f"https://allevents.in/{_slug(city)}/all" if city and place.get("country_code") == "us" else None
 
 
+AE_ID_RX = re.compile(r'\{"event_id":"(\d+)"')
+AE_CAT_RX = re.compile(r'"gemma_categories":\[([^\]]*)\]')
+
+
+def allevents_categories(page: str) -> dict[str, list[str]]:
+    """AllEvents embeds its own per-event categories (e.g. "concerts", "comedy") in the list JSON."""
+    cats: dict[str, list[str]] = {}
+    marks = list(AE_ID_RX.finditer(page))
+    for i, m in enumerate(marks):
+        chunk = page[m.end(): marks[i + 1].start() if i + 1 < len(marks) else m.end() + 6000]
+        c = AE_CAT_RX.search(chunk)
+        if c and m.group(1) not in cats:
+            vals = re.findall(r'"([^"]+)"', c.group(1))
+            cats[m.group(1)] = [v.replace("-", " ").title() for v in vals][:4]
+    return cats
+
+
 def parse_allevents(page: str) -> list[dict]:
     out = []
+    ae_cats = allevents_categories(page)
     for o in ld_objects(page):
         if not is_event_obj(o) or not o.get("url"):
             continue
@@ -1041,7 +1060,8 @@ def parse_allevents(page: str) -> list[dict]:
         out.append(base_event(
             id="ae:" + o["url"], title=clean_text(o["name"], 200), url=o["url"], source="AllEvents",
             source_id="allevents", image=ld_image(o.get("image")), start=s, has_time=st, end=e,
-            price=offers_price(o.get("offers")), summary=clean_text(o.get("description"), 260), **pl))
+            price=offers_price(o.get("offers")), summary=clean_text(o.get("description"), 260),
+            categories=ae_cats.get(o["url"].rstrip("/").rsplit("/", 1)[-1], []), **pl))
     return out
 
 
@@ -1170,6 +1190,49 @@ def _dedupe_events(events: list[dict]) -> list[dict]:
     return kept
 
 
+# --- categories (keyword tagging; source categories count too)
+CONCERT_CATS = {"music", "concerts", "concert", "live music", "rock music", "jazz", "classical", "country music",
+                "hip hop", "latin music", "pop music"}
+CONCERT_RX = re.compile(r"\b(concerts?|live music|symphony|orchestra|philharmonic|jazz|blues|mariachi|conjunto|tejano|"
+                        r"tribute|recital|opera|choir|chorale|band|dj|hip[- ]hop|r&b|m[uú]sica|en concierto|unplugged|"
+                        r"live (in|at)|y la familia|flamenco|singalong|sing-along|open mic)\b", re.I)
+COMEDY_RX = re.compile(r"\b(comedy|comedian|stand[- ]up|improv|sketch)\b", re.I)
+FEST_RX = re.compile(r"\b(festivals?|fest|fiestas?|parade|carnival|block party|night market|market days?|oktoberfest|"
+                     r"muertos|jubilee|jamboree|rodeo|fair)\b", re.I)
+NOT_FEST_RX = re.compile(r"\b(career|job|jobs|resource|hiring|college|university|benefits?|health|wellness|vendor)\s+fair\b", re.I)
+CLASS_RX = re.compile(r"\b(class(es)?|workshops?|lectures?|talks?|seminars?|courses?|lessons?|training|boot ?camp|"
+                      r"clinic|story ?time|tutorial|certification|book club|library|learn(ing)?|panel discussion|"
+                      r"demonstration|paint (&|and) sip|speaks?|speakers?|to speak)\b", re.I)
+CLASS_CATS = {"class, training, or workshop", "classes", "workshops", "lectures", "workshop"}
+FOOD_CATS = {"food", "food & drink", "culinary", "beer", "spirits", "wine", "food drink", "food and drink"}
+FOOD_RX = re.compile(r"\b(food|foodie|tacos?|taquer[ií]a|bbq|barbecue|brisket|brunch|breakfast|dinner|lunch|tasting|"
+                     r"cook(ing)?|culinary|chef|beer|wine|tequila|mezcal|margaritas?|chili|pozole|tamales?|coffee|brew(ery|ing)?|"
+                     r"bak(ery|ed)|pastr(y|ies)|croissants?|pizza|burgers?|dining|feast|eats?|restaurant|menu|dessert|"
+                     r"cookies?|seafood|steak(house)?|smokehouse|cantina|caf[eé]|kitchen|torta|birria|barbacoa|"
+                     r"panader[ií]a|donuts?|ice cream|paleta|aguas? frescas|cocktails?|sushi|ramen|pho|buffet)\b", re.I)
+FREE_TITLE_RX = re.compile(r"\bfree\b(?!\s*(with|w/|for members|parking|refills?|-\s*\$))", re.I)
+
+
+def event_tags(e: dict) -> tuple[list[str], bool]:
+    """Returns (tags, free) where tags ⊆ concerts/festivals/classes/food and free = the source says it's free."""
+    cats = {html.unescape(c).strip().lower() for c in e.get("categories") or []}
+    title = html.unescape(e.get("title") or "")
+    text = title + " " + " ".join(cats)
+    tags = []
+    comedy = bool(COMEDY_RX.search(text))
+    if not comedy and (cats & CONCERT_CATS or CONCERT_RX.search(title)):
+        tags.append("concerts")
+    if (FEST_RX.search(title) or any("festival" in c for c in cats)) and not NOT_FEST_RX.search(title):
+        tags.append("festivals")
+    if cats & CLASS_CATS or CLASS_RX.search(title):
+        tags.append("classes")
+    if cats & FOOD_CATS or FOOD_RX.search(title):
+        tags.append("food")
+    price = e.get("price")
+    free = bool(price and price.get("free")) or (not price and ("free" in cats or bool(FREE_TITLE_RX.search(title))))
+    return tags, free
+
+
 async def build_events(lat: float, lon: float) -> dict:
     place = dict(await get_place(lat, lon))
     now = datetime.now(timezone.utc)
@@ -1240,6 +1303,10 @@ async def build_events(lat: float, lon: float) -> dict:
         ongoing = e["start"] < now - timedelta(hours=12) and (e["end_eff"] - e["start"]) > timedelta(days=1)
         item = {k: e.get(k) for k in ("id", "title", "url", "source", "source_id", "image", "has_time", "venue", "address",
                                       "lat", "lon", "approx", "price", "summary", "categories", "also", "recurrence", "website")}
+        tags, free = event_tags(item)
+        if not item["price"] and "Free" in (item["categories"] or []):  # Visit San Antonio files it under "Free"
+            item["price"] = {"free": True, "text": "Free (per listing)"}
+        item.update(tags=tags, free=free)
         item.update(start=e["start"].isoformat(), end=e["end"].isoformat() if e["end"] else None,
                     km=round(km_between(lat, lon, e["lat"], e["lon"]), 1) if e["lat"] is not None and not e.get("approx") else None,
                     weather=outlook_for(e, fc, now), ongoing=ongoing)
@@ -1261,6 +1328,92 @@ async def _eb(u: str) -> list[dict]:
 
 async def _ae(u: str) -> list[dict]:
     return parse_allevents(await fetch_page(u))
+
+
+# ---------------------------------------------------------------- food reviews (San Antonio)
+# Only real, public feeds. Local creators = YouTube channel RSS (public, no key); outlets = RSS or a
+# Google News site: search. A feed that fails is simply left out (and reported in "sources").
+FOOD_TTL = 30 * 60
+FOOD_DAYS = 60
+YT_FEED = "https://www.youtube.com/feeds/videos.xml?channel_id="
+SA_RX = re.compile(r"\b(san antonio|satx|sanantonio|alamo city|sa\b)", re.I)
+ELSEWHERE_RX = re.compile(r"\b(austin|houston|dallas|fort worth|el paso|mckinney|plano|frisco|waco|lubbock|corpus christi|"
+                          r"laredo|mcallen|galveston|denton|arlington|killeen|midland|odessa|amarillo)\b", re.I)
+FOOD_SOURCES = [
+    # local creators (YouTube; checked by hand: San Antonio-based, posting SA food content)
+    {"id": "yt-cherise", "kind": "creator", "name": "Cherise SA Texas Food Guide",
+     "url": YT_FEED + "UCr5gIcFnRxKTaDNrcfA8ZaA", "home": "https://www.youtube.com/channel/UCr5gIcFnRxKTaDNrcfA8ZaA"},
+    {"id": "yt-hannah", "kind": "creator", "name": "Hannah | SATX Creator", "food_only": True,
+     "url": YT_FEED + "UCuluE-lMh--_7hyziZAvDvQ", "home": "https://www.youtube.com/channel/UCuluE-lMh--_7hyziZAvDvQ"},
+    {"id": "yt-texaseats", "kind": "creator", "name": "Texas Eats", "sa_only": True,
+     "url": YT_FEED + "UCsC3RShvhYxR9bTUfogm6pg", "home": "https://www.youtube.com/channel/UCsC3RShvhYxR9bTUfogm6pg"},
+    # local food desks
+    {"id": "sacurrent-food", "kind": "outlet", "name": "San Antonio Current · Food & Drink",
+     "url": "https://www.sacurrent.com/category/food-drink/feed/", "home": "https://www.sacurrent.com/food-drink/"},
+    {"id": "en-food", "kind": "outlet", "name": "Express-News · Food", "gnews": True,
+     "url": GN + urllib.parse.quote("site:expressnews.com/food when:30d"), "home": "https://www.expressnews.com/food/"},
+    {"id": "mysa-food", "kind": "outlet", "name": "MySA · Food", "gnews": True,
+     "url": GN + urllib.parse.quote("site:mysanantonio.com/food when:30d"), "home": "https://www.mysanantonio.com/food/"},
+]
+
+
+async def _fetch_food(src: dict) -> list[dict]:
+    r = await client().get(src["url"])
+    r.raise_for_status()
+    parsed = feedparser.parse(r.content)
+    out = []
+    for e in parsed.entries:
+        title, link = clean_text(e.get("title"), 200), e.get("link")
+        if not title or not link:
+            continue
+        outlet = src["name"]
+        if src.get("gnews"):
+            pub = (e.get("source") or {}).get("title")
+            title = re.sub(r"\s+-\s+" + re.escape(pub) + r"$", "", title) if pub else re.sub(r"\s+-\s+[^-]{2,60}$", "", title)
+        if src.get("food_only") and not FOOD_RX.search(title):
+            continue
+        if src.get("sa_only") and not SA_RX.search(title):
+            continue
+        if src["kind"] == "outlet" and ELSEWHERE_RX.search(title) and not SA_RX.search(title):
+            continue  # statewide food desks: keep it local
+        if src["kind"] == "creator":
+            title = re.sub(r"(\s*#[\w]+)+\s*$", "", title).strip() or title  # trailing hashtag soup
+        summary = "" if src.get("gnews") or src["kind"] == "creator" else clean_text(
+            re.sub(r"The post .{0,300}? appeared first on .*$", "", e.get("summary") or "", flags=re.S), 180)
+        out.append({"title": title, "url": link, "creator": outlet if src["kind"] == "creator" else None,
+                    "outlet": outlet, "author": None if src["kind"] == "creator" or src.get("gnews") else e.get("author"),
+                    "kind": src["kind"], "video": "youtube.com" in link, "published": entry_time(e),
+                    "image": None if src.get("gnews") else thumbnail(e), "summary": summary, "source_id": src["id"]})
+    return out
+
+
+async def build_food(lat: float, lon: float) -> dict:
+    if km_between(lat, lon, *SA_CENTER) > 80:
+        return {"generated": time.time(), "items": [], "sources": [],
+                "message": "Food reviews are San Antonio-only for now."}
+
+    async def one(src):
+        t0 = time.time()
+        try:
+            items = await cached("food:" + src["url"], FOOD_TTL, lambda: _fetch_food(src))
+            return items, {"id": src["id"], "name": src["name"], "kind": src["kind"], "home": src["home"], "ok": True,
+                           "count": len(items), "ms": int((time.time() - t0) * 1000)}
+        except Exception as ex:
+            return [], {"id": src["id"], "name": src["name"], "kind": src["kind"], "home": src["home"], "ok": False,
+                        "error": f"{type(ex).__name__}: {ex}"[:200]}
+
+    res = await asyncio.gather(*(one(s) for s in FOOD_SOURCES))
+    cutoff = time.time() - FOOD_DAYS * 86400
+    items, seen = [], set()
+    for its, _ in res:
+        for it in sorted((i for i in its if (i["published"] or 0) >= cutoff), key=lambda i: -(i["published"] or 0))[:8]:
+            k = norm_title(it["title"])
+            if k not in seen:
+                seen.add(k)
+                items.append(it)
+    items.sort(key=lambda i: -(i["published"] or 0))
+    return {"generated": time.time(), "items": items, "days": FOOD_DAYS, "message": None,
+            "sources": [st for _, st in res]}
 
 
 # ---------------------------------------------------------------- routes
@@ -1311,6 +1464,19 @@ async def api_events(lat: float | None = Query(None), lon: float | None = Query(
     try:
         c = cell(la, lo, 0.02)  # ~2 km: events are city-wide anyway
         return await cached(f"events:{c}", 45, lambda: build_events(*c))
+    except Exception as ex:
+        return _err(ex)
+
+
+@app.get("/api/food")
+async def api_food(lat: float | None = Query(None), lon: float | None = Query(None)):
+    try:
+        la, lo = _coords(lat, lon)
+    except ValueError as ex:
+        return _err(ex, 400)
+    try:
+        near = km_between(la, lo, *SA_CENTER) <= 80
+        return await cached(f"foodlist:{near}", 60, lambda: build_food(la, lo))
     except Exception as ex:
         return _err(ex)
 
@@ -1378,6 +1544,7 @@ app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
 async def warm():
     async def _w():  # warm caches for the default location
         await asyncio.gather(api_weather(DEFAULT_LAT, DEFAULT_LON), api_radar(), api_events(DEFAULT_LAT, DEFAULT_LON),
+                             api_food(DEFAULT_LAT, DEFAULT_LON),
                              return_exceptions=True)
     asyncio.create_task(_w())
 

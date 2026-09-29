@@ -14,7 +14,7 @@ button:focus-visible,a:focus-visible,summary:focus-visible{outline:4px solid #f5
 
 /* header — matches the app icon: turquoise ground, black type, hot-pink + orange accents (papel picado strip) */
 /* the header scrolls away; the section buttons below it (.tabs) stay stuck to the top */
-.topbar{background:var(--turq);color:#000;position:relative;z-index:10;padding-top:env(safe-area-inset-top)}
+.topbar{background:var(--turq);color:#000;position:relative;z-index:10}
 .topbar-inner{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:10px;padding-bottom:6px}
 .brand{display:flex;align-items:center;gap:12px;color:#000;text-decoration:none;min-width:0}
 .brand img{width:56px;height:56px;border-radius:14px;flex:0 0 auto;box-shadow:0 0 0 3px #000}
@@ -86,16 +86,6 @@ h2{margin:0;font-size:1.55rem;font-weight:900;color:var(--ink);letter-spacing:-.
 .hour img{width:44px;height:44px;border-radius:8px}
 
 /* forecast */
-.forecast{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
-.day{border:2px solid var(--line);border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:4px}
-.day .dn{font-weight:900;font-size:1.1rem}
-.day img{width:64px;height:64px;border-radius:10px}
-.day .temps{font-size:1.35rem;font-weight:900}
-.day .temps .lo{color:#333;font-weight:800}
-.day .sf{font-size:.9rem;font-weight:700}
-.day .pop{font-size:.85rem;font-weight:800;color:#0a3d8f}
-.day details{font-size:.85rem}
-.day summary{cursor:pointer;font-weight:800;color:var(--link)}
 
 /* radar */
 #map{height:440px;border-radius:12px;border:2px solid var(--line);background:#dfe7ee}
@@ -136,14 +126,6 @@ h2{margin:0;font-size:1.55rem;font-weight:900;color:var(--ink);letter-spacing:-.
   .now-temp{font-size:3.6rem}
   #map{height:340px}
   .story img{width:84px;height:64px}
-  .forecast{grid-template-columns:1fr}
-  .day{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:2px 12px}
-  .day img{grid-row:1 / span 3;grid-column:1;width:56px;height:56px}
-  .day .dn{grid-column:2}
-  .day .temps{grid-column:3;grid-row:1 / span 2;text-align:right}
-  .day .sf{grid-column:2}
-  .day .pop{grid-column:2}
-  .day details{grid-column:1 / -1}
 }
 .zip-label{font-weight:900;font-size:14px;color:#0a0a0a;border:2px solid #0a0a0a}
 #install-card .ios-hint-inner{flex-wrap:wrap}
@@ -188,7 +170,13 @@ h2{margin:0;font-size:1.55rem;font-weight:900;color:var(--ink);letter-spacing:-.
 }
 
 /* ---------- sticky section buttons (always visible, phones included) */
-.tabs{position:sticky;top:0;z-index:2000;background:#000;box-shadow:0 3px 10px rgba(0,0,0,.35)}
+/* Fixed (not sticky) so nothing — scroll containers, transforms, iOS quirks — can take it off screen.
+   It covers the status-bar area in an iPhone standalone PWA (safe-area-inset-top); the body gets the
+   same top padding (--tabs-h is measured by app.js, the calc() is the pre-JS fallback). */
+.tabs{position:fixed;top:0;left:0;right:0;z-index:2000;background:#000;box-shadow:0 3px 10px rgba(0,0,0,.35);
+  padding-top:env(safe-area-inset-top,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);
+  transform:translateZ(0)}
+body{padding-top:var(--tabs-h,calc(66px + env(safe-area-inset-top,0px)))}
 .tabs-inner{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding-top:6px;padding-bottom:6px}
 .tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;min-height:52px;padding:.2em .2em;
   background:#000;color:#fff;border:2px solid #000;border-radius:12px;font-size:min(.85rem,18px);font-weight:900;line-height:1.1;white-space:nowrap}
@@ -287,3 +275,49 @@ main{padding-top:0}
   .ev h3{font-size:1.1rem}
   .minimap{width:96px;height:72px}
 }
+
+/* ---------- 7-day forecast: compact day cards in a sideways strip (scroll-snap); tap for details */
+.forecast{display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;
+  -webkit-overflow-scrolling:touch;padding:2px 2px 8px;touch-action:pan-x pan-y;scroll-padding-left:2px}
+.forecast > .loading,.forecast > .notice,.forecast > .error{flex:1}
+.day{flex:0 0 auto;width:6.2rem;scroll-snap-align:start;display:flex;flex-direction:column;align-items:center;gap:2px;
+  border:2px solid var(--line);border-radius:14px;padding:6px 4px;background:#fff;min-height:44px;font-weight:700}
+.day[aria-expanded="true"]{border-color:#000;background:#e5fbfb;box-shadow:inset 0 -4px 0 var(--pink)}
+.day .dn{font-weight:900;font-size:.95rem;white-space:nowrap}
+.day img{width:48px;height:48px;border-radius:8px}
+.day .temps{font-size:1.1rem;font-weight:900;white-space:nowrap}
+.day .temps .lo{color:#444;font-weight:800}
+.day .pop{font-size:.8rem;font-weight:800;color:#0a3d8f;white-space:nowrap}
+.day .pop.dry{color:#666}
+.fc-detail{margin-top:8px;border:2px solid #000;border-left:10px solid var(--turq);border-radius:12px;padding:8px 12px;font-size:.9rem}
+.fc-detail[hidden]{display:none}
+.fc-detail h3{margin:0 0 4px;font-size:1.05rem;font-weight:900}
+.fc-detail p{margin:.3em 0}
+.fc-hint{margin:6px 0 0;font-size:.75rem;font-weight:700;color:var(--muted)}
+
+/* event category chips */
+.chips{display:flex;gap:8px;overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;padding:2px 2px 10px;margin:0 0 4px;scrollbar-width:thin;touch-action:pan-x pan-y}
+.chip{flex:0 0 auto;border-radius:999px;padding:.25em .9em;font-weight:900;white-space:nowrap;background:#fff}
+.chip .n{font-weight:700;font-size:.85em}
+.chip[aria-pressed="true"]{background:#000;color:#fff;box-shadow:inset 0 -4px 0 var(--turq)}
+/* food reviews */
+.food-block{margin-bottom:8px}
+.food-block .ev-day{margin:10px 0 6px}
+.food-list{display:grid;gap:10px}
+.fr{display:grid;grid-template-columns:6.5rem 1fr;gap:10px;align-items:start;border:2px solid var(--line);border-radius:14px;padding:8px;background:#fff}
+.fr h4 a{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.food-strip{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;padding:2px 2px 10px;touch-action:pan-x pan-y}
+.fr.fr-card{flex:0 0 auto;width:min(15rem,72vw);grid-template-columns:1fr;scroll-snap-align:start;gap:6px}
+.fr.fr-card .fr-thumb{width:100%}
+.fr-thumb{position:relative;display:block;aspect-ratio:16/9;border-radius:10px;overflow:hidden;background:#e5fbfb;border:2px solid #000}
+.fr-thumb img,.fr-thumb .ev-ph{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border:0}
+.fr-thumb .ev-ph b{font-size:1.4rem}
+.fr-thumb .ev-ph span{font-size:.65rem}
+.fr-thumb .play{position:absolute;right:6px;bottom:6px;background:rgba(0,0,0,.8);color:#fff;border-radius:999px;font-size:.75rem;padding:1px 7px;font-weight:900}
+.fr-body h4{margin:0 0 2px;font-size:1rem;line-height:1.25}
+.fr-by{margin:0;font-size:.85rem;color:var(--ink2)}
+.fr-sum{margin:4px 0 0;font-size:.85rem}
+.fr-go{display:inline-block;margin-top:4px;font-weight:900;font-size:.9rem}
+.more-food summary{cursor:pointer;font-weight:900;padding:8px 0;min-height:44px}
+.more-food .fr{margin-top:10px}
+@media (max-width:360px){.fr{grid-template-columns:5.5rem 1fr}}

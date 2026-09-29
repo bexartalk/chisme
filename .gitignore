@@ -4,3 +4,4 @@ server.log
 server.pid
 *.pyc
 screenshots/
+art-candidates/

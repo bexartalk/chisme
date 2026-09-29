@@ -20,6 +20,15 @@
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+  <!-- Section buttons: position:fixed, always on screen (phones included); body gets matching top padding -->
+  <nav id="tabs" class="tabs" aria-label="Sections">
+    <div class="wrap tabs-inner">
+      <button type="button" class="tab" data-view="news" aria-controls="view-news" aria-current="page"><span aria-hidden="true">📰</span> News</button>
+      <button type="button" class="tab" data-view="weather" aria-controls="view-weather"><span aria-hidden="true">🌤️</span> Weather</button>
+      <button type="button" class="tab" data-view="weather" data-scroll="radar-sec" aria-controls="view-weather" id="tab-radar"><span aria-hidden="true">📡</span> Radar</button>
+      <button type="button" class="tab" data-view="events" aria-controls="view-events"><span aria-hidden="true">🎉</span> Events</button>
+    </div>
+  </nav>
   <header class="topbar">
     <div class="wrap topbar-inner">
       <div class="brand">
@@ -44,15 +53,6 @@
     <div class="picado" aria-hidden="true"></div>
   </header>
 
-  <!-- Section buttons: always on screen (sticky), also on phones -->
-  <nav id="tabs" class="tabs" aria-label="Sections">
-    <div class="wrap tabs-inner">
-      <button type="button" class="tab" data-view="news" aria-controls="view-news" aria-current="page"><span aria-hidden="true">📰</span> News</button>
-      <button type="button" class="tab" data-view="weather" aria-controls="view-weather"><span aria-hidden="true">🌤️</span> Weather</button>
-      <button type="button" class="tab" data-view="weather" data-scroll="radar-sec" aria-controls="view-weather" id="tab-radar"><span aria-hidden="true">📡</span> Radar</button>
-      <button type="button" class="tab" data-view="events" aria-controls="view-events"><span aria-hidden="true">🎉</span> Events</button>
-    </div>
-  </nav>
 
   <section id="loc-panel" class="loc-panel wrap" hidden aria-labelledby="loc-title">
     <div class="loc-inner">
@@ -150,7 +150,9 @@
 
         <section id="forecast-sec" class="card">
           <div class="sec-head"><h2>7-day forecast</h2><span class="stamp" id="fc-updated"></span></div>
-          <div id="forecast" class="forecast"><p class="loading">Loading forecast…</p></div>
+          <div id="forecast" class="forecast" role="group" aria-label="7-day forecast, scroll sideways"><p class="loading">Loading forecast…</p></div>
+          <div id="fc-detail" class="fc-detail" role="region" aria-live="polite" aria-label="Forecast details" hidden></div>
+          <p class="fc-hint">Swipe the days sideways · tap a day for details.</p>
           <p class="credit" id="fc-credit">Source: National Weather Service (api.weather.gov)</p>
         </section>
 
@@ -173,6 +175,23 @@
         <section id="events" class="card">
           <div class="sec-head"><h2 id="events-title">What's happening</h2><span class="stamp" id="events-updated"></span></div>
           <p class="blurb" id="events-intro">¡Órale! Here's what's going on around town.</p>
+          <!-- Category filter chips (scroll sideways on small screens; swiping here never switches views) -->
+          <div id="ev-chips" class="chips" role="group" aria-label="Show event category">
+            <button type="button" class="chip" data-cat="all" aria-pressed="true">All <span class="n" id="n-all"></span></button>
+            <button type="button" class="chip" data-cat="concerts" aria-pressed="false"><span aria-hidden="true">🎸</span> Concerts <span class="n" id="n-concerts"></span></button>
+            <button type="button" class="chip" data-cat="festivals" aria-pressed="false"><span aria-hidden="true">🎉</span> Festivals <span class="n" id="n-festivals"></span></button>
+            <button type="button" class="chip" data-cat="free-classes" aria-pressed="false"><span aria-hidden="true">🎓</span> Free classes <span class="n" id="n-free-classes"></span></button>
+            <button type="button" class="chip" data-cat="food" aria-pressed="false"><span aria-hidden="true">🌮</span> Food</button>
+          </div>
+          <div id="food-block" class="food-block" hidden>
+            <h3 class="ev-day">Food reviews from local creators</h3>
+            <p class="hint" id="food-intro">Fresh bites from San Antonio food creators — swipe sideways for more. The reviews are theirs; tap through to watch.</p>
+            <div id="food-creators" class="food-strip" role="group" aria-label="Local food creator videos, scroll sideways"><p class="loading">Asking the foodies where to eat…</p></div>
+            <h3 class="ev-day">From the food desks</h3>
+            <p class="hint">Restaurant news and reviews from local food writers.</p>
+            <div id="food-outlets" class="food-list"></div>
+            <h3 class="ev-day" id="food-events-h">Food &amp; drink events</h3>
+          </div>
           <div id="events-list" class="events-list"><p class="loading">Rounding up the pachangas…</p></div>
         </section>
         <section id="ongoing-sec" class="card" hidden>
@@ -185,7 +204,10 @@
         <section class="card slim">
           <details class="feeds-status"><summary>Event sources</summary>
             <p class="hint">Prices, photos and times come straight from each listing. When a listing doesn't state a price we say “Check price” — always confirm on the event page. Weather outlooks are from the National Weather Service forecast for the venue's area (7 days out).</p>
-            <ul id="event-sources"></ul></details>
+            <ul id="event-sources"></ul>
+            <p class="hint">Categories are tagged automatically from each listing's title and the source's own categories, so a few may land in the wrong bucket. “Free classes” only shows classes, talks and workshops the listing says are free.</p>
+            <p class="hint"><b>Food reviews</b> come from public feeds: local creators' YouTube channels and local food coverage. Titles, photos and opinions are theirs.</p>
+            <ul id="food-sources"></ul></details>
         </section>
       </section>
     </div>
