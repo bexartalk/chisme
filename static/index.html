@@ -100,7 +100,13 @@
       <!-- ============ NEWS (first view on open) ============ -->
       <section id="view-news" class="view active" aria-label="News" data-view="news">
         <div class="greet card slim">
-          <p class="greet-hi" id="greet-hi">¡Hola, San Antonio!</p>
+          <div class="greet-top">
+            <p class="greet-hi" id="greet-hi" aria-live="polite">¡Buenos días, chismoso!</p>
+            <div class="greet-switch" role="group" aria-label="Greet me as chismoso or chismosa">
+              <button type="button" data-word="chismoso" aria-pressed="true">chismoso</button>
+              <button type="button" data-word="chismosa" aria-pressed="false">chismosa</button>
+            </div>
+          </div>
           <p class="greet-sub" id="greet-sub">Here's what the neighborhood is talking about.</p>
           <p class="swipe-hint" id="swipe-hint">Swipe <span aria-hidden="true">👈</span> for weather &amp; events, or tap the buttons up top.</p>
         </div>

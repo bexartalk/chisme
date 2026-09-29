@@ -128,14 +128,20 @@
   // ---------- personality (UI copy only — headlines and story text are never rewritten)
   const pick = (arr) => arr[Math.floor(Date.now() / 36e5) % arr.length];   // changes hourly, stable between renders
   function localHour() { try { return +fmt(new Date(), { hour: "numeric", hourCycle: "h23" }); } catch { return new Date().getHours(); } }
+  // Greeting: "¡Buenos días / Buenas tardes / Buenas noches, chismoso!" (or chismosa — the
+  // switch next to the greeting; saved on this device, default chismoso).
+  const GREET_KEY = "chisme-greeting-word";
+  const greetWord = () => (localStorage.getItem(GREET_KEY) === "chismosa" ? "chismosa" : "chismoso");
   function renderGreeting() {
-    const h = localHour(), who = shortPlace();
-    const hi = h >= 5 && h < 12 ? `¡Buenos días, ${who}! ☀️`
-      : h >= 12 && h < 18 ? `¡Buenas tardes, ${who}! 🌵`
-      : h >= 18 && h < 22 ? `¡Buenas noches, ${who}! 🌙` : `Hey there, night owl 🦉`;
+    const h = localHour(), w = greetWord();
+    const hi = h >= 5 && h < 12 ? `¡Buenos días, ${w}!` : h >= 12 && h < 18 ? `¡Buenas tardes, ${w}!` : `¡Buenas noches, ${w}!`;
     $("#greet-hi").textContent = hi;
-    $("#greet-sub").textContent = h >= 22 || h < 5 ? `Here's the latest from around ${who} while the city sleeps.`
-      : pick([`Here's what the neighborhood is talking about.`, `Your local news, closest stories first.`, `Pull up a chair — here's the latest from around ${who}.`]);
+    for (const b of document.querySelectorAll(".greet-switch button")) b.setAttribute("aria-pressed", String(b.dataset.word === w));
+    $("#greet-sub").textContent = h >= 22 || h < 5 ? "Here's the latest from around the barrio while the city sleeps."
+      : pick(["Here's what the neighborhood is talking about.", "Your local news, closest stories first.", "Pull up a chair — here's the latest from around town."]);
+  }
+  for (const b of document.querySelectorAll(".greet-switch button")) {
+    b.onclick = () => { localStorage.setItem(GREET_KEY, b.dataset.word); renderGreeting(); };
   }
 
   // ---------- location panel (friendly pre-prompt, denied fallback, change location)

@@ -211,6 +211,13 @@ main{padding-top:0}
 /* personality: greeting + blurbs */
 .greet{background:linear-gradient(135deg,#e5fbfb,#fff 60%);border-color:var(--turq)}
 .greet-hi{margin:0;font-size:1.35rem;font-weight:900;line-height:1.2}
+.greet-top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px}
+.greet-switch{display:inline-flex;border:2px solid #000;border-radius:999px;overflow:hidden;flex:0 0 auto}
+.greet-switch button{border:0;border-radius:0;min-height:44px;padding:.1em .8em;font-size:.85rem;font-weight:900;background:#fff;color:#000}
+.greet-switch button + button{border-left:2px solid #000}
+.greet-switch button[aria-pressed="true"]{background:#000;color:#fff}
+.greet-switch button[aria-pressed="true"]::before{content:"✓ "}
+.greet-switch button:focus-visible{outline:4px solid #f5b400;outline-offset:-4px}
 .greet-sub{margin:.15em 0 0;font-size:.95rem;font-weight:700}
 .swipe-hint{margin:.35em 0 0;font-size:.8rem;font-weight:700;color:var(--muted)}
 @media (min-width:901px){ .swipe-hint{display:none} }
