@@ -1549,6 +1549,294 @@ async def build_food(lat: float, lon: float) -> dict:
             "sources": [st for _, st in res]}
 
 
+
+# ---------------------------------------------------------------- sports
+# All keyless public sources (verified 2026-09-29): ESPN's public site API (scores, schedules,
+# standings, news + the thumbnails that come with each story), the MLB Stats API (MLB scores and
+# the Double-A San Antonio Missions), team/fan RSS and YouTube feeds, and Google News.
+ESPN = "https://site.api.espn.com/apis/site/v2/sports"
+ESPN_STANDINGS = "https://site.api.espn.com/apis/v2/sports"
+MLBAPI = "https://statsapi.mlb.com/api/v1"
+SPURS_ID = "24"
+MISSIONS_ID = 510
+TEXAS_LEAGUE_ID = 109
+TX_TEAMS = {"nfl": {"DAL", "HOU"}, "nba": {"SA", "DAL", "HOU"}, "mlb": {"TEX", "HOU"}}
+MLB_TX_IDS = {140, 117}   # Rangers, Astros (MLB Stats API ids)
+SPORTS_TTL = 5 * 60
+SPURS_FEEDS = [
+    {"id": "reddit", "name": "r/NBASpurs (Reddit, top this week)", "kind": "reddit", "home": "https://www.reddit.com/r/NBASpurs/",
+     "url": "https://www.reddit.com/r/NBASpurs/top/.rss?t=week"},
+    {"id": "yt-spurs", "name": "San Antonio Spurs on YouTube", "kind": "video", "home": "https://www.youtube.com/@Spurs",
+     "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCEZHE-0CoHqeL1LGFa2EmQw"},
+    {"id": "ptr", "name": "Pounding The Rock (SB Nation)", "kind": "blog", "home": "https://www.poundingtherock.com/",
+     "url": "https://www.poundingtherock.com/rss/index.xml"},
+    dict(gnews("gn-spurs", "Google News: Spurs", "\"San Antonio Spurs\" OR Wembanyama when:3d"), home="https://news.google.com/"),
+]
+MISSIONS_GN = gnews("gn-missions", "Google News: San Antonio Missions",
+                    "\"San Antonio Missions\" (baseball OR \"Wolff Stadium\" OR \"Texas League\" OR Padres OR Double-A) when:60d")
+MISSIONS_NOT = re.compile(r"national historical park|unesco|world heritage|mission (church|reach|trail|san jos|concepci|espada)|"
+                          r"\bmissions? (park|trail)\b|heritage festival|archdiocese|historic mission", re.I)
+
+
+def _espn_score(x):
+    v = x.get("score")
+    if isinstance(v, dict):
+        v = v.get("displayValue")
+    return v if v not in (None, "") else None
+
+
+def espn_game(e: dict, league: str) -> dict:
+    cc = (e.get("competitions") or [{}])[0]
+    st = (cc.get("status") or e.get("status") or {}).get("type") or {}
+    side = {}
+    for x in cc.get("competitors") or []:
+        t = x.get("team") or {}
+        rec = x.get("records") or x.get("record") or []
+        side[x.get("homeAway", "home")] = {
+            "name": t.get("displayName") or t.get("name"), "short": t.get("shortDisplayName") or t.get("name"),
+            "abbr": t.get("abbreviation"), "id": str(t.get("id") or ""), "score": _espn_score(x), "winner": x.get("winner"),
+            "record": (rec[0].get("summary") or rec[0].get("displayValue")) if rec else None}
+    link = next((l.get("href") for l in e.get("links") or [] if (l.get("href") or "").startswith("https://www.espn.com")), None)
+    notes = [n.get("headline") for n in cc.get("notes") or [] if n.get("headline")]
+    tv = [n for b in cc.get("broadcasts") or [] for n in (b.get("names") or [])]
+    abbrs = {side.get("home", {}).get("abbr"), side.get("away", {}).get("abbr")}
+    return {"id": str(e.get("id")), "league": league, "date": e.get("date"), "state": st.get("state") or "pre",
+            "detail": st.get("shortDetail") or st.get("detail") or st.get("description"), "home": side.get("home"), "away": side.get("away"),
+            "note": notes[0] if notes else ((e.get("seasonType") or {}).get("name") if (e.get("seasonType") or {}).get("type") in (1, 3) else None),
+            "tv": ", ".join(tv[:2]) or None, "link": link, "texas": bool(abbrs & TX_TEAMS.get(league, set()))}
+
+
+def espn_articles(d: dict, limit: int = 12) -> list[dict]:
+    out = []
+    for a in d.get("articles") or []:
+        link = ((a.get("links") or {}).get("web") or {}).get("href")
+        if not link or not a.get("headline"):
+            continue
+        img = next((i.get("url") for i in a.get("images") or [] if i.get("url")), None)
+        pub = a.get("published") or a.get("lastModified")
+        try:
+            ts = datetime.fromisoformat(pub.replace("Z", "+00:00")).timestamp() if pub else None
+        except ValueError:
+            ts = None
+        out.append({"id": str(a.get("id") or link), "title": clean_text(a["headline"], 200), "summary": clean_text(a.get("description"), 260),
+                    "link": link, "image": img, "source": "ESPN", "published": ts, "video": a.get("type") == "Media"})
+        if len(out) >= limit:
+            break
+    return out
+
+
+def _merge_news(*lists, limit=14):
+    seen, out = set(), []
+    for it in sorted((i for l in lists for i in l), key=lambda i: -(i.get("published") or 0)):
+        k = norm_title(it["title"])[:60]
+        if k in seen or it["id"] in seen:
+            continue
+        seen.update({k, it["id"]})
+        out.append(it)
+    return out[:limit]
+
+
+async def sjson(url: str, ttl: int = SPORTS_TTL) -> Any:
+    async def go():
+        r = await client().get(url, headers={"Accept": "application/json"})
+        r.raise_for_status()
+        return r.json()
+    return await cached("sport:" + url, ttl, go, stale=6 * 3600)
+
+
+class SportsLog:
+    def __init__(self):
+        self.sources: list[dict] = []
+
+    async def run(self, name: str, home: str, coro, default=None):
+        t0 = time.time()
+        try:
+            v = await coro
+            n = len(v) if isinstance(v, list) else None
+            self.sources.append({"name": name, "home": home, "ok": True, "count": n, "ms": int((time.time() - t0) * 1000)})
+            return v
+        except Exception as ex:
+            self.sources.append({"name": name, "home": home, "ok": False, "error": f"{type(ex).__name__}: {ex}"[:160]})
+            return default
+
+
+def _texas_first(games: list[dict]) -> list[dict]:
+    order = {"in": 0, "pre": 1, "post": 2}
+    return sorted(games, key=lambda g: (not g["texas"], order.get(g["state"], 3), g["date"] or ""))
+
+
+async def espn_scoreboard(league: str, path: str) -> list[dict]:
+    d = await sjson(f"{ESPN}/{path}/scoreboard", 120)
+    return _texas_first([espn_game(e, league) for e in d.get("events") or []])
+
+
+async def espn_news(path: str, team: str | None = None, limit: int = 12) -> list[dict]:
+    q = f"?limit={limit}" + (f"&team={team}" if team else "")
+    return espn_articles(await sjson(f"{ESPN}/{path}/news{q}", 15 * 60), limit)
+
+
+async def feed_items(feed: dict) -> list[dict]:
+    items = await cached("feed:" + feed["url"], 20 * 60, lambda: _fetch_feed(feed), stale=6 * 3600)
+    out = []
+    for i in items:
+        it = dict(i, id=i["link"], kind=feed["kind"], video="youtube.com" in (i["link"] or ""))
+        if feed["kind"] == "reddit":
+            it["summary"] = ""
+            it["source"] = "r/NBASpurs"
+        out.append(it)
+    return out
+
+
+async def spurs_block(log: SportsLog) -> dict:
+    team = await log.run("ESPN: Spurs team page", "https://www.espn.com/nba/team/_/name/sa/san-antonio-spurs",
+                         sjson(f"{ESPN}/basketball/nba/teams/{SPURS_ID}", 15 * 60), {})
+    t = (team or {}).get("team") or {}
+    rec = ((t.get("record") or {}).get("items") or [{}])[0].get("summary")
+    # schedule: this season (preseason + regular season + playoffs)
+    async def sched(qs):
+        try:
+            d = await sjson(f"{ESPN}/basketball/nba/teams/{SPURS_ID}/schedule{qs}", 10 * 60)
+            return d, [espn_game(e, "nba") for e in d.get("events") or []]
+        except Exception:
+            return {}, []
+    (d1, pre), (_, reg), (_, post) = await asyncio.gather(sched("?seasontype=1"), sched("?seasontype=2"), sched("?seasontype=3"))
+    season = (d1.get("season") or {}).get("year")
+    games = sorted({g["id"]: g for g in pre + reg + post}.values(), key=lambda g: g["date"] or "")
+    done = [g for g in games if g["state"] == "post"]
+    last_season = None
+    if not done and season:  # offseason / preseason: last season's final game (e.g. the Finals)
+        (_, lpost), (_, lreg) = await asyncio.gather(sched(f"?season={season - 1}&seasontype=3"), sched(f"?season={season - 1}&seasontype=2"))
+        prev = sorted([g for g in lreg + lpost if g["state"] == "post"], key=lambda g: g["date"] or "")
+        done = prev[-5:]
+        last_season = f"{season - 2}-{str(season - 1)[2:]}"
+    live = [g for g in games if g["state"] == "in"]
+    upcoming = [g for g in games if g["state"] == "pre"][:6]
+    log.sources.append({"name": "ESPN: Spurs schedule", "home": "https://www.espn.com/nba/team/schedule/_/name/sa", "ok": bool(games or done), "count": len(games)})
+    # standings: this season, or last season's final table before any games are played
+    standings = None
+    try:
+        async def table(qs=""):
+            d = await sjson(f"{ESPN_STANDINGS}/basketball/nba/standings{qs}", 30 * 60)
+            west = next(ch for ch in d["children"] if "West" in ch["name"])
+            rows = []
+            for e in west["standings"]["entries"]:
+                st = {x["name"]: x for x in e["stats"]}
+                val = lambda k: (st.get(k) or {}).get("value")
+                disp = lambda k: (st.get(k) or {}).get("displayValue")
+                rows.append({"team": e["team"].get("displayName"), "abbr": e["team"].get("abbreviation"), "seed": val("playoffSeed"),
+                             "w": int(val("wins") or 0), "l": int(val("losses") or 0), "gb": disp("gamesBehind"), "streak": disp("streak"),
+                             "spurs": str(e["team"].get("id")) == SPURS_ID})
+            rows.sort(key=lambda r: (r["seed"] or 99, -r["w"]))
+            return {"season": west["standings"].get("seasonDisplayName"), "conference": west["name"], "rows": rows}
+        standings = await table()
+        if not any(r["w"] + r["l"] for r in standings["rows"]) and season:
+            standings = await table(f"?season={season - 1}")
+            standings["final"] = True
+        log.sources.append({"name": "ESPN: NBA standings", "home": "https://www.espn.com/nba/standings", "ok": True, "count": len(standings["rows"])})
+    except Exception as ex:
+        log.sources.append({"name": "ESPN: NBA standings", "home": "https://www.espn.com/nba/standings", "ok": False, "error": f"{type(ex).__name__}: {ex}"[:160]})
+    news = await log.run("ESPN: Spurs news", "https://www.espn.com/nba/team/_/name/sa/san-antonio-spurs",
+                         espn_news("basketball/nba", SPURS_ID, 16), [])
+    feeds = await asyncio.gather(*(log.run(f["name"], f["home"], feed_items(f), []) for f in SPURS_FEEDS))
+    by = {f["id"]: items for f, items in zip(SPURS_FEEDS, feeds)}
+    now = time.time()
+    fresh = lambda items, days: [i for i in items if not i.get("published") or now - i["published"] < days * 86400]
+    return {"record": rec, "standing": t.get("standingSummary"), "season": (d1.get("season") or {}).get("displayName"),
+            "live": live, "last": done[-3:][::-1], "last_season": last_season, "upcoming": upcoming, "standings": standings,
+            "news": _merge_news(news, fresh(by["gn-spurs"], 3), limit=14),
+            "reddit": by["reddit"][:8], "videos": fresh(by["yt-spurs"], 21)[:8], "blog": fresh(by["ptr"], 14)[:6]}
+
+
+def mlb_game(g: dict, league: str = "mlb") -> dict:
+    st = g.get("status") or {}
+    code = st.get("abstractGameCode")
+    state = {"F": "post", "L": "in"}.get(code, "pre")
+    if st.get("detailedState") in ("Postponed", "Cancelled", "Suspended"):
+        state = "post"
+    side = {}
+    for k in ("home", "away"):
+        t = g["teams"][k]
+        tm = t.get("team") or {}
+        lr = t.get("leagueRecord") or {}
+        side[k] = {"name": tm.get("name"), "short": tm.get("teamName") or tm.get("clubName") or tm.get("name"), "abbr": tm.get("abbreviation"),
+                   "id": str(tm.get("id")), "score": None if t.get("score") is None else str(t["score"]), "winner": t.get("isWinner"),
+                   "record": f"{lr['wins']}-{lr['losses']}" if "wins" in lr else None}
+    ls = g.get("linescore") or {}
+    if state == "in":
+        detail = f"{ls.get('inningState', '')} {ls.get('currentInningOrdinal', '')}".strip() or st.get("detailedState")
+    elif state == "post":
+        detail = st.get("detailedState") if st.get("detailedState") != "Final" else ("Final" + (f"/{ls['currentInning']}" if (ls.get("currentInning") or 9) != 9 else ""))
+    else:
+        detail = None   # the page formats the start time in the user's zone
+    ids = {g["teams"]["home"]["team"].get("id"), g["teams"]["away"]["team"].get("id")}
+    link = f"https://www.mlb.com/gameday/{g['gamePk']}" if league == "mlb" else f"https://www.milb.com/gameday/{g['gamePk']}"
+    return {"id": str(g["gamePk"]), "league": league, "date": g.get("gameDate"), "state": state, "detail": detail,
+            "home": side["home"], "away": side["away"], "note": g.get("seriesDescription") if g.get("gameType") not in ("R", None) else None,
+            "tv": None, "link": link, "texas": bool(ids & MLB_TX_IDS) or league == "milb",
+            "venue": (g.get("venue") or {}).get("name")}
+
+
+async def mlb_scores() -> dict:
+    today = datetime.now(ZoneInfo("America/Chicago")).date()
+    d = await sjson(f"{MLBAPI}/schedule?sportId=1&startDate={today - timedelta(days=3)}&endDate={today + timedelta(days=3)}&hydrate=linescore,team", 90)
+    dates = {x["date"]: [mlb_game(g) for g in x["games"]] for x in d.get("dates") or []}
+    t = str(today)
+    show = t if t in dates else max([k for k in dates if k < t], default=None) or min(dates, default=None)
+    nxt = min([k for k in dates if k > (show or t)], default=None)
+    return {"date": show, "games": _texas_first(dates.get(show, [])), "next_date": nxt,
+            "next": _texas_first(dates.get(nxt, []))[:6] if nxt and show != t else []}
+
+
+async def missions_block(log: SportsLog) -> dict:
+    today = datetime.now(ZoneInfo("America/Chicago")).date()
+    year = today.year
+    async def season_games(y):
+        d = await sjson(f"{MLBAPI}/schedule?sportId=12&teamId={MISSIONS_ID}&startDate={y}-01-01&endDate={y}-12-31&hydrate=linescore,team", 10 * 60)
+        return [mlb_game(g, "milb") for x in d.get("dates") or [] for g in x["games"]]
+    games = await log.run("MLB Stats API: Missions schedule", "https://www.milb.com/san-antonio/schedule", season_games(year), []) or []
+    done = [g for g in games if g["state"] == "post" and g["home"]["score"] is not None]
+    if not done:
+        done = [g for g in (await season_games(year - 1) if True else []) if g["state"] == "post"]
+    standings = None
+    try:
+        d = await sjson(f"{MLBAPI}/standings?leagueId={TEXAS_LEAGUE_ID}&season={year}&standingsTypes=regularSeason&hydrate=team,division", 30 * 60)
+        for rec in d.get("records") or []:
+            rows = [{"team": tr["team"].get("name"), "short": tr["team"].get("teamName") or tr["team"].get("name"), "w": tr["wins"], "l": tr["losses"],
+                     "gb": tr.get("gamesBack"), "pct": tr.get("winningPercentage"), "spurs": tr["team"]["id"] == MISSIONS_ID} for tr in rec["teamRecords"]]
+            if any(r["spurs"] for r in rows):
+                standings = {"division": (rec.get("division") or {}).get("name") or "Texas League South", "season": str(year), "rows": rows}
+        log.sources.append({"name": "MLB Stats API: Texas League standings", "home": "https://www.milb.com/texas/standings", "ok": bool(standings), "count": 5})
+    except Exception as ex:
+        log.sources.append({"name": "MLB Stats API: Texas League standings", "home": "https://www.milb.com/texas/standings", "ok": False, "error": f"{type(ex).__name__}: {ex}"[:160]})
+    news = await log.run(MISSIONS_GN["name"], "https://news.google.com/", feed_items(MISSIONS_GN), []) or []
+    news = [n for n in news if not MISSIONS_NOT.search(n["title"])][:10]
+    upcoming = [g for g in games if g["state"] == "pre"][:5]
+    return {"last": done[-4:][::-1], "upcoming": upcoming, "standings": standings, "news": news,
+            "season_over": not upcoming and bool(done), "record": standings and next((f"{r['w']}-{r['l']}" for r in standings["rows"] if r["spurs"]), None)}
+
+
+async def build_sports() -> dict:
+    log = SportsLog()
+    nfl_g, nfl_n, cowboys, texans, nba_g, nba_n, mlb_s, mlb_n, rangers, astros, spurs, missions = await asyncio.gather(
+        log.run("ESPN: NFL scoreboard", "https://www.espn.com/nfl/scoreboard", espn_scoreboard("nfl", "football/nfl"), []),
+        log.run("ESPN: NFL news", "https://www.espn.com/nfl/", espn_news("football/nfl", None, 12), []),
+        log.run("ESPN: Cowboys news", "https://www.espn.com/nfl/team/_/name/dal/dallas-cowboys", espn_news("football/nfl", "6", 5), []),
+        log.run("ESPN: Texans news", "https://www.espn.com/nfl/team/_/name/hou/houston-texans", espn_news("football/nfl", "34", 5), []),
+        log.run("ESPN: NBA scoreboard", "https://www.espn.com/nba/scoreboard", espn_scoreboard("nba", "basketball/nba"), []),
+        log.run("ESPN: NBA news", "https://www.espn.com/nba/", espn_news("basketball/nba", None, 10), []),
+        log.run("MLB Stats API: MLB scores", "https://www.mlb.com/scores", mlb_scores(), {"games": []}),
+        log.run("ESPN: MLB news", "https://www.espn.com/mlb/", espn_news("baseball/mlb", None, 12), []),
+        log.run("ESPN: Rangers news", "https://www.espn.com/mlb/team/_/name/tex/texas-rangers", espn_news("baseball/mlb", "13", 5), []),
+        log.run("ESPN: Astros news", "https://www.espn.com/mlb/team/_/name/hou/houston-astros", espn_news("baseball/mlb", "18", 5), []),
+        spurs_block(log), missions_block(log))
+    return {"generated": time.time(),
+            "nfl": {"games": nfl_g, "news": _merge_news(cowboys, texans, nfl_n, limit=14)},
+            "nba": {"games": nba_g, "news": nba_n, "spurs": spurs},
+            "mlb": {**mlb_s, "news": _merge_news(rangers, astros, mlb_n, limit=14)},
+            "missions": missions,
+            "sources": log.sources}
+
+
 # ---------------------------------------------------------------- routes
 def _err(ex: Exception, code: int = 502) -> JSONResponse:
     return JSONResponse({"error": f"{type(ex).__name__}: {ex}"[:300]}, status_code=code)
@@ -1610,6 +1898,14 @@ async def api_food(lat: float | None = Query(None), lon: float | None = Query(No
     try:
         near = km_between(la, lo, *SA_CENTER) <= 80
         return await cached(f"foodlist:{near}", 60, lambda: build_food(la, lo), stale=3600)
+    except Exception as ex:
+        return _err(ex)
+
+
+@app.get("/api/sports")
+async def api_sports():
+    try:
+        return await cached("sports", 3 * 60, build_sports, stale=6 * 3600)
     except Exception as ex:
         return _err(ex)
 
@@ -1693,7 +1989,7 @@ async def warm():
     async def _w():  # warm caches for the default location
         await asyncio.gather(api_news(DEFAULT_LAT, DEFAULT_LON), api_weather(DEFAULT_LAT, DEFAULT_LON), api_radar(),
                              api_events(DEFAULT_LAT, DEFAULT_LON),
-                             api_food(DEFAULT_LAT, DEFAULT_LON),
+                             api_food(DEFAULT_LAT, DEFAULT_LON), api_sports(),
                              return_exceptions=True)
     asyncio.create_task(_w())
 

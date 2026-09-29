@@ -89,11 +89,15 @@ async def main():
         await page.wait_for_timeout(500)
         await page.screenshot(path=str(OUT / "update-story-links.png"))
 
-        # 4. swipe news -> weather (finger on a story), then back
+        # 4. swipe news -> sports (finger on a story); then the Weather tab
         y_before = await page.evaluate("scrollY")
         await swipe(cdp, 330, 60, 500)
         await page.wait_for_timeout(700)
-        rep["4_swipe_to_weather"] = await page.evaluate("""() => ({ view: window.__chisme.view, scrollY: Math.round(scrollY),
+        rep["4_swipe_to_sports"] = await page.evaluate("""() => ({ view: window.__chisme.view,
+            ariaCurrent: document.querySelector('.tab[aria-current=page]').textContent.trim() })""")
+        await page.click(".tab[data-view=weather]")
+        await page.wait_for_timeout(700)
+        rep["4b_weather_tab"] = await page.evaluate("""() => ({ view: window.__chisme.view, scrollY: Math.round(scrollY),
             weatherTop: Math.round(document.querySelector('#view-weather').getBoundingClientRect().top),
             tabsTop: Math.round(document.querySelector('#tabs').getBoundingClientRect().top),
             current: document.querySelector('.now-temp')?.textContent, blurb: document.querySelector('#wx-blurb').textContent,
@@ -114,7 +118,7 @@ async def main():
         c1 = await page.evaluate("(() => { const c = window.__chisme.map.getCenter(); return [c.lat, c.lng]; })()")
         rep["6_map_pan"] = {"view": await page.evaluate("window.__chisme.view"), "map_center_moved_deg": round(abs(c1[1] - c0[1]), 4)}
         await page.evaluate("window.__chisme.map.setView([window.__chisme.loc.lat, window.__chisme.loc.lon], 8)")
-        # swipe back to news: scroll position restored
+        # swipe back (weather -> sports)
         await page.evaluate("window.scrollTo({top: document.querySelector('#weather').getBoundingClientRect().top + scrollY - 90, behavior: 'instant'})")
         await swipe(cdp, 60, 330, 420)
         await page.wait_for_timeout(700)

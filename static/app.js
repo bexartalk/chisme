@@ -4,6 +4,7 @@
   const WEATHER_MS = 10 * 60 * 1000;
   const NEWS_MS = 15 * 60 * 1000;
   const EVENTS_MS = 30 * 60 * 1000;
+  const SPORTS_MS = 5 * 60 * 1000;
   const MOVE_KM = 3;                      // refresh when the user moves farther than this
   const DEFAULT_LOC = { lat: 29.4241, lon: -98.4936, source: "default", label: "San Antonio, TX" };
   const LOC_KEY = "chisme-location";
@@ -52,6 +53,8 @@
     const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLon / 2) ** 2;
     return 2 * R * Math.asin(Math.sqrt(h));
   };
+  const RM_KEY = "chisme-reduce-motion";
+  const reducedMotion = () => document.documentElement.classList.contains("reduce-motion") || matchMedia("(prefers-reduced-motion: reduce)").matches;
   document.addEventListener("error", (e) => { if (e.target.tagName === "IMG" && !e.target.closest(".leaflet-container")) e.target.style.visibility = "hidden"; }, true);
 
   // Tracks which data came from the service worker's saved copy (network unreachable).
@@ -120,6 +123,8 @@
       Sync.hideT = setTimeout(() => { box.dataset.state = "done"; }, 4000);
     } else { box.dataset.state = "done"; }
     box.hidden = false;
+    const note = $("#set-refresh-note");
+    if (note) note.textContent = Sync.busy.size ? "Updating…" : Sync.failed.size ? msg.textContent : Sync.lastOk ? "Last updated " + clock(new Date(Sync.lastOk)) + "." : "";
   }
   function setBusy(name, on) {
     if (on) Sync.busy.add(name); else Sync.busy.delete(name);
@@ -163,7 +168,8 @@
   const savedFs = +localStorage.getItem(FS_KEY);
   if (savedFs) applyFs(savedFs);
   const curFs = () => parseFloat(getComputedStyle(document.documentElement).fontSize);
-  const bump = (d) => { const px = Math.min(30, Math.max(16, Math.round(curFs() + d))); applyFs(px); localStorage.setItem(FS_KEY, px); map && map.invalidateSize(); };
+  const showFs = () => { const px = Math.round(curFs()); $("#font-now").textContent = `${px} px${px === 19 || px === 21 ? " (default)" : ""}`; };
+  const bump = (d) => { const px = Math.min(30, Math.max(16, Math.round(curFs() + d))); applyFs(px); localStorage.setItem(FS_KEY, px); showFs(); map && map.invalidateSize(); };
   $("#font-up").onclick = () => bump(2);
   $("#font-down").onclick = () => bump(-2);
 
@@ -180,6 +186,7 @@
     $("#loc-btn").setAttribute("aria-label", `${pre}${placeName()}. Change location`);
     const city = loc.place && loc.place.city;
     $("#city-title").textContent = city ? `More ${city} news` : "More local news";
+    $("#set-loc-now").textContent = (loc.source === "default" ? "Showing the default: " : loc.source === "gps" ? "Using your location: " : "Showing: ") + placeName();
     renderGreeting();
     if (lastWeather && rendered.weather === q()) renderAlerts(lastWeather);  // keep alert wording in sync
   }
@@ -249,29 +256,32 @@
     $("#loc-panel").hidden = false;
   }
   function hidePanel() { $("#loc-panel").hidden = true; }
+  const inSettings = () => $("#settings").open;
+  const locStatus = () => inSettings() ? $("#set-loc-status") : $("#loc-status");
   $("#loc-btn").onclick = () => { if ($("#loc-panel").hidden) { showPanel("change"); $("#loc-panel").scrollIntoView({ block: "start" }); } else hidePanel(); };
   $("#loc-close").onclick = () => { hidePanel(); if (loc.source === "default") sessionStorage.setItem("chisme-ask-later", "1"); };
   $("#loc-gps").onclick = () => requestGPS(true);
-  $("#loc-form").onsubmit = async (e) => {
-    e.preventDefault();
-    const text = $("#loc-q").value.trim();
+  async function searchPlaces(text, status, results) {
     if (text.length < 2) return;
-    $("#loc-status").textContent = "Searching…";
-    $("#loc-results").replaceChildren();
+    status.textContent = "Searching…";
+    results.replaceChildren();
+    const pickIt = (r) => { results.replaceChildren(); status.textContent = inSettings() ? `Now showing ${r.label}.` : ""; setLocation(r, "manual"); };
     try {
-      const { results } = await getJSON(`/api/geocode?q=${encodeURIComponent(text)}`);
-      if (!results.length) { $("#loc-status").textContent = `No places found for “${text}”. Try “City, State” or a 5-digit ZIP.`; return; }
-      if (results.length === 1) { $("#loc-status").textContent = ""; setLocation(results[0], "manual"); return; }
-      $("#loc-status").textContent = "Pick one:";
-      $("#loc-results").replaceChildren(...results.map((r) => {
+      const { results: list } = await getJSON(`/api/geocode?q=${encodeURIComponent(text)}`, { timeout: 30000 });
+      if (!list.length) { status.textContent = `No places found for “${text}”. Try “City, State” or a 5-digit ZIP.`; return; }
+      if (list.length === 1) { pickIt(list[0]); return; }
+      status.textContent = "Pick one:";
+      results.replaceChildren(...list.map((r) => {
         const b = el("button", { type: "button", class: "loc-result" }, el("b", { text: r.label }), el("span", { text: r.display_name || "" }));
-        b.onclick = () => setLocation(r, "manual");
+        b.onclick = () => pickIt(r);
         return el("li", {}, b);
       }));
     } catch (err) {
-      $("#loc-status").textContent = navigator.onLine ? "Search failed: " + err.message : "You're offline — search needs a connection.";
+      status.textContent = navigator.onLine ? "Search failed: " + err.message : "You're offline — search needs a connection.";
     }
-  };
+  }
+  $("#loc-form").onsubmit = (e) => { e.preventDefault(); searchPlaces($("#loc-q").value.trim(), $("#loc-status"), $("#loc-results")); };
+  $("#set-loc-form").onsubmit = (e) => { e.preventDefault(); searchPlaces($("#set-loc-q").value.trim(), $("#set-loc-status"), $("#set-loc-results")); };
 
   // ---------- geolocation
   let watchId = null, gpsBusy = false, lastFixAt = 0;
@@ -282,9 +292,15 @@
     if (loc.source !== "gps" || kmBetween(loc, n) > MOVE_KM) setLocation(n, "gps");
   }
   function onPosErr(err, fromButton) {
+    if (fromButton && inSettings()) {
+      locStatus().textContent = err.code === 1 ? "Location is turned off for Chisme. Allow it in your browser or phone settings, or enter a city or ZIP."
+        : `Couldn't get a location fix — still showing ${placeName()}. Try again, or enter a city or ZIP.`;
+      if (err.code === 1) stopWatch();
+      return;
+    }
     if (err.code === 1) { stopWatch(); if (loc.source !== "manual") showPanel("denied"); }
     else if (loc.source === "default") showPanel("unavailable");
-    else if (fromButton) $("#loc-status").textContent = `Couldn't get a location fix — still showing ${placeName()}. Try again, or type a city or ZIP.`;
+    else if (fromButton) locStatus().textContent = `Couldn't get a location fix — still showing ${placeName()}. Try again, or type a city or ZIP.`;
   }
   function startWatch() {
     if (watchId != null || !("geolocation" in navigator)) return;
@@ -297,7 +313,7 @@
     // iOS home-screen apps can leave getCurrentPosition hanging forever, so we keep our own timer.
     // News/weather never wait for this: they load for the saved (or default) location first.
     if (!fromButton && (gpsBusy || Date.now() - lastFixAt < 5 * 60e3)) return;
-    if (fromButton) $("#loc-status").textContent = "Finding you…";
+    if (fromButton) locStatus().textContent = "Finding you…";
     gpsBusy = true;
     let settled = false;
     const t = setTimeout(() => { if (settled) return; settled = true; gpsBusy = false; onPosErr({ code: 3 }, fromButton); }, GPS_WAIT_MS);
@@ -305,7 +321,7 @@
       settled = true; gpsBusy = false; clearTimeout(t); lastFixAt = Date.now();   // a late fix is still welcome
       const n = { lat: p.coords.latitude, lon: p.coords.longitude };
       if (fromButton || loc.source !== "gps" || kmBetween(loc, n) > MOVE_KM) setLocation(n, "gps");
-      else if (fromButton) $("#loc-status").textContent = "";
+      if (fromButton) locStatus().textContent = inSettings() ? "Using your current location." : "";
       startWatch();
     }, (err) => { if (settled) return; settled = true; gpsBusy = false; clearTimeout(t); onPosErr(err, fromButton); },
     { enableHighAccuracy: false, maximumAge: 10 * 60e3, timeout: GPS_WAIT_MS - 2000 });
@@ -497,22 +513,31 @@
   const loadWeather = () => load("weather");
 
   // ---------- radar
-  let map = null, youMarker = null, frames = [], layers = {}, idx = 0, timer = null, playing = true, radarHost = "";
-  function initMap() {
-    map = L.map("map", { center: [loc.lat, loc.lon], zoom: 8, minZoom: 3, maxZoom: 12, scrollWheelZoom: false });
-    const base = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    });
+  // A radar-app look: a muted, desaturated basemap (dark in dark mode) so the rain colors pop,
+  // time badge + dBZ legend, and you as an Apple Maps-style blue dot. The basemap is the standard
+  // OpenStreetMap tiles with a CSS filter (keyless; CARTO's basemaps now need an API key).
+  let map = null, youMarker = null, frames = [], layers = {}, idx = 0, timer = null, playing = !reducedMotion(), radarHost = "";
+  let baseLayer = null;
+  function setBasemap() {
+    if (!map || baseLayer) return;       // the look follows the theme through CSS
+    baseLayer = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, className: "basemap",
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' });
     // offline: don't request map tiles that can't load; add them once the connection is back
-    if (navigator.onLine) base.addTo(map); else window.addEventListener("online", () => base.addTo(map), { once: true });
-    youMarker = L.circleMarker([loc.lat, loc.lon], { radius: 10, color: "#000", weight: 3, fillColor: "#EF426F", fillOpacity: 1 })
-      .addTo(map).bindTooltip("You are here", { permanent: true, direction: "right", className: "zip-label" });
+    if (navigator.onLine) baseLayer.addTo(map); else window.addEventListener("online", () => baseLayer.addTo(map), { once: true });
+  }
+  function initMap() {
+    map = L.map("map", { center: [loc.lat, loc.lon], zoom: 8, minZoom: 3, maxZoom: 12, scrollWheelZoom: false, zoomControl: false });
+    L.control.zoom({ position: "topright" }).addTo(map);
+    setBasemap();
+    const dot = L.divIcon({ className: "me-marker", iconSize: [22, 22], iconAnchor: [11, 11],
+      html: '<span class="me-halo"></span><span class="me-dot"></span>' });
+    youMarker = L.marker([loc.lat, loc.lon], { icon: dot, keyboard: false, interactive: false, zIndexOffset: 1000, alt: "Your location" }).addTo(map);
+    map.attributionControl.setPrefix(false);
     map.attributionControl.addAttribution('Radar &copy; <a href="https://www.rainviewer.com/" target="_blank" rel="noopener">RainViewer</a>');
   }
   function recenter(zoom) {
     youMarker.setLatLng([loc.lat, loc.lon]);
     map.setView([loc.lat, loc.lon], zoom || map.getZoom());
-    youMarker.setTooltipContent(loc.source === "default" ? placeName() : "You are here");
   }
   $("#r-center").onclick = () => recenter(8);
   function radarLayer(frame) {
@@ -530,8 +555,10 @@
     if (!map.hasLayer(lyr)) lyr.addTo(map);
     const nxt = radarLayer(frames[(idx + 1) % frames.length]);
     if (!map.hasLayer(nxt)) nxt.addTo(map);
-    for (const [p, l] of Object.entries(layers)) l.setOpacity(p === f.path ? 0.75 : 0);
-    $("#radar-time").textContent = (f.nowcast ? "Forecast " : "") + timeT(new Date(f.time * 1000)) + (idx === frames.length - 1 ? " (latest)" : "");
+    for (const [p, l] of Object.entries(layers)) l.setOpacity(p === f.path ? 0.8 : 0);
+    const latest = idx === frames.length - 1;
+    $("#radar-time").textContent = (f.nowcast ? "Forecast " : "") + timeT(new Date(f.time * 1000)) + (latest ? " · Latest" : " · " + Math.round((frames[frames.length - 1].time - f.time) / 60) + " min ago");
+    $(".radar-time").classList.toggle("latest", latest);
     $("#r-slider").value = idx;
   }
   function setPlaying(p) {
@@ -550,13 +577,14 @@
       const j = await getJSON("/api/radar");
       if (offlineFrom["/api/radar"]) { $("#radar-time").textContent = "Radar needs a connection"; return; }
       radarHost = j.host;
+      $("#radar-stamp").textContent = "RainViewer · updated " + timeT(new Date());
       const next = (j.radar?.past || []).map((f) => ({ ...f, nowcast: false })).concat((j.radar?.nowcast || []).map((f) => ({ ...f, nowcast: true })));
       const keep = new Set(next.map((f) => f.path));
       for (const [p, l] of Object.entries(layers)) if (!keep.has(p)) { map.removeLayer(l); delete layers[p]; }
       frames = next;
       $("#r-slider").max = Math.max(0, frames.length - 1);
       showFrame(frames.length - 1);
-      setPlaying(playing);
+      setPlaying(playing && !reducedMotion());
     } catch (e) {
       $("#radar-time").textContent = navigator.onLine ? "Radar unavailable: " + e.message : "Radar needs a connection";
       clearTimeout(radarRetry); radarRetry = setTimeout(loadRadar, 30000);
@@ -899,8 +927,211 @@
   });
   function loadEvents() { loadFood(); return load("events"); }
 
-  // ---------- views: News | Weather | Events (tap the sticky buttons or swipe sideways)
-  const VIEWS = ["news", "weather", "events"];
+  // ---------- sports: NFL · NBA (Spurs first) · MLB · San Antonio Missions
+  // Photos: freely licensed Wikimedia Commons images (credited) + the thumbnails ESPN publishes
+  // with its own stories. No team logos, no press photos.
+  const SP_PHOTOS = {
+    spursArena: { src: "/static/sports/spurs-arena.webp", w: 800, h: 532, alt: "A packed arena seen from high in the upper deck during a Spurs playoff game, the court lit up in the middle.",
+      cap: "Spurs vs. Mavericks, 2014 NBA Playoffs — the arena now called Frost Bank Center", author: "Katie Haugland", license: "CC BY 2.0",
+      license_url: "https://creativecommons.org/licenses/by/2.0", source_url: "https://commons.wikimedia.org/wiki/File:2014_NBA_Playoffs_Dallas_Mavericks_vs._San_Antonio_Spurs.jpg" },
+    spursBlue: { src: "/static/sports/spurs-bluehour.webp", w: 800, h: 641, alt: "Fans silhouetted outside the arena at dusk, its lit sign glowing against a deep blue sky.",
+      cap: "Blue hour before a Spurs game, 2012 (then the AT&T Center, now Frost Bank Center)", author: "Mark Bonica", license: "CC BY 2.0",
+      license_url: "https://creativecommons.org/licenses/by/2.0", source_url: "https://commons.wikimedia.org/wiki/File:Blue_hour_at_the_AT%26T_center_(6734460031).jpg" },
+    wolff: { src: "/static/sports/missions-wolff.webp", w: 800, h: 600, alt: "Evening at Nelson W. Wolff Municipal Stadium: fans along the first-base line, the field glowing under the lights.",
+      cap: "Nelson W. Wolff Municipal Stadium, home of the Missions, at dusk (2006)", author: "b r e n t (Flickr)", license: "CC BY 2.0",
+      license_url: "https://creativecommons.org/licenses/by/2.0", source_url: "https://commons.wikimedia.org/wiki/File:Wolff_Stadium_2006.jpg" },
+    missionsOF: { src: "/static/sports/missions-game.webp", w: 800, h: 533, alt: "Two San Antonio Missions outfielders in gray road uniforms converge on a fly ball.",
+      cap: "Missions outfielders chase a popup, 2019 (road game at Werner Park, Nebraska)", author: "Minda Haas Kuhlmann", license: "CC BY 2.0",
+      license_url: "https://creativecommons.org/licenses/by/2.0", source_url: "https://commons.wikimedia.org/wiki/File:San_Antonio_Missions_(48116648172).jpg" },
+    missions26: { src: "/static/sports/missions-2026.webp", w: 800, h: 533, alt: "A man in a red shirt pedals a tricycle past the visitors' dugout while players in red uniforms laugh.",
+      cap: "Between-innings tricycle ride at a Missions game, Wolff Stadium, Aug. 2026", author: "Airman Shayla Pham, U.S. Air National Guard", license: "Public domain",
+      license_url: null, source_url: "https://commons.wikimedia.org/wiki/File:149th_Fighter_Wing_at_San_Antonio_Missions_Game_(260808-Z-XB550-1212).jpg" },
+  };
+  function spPhoto(ph) {
+    const img = el("img", { src: ph.src, alt: ph.alt, width: ph.w, height: ph.h, loading: "lazy", decoding: "async", draggable: "false" });
+    const fig = el("figure", { class: "sp-photo" }, img,
+      el("figcaption", {}, el("span", { class: "sp-cap", text: ph.cap }), el("span", { class: "art-credit" }, "Photo: ", el("b", { text: ph.author }), " · ",
+        ph.license_url ? ext(ph.license_url, ph.license) : ph.license, " · ", ext(ph.source_url, "Wikimedia Commons ↗"))));
+    img.onerror = () => fig.remove();
+    return fig;
+  }
+  const SP_KEY = "chisme-sports-league";
+  const LEAGUES = ["nba", "nfl", "mlb", "missions"];
+  let spData = null, spLg = LEAGUES.includes(localStorage.getItem(SP_KEY)) ? localStorage.getItem(SP_KEY) : "nba";
+  const ord = (n) => n + (["th", "st", "nd", "rd"][(n % 100 > 10 && n % 100 < 14) ? 0 : n % 10] || "th");
+  function gameWhen(d) {
+    const k = dayKey(d), today = dayKey(new Date()), tmr = dayKey(new Date(Date.now() + 864e5)), yst = dayKey(new Date(Date.now() - 864e5));
+    const day = k === today ? "Today" : k === tmr ? "Tomorrow" : k === yst ? "Yesterday" : fmt(d, { weekday: "short", month: "short", day: "numeric" });
+    return { day, time: fmt(d, { hour: "numeric", minute: "2-digit" }) + " " + tzAbbr(d) };
+  }
+  function gameCard(g, opts = {}) {
+    const d = new Date(g.date), w = gameWhen(d);
+    const scoreOf = (t) => (t && t.score != null ? t.score : "");
+    const won = (t, o) => g.state === "post" && t && o && (t.winner === true || (t.winner == null && +t.score > +o.score));
+    const row = (t, o, home) => el("div", { class: "gt" + (won(t, o) ? " win" : "") },
+      el("span", { class: "gn" }, el("span", { class: "ha", text: home ? "vs" : "@", "aria-hidden": "true" }), t ? t.short || t.name : "TBD"),
+      t && t.record ? el("span", { class: "gr", text: t.record }) : null,
+      el("span", { class: "gs", text: g.state === "pre" ? "" : scoreOf(t) }));
+    const status = g.state === "in" ? el("span", { class: "live" }, el("span", { class: "live-dot", "aria-hidden": "true" }), "LIVE · " + (g.detail || ""))
+      : g.state === "post" ? el("span", { text: `${g.detail || "Final"} · ${w.day}` })
+      : el("span", { text: `${w.day} · ${w.time}` });
+    const a = g.away || {}, h = g.home || {};
+    const label = `${a.name || "TBD"} at ${h.name || "TBD"}. ` + (g.state === "pre" ? `${w.day} ${w.time}` : `${a.short} ${a.score ?? ""}, ${h.short} ${h.score ?? ""}. ${g.state === "in" ? "Live, " + (g.detail || "") : g.detail || "Final"}`);
+    const card = el("article", { class: "game" + (g.texas ? " tx" : "") + (g.state === "in" ? " is-live" : "") + (opts.wide ? " wide" : ""), "aria-label": label },
+      g.note ? el("p", { class: "gnote", text: g.note }) : null,
+      row(g.away, g.home, false), row(g.home, g.away, true),
+      el("p", { class: "gstat" }, status, g.tv && g.state !== "post" ? el("span", { class: "tv", text: " · " + g.tv }) : null),
+      g.link ? ext(g.link, g.league === "milb" || g.league === "mlb" ? "Gameday ↗" : "Gamecast ↗", "glink") : null);
+    return card;
+  }
+  const scoreStrip = (games, label) => games.length
+    ? el("div", { class: "scores", role: "group", "aria-label": label + ", scroll sideways" }, ...games.map((g) => gameCard(g)))
+    : null;
+  function spNews(it) {
+    const d = it.published ? new Date(it.published * 1000) : null;
+    const kids = [el("div", { class: "sn-body" },
+      el("h4", {}, ext(it.link, it.title)),
+      el("p", { class: "sn-meta" }, el("b", { text: it.source }), d ? " · " + ago(d) : "", it.video ? el("span", { class: "vtag", text: " ▶ Video" }) : null),
+      it.summary ? el("p", { class: "sn-sum", text: it.summary }) : null)];
+    if (it.image && it.source === "ESPN" && navigator.onLine) {   // only ESPN's own story thumbnails
+      const a = el("a", { class: "sn-thumb", href: it.link, target: "_blank", rel: "noopener", tabindex: "-1", "aria-hidden": "true" },
+        el("img", { src: it.image, alt: "", loading: "lazy", referrerpolicy: "no-referrer" }));
+      a.firstChild.onerror = () => a.remove();
+      kids.push(a);
+    }
+    return el("article", { class: "sn" }, ...kids);
+  }
+  const newsList = (items, empty) => el("div", { class: "sn-list" }, ...(items.length ? items.map(spNews) : [el("p", { class: "loading", text: empty })]));
+  const h3 = (t, id) => el("h3", { class: "sp-h", id, text: t });
+  const linkList = (items, cls, max) => el("ul", { class: "sp-links " + (cls || "") }, ...items.slice(0, max || 8).map((i) => {
+    const d = i.published ? new Date(i.published * 1000) : null;
+    return el("li", {}, ext(i.link, (i.video ? "▶ " : "") + i.title), el("span", { class: "sn-meta", text: (d ? " · " + ago(d) : "") }));
+  }));
+  function standingsTable(st, caption, cols) {
+    const t = el("table", { class: "standings" }, el("caption", { text: caption }),
+      el("thead", {}, el("tr", {}, ...cols.map((c) => el("th", { scope: "col", text: c[0] })))),
+      el("tbody", {}, ...st.map((r) => el("tr", { class: r.spurs ? "us" : "" }, ...cols.map((c, k) => el(k === 1 ? "th" : "td", k === 1 ? { scope: "row" } : {}, String(c[1](r) ?? "")))))));
+    return el("div", { class: "table-wrap" }, t);
+  }
+  function renderSpurs(sp, nba) {
+    const out = [];
+    const st = sp.standings, us = st && st.rows.find((r) => r.spurs);
+    const lines = [];
+    if (sp.live.length) lines.push("Game on — the Spurs are playing right now.");
+    if (st && st.final && us) lines.push(`${st.season}: ${us.w}-${us.l}, ${ord(us.seed)} in the West.`);
+    else if (sp.record && sp.record !== "0-0") lines.push(`${sp.season}: ${sp.record}${sp.standing ? ", " + sp.standing : ""}.`);
+    const last = sp.last[0];
+    if (last && /Finals/.test(last.note || "") && last.home && last.away) {
+      const spurs = [last.home, last.away].find((t) => t.abbr === "SA"), opp = [last.home, last.away].find((t) => t.abbr !== "SA");
+      if (spurs && opp) lines.push(spurs.winner ? `Won the ${last.note.replace(/ - Game \d+/, "")} against the ${opp.short}.` : `The season ended in the ${last.note.replace(/ - Game \d+/, "")}, falling to the ${opp.short}.`);
+    }
+    const next = sp.upcoming[0];
+    if (next) { const w = gameWhen(new Date(next.date)); const home = next.home && next.home.abbr === "SA"; const opp = home ? next.away : next.home;
+      lines.push(`Next: ${next.note ? next.note + " " : ""}${home ? "vs." : "at"} ${opp ? opp.short : "TBD"}, ${w.day} at ${w.time}.`); }
+    out.push(el("div", { class: "spurs-hero" }, spPhoto(SP_PHOTOS.spursArena),
+      el("div", { class: "spurs-card" }, el("p", { class: "kicker", text: "San Antonio Spurs" }), el("h3", { text: sp.live.length ? "Live now" : "The latest on the Spurs" }),
+        ...lines.map((l) => el("p", { class: "spurs-line", text: l })))));
+    if (sp.live.length) { out.push(h3("Live")); out.push(...sp.live.map((g) => gameCard(g, { wide: true }))); }
+    if (sp.last.length) {
+      out.push(h3(sp.last_season ? `Latest scores (${sp.last_season} season)` : "Latest scores"));
+      out.push(scoreStrip(sp.last, "Latest Spurs scores"));
+    }
+    if (sp.upcoming.length) {
+      out.push(h3(`Schedule · ${sp.season || "this season"}`));
+      out.push(el("ol", { class: "sched" }, ...sp.upcoming.map((g) => {
+        const w = gameWhen(new Date(g.date)), home = g.home && g.home.abbr === "SA", opp = home ? g.away : g.home;
+        return el("li", {}, el("span", { class: "sd", text: w.day }), el("span", { class: "so" }, el("b", { text: (home ? "vs " : "@ ") + (opp ? opp.short : "TBD") }),
+          g.note ? el("span", { class: "tag", text: g.note }) : null), el("span", { class: "st", text: w.time + (g.tv ? " · " + g.tv : "") }));
+      })));
+    }
+    if (st) {
+      out.push(h3(`${st.conference || "Western Conference"} standings${st.final ? ` (${st.season} final)` : ""}`));
+      const rows = st.rows.slice(0, 10);
+      out.push(standingsTable(rows, `${st.conference} standings, ${st.season}`, [["#", (r) => r.seed || ""], ["Team", (r) => r.team], ["W", (r) => r.w], ["L", (r) => r.l], ["GB", (r) => r.gb]]));
+    }
+    out.push(h3("Spurs news"));
+    out.push(newsList(sp.news, "No fresh Spurs stories right now — even Coyote takes a day off."));
+    out.push(spPhoto(SP_PHOTOS.spursBlue));
+    out.push(h3("Trending in Spurs Nation"));
+    const trend = el("div", { class: "trend" });
+    if (sp.reddit.length) trend.append(el("p", { class: "trend-h", text: "🔥 Top on r/NBASpurs this week" }), linkList(sp.reddit, "reddit", 6));
+    else trend.append(el("p", { class: "hint" }, "Reddit isn't answering our server right now — ", ext("https://www.reddit.com/r/NBASpurs/top/?t=week", "see the top r/NBASpurs posts ↗"), "."));
+    if (sp.videos.length) trend.append(el("p", { class: "trend-h", text: "▶ New from the Spurs on YouTube" }), linkList(sp.videos.map((v) => ({ ...v, video: true })), "yt", 6));
+    if (sp.blog.length) trend.append(el("p", { class: "trend-h", text: "📝 Pounding The Rock (SB Nation)" }), linkList(sp.blog, "blog", 5));
+    out.push(trend);
+    out.push(h3("Around the NBA"));
+    const strip = scoreStrip(nba.games || [], "NBA scores");
+    out.push(strip || el("p", { class: "hint", text: "No NBA games on the board today." }));
+    out.push(newsList((nba.news || []).slice(0, 8), "No NBA headlines right now."));
+    return out;
+  }
+  function renderMissions(m) {
+    const out = [spPhoto(SP_PHOTOS.wolff)];
+    const us = m.standings && m.standings.rows.find((r) => r.spurs);
+    const place = us ? m.standings.rows.indexOf(us) + 1 : null;
+    out.push(el("p", { class: "blurb", text: m.season_over
+      ? `The ${m.standings ? m.standings.season : ""} season is in the books: ${m.record || ""}${place ? `, ${ord(place)} in the ${m.standings.division}` : ""}. Baseball returns to Wolff Stadium in April. 🌵`
+      : `Double-A ball, big-league dreams: the Padres' top prospects, right here in San Antonio.${m.record ? " Record: " + m.record + "." : ""}` }));
+    if (m.upcoming.length) { out.push(h3("Up next")); out.push(scoreStrip(m.upcoming, "Upcoming Missions games")); }
+    if (m.last.length) { out.push(h3(m.season_over ? "Final games of the season" : "Latest scores")); out.push(scoreStrip(m.last, "Latest Missions scores")); }
+    if (m.standings) {
+      out.push(h3(`${m.standings.division} standings`));
+      out.push(standingsTable(m.standings.rows, `${m.standings.division}, ${m.standings.season}`, [["", (r) => ""], ["Team", (r) => r.short], ["W", (r) => r.w], ["L", (r) => r.l], ["GB", (r) => r.gb]]));
+    }
+    out.push(h3("Missions news"));
+    out.push(newsList(m.news, "No Missions headlines lately — the bullpen's quiet."));
+    out.push(spPhoto(SP_PHOTOS.missions26));
+    out.push(spPhoto(SP_PHOTOS.missionsOF));
+    return out;
+  }
+  const INTROS = {
+    nba: (d) => (d.nba.spurs.live.length ? "¡Ándale! The Spurs are on right now. 🏀" : pick(["Go Spurs Go! Scores, schedule and the real reporting, with a side of fan chisme. 🏀",
+      "Spurs Nation, this one's for you: the latest on Wemby & company, then the rest of the league.", "Silver and black and read all over — your Spurs report."])),
+    nfl: () => pick(["Football, Texas style: Cowboys and Texans first, then everybody else. 🏈", "Tailgate-ready: the scores and stories from around the NFL, Texas teams up top."]),
+    mlb: (d) => ((d.mlb.games || []).some((g) => /Wild Card|Division|Championship|World Series/.test(g.note || ""))
+      ? "October baseball! 🎉 Rangers and Astros first, then the rest of the playoff picture."
+      : "Peanuts, Cracker Jack and box scores — Rangers and Astros first. ⚾"),
+    missions: () => "San Antonio's own: the Double-A Missions of the Texas League. 🌵",
+  };
+  function renderSports() {
+    const d = spData;
+    for (const b of document.querySelectorAll("#sp-chips .chip")) b.setAttribute("aria-pressed", String(b.dataset.lg === spLg));
+    if (!d) return;
+    $("#sports-intro").textContent = INTROS[spLg](d);
+    let kids;
+    if (spLg === "nba") kids = renderSpurs(d.nba.spurs, d.nba);
+    else if (spLg === "nfl") {
+      kids = [h3("Scores" + (d.nfl.games.length ? "" : "")), scoreStrip(d.nfl.games, "NFL scores") || el("p", { class: "hint", text: "No NFL games on the board." }),
+        h3("NFL news"), newsList(d.nfl.news, "No NFL headlines right now.")];
+    } else if (spLg === "mlb") {
+      const m = d.mlb, day = m.date ? fmt(new Date(m.date + "T12:00:00"), { weekday: "long", month: "short", day: "numeric" }) : "";
+      kids = [h3(`Scores · ${day}`), scoreStrip(m.games || [], "MLB scores") || el("p", { class: "hint", text: "No MLB games today." })];
+      if ((m.next || []).length) kids.push(h3("Next up · " + fmt(new Date(m.next_date + "T12:00:00"), { weekday: "long", month: "short", day: "numeric" })), scoreStrip(m.next, "Next MLB games"));
+      kids.push(h3("MLB news"), newsList(m.news || [], "No MLB headlines right now."));
+    } else kids = renderMissions(d.missions);
+    $("#sports-body").replaceChildren(...kids.filter(Boolean));
+    $("#sports-body").dataset.lg = spLg;
+  }
+  for (const b of document.querySelectorAll("#sp-chips .chip")) {
+    b.onclick = () => { spLg = b.dataset.lg; localStorage.setItem(SP_KEY, spLg); renderSports(); };
+  }
+  section("sports", {
+    url: () => "/api/sports",
+    loading: () => $("#sports-body").replaceChildren(el("p", { class: "loading", text: "Warming up in the bullpen…" })),
+    fail: (e) => $("#sports-body").replaceChildren(el("p", { class: "error", text: "¡Ay! Couldn't reach the scoreboards (" + e.message + "). We'll keep trying." })),
+    apply: (d, { saved }) => {
+      spData = d;
+      if (!saved) rendered.sports = true;
+      renderSports();
+      $("#sports-updated").textContent = stampFor(saved, d);
+      $("#sports-sources").replaceChildren(...(d.sources || []).map((f) => el("li", { class: f.ok ? "" : "bad" },
+        ext(f.home, f.name), f.ok ? (f.count != null ? `: ${f.count} items` : ": ok") : `: unavailable right now (${f.error})`)));
+    },
+  });
+  const loadSports = () => load("sports");
+
+  // ---------- views: News | Sports | Weather | Events (tap the fixed buttons or swipe sideways)
+  const VIEWS = ["news", "sports", "weather", "events"];
   const GAP = 24;
   const track = $("#track"), viewsEl = $("#views"), tabsEl = $("#tabs");
   const panes = VIEWS.map((v) => $("#view-" + v));
@@ -954,6 +1185,7 @@
     updateTabs(scrollId);
     if (VIEWS[i] === "weather" && map) map.invalidateSize();
     if (VIEWS[i] === "events" && rendered.events !== q()) loadEvents();
+    if (VIEWS[i] === "sports" && !rendered.sports) loadSports();
     if (scrollId) { const t = document.getElementById(scrollId); if (t) window.scrollTo({ top: t.getBoundingClientRect().top + window.scrollY - tabsH() - 8, behavior: "instant" }); }
     localStorage.setItem("chisme-swiped", "1");
   }
@@ -962,7 +1194,7 @@
     const i = typeof name === "number" ? name : VIEWS.indexOf(name);
     if (i < 0) return;
     if (i === cur) { unpeek(); track.classList.add("animating"); pos(i); if (opts.scrollTo) finish(i, opts.scrollTo); else updateTabs(); return; }
-    if (opts.instant || matchMedia("(prefers-reduced-motion: reduce)").matches) { peek(i); finish(i, opts.scrollTo); return; }
+    if (opts.instant || reducedMotion()) { peek(i); finish(i, opts.scrollTo); return; }
     peek(i);
     track.classList.add("animating");
     pos(i);
@@ -976,7 +1208,7 @@
 
   // Swipe: only horizontal touch drags that start outside the radar map, the hourly strip and
   // form controls. touch-action: pan-y (CSS) leaves vertical scrolling to the browser.
-  const NO_SWIPE = ".leaflet-container, .hourly, .forecast, .chips, .food-strip, input, select, textarea, .no-swipe";
+  const NO_SWIPE = ".leaflet-container, .hourly, .forecast, .chips, .food-strip, .scores, .table-wrap, input, select, textarea, .no-swipe";
   let drag = null, justDragged = false;
   viewsEl.addEventListener("pointerdown", (e) => {
     if (e.pointerType === "mouse" || !e.isPrimary || e.target.closest(NO_SWIPE)) { drag = null; return; }
@@ -1016,32 +1248,78 @@
     if (e.key === "ArrowLeft" && e.target.closest(".tabs")) goView(Math.max(0, cur - 1));
   });
   if (localStorage.getItem("chisme-swiped")) $("#swipe-hint").hidden = true;
-  // Deep links (manifest shortcuts): #weather, #radar-sec, #events. Otherwise News opens first.
-  const HASH_VIEW = { "#weather": ["weather"], "#forecast-sec": ["weather", "forecast-sec"], "#radar-sec": ["weather", "radar-sec"],
-    "#alerts": ["weather", "alerts"], "#events": ["events"], "#food": ["events"], "#near": ["news", "near"], "#city": ["news", "city"] };
+  // Deep links (manifest shortcuts): #sports, #weather, #radar-sec, #events. Otherwise the default tab (News unless changed in Settings).
+  const HASH_VIEW = { "#weather": ["weather"], "#forecast-sec": ["weather", "forecast-sec"], "#radar-sec": ["weather", "radar-sec"], "#radar": ["weather", "radar-sec"],
+    "#alerts": ["weather", "alerts"], "#events": ["events"], "#food": ["events"], "#near": ["news", "near"], "#city": ["news", "city"],
+    "#sports": ["sports"], "#spurs": ["sports"], "#nfl": ["sports"], "#mlb": ["sports"], "#missions": ["sports"], "#news": ["news"] };
   pos(0); updateTabs();
+
+  // ---------- settings sheet (tap the Chisme icon in the header)
+  const THEME_KEY = "chisme-theme", TAB_KEY = "chisme-default-tab";
+  const themePref = () => localStorage.getItem(THEME_KEY) || "system";
+  const darkMQ = matchMedia("(prefers-color-scheme: dark)");
+  function defaultTab() { const t = localStorage.getItem(TAB_KEY); return VIEWS.includes(t) ? t : "news"; }
+  function applyTheme() {
+    const pref = themePref();
+    const dark = pref === "dark" || (pref === "system" && darkMQ.matches);
+    if (document.documentElement.dataset.theme !== (dark ? "dark" : "light")) {
+      document.documentElement.dataset.theme = dark ? "dark" : "light";
+      setBasemap();
+    }
+  }
+  if (darkMQ.addEventListener) darkMQ.addEventListener("change", () => { if (themePref() === "system") applyTheme(); });
+  const dlg = $("#settings");
+  function syncSettings() {
+    for (const r of dlg.querySelectorAll('input[name="theme"]')) r.checked = r.value === themePref();
+    for (const r of dlg.querySelectorAll('input[name="greet"]')) r.checked = r.value === greetWord();
+    for (const r of dlg.querySelectorAll('input[name="deftab"]')) r.checked = r.value === defaultTab();
+    $("#set-motion").checked = localStorage.getItem(RM_KEY) === "1";
+    $("#set-motion-note").textContent = matchMedia("(prefers-reduced-motion: reduce)").matches
+      ? "Your device already asks for reduced motion, so Chisme keeps things still."
+      : "Turns off swipe animations, the pulsing location dot and radar autoplay.";
+    $("#set-loc-status").textContent = ""; $("#set-loc-results").replaceChildren();
+    showFs(); renderLocLabel(); syncUI();
+  }
+  $("#settings-btn").onclick = () => { syncSettings(); dlg.showModal(); };
+  dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });   // tap outside the sheet
+  for (const r of dlg.querySelectorAll('input[name="theme"]')) r.onchange = () => { localStorage.setItem(THEME_KEY, r.value); applyTheme(); };
+  for (const r of dlg.querySelectorAll('input[name="greet"]')) r.onchange = () => { localStorage.setItem(GREET_KEY, r.value); renderGreeting(); };
+  for (const r of dlg.querySelectorAll('input[name="deftab"]')) r.onchange = () => localStorage.setItem(TAB_KEY, r.value);
+  $("#set-motion").onchange = (e) => {
+    localStorage.setItem(RM_KEY, e.target.checked ? "1" : "0");
+    document.documentElement.classList.toggle("reduce-motion", e.target.checked);
+    if (reducedMotion()) setPlaying(false);
+  };
+  $("#set-gps").onclick = () => requestGPS(true);
+  $("#set-refresh").onclick = () => { refreshNow(); $("#set-refresh-note").textContent = "Updating…"; };
+  $("#set-version").textContent = "· build 21";   // keep in step with VERSION in sw.js
 
   // ---------- boot + auto refresh
   let lastWx = 0, lastNews = 0, lastEv = 0, evBoot = null;
+  let spBoot = null;
   function refreshAll() {
     loadNews(); loadWeather(); loadRadar(); lastWx = lastNews = Date.now();
-    // events load right after news (and immediately if the Events view is open), so they're saved for offline too
-    clearTimeout(evBoot);
+    // events + sports load right after (immediately if their view is open), so they're saved for offline too
+    clearTimeout(evBoot); clearTimeout(spBoot);
     if (VIEWS[cur] === "events") loadEvents(); else evBoot = setTimeout(loadEvents, 1200);
+    if (VIEWS[cur] === "sports") loadSports(); else spBoot = setTimeout(loadSports, 1800);
     lastEv = Date.now();
   }
   renderLocLabel();
   initMap();
   if (location.hash === "#food") { evCat = "food"; localStorage.setItem(CAT_KEY, evCat); }
-  const hv = HASH_VIEW[location.hash];
-  if (hv && hv[0] !== "news") goView(hv[0], { instant: true });
+  const LG_HASH = { "#spurs": "nba", "#nfl": "nfl", "#mlb": "mlb", "#missions": "missions" };
+  if (LG_HASH[location.hash]) { spLg = LG_HASH[location.hash]; localStorage.setItem(SP_KEY, spLg); }
+  const hv = HASH_VIEW[location.hash] || [defaultTab()];
+  if (hv[0] !== "news") goView(hv[0], { instant: true });
   refreshAll();
-  if (hv && hv[1]) setTimeout(() => goView(hv[0], { scrollTo: hv[1] }), 50);
+  if (hv[1]) setTimeout(() => goView(hv[0], { scrollTo: hv[1] }), 50);
   lookupPlace();
   initGeo();
   setInterval(() => { loadWeather(); loadRadar(); lastWx = Date.now(); }, WEATHER_MS);
   setInterval(() => { loadNews(); lastNews = Date.now(); renderGreeting(); }, NEWS_MS);
   setInterval(() => { loadEvents(); lastEv = Date.now(); }, EVENTS_MS);
+  setInterval(() => { if (VIEWS[cur] === "sports" || document.visibilityState === "visible") loadSports(); }, SPORTS_MS);
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState !== "visible") return;
     renderGreeting();
@@ -1143,5 +1421,6 @@
     get ready() { return secs.weather.shownUrl === secs.weather.url() && secs.news.shownUrl === secs.news.url(); },
     get fresh() { return rendered.weather === q() && rendered.news === q(); },
     get eventsReady() { return secs.events.shownUrl === secs.events.url(); }, get foodReady() { return !!foodData; },
-    get sync() { return { busy: [...Sync.busy], failed: [...Sync.failed.keys()], lastOk: Sync.lastOk }; }, refreshNow, get evCat() { return evCat; }, get view() { return VIEWS[cur]; }, goView };
+    get sync() { return { busy: [...Sync.busy], failed: [...Sync.failed.keys()], lastOk: Sync.lastOk }; }, refreshNow, get evCat() { return evCat; }, get view() { return VIEWS[cur]; }, goView,
+    get sportsReady() { return !!rendered.sports; }, get spLg() { return spLg; } };
 })();

@@ -2,29 +2,107 @@
   "id": "/",
   "name": "Chisme — local news & weather",
   "short_name": "Chisme",
-  "description": "Local news, NWS weather, alerts, live rain radar and local events for wherever you are — neighborhood stories first.",
+  "description": "Local news, NWS weather, alerts, live rain radar, sports and local events for wherever you are — neighborhood stories first.",
   "lang": "en-US",
   "dir": "ltr",
   "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
-  "display_override": ["standalone", "minimal-ui"],
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
   "background_color": "#00C9CD",
   "theme_color": "#00C9CD",
-  "categories": ["news", "weather", "entertainment"],
+  "categories": [
+    "news",
+    "weather",
+    "entertainment"
+  ],
   "icons": [
-    { "src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "/static/icons/maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
-    { "src": "/static/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "/static/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icons/maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/static/icons/maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ],
   "screenshots": [
-    { "src": "/static/screenshots/phone.png", "sizes": "780x1688", "type": "image/png", "form_factor": "narrow", "label": "Chisme on a phone: neighborhood news first, with weather and events one swipe away" },
-    { "src": "/static/screenshots/desktop.png", "sizes": "1280x900", "type": "image/png", "form_factor": "wide", "label": "Chisme on desktop: local news near you" }
+    {
+      "src": "/static/screenshots/phone.png",
+      "sizes": "780x1688",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Chisme on a phone: neighborhood news first, with weather and events one swipe away"
+    },
+    {
+      "src": "/static/screenshots/desktop.png",
+      "sizes": "1280x900",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Chisme on desktop: local news near you"
+    }
   ],
   "shortcuts": [
-    { "name": "Radar", "url": "/?source=pwa#radar-sec", "icons": [{ "src": "/static/icons/icon-192.png", "sizes": "192x192" }] },
-    { "name": "Near You news", "url": "/?source=pwa#near", "icons": [{ "src": "/static/icons/icon-192.png", "sizes": "192x192" }] },
-    { "name": "Events", "url": "/?source=pwa#events", "icons": [{ "src": "/static/icons/icon-192.png", "sizes": "192x192" }] }
+    {
+      "name": "Radar",
+      "url": "/?source=pwa#radar-sec",
+      "icons": [
+        {
+          "src": "/static/icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Sports",
+      "short_name": "Sports",
+      "description": "Spurs, NFL, MLB and the San Antonio Missions",
+      "url": "/?source=pwa#sports",
+      "icons": [
+        {
+          "src": "/static/icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Near You news",
+      "url": "/?source=pwa#near",
+      "icons": [
+        {
+          "src": "/static/icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Events",
+      "url": "/?source=pwa#events",
+      "icons": [
+        {
+          "src": "/static/icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
   ]
 }

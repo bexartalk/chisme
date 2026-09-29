@@ -18,14 +18,25 @@
   <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png" sizes="180x180">
   <link rel="stylesheet" href="/static/vendor/leaflet/leaflet.css">
   <link rel="stylesheet" href="/static/style.css">
+  <script>
+    /* Settings that must apply before the first paint (no light flash in dark mode) */
+    (function () {
+      var d = document.documentElement, pref = "system", fs = 0, rm = "";
+      try { pref = localStorage.getItem("chisme-theme") || "system"; fs = +localStorage.getItem("chisme-font-px"); rm = localStorage.getItem("chisme-reduce-motion"); } catch (e) {}
+      var dark = pref === "dark" || (pref === "system" && window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches);
+      d.dataset.theme = dark ? "dark" : "light";
+      if (fs) d.style.setProperty("--fs", fs + "px");
+      if (rm === "1") d.classList.add("reduce-motion");
+    })();
+  </script>
 </head>
 <body>
   <!-- Section buttons: position:fixed, always on screen (phones included); body gets matching top padding -->
   <nav id="tabs" class="tabs" aria-label="Sections">
     <div class="wrap tabs-inner">
       <button type="button" class="tab" data-view="news" aria-controls="view-news" aria-current="page"><span aria-hidden="true">📰</span> News</button>
+      <button type="button" class="tab" data-view="sports" aria-controls="view-sports"><span aria-hidden="true">🏀</span> Sports</button>
       <button type="button" class="tab" data-view="weather" aria-controls="view-weather"><span aria-hidden="true">🌤️</span> Weather</button>
-      <button type="button" class="tab" data-view="weather" data-scroll="radar-sec" aria-controls="view-weather" id="tab-radar"><span aria-hidden="true">📡</span> Radar</button>
       <button type="button" class="tab" data-view="events" aria-controls="view-events"><span aria-hidden="true">🎉</span> Events</button>
     </div>
   </nav>
@@ -40,17 +51,15 @@
   <header class="topbar">
     <div class="wrap topbar-inner">
       <div class="brand">
-        <a href="/" class="brand-home"><img src="/static/icons/header-icon.png" alt="Chisme home" width="52" height="52"></a>
+        <button type="button" id="settings-btn" class="brand-home" aria-haspopup="dialog" aria-controls="settings" aria-label="Chisme settings">
+          <img src="/static/icons/header-icon.png" alt="" width="52" height="52"><span class="gear" aria-hidden="true">⚙</span>
+        </button>
         <div class="brand-text">
           <h1 class="brand-name">Chisme</h1>
         </div>
       </div>
       <div class="actions">
         <button type="button" id="install-btn" class="install" hidden>📲 Install</button>
-        <div class="textsize" role="group" aria-label="Text size">
-          <button type="button" id="font-down" aria-label="A− smaller text">A−</button>
-          <button type="button" id="font-up" aria-label="A+ bigger text">A+</button>
-        </div>
       </div>
     </div>
     <div class="wrap loc-row">
@@ -116,7 +125,7 @@
             </div>
           </div>
           <p class="greet-sub" id="greet-sub">Here's what the neighborhood is talking about.</p>
-          <p class="swipe-hint" id="swipe-hint">Swipe <span aria-hidden="true">👈</span> for weather &amp; events, or tap the buttons up top.</p>
+          <p class="swipe-hint" id="swipe-hint">Swipe <span aria-hidden="true">👈</span> for sports, weather &amp; events, or tap the buttons up top. Pull down to refresh; tap the Chisme icon for settings.</p>
         </div>
 
         <section id="near" class="card">
@@ -142,6 +151,26 @@
         </section>
       </section>
 
+      <!-- ============ SPORTS ============ -->
+      <section id="view-sports" class="view" aria-label="Sports" data-view="sports" inert>
+        <section id="sports" class="card">
+          <div class="sec-head"><h2>Sports</h2><span class="stamp" id="sports-updated"></span></div>
+          <p class="blurb" id="sports-intro">Scores and the real reporting, Texas teams first.</p>
+          <div id="sp-chips" class="chips" role="group" aria-label="Show league">
+            <button type="button" class="chip" data-lg="nba" aria-pressed="true"><span aria-hidden="true">🏀</span> NBA · Spurs</button>
+            <button type="button" class="chip" data-lg="nfl" aria-pressed="false"><span aria-hidden="true">🏈</span> NFL</button>
+            <button type="button" class="chip" data-lg="mlb" aria-pressed="false"><span aria-hidden="true">⚾</span> MLB</button>
+            <button type="button" class="chip" data-lg="missions" aria-pressed="false"><span aria-hidden="true">🌵</span> Missions</button>
+          </div>
+          <div id="sports-body" class="sports-body"><p class="loading">Warming up in the bullpen…</p></div>
+        </section>
+        <section class="card slim">
+          <details class="feeds-status"><summary>Sports sources</summary>
+            <p class="hint">Scores, schedules, standings and news come from ESPN's public site API and the MLB Stats API (the Missions are the San Diego Padres' Double-A club). Story photos are the thumbnails ESPN publishes with each story and link to it; team photos are freely licensed Wikimedia Commons images, credited on each photo. No team logos. Headlines and stories belong to their publishers.</p>
+            <ul id="sports-sources"></ul></details>
+        </section>
+      </section>
+
       <!-- ============ WEATHER ============ -->
       <section id="view-weather" class="view" aria-label="Weather" data-view="weather" inert>
         <section id="alerts" aria-live="polite"></section>
@@ -156,6 +185,26 @@
           <div id="hourly" class="hourly" aria-label="Next 12 hours"></div>
         </section>
 
+        <section id="radar-sec" class="card">
+          <div class="sec-head"><h2>Radar</h2><span class="stamp" id="radar-stamp">RainViewer · past 2 hours</span></div>
+          <div class="radar-wrap">
+            <div id="map" role="region" aria-label="Rain radar map centered on your location (blue dot)"></div>
+            <div class="radar-time" aria-live="off"><span class="live-dot" aria-hidden="true"></span><span id="radar-time">Loading radar…</span></div>
+          </div>
+          <div class="radar-legend" role="img" aria-label="Rain intensity legend, from light (light blue) through moderate (blue, yellow) and heavy (orange, red) to extreme (pink)">
+            <span class="bar" aria-hidden="true"></span>
+            <span class="lbl" aria-hidden="true"><span>Light</span><span>Moderate</span><span>Heavy</span><span>Extreme</span></span>
+          </div>
+          <div class="radar-controls">
+            <button type="button" id="r-play" class="primary" aria-label="Play or pause radar">❚❚ Pause</button>
+            <input type="range" id="r-slider" min="0" max="0" value="0" aria-label="Radar frame time">
+            <button type="button" id="r-prev" aria-label="Previous frame">◀</button>
+            <button type="button" id="r-next" aria-label="Next frame">▶</button>
+            <button type="button" id="r-center" aria-label="Recenter map on your location"><span class="me-mini" aria-hidden="true"></span> Me</button>
+          </div>
+          <p class="credit">Radar: <a href="https://www.rainviewer.com/" target="_blank" rel="noopener">RainViewer</a> (10-minute frames, Universal Blue colors; the free tiles stop at zoom 7, so close-ups look soft). Map © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors.</p>
+        </section>
+
         <section id="forecast-sec" class="card">
           <div class="sec-head"><h2>7-day forecast</h2><span class="stamp" id="fc-updated"></span></div>
           <div id="forecast" class="forecast" role="group" aria-label="7-day forecast, scroll sideways"><p class="loading">Loading forecast…</p></div>
@@ -164,18 +213,7 @@
           <p class="credit" id="fc-credit">Source: National Weather Service (api.weather.gov)</p>
         </section>
 
-        <section id="radar-sec" class="card">
-          <div class="sec-head"><h2>Live rain radar</h2><span class="stamp" id="radar-time"></span></div>
-          <div id="map" role="region" aria-label="Radar map centered on your location"></div>
-          <div class="radar-controls">
-            <button type="button" id="r-prev" aria-label="Previous frame">◀</button>
-            <button type="button" id="r-play" class="primary" aria-label="Play or pause radar">❚❚ Pause</button>
-            <button type="button" id="r-next" aria-label="Next frame">▶</button>
-            <button type="button" id="r-center" aria-label="Recenter map on your location">📍 Recenter</button>
-            <input type="range" id="r-slider" min="0" max="0" value="0" aria-label="Radar frame">
-          </div>
-          <p class="credit">Radar: <a href="https://www.rainviewer.com/" target="_blank" rel="noopener">RainViewer</a> (past ~2 hours, 10-min frames). Map © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors.</p>
-        </section>
+
       </section>
 
       <!-- ============ EVENTS ============ -->
@@ -221,8 +259,76 @@
     </div>
   </main>
 
+  <dialog id="settings" class="settings" aria-labelledby="settings-title">
+    <form method="dialog" class="set-head">
+      <h2 id="settings-title">Settings</h2>
+      <button type="submit" id="settings-close" aria-label="Close settings">Done</button>
+    </form>
+    <div class="set-body">
+      <fieldset class="set-group">
+        <legend>Appearance</legend>
+        <div class="seg" role="radiogroup" aria-label="Theme">
+          <label><input type="radio" name="theme" value="system"><span><i class="emo" aria-hidden="true">📱</i> System</span></label>
+          <label><input type="radio" name="theme" value="light"><span><i class="emo" aria-hidden="true">☀️</i> Light</span></label>
+          <label><input type="radio" name="theme" value="dark"><span><i class="emo" aria-hidden="true">🌙</i> Dark</span></label>
+        </div>
+      </fieldset>
+      <fieldset class="set-group">
+        <legend>Text size</legend>
+        <div class="set-row">
+          <div class="textsize" role="group" aria-label="Text size">
+            <button type="button" id="font-down" aria-label="A− smaller text">A−</button>
+            <button type="button" id="font-up" aria-label="A+ bigger text">A+</button>
+          </div>
+          <span id="font-now" class="set-note" aria-live="polite"></span>
+        </div>
+      </fieldset>
+      <fieldset class="set-group">
+        <legend>Location</legend>
+        <p class="set-note" id="set-loc-now"></p>
+        <button type="button" id="set-gps" class="install">📍 Use my location</button>
+        <form id="set-loc-form" autocomplete="off">
+          <label for="set-loc-q">Or enter a city or ZIP code</label>
+          <div class="loc-search">
+            <input id="set-loc-q" type="search" inputmode="search" placeholder="City or ZIP code" minlength="2" maxlength="120" required>
+            <button type="submit" class="primary">Search</button>
+          </div>
+        </form>
+        <p id="set-loc-status" class="loc-status" role="status"></p>
+        <ul id="set-loc-results" class="loc-results"></ul>
+      </fieldset>
+      <fieldset class="set-group">
+        <legend>Greet me as</legend>
+        <div class="seg" role="radiogroup" aria-label="Greet me as">
+          <label><input type="radio" name="greet" value="chismoso"><span>chismoso</span></label>
+          <label><input type="radio" name="greet" value="chismosa"><span>chismosa</span></label>
+        </div>
+      </fieldset>
+      <fieldset class="set-group">
+        <legend>Open Chisme to</legend>
+        <div class="seg seg4" role="radiogroup" aria-label="Default opening tab">
+          <label><input type="radio" name="deftab" value="news"><span><i class="emo" aria-hidden="true">📰</i> News</span></label>
+          <label><input type="radio" name="deftab" value="sports"><span><i class="emo" aria-hidden="true">🏀</i> Sports</span></label>
+          <label><input type="radio" name="deftab" value="weather"><span><i class="emo" aria-hidden="true">🌤️</i> Weather</span></label>
+          <label><input type="radio" name="deftab" value="events"><span><i class="emo" aria-hidden="true">🎉</i> Events</span></label>
+        </div>
+      </fieldset>
+      <fieldset class="set-group">
+        <legend>Motion</legend>
+        <label class="switch"><input type="checkbox" id="set-motion"><span>Reduce motion</span></label>
+        <p class="set-note" id="set-motion-note">Turns off swipe animations, the pulsing location dot and radar autoplay.</p>
+      </fieldset>
+      <fieldset class="set-group">
+        <legend>Data</legend>
+        <button type="button" id="set-refresh" class="primary">↻ Refresh now</button>
+        <p class="set-note" id="set-refresh-note" aria-live="polite"></p>
+      </fieldset>
+      <p class="set-foot">Settings are saved on this device only. Chisme <span id="set-version"></span></p>
+    </div>
+  </dialog>
+
   <footer class="wrap foot">
-    <p>Weather refreshes every 10 minutes, news every 15 minutes, events every 30 minutes. Headlines link to the original publishers; story text is theirs, unedited. Times are shown in <span id="tz-name">your local time</span>. Location data: © OpenStreetMap contributors (Nominatim).</p>
+    <p>Weather refreshes every 10 minutes, news every 15 minutes, events every 30 minutes. Headlines link to the original publishers; story text is theirs, unedited. Times are shown in <span id="tz-name">your local time</span>. Location data: © OpenStreetMap contributors (Nominatim, Photon). Sports: ESPN, MLB Stats API.</p>
   </footer>
 
   <script src="/static/vendor/leaflet/leaflet.js"></script>

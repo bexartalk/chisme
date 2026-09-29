@@ -1,7 +1,7 @@
 /* Chisme service worker: caches the app shell and the last-loaded news/weather
    so the app opens instantly (and shows the last saved data) even when the server is asleep
    or there's no connection. */
-const VERSION = "chisme-v19";
+const VERSION = "chisme-v21";
 const SHELL_CACHE = `${VERSION}-shell`;
 const DATA_CACHE = `${VERSION}-data`;
 const SHELL = [
@@ -22,6 +22,8 @@ const SHELL = [
 ];
 // Texas art & landmark photos shown between stories (~2 MB): precached best-effort so they work offline.
 const ART = ["/static/art/art.json", ...Array.from({ length: 13 }, (_, i) => `/static/art/${String(i + 1).padStart(2, "0")}.webp`)];
+// Freely licensed Commons photos on the Sports tab (~290 KB).
+ART.push(...["spurs-arena", "spurs-bluehour", "missions-wolff", "missions-game", "missions-2026"].map((n) => `/static/sports/${n}.webp`));
 // Only cache real Chisme responses (the server marks them), never a hosting "waking up" page.
 const ours = (resp) => resp && resp.ok && resp.headers.get("X-Chisme") === "1";
 
