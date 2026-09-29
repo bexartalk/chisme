@@ -266,6 +266,9 @@ Radar: [RainViewer](https://www.rainviewer.com/) tiles; basemap © [OpenStreetMa
 npx lighthouse@11 http://localhost:8211/ --only-categories=pwa,accessibility,best-practices   # v11 still has the PWA category
 ```
 
+Last run (2026-09-29, about 6:50 PM CT, `donate-alerts` preview branch, build 26: donate card, 4-min news + New chisme ↑ pill, Web Push alerts):
+* All pass: `push_test`, `donate_alerts_test`, `foryou_rank_test`, `foryou_ui_test`, `greeting_test`, `features_test`, `nav_forecast_test`, `webkit_test`, `food_saved_test`, `events_food_test`, `update_test`, `art_test`, `location_test`, `location_city_test`, `coldstart_test`, `food_player_test`, `pwa_check`, `upgrade_test` (v15…v24 and **v25** → v26). Lighthouse on `/` and `/#cual-dieta`: accessibility 100, best practices 100, PWA 100. Live check: v24 → v25 on chisme.onrender.com clean in WebKit and Chromium.
+
 Last run (2026-09-29, about 5:45 PM CT, v25 release on main: For You vertical feed + on-device ranking with creator/restaurant variety + Creators we follow, build 25):
 * All pass: `foryou_rank_test` (52 checks), `foryou_ui_test` (WebKit feed + Chromium real touch swipe), `food_player_test`, `location_city_test`, `greeting_test`, `features_test`, `nav_forecast_test`, `webkit_test`, `food_saved_test`, `events_food_test`, `update_test`, `art_test`, `location_test`, `coldstart_test`, `pwa_check`, `upgrade_test` (v15…v23 and **v24** → v25). Lighthouse on `/#cual-dieta`: accessibility 100, best practices 100, PWA 100.
 * `food_player_test.py`: the tab-swipe checks now start on the ¿Cuál dieta? section heading, because the For You banner pushes the intro below the fold. `foryou_ui_test.py` ignores console noise from inside the embedded TikTok/YouTube players (their own CSP headers, cookie banner, cross-origin frame access); Chisme's own errors still fail it.

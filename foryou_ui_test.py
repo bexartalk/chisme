@@ -28,7 +28,7 @@ def own_error(m):
     url = (m.location or {}).get("url") or ""
     if url and not url.startswith("http://localhost"):
         return False
-    return not any(h in m.text for h in ("tiktok.com", "youtube.com", "youtube-nocookie.com", "@tiktok-fe/"))
+    return not re.search(r"tiktok|ttwstatic|byteimg|ibytedtos|youtube|ytimg|googlevideo", m.text, re.I)   # the players' own domains
 
 
 async def go(pg, i):   # scroll the feed to slide i the way a snap scroll ends up
