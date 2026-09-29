@@ -75,8 +75,12 @@ async def wk(p):
     s = await pg.evaluate("[document.querySelector('#player-actions .fr-save').getAttribute('aria-pressed'), document.querySelector('#n-saved').textContent, document.querySelectorAll('#food-creators .fr-save[aria-pressed=true]').length]")
     check(s == ["true", "(1)", 1], f"Save in the sheet saves it (card button + count follow) {s}")
     await pg.tap("#player-close")
+    try:   # the dialog's close event (which empties the player) can land a frame after the tap
+        await pg.wait_for_function("!document.querySelector('#player').open && !document.querySelector('#player-media').children.length", timeout=3000)
+    except Exception:
+        pass
     c = await pg.evaluate("[document.querySelector('#player').open, document.querySelector('#player-media').children.length]")
-    check(c == [False, 0], "Close button closes the sheet and stops the video")
+    check(c == [False, 0], f"Close button closes the sheet and stops the video {c}")
     # tapping the card body (not the thumbnail) opens it too
     await pg.locator("#food-creators .fr .fr-by").nth(idx).tap()
     check(await pg.evaluate("document.querySelector('#player').open"), "tapping the card opens the player")
