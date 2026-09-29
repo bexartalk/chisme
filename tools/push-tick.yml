@@ -1,0 +1,30 @@
+# Chisme alerts: every ~10 minutes, wake the (sleeping, free) Render server and let it check the news and
+# NWS alerts for everyone who turned on alerts, and send what's new. The server does the work; this only knocks.
+# Needs the repository secret PUSH_TICK_SECRET (the same value as on Render). Optional repository variable
+# CHISME_URL (default https://chisme.onrender.com).
+name: push-tick
+on:
+  schedule:
+    - cron: "*/10 * * * *"     # GitHub may run scheduled jobs a few minutes late; that's fine here
+  workflow_dispatch: {}          # "Run workflow" button, for testing
+permissions: {}
+concurrency:
+  group: push-tick
+  cancel-in-progress: false
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Knock on /api/push/tick
+        env:
+          SECRET: ${{ secrets.PUSH_TICK_SECRET }}
+          URL: ${{ vars.CHISME_URL || 'https://chisme.onrender.com' }}
+        run: |
+          if [ -z "$SECRET" ]; then echo "PUSH_TICK_SECRET isn't set in this repo's secrets; nothing to do."; exit 0; fi
+          # a sleeping free server takes ~30-60 s to wake: wake it first, then tick (retries on 502/503 while it boots)
+          curl -s -o /dev/null --max-time 90 "$URL/healthz" || true
+          curl -fsS --retry 4 --retry-delay 20 --retry-all-errors --max-time 170 \
+            -X POST -H "Authorization: Bearer $SECRET" -H "Content-Type: application/json" -d '{}' \
+            "$URL/api/push/tick"
+          echo

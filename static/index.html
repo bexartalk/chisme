@@ -44,6 +44,8 @@
       <button type="button" class="tab" data-view="events" aria-controls="view-events"><span aria-hidden="true">🎉</span> Events</button>
     </div>
   </nav>
+  <!-- outside the swiping views (they're transformed, which would break position:fixed) -->
+  <button type="button" id="news-pill" class="news-pill" hidden>New chisme ↑<span class="sr-only" id="news-pill-n"></span></button>
   <div id="sync" class="sync" role="status" aria-live="polite" data-state="done" hidden>
     <span class="sync-ico" aria-hidden="true"></span><span id="sync-msg"></span>
     <button type="button" id="sync-retry" hidden>Retry now</button>
@@ -128,6 +130,10 @@
           <p class="greet-sub" id="greet-sub">Pull up a chair, grab the tea, here’s the latest chisme.</p>
           <p class="swipe-hint" id="swipe-hint">Swipe <span aria-hidden="true">👈</span> for more · pull to refresh · tap the bubble for settings.</p>
         </div>
+        <aside id="push-ask" class="card push-ask" hidden aria-labelledby="push-ask-t">
+          <p class="push-ask-t" id="push-ask-t"><span aria-hidden="true">🔔</span> Want a heads-up when there's new chisme or a weather warning near you?</p>
+          <div class="push-ask-row"><button type="button" id="push-ask-yes" class="primary">Turn on alerts 🔔</button><button type="button" id="push-ask-no">Not now</button></div>
+        </aside>
 
         <section id="near" class="card">
           <div class="sec-head"><h2>Near You</h2><span class="stamp" id="news-updated"></span></div>
@@ -150,6 +156,11 @@
         <section class="card slim">
           <details class="feeds-status"><summary>News sources for this location</summary><ul id="feeds"></ul></details>
         </section>
+        <aside class="card donate" id="donate-news" aria-labelledby="donate-news-t">
+          <p class="donate-text" id="donate-news-t">The tea ain’t free! Help a chismoso out — donate now!</p>
+          <a class="donate-btn" href="https://cash.app/$Slurmkaos" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">💸</span> Donate on Cash App<span class="sr-only"> (opens Cash App)</span></a>
+          <p class="donate-tag">$Slurmkaos</p>
+        </aside>
       </section>
 
       <!-- ============ SPORTS ============ -->
@@ -219,6 +230,11 @@
             <p class="hint">Food reviews come from public feeds (local creators' YouTube channels and local food coverage) plus a hand-picked list of local creators' TikToks. Titles, photos and opinions are theirs. YouTube videos play inside Chisme through YouTube's privacy-enhanced player (youtube-nocookie.com); TikToks play in TikTok's official embed player.</p>
             <ul id="food-sources"></ul></details>
         </section>
+        <aside class="card donate" id="donate-dieta" aria-labelledby="donate-dieta-t">
+          <p class="donate-text" id="donate-dieta-t">The tea ain’t free! Help a chismoso out — donate now!</p>
+          <a class="donate-btn" href="https://cash.app/$Slurmkaos" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">💸</span> Donate on Cash App<span class="sr-only"> (opens Cash App)</span></a>
+          <p class="donate-tag">$Slurmkaos</p>
+        </aside>
       </section>
 
       <!-- ============ WEATHER ============ -->
@@ -370,6 +386,16 @@
           <label><input type="radio" name="deftab" value="events"><span><i class="emo" aria-hidden="true">🎉</i> Events</span></label>
         </div>
       </fieldset>
+      <fieldset class="set-group set-alerts" id="set-alerts">
+        <legend>Alerts</legend>
+        <p class="set-note" id="set-push-status">Get a heads-up when there's new local chisme or an NWS warning near you. Nothing is sent until you turn it on.</p>
+        <button type="button" id="set-push" class="primary">Turn on alerts 🔔</button>
+        <label class="switch"><input type="checkbox" id="set-push-news" checked disabled><span>Breaking &amp; new local news</span></label>
+        <label class="switch"><input type="checkbox" id="set-push-wx" checked disabled><span>NWS weather warnings &amp; watches for your location</span></label>
+        <button type="button" id="set-push-test" hidden>Send a test</button>
+        <p class="set-note">At most one news alert every 45 minutes. Quiet hours are 10 PM – 7 AM: only weather warnings come through. Chisme keeps your area (rounded to about 1 km) on its server so alerts match where you are; turning alerts off deletes it.</p>
+        <p class="set-note" id="set-push-note" aria-live="polite"></p>
+      </fieldset>
       <fieldset class="set-group">
         <legend>Motion</legend>
         <label class="switch"><input type="checkbox" id="set-motion"><span>Reduce motion</span></label>
@@ -381,6 +407,12 @@
         <button type="button" id="set-fy-reset">Reset my feed</button>
         <p class="set-note" id="set-fy-note" aria-live="polite"></p>
       </fieldset>
+      <fieldset class="set-group set-donate" id="set-donate">
+        <legend>Support Chisme</legend>
+        <p class="donate-text" id="set-donate-t">The tea ain’t free! Help a chismoso out — donate now!</p>
+        <a class="donate-btn" href="https://cash.app/$Slurmkaos" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">💸</span> Donate on Cash App<span class="sr-only"> (opens Cash App)</span></a>
+        <p class="donate-tag">$Slurmkaos</p>
+      </fieldset>
       <fieldset class="set-group">
         <legend>Data</legend>
         <button type="button" id="set-refresh" class="primary">↻ Refresh now</button>
@@ -391,7 +423,7 @@
   </dialog>
 
   <footer class="wrap foot">
-    <p>Weather refreshes every 10 minutes, news every 15 minutes, events every 30 minutes. Headlines link to the original publishers; story text is theirs, unedited. Times are shown in <span id="tz-name">your local time</span>. Location data: © OpenStreetMap contributors (Nominatim, Photon). Sports: ESPN, MLB Stats API.</p>
+    <p>Weather refreshes every 10 minutes, news every 4 minutes while Chisme is open, events every 30 minutes. Headlines link to the original publishers; story text is theirs, unedited. Times are shown in <span id="tz-name">your local time</span>. Location data: © OpenStreetMap contributors (Nominatim, Photon). Sports: ESPN, MLB Stats API.</p>
   </footer>
 
   <script src="/static/vendor/leaflet/leaflet.js"></script>

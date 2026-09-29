@@ -5,3 +5,6 @@ server.pid
 *.pyc
 screenshots/
 art-candidates/
+.env
+*.env
+secrets/

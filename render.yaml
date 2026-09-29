@@ -9,3 +9,16 @@ services:
     envVars:
       - key: APP_USER_AGENT
         value: "Chisme/1.0 (https://github.com/bexartalk/chisme)"
+      # Web Push (see README → "Alerts setup"). sync: false = set the value in the Render dashboard, never in git.
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_SUBJECT
+        sync: false
+      - key: PUSH_TICK_SECRET
+        sync: false
+      - key: UPSTASH_REDIS_REST_URL
+        sync: false
+      - key: UPSTASH_REDIS_REST_TOKEN
+        sync: false

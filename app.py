@@ -30,9 +30,11 @@ from zoneinfo import ZoneInfo
 
 import feedparser
 import httpx
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+
+import push
 
 # ---------------------------------------------------------------- config
 DEFAULT_LAT, DEFAULT_LON = 29.4241, -98.4936  # San Antonio, TX (used until the user picks)
@@ -41,7 +43,7 @@ UA = os.environ.get(
 )
 WEATHER_TTL = 5 * 60        # server caches; the browser refreshes weather every 10 min
 ALERTS_TTL = 3 * 60
-NEWS_TTL = 10 * 60          # per feed URL; the browser refreshes news every 15 min
+NEWS_TTL = 4 * 60           # per feed URL; the open app checks for new stories every 4 min (and on focus)
 POINTS_TTL = 24 * 3600      # NWS /points metadata per ~1 km cell
 PLACE_TTL = 7 * 86400       # reverse geocode per ~1 km cell
 NEARBY_TTL = 30 * 86400     # nearby neighborhood names per ~2 km cell
@@ -2315,6 +2317,76 @@ async def api_radar():
         return await cached("radar", RADAR_TTL, build_radar)
     except Exception as ex:
         return _err(ex)
+
+
+# ---------------------------------------------------------------- web push (see push.py for how it runs on a sleeping free host)
+async def _push_stories(lat: float, lon: float) -> list[dict]:
+    n = await build_news(lat, lon)
+    return [{k: i.get(k) for k in ("title", "link", "source", "published")} for i in (n.get("near") or []) + (n.get("more") or [])]
+
+
+async def _push_alerts(lat: float, lon: float) -> list[dict]:
+    c = cell(lat, lon, 0.01)
+    doc = await cached(f"alerts:{c}", ALERTS_TTL, lambda: get_json("https://api.weather.gov/alerts/active", point=f"{c[0]},{c[1]}"))
+    return [{k: (f.get("properties") or {}).get(k) for k in ("id", "event", "headline", "areaDesc", "severity")}
+            for f in (doc.get("features") or [])] if isinstance(doc, dict) else []
+
+
+async def _body(request: Request, limit: int = 8000) -> dict:
+    raw = await request.body()
+    if len(raw) > limit:
+        return {}
+    try:
+        d = json.loads(raw or b"{}")
+        return d if isinstance(d, dict) else {}
+    except Exception:
+        return {}
+
+
+@app.get("/api/push/config")
+async def api_push_config():
+    c = push.conf()
+    return JSONResponse({"enabled": push.enabled(), "publicKey": c["public"] if push.enabled() else None, "store": push.store().name,
+                         "newsGapMin": push.news_gap() // 60, "quiet": [push.QUIET_FROM, push.QUIET_TO]}, headers={"Cache-Control": "no-store"})
+
+
+@app.post("/api/push/subscribe")
+async def api_push_subscribe(request: Request):
+    if not push.enabled():
+        return JSONResponse({"ok": False, "error": "push isn't set up on this server"}, status_code=503)
+    r = await push.subscribe(await _body(request))
+    return JSONResponse(r, status_code=200 if r["ok"] else 400)
+
+
+@app.post("/api/push/unsubscribe")
+async def api_push_unsubscribe(request: Request):
+    return JSONResponse(await push.unsubscribe(await _body(request)))
+
+
+@app.post("/api/push/renew")
+async def api_push_renew(request: Request):
+    return JSONResponse(await push.renew(await _body(request)))
+
+
+@app.post("/api/push/test")
+async def api_push_test(request: Request):
+    if not push.enabled():
+        return JSONResponse({"ok": False, "error": "push isn't set up on this server"}, status_code=503)
+    r = await push.send_test(await _body(request))
+    return JSONResponse(r, status_code=200 if r["ok"] else 400)
+
+
+@app.post("/api/push/tick")
+async def api_push_tick(request: Request):
+    """Called every ~10 min by .github/workflows/push-tick.yml with the PUSH_TICK_SECRET (wakes a sleeping server)."""
+    if not push.conf()["secret"]:
+        return JSONResponse({"ok": False, "error": "PUSH_TICK_SECRET isn't set"}, status_code=503)
+    if not push.authorized(request.headers.get("authorization")):
+        return JSONResponse({"ok": False, "error": "unauthorized"}, status_code=401)
+    if not push.enabled():
+        return JSONResponse({"ok": False, "error": "VAPID keys aren't set"}, status_code=503)
+    body = await _body(request, 200000) if push.conf()["test"] else {}   # test hooks (a fake clock / fake feeds) only with PUSH_TEST=1
+    return JSONResponse(await push.tick(_push_stories, _push_alerts, now=body.get("now"), fake=body.get("fake")))
 
 
 @app.get("/healthz")

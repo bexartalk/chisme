@@ -791,3 +791,39 @@ html.feed-open,html.feed-open body{overflow:hidden}
   background:linear-gradient(transparent,rgba(0,0,0,.85));overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .fy-next{margin:0 0 12px;font-size:.88rem;font-weight:800;line-height:1.3;color:#fff}
 [data-theme="dark"] .fy-tile{border-color:var(--turq)}
+
+/* Donate: a quiet card at the very bottom of News and ¿Cuál dieta? plus a row in Settings. No popups.
+   Cash App green (#00D632) with black text (11:1 contrast); the only link that leaves the app on purpose. */
+.donate{text-align:center;border-style:dashed;padding:16px 18px 14px}
+.donate-text{margin:0 0 12px;font-weight:800;font-size:1rem;line-height:1.35;color:var(--ink)}
+.donate-btn{display:inline-flex;align-items:center;justify-content:center;gap:.45em;min-height:52px;padding:.45em 1.4em;border:3px solid #000;
+  border-radius:999px;background:#00D632;color:#000;font-weight:900;font-size:1.05rem;text-decoration:none;box-shadow:0 4px 0 #000}
+.donate-btn:hover{background:#00e236}
+.donate-btn:active{transform:translateY(3px);box-shadow:0 1px 0 #000}
+.donate-btn:focus-visible{outline:4px solid #f5b400;outline-offset:3px}
+.donate-tag{margin:8px 0 0;font-weight:800;font-size:.95rem;letter-spacing:.02em;color:var(--muted)}
+.set-donate{text-align:left}
+.set-donate .donate-text{font-size:.95rem;margin-bottom:10px}
+.reduce-motion .donate-btn:active{transform:none}
+[data-theme="dark"] .donate-btn{border-color:#00D632;box-shadow:0 4px 0 #007a1d}
+[data-theme="dark"] .donate-btn:active{box-shadow:0 1px 0 #007a1d}
+
+/* "New chisme ↑": new stories wait here instead of jumping the list you're reading (sits below the "Updated" status pill) */
+.news-pill{position:fixed;left:50%;top:calc(var(--tabs-h,72px) + 62px);transform:translateX(-50%);z-index:30;min-height:48px;padding:.35em 1.2em;
+  border:3px solid #000;border-radius:999px;background:var(--pink);color:#000;font-weight:900;font-size:1rem;box-shadow:0 4px 0 #000;white-space:nowrap;
+  animation:pill-in .25s ease-out}
+.news-pill[hidden]{display:none}
+.news-pill:active{box-shadow:0 1px 0 #000;transform:translate(-50%,3px)}
+@keyframes pill-in{from{opacity:0;transform:translate(-50%,-10px)}to{opacity:1;transform:translateX(-50%)}}
+.reduce-motion .news-pill{animation:none}
+@media (prefers-reduced-motion:reduce){.news-pill{animation:none}}
+[data-theme="dark"] .news-pill{background:var(--pink);color:#000;border-color:#000;box-shadow:0 4px 0 var(--turq)}
+
+/* alerts: the one-time soft prompt (an inline card, not a popup) and the Settings group */
+.push-ask{border-color:var(--turq);border-width:3px}
+.push-ask-t{margin:0 0 10px;font-weight:800;line-height:1.35}
+.push-ask-row{display:flex;flex-wrap:wrap;gap:10px}
+.push-ask-row button{min-height:48px}
+.set-alerts .switch{margin:10px 0 0}
+.set-alerts #set-push{min-height:48px}
+.set-alerts #set-push-test{margin-top:10px}

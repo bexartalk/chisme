@@ -2,7 +2,7 @@
 starts serving the current code (what happened on Render when v21 replaced v15). Checks that after
 reopening, the page runs the NEW app.js with the NEW HTML: Sports and Weather tabs work, no JS errors.
 
-    ./venv/bin/python upgrade_test.py [old_commit ...]      (default: v15, v17, v19, v21, v22, v23 and v24)
+    ./venv/bin/python upgrade_test.py [old_commit ...]      (default: v15, v17, v19, v21, v22, v23, v24 and v25)
 Also checks the next deploy (current build -> build+1 with the app open): the page reloads itself once.
 """
 import asyncio, json, os, shutil, subprocess, sys, tempfile, time, urllib.request
@@ -13,7 +13,7 @@ PY = os.path.join(HERE, "venv", "bin", "python")
 PORT = 8230
 URL = f"http://localhost:{PORT}/"
 OUT = os.path.join(HERE, "screenshots")
-OLD = sys.argv[1:] or ["f0f68c2", "a3c1b3c", "4ca7393", "777a9f9", "fb94c22", "2170477", "2e3b9bd"]   # v15, v17, v19, v21, v22, v23, v24
+OLD = sys.argv[1:] or ["f0f68c2", "a3c1b3c", "4ca7393", "777a9f9", "fb94c22", "2170477", "2e3b9bd", "fa28328"]   # v15, v17, v19, v21, v22, v23, v24, v25
 fails = []
 
 def check(ok, what):

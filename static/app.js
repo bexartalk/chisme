@@ -1,11 +1,12 @@
 /* Chisme — frontend (location-aware) */
 // Build of this file. Must equal the number in sw.js VERSION ("chisme-v22"); the page compares it
 // with the build the HTML was served for and reloads once if an old cached app.js got mixed in.
-window.CHISME_APP_BUILD = "25";
+window.CHISME_APP_BUILD = "26";
 (() => {
   "use strict";
   const WEATHER_MS = 10 * 60 * 1000;
-  const NEWS_MS = 15 * 60 * 1000;
+  const NEWS_MS = 4 * 60 * 1000;          // while the app is open and on screen: check for new stories every 4 min
+  const NEWS_FOCUS_MS = 60 * 1000;        // …and when you come back to it (focus / visible), if the last check is over a minute old
   const EVENTS_MS = 30 * 60 * 1000;
   const SPORTS_MS = 5 * 60 * 1000;
   const MOVE_KM = 3;                      // refresh when the user moves farther than this
@@ -233,6 +234,7 @@ window.CHISME_APP_BUILD = "25";
     finishSetup(); hidePanel();
     if (map) recenter(moved > 50 ? 8 : null);
     refreshAll();          // start loading right away (shows "Loading…" instead of the old place)
+    pushResync();          // alerts follow you to the new place
     await lookupPlace();   // then fill in the neighborhood/city label
   }
 
@@ -708,11 +710,37 @@ window.CHISME_APP_BUILD = "25";
     fail: (e) => $("#near-list").replaceChildren(el("p", { class: "error", text: "¡Ay, no! Couldn't reach the news (" + e.message + "). We'll keep trying." })),
     apply: (n, { saved }) => {
       if (!ART.length && !artWait) { artWait = artReady.then(() => { artWait = null; if (lastNewsData) renderNews(lastNewsData, lastNewsSaved); }); }
-      if (!saved) rendered.news = q();
+      // Already reading live stories for this place? Don't jump the list: new stories wait behind the
+      // "New chisme ↑" pill; a check with nothing new only updates the time. (Pull to refresh / Refresh now,
+      // a new location, or the first live load after the saved copy render right away.)
+      if (!saved && !newsManual && lastNewsData && !lastNewsSaved && rendered.news === q()) {
+        const have = new Set(storyLinks(lastNewsData)), fresh = storyLinks(n).filter((u) => !have.has(u));
+        $("#news-updated").textContent = stampFor(false, n);
+        if (fresh.length) { newsHold = n; updateNewsPill(fresh.length); }
+        return;
+      }
+      if (!saved) { rendered.news = q(); newsManual = false; newsHold = null; updateNewsPill(); }
       renderNews(n, saved);
     },
   });
-  let lastNewsData = null, lastNewsSaved = false;
+  let lastNewsData = null, lastNewsSaved = false, newsHold = null, newsManual = false, newsHoldN = 0;
+  const storyLinks = (n) => [...(n.near || []), ...(n.more || []), ...(n.metro_other || n.san_antonio || [])].map((i) => i.link).filter(Boolean);
+  function updateNewsPill(count) {
+    const pill = $("#news-pill");
+    if (!pill) return;
+    if (count != null) newsHoldN = count;
+    pill.hidden = !newsHold || VIEWS[cur] !== "news";
+    $("#news-pill-n").textContent = newsHold ? ` — ${newsHoldN} new ${newsHoldN === 1 ? "story" : "stories"}, show ${newsHoldN === 1 ? "it" : "them"}` : "";
+  }
+  function showHeldNews() {
+    if (!newsHold) return;
+    const n = newsHold; newsHold = null; updateNewsPill();
+    rendered.news = q(); renderNews(n, false);
+    const near = $("#near");
+    window.scrollTo({ top: Math.max(0, near.getBoundingClientRect().top + window.scrollY - tabsH() - 8), behavior: reducedMotion() ? "instant" : "smooth" });
+    (near.querySelector(".story h3 a") || near).focus({ preventScroll: true });
+  }
+  $("#news-pill").onclick = showHeldNews;
   function renderNews(n, saved) {
     lastNewsData = n; lastNewsSaved = saved;
     {
@@ -1777,6 +1805,7 @@ window.CHISME_APP_BUILD = "25";
     window.scrollTo({ top: y, behavior: "instant" });
     updateTabs(scrollId);
     if (VIEWS[i] === "weather" && map) map.invalidateSize();
+    updateNewsPill();
     if (VIEWS[i] === "events" && rendered.events !== q()) loadEvents();
     if (VIEWS[i] === "sports" && !rendered.sports) loadSports();
     if (VIEWS[i] === "antojos" && (!foodData || secs.food.shownUrl !== secs.food.url())) loadFood();   // new place → new city's food
@@ -1891,6 +1920,128 @@ window.CHISME_APP_BUILD = "25";
   };
   $("#set-version").textContent = "· build " + window.CHISME_APP_BUILD;
 
+  // ---------- alerts: Web Push ("New chisme, grab the tea! ☕" + NWS warnings). Opt-in only, from a tap
+  // (iOS asks for permission only from a tap, and only in the Home Screen app, iOS 16.4+). See push.py.
+  const PUSH_KEY = "chisme-push", PUSH_ASKED = "chisme-push-asked", VISITS = "chisme-visits";
+  const pushPrefs = () => { try { return { on: false, news: true, wx: true, ...JSON.parse(lsGet(PUSH_KEY) || "{}") }; } catch { return { on: false, news: true, wx: true }; } };
+  const savePushPrefs = (p) => lsSet(PUSH_KEY, JSON.stringify(p));
+  const isStandalone = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+  const pushCapable = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+  let pushCfg = null, pushBusy = false;
+  const pushCfgReady = fetch("/api/push/config", { cache: "no-store" }).then((r) => r.ok ? r.json() : null).then((c) => { pushCfg = c; return c; }).catch(() => null);
+  const u8key = (b64) => { const p = "=".repeat((4 - b64.length % 4) % 4), b = atob((b64 + p).replace(/-/g, "+").replace(/_/g, "/")); return Uint8Array.from(b, (c) => c.charCodeAt(0)); };
+  async function pushSub() { if (!pushCapable()) return null; try { const reg = await navigator.serviceWorker.ready; return await reg.pushManager.getSubscription(); } catch { return null; } }
+  async function pushPost(path, body) {
+    const r = await fetch("/api/push/" + path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || j.ok === false) throw new Error(j.error || "the server said " + r.status);
+    return j;
+  }
+  const pushBody = (sub) => { const p = pushPrefs(); return { subscription: sub.toJSON(), lat: loc.lat, lon: loc.lon, tz: DEVICE_TZ, news: p.news, weather: p.wx }; };
+  let pushLocKey = null;
+  async function pushResync() {   // every open and every move: the server's copy follows you (and heals if it was lost)
+    const p = pushPrefs();
+    if (!p.on || !pushCapable() || Notification.permission !== "granted") return;
+    const sub = await pushSub();
+    if (!sub) { savePushPrefs({ ...p, on: false }); renderAlertsUI(); return; }
+    const key = q() + p.news + p.wx;
+    if (key === pushLocKey) return;
+    try { await pushPost("subscribe", pushBody(sub)); pushLocKey = key; } catch (e) { console.warn("alerts resync", e); }
+  }
+  const pushNote = (t) => { $("#set-push-note").textContent = t; };
+  // Called straight from a tap: the permission prompt comes first, before any network wait.
+  async function turnOnAlerts(from) {
+    if (pushBusy) return;
+    if (!pushCapable() || !pushCfg || !pushCfg.enabled) { renderAlertsUI(); return; }
+    pushBusy = true;
+    try {
+      const perm = await Notification.requestPermission();
+      if (perm !== "granted") { pushNote(perm === "denied" ? "Alerts are blocked for Chisme. You can allow notifications for Chisme in your phone's or browser's settings." : "No problem: alerts stay off."); return; }
+      const reg = await navigator.serviceWorker.ready;
+      const sub = (await reg.pushManager.getSubscription()) || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: u8key(pushCfg.publicKey) });
+      savePushPrefs({ ...pushPrefs(), on: true });
+      await pushPost("subscribe", pushBody(sub)); pushLocKey = q() + pushPrefs().news + pushPrefs().wx;
+      pushNote(`Done: alerts are on for ${placeName()}. 🔔`);
+      if (from === "ask") { const a = $("#push-ask"); a.replaceChildren(el("p", { class: "push-ask-t", role: "status", text: "🔔 Alerts are on. Change them anytime in Settings." })); setTimeout(() => { a.hidden = true; }, 6000); }
+    } catch (e) {
+      savePushPrefs({ ...pushPrefs(), on: false });
+      pushNote("Couldn't turn on alerts (" + e.message + "). Try again in a bit.");
+    } finally { pushBusy = false; renderAlertsUI(); }
+  }
+  async function turnOffAlerts() {
+    pushBusy = true;
+    try {
+      const sub = await pushSub();
+      if (sub) { await pushPost("unsubscribe", { endpoint: sub.endpoint }).catch(() => {}); await sub.unsubscribe().catch(() => {}); }
+      savePushPrefs({ ...pushPrefs(), on: false }); pushLocKey = null;
+      pushNote("Alerts are off, and your area was removed from the server.");
+    } finally { pushBusy = false; renderAlertsUI(); }
+  }
+  function renderAlertsUI() {
+    const p = pushPrefs(), btn = $("#set-push"), st = $("#set-push-status"), test = $("#set-push-test");
+    const on = p.on && pushCapable() && Notification.permission === "granted";
+    $("#set-push-news").checked = p.news; $("#set-push-wx").checked = p.wx;
+    $("#set-push-news").disabled = $("#set-push-wx").disabled = !on;
+    test.hidden = !on;
+    btn.disabled = false; btn.classList.toggle("primary", !on);
+    btn.replaceChildren(on ? "Turn off alerts" : "Turn on alerts 🔔");
+    if (!pushCapable()) {
+      btn.disabled = true;
+      st.textContent = isIOS && !isStandalone()
+        ? "On iPhone and iPad, alerts work in the Home Screen app (iOS 16.4 or newer): tap Share → Add to Home Screen, open Chisme from your Home Screen, then turn alerts on here."
+        : "This browser can't show push alerts. Try Chrome, Edge, Firefox or Safari on a computer or Android phone, or the Home Screen app on iPhone.";
+    } else if (pushCfg && !pushCfg.enabled) {
+      btn.disabled = true; st.textContent = "Alerts aren't switched on for this server yet.";
+    } else if (Notification.permission === "denied") {
+      btn.disabled = true; st.textContent = "Notifications are blocked for Chisme. Allow them for Chisme in your phone's or browser's settings, then come back here.";
+    } else st.textContent = on ? `Alerts are on for ${placeName()}.` : "Get a heads-up when there's new local chisme or an NWS warning near you. Nothing is sent until you turn it on.";
+  }
+  $("#set-push").onclick = () => { if (pushPrefs().on && Notification.permission === "granted") turnOffAlerts(); else turnOnAlerts("settings"); };
+  for (const [id, k] of [["#set-push-news", "news"], ["#set-push-wx", "wx"]]) {
+    $(id).onchange = (e) => { savePushPrefs({ ...pushPrefs(), [k]: e.target.checked }); pushResync().then(() => pushNote("Saved.")); };
+  }
+  $("#set-push-test").onclick = async () => {
+    const sub = await pushSub();
+    if (!sub) { renderAlertsUI(); return; }
+    pushNote("Sending a test…");
+    try { await pushPost("test", { endpoint: sub.endpoint }); pushNote("Test sent: it should pop up in a few seconds."); }
+    catch (e) { pushNote("Couldn't send a test (" + e.message + ")."); }
+  };
+  // One-time soft prompt: on your second visit (never the first), only where alerts can work, never a popup.
+  const visits = (+lsGet(VISITS) || 0) + 1; lsSet(VISITS, String(visits));
+  pushCfgReady.then((c) => {
+    renderAlertsUI();
+    pushResync();
+    const ask = $("#push-ask");
+    if (!ask || visits < 2 || lsGet(PUSH_ASKED) || !c || !c.enabled || !pushCapable() || Notification.permission === "denied" || pushPrefs().on) return;
+    lsSet(PUSH_ASKED, String(Date.now()));   // shown once, whatever you pick
+    ask.hidden = false;
+    $("#push-ask-yes").onclick = () => turnOnAlerts("ask");
+    $("#push-ask-no").onclick = () => { ask.hidden = true; };
+  });
+  // Tapping a notification: the story opens in Chisme's reader (or the weather alerts), never another app.
+  function openFromAlert(href) {
+    let u; try { u = new URL(href, location.origin); } catch { return; }
+    if (u.origin !== location.origin) return;
+    const link = u.searchParams.get("story");
+    if (link && /^https?:\/\//.test(link)) {
+      goView("news", { instant: true });
+      const all = lastNewsData ? [...(lastNewsData.near || []), ...(lastNewsData.more || []), ...(lastNewsData.metro_other || lastNewsData.san_antonio || [])] : [];
+      const hit = all.find((i) => i.link === link);
+      const it = hit ? { kind: "outlet", url: hit.link, title: hit.title, source: hit.source, published: hit.published, summary: hit.summary, image: hit.image, frame: false }
+        : { kind: "outlet", url: link, title: u.searchParams.get("t") || "New chisme", source: u.searchParams.get("s") || "", published: +u.searchParams.get("p") || null, frame: false };
+      openPlayer(it, null, { noSave: true });
+    } else if (HASH_VIEW[u.hash]) {
+      const hv = HASH_VIEW[u.hash]; goView(hv[0], { scrollTo: hv[1] });
+    }
+  }
+  if (navigator.serviceWorker) navigator.serviceWorker.addEventListener("message", (e) => { if (e.data && typeof e.data.chismeOpen === "string") openFromAlert(e.data.chismeOpen); });
+  if (new URLSearchParams(location.search).has("story")) {
+    const href = location.href;
+    history.replaceState(history.state, "", location.pathname + location.hash);   // a reload doesn't reopen it
+    setTimeout(() => openFromAlert(href), 60);
+  }
+
   // ---------- boot + auto refresh
   let lastWx = 0, lastNews = 0, lastEv = 0, evBoot = null;
   let spBoot = null;
@@ -1914,19 +2065,22 @@ window.CHISME_APP_BUILD = "25";
   lookupPlace();
   initGeo();
   setInterval(() => { loadWeather(); loadRadar(); lastWx = Date.now(); }, WEATHER_MS);
-  setInterval(() => { loadNews(); lastNews = Date.now(); renderGreeting(); }, NEWS_MS);
+  setInterval(() => { renderGreeting(); if (document.visibilityState === "visible") { loadNews(); lastNews = Date.now(); } }, NEWS_MS);
+  const newsOnReturn = () => { if (document.visibilityState === "visible" && Date.now() - lastNews > NEWS_FOCUS_MS) { loadNews(); lastNews = Date.now(); } };
+  addEventListener("focus", newsOnReturn);
   setInterval(() => { loadEvents(); lastEv = Date.now(); }, EVENTS_MS);
   setInterval(() => { if (VIEWS[cur] === "sports" || document.visibilityState === "visible") loadSports(); }, SPORTS_MS);
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState !== "visible") return;
     renderGreeting();
     if (Date.now() - lastWx > WEATHER_MS) { loadWeather(); loadRadar(); lastWx = Date.now(); }
-    if (Date.now() - lastNews > NEWS_MS) { loadNews(); lastNews = Date.now(); }
+    newsOnReturn();
     if (Date.now() - lastEv > EVENTS_MS) { loadEvents(); lastEv = Date.now(); }
     retryFailed();   // back in the app: don't wait out the backoff
   });
   // Manual refresh (pull down at the top, "Retry now", or Settings → Refresh now)
   function refreshNow() {
+    newsManual = true;   // you asked: show the new stories right away
     for (const s of Object.values(secs)) s.tries = 0;
     Sync.failed.clear();
     refreshAll();
@@ -2023,7 +2177,8 @@ window.CHISME_APP_BUILD = "25";
   $("#ios-hint-close").onclick = () => { $("#ios-hint").hidden = true; localStorage.setItem(HINT_KEY, "1"); };
 
   // expose for testing
-  window.__chisme = { get frames() { return frames; }, get map() { return map; }, get loc() { return loc; },
+  window.__chisme = { get newsPill() { return { held: !!newsHold, n: newsHoldN, shown: !$("#news-pill").hidden }; }, checkNews: () => { loadNews(); lastNews = Date.now(); }, openFromAlert, get pushPrefs() { return pushPrefs(); },
+    get frames() { return frames; }, get map() { return map; }, get loc() { return loc; },
     // ready = showing this location's news + weather (fresh or the saved copy); fresh = straight from the server
     get ready() { return secs.weather.shownUrl === secs.weather.url() && secs.news.shownUrl === secs.news.url(); },
     get fresh() { return rendered.weather === q() && rendered.news === q(); },

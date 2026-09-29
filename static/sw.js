@@ -1,7 +1,7 @@
 /* Chisme service worker: caches the app shell and the last-loaded news/weather
    so the app opens instantly (and shows the last saved data) even when the server is asleep
    or there's no connection. */
-const VERSION = "chisme-v25";
+const VERSION = "chisme-v26";
 const BUILD = VERSION.replace("chisme-v", "");          // index.html asks for app.js?v=<BUILD>
 const SHELL_CACHE = `${VERSION}-shell`;
 const DATA_CACHE = `${VERSION}-data`;
@@ -138,4 +138,39 @@ self.addEventListener("fetch", (event) => {
   if (url.pathname.startsWith("/static/") || url.pathname === "/manifest.webmanifest") {
     event.respondWith(staticCacheFirst(req));
   }
+});
+
+// ---------- Web Push (push.py): "New chisme, grab the tea! ☕" and NWS warnings/watches for your area.
+// Tapping a notification opens Chisme itself (never another site): the story opens in the in-app reader.
+self.addEventListener("push", (event) => {
+  let d = {};
+  try { d = event.data ? event.data.json() : {}; } catch (e) { d = { body: event.data ? event.data.text() : "" }; }
+  const opts = { body: d.body || "", tag: d.tag || "chisme", renotify: !!d.tag, icon: "/static/icons/icon-192.png",
+    badge: "/static/icons/favicon-32.png", data: { url: d.url || "/" }, requireInteraction: !!d.urgent };
+  event.waitUntil(self.registration.showNotification(d.title || "Chisme", opts));
+});
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  let url;
+  try { url = new URL((event.notification.data && event.notification.data.url) || "/", self.location.origin); } catch (e) { url = new URL("/", self.location.origin); }
+  if (url.origin !== self.location.origin) url = new URL("/", self.location.origin);
+  event.waitUntil((async () => {
+    const wins = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    const w = wins.find((c) => new URL(c.url).origin === self.location.origin);
+    if (w) {
+      try { w.postMessage({ chismeOpen: url.pathname + url.search + url.hash }); } catch (e) {}
+      try { return await w.focus(); } catch (e) {}
+    }
+    return self.clients.openWindow(url.href);
+  })());
+});
+const b64u = (s) => { const p = "=".repeat((4 - s.length % 4) % 4), b = atob((s + p).replace(/-/g, "+").replace(/_/g, "/")); return Uint8Array.from(b, (c) => c.charCodeAt(0)); };
+self.addEventListener("pushsubscriptionchange", (event) => {   // the browser rotated the subscription: keep alerts working
+  event.waitUntil((async () => {
+    const cfg = await fetch("/api/push/config").then((r) => r.json()).catch(() => null);
+    if (!cfg || !cfg.publicKey) return;
+    const sub = event.newSubscription || await self.registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64u(cfg.publicKey) });
+    await fetch("/api/push/renew", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ old: event.oldSubscription && event.oldSubscription.endpoint, subscription: sub.toJSON() }) }).catch(() => {});
+  })());
 });
