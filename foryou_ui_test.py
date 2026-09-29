@@ -4,6 +4,7 @@ overlaid Save / Directions / Not for me / Details; signals (skip-fast, watch, sa
 localStorage; the 'Why you're seeing this' chip learns ("Because you saved 2 … spots"); Back button and the browser's
 back close the feed; reduced motion → tap-to-play thumbnail; Settings → Reset my feed; creator cards (Instagram-only
 labeled). Screens: dieta-foryou-banner.png, dieta-vertical-feed.png, dieta-why-chip.png"""
+import re
 import asyncio, os, sys, json
 from playwright.async_api import async_playwright
 URL = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8211/"
@@ -19,6 +20,17 @@ FEED = """() => { const s = document.querySelector('#feed-scroll'), sl = [...s.q
     h: s.clientHeight, vh: innerHeight, slideH: sl.length ? Math.round(sl[0].getBoundingClientRect().height) : 0, n: sl.length,
     snap: getComputedStyle(s).scrollSnapType, align: sl.length ? getComputedStyle(sl[0]).scrollSnapAlign : '', top: s.scrollTop } }"""
 
+def own_error(m):
+    """A console error from Chisme itself. The embedded YouTube/TikTok players log their own noise (their CSP headers,
+    cookie banners, cross-origin frame access) from inside their iframes; that isn't the app's to fix."""
+    if m.type != "error" or any(s in m.text for s in ("Failed to load resource", "access control", "Content Security Policy")):
+        return False
+    url = (m.location or {}).get("url") or ""
+    if url and not url.startswith("http://localhost"):
+        return False
+    return not any(h in m.text for h in ("tiktok.com", "youtube.com", "youtube-nocookie.com", "@tiktok-fe/"))
+
+
 async def go(pg, i):   # scroll the feed to slide i the way a snap scroll ends up
     await pg.evaluate("(i) => { const s = document.querySelector('#feed-scroll'); s.scrollTo({ top: i * s.clientHeight, behavior: 'instant' }); }", i)
     await pg.wait_for_function("(i) => window.__chisme.forYou.cur === i", arg=i, timeout=5000)
@@ -28,8 +40,8 @@ async def wk(p):
     dev = dict(p.devices["iPhone 13"]); dev.pop("default_browser_type", None)
     ctx = await b.new_context(**dev); await ctx.add_init_script(INIT % "")
     pg = await ctx.new_page(); errs = []
-    pg.on("pageerror", lambda e: errs.append(str(e)[:160]))
-    pg.on("console", lambda m: errs.append(m.text[:160]) if m.type == "error" and "Failed to load resource" not in m.text and "access control" not in m.text else None)
+    pg.on("pageerror", lambda e: None if re.search(r"(tiktok|youtube(-nocookie)?)\.com\" from accessing a frame", str(e)) else errs.append(str(e)[:160]))   # the player iframe poking at its parent (WebKit)
+    pg.on("console", lambda m: errs.append(m.text[:160]) if own_error(m) else None)
     await pg.goto(URL + "#cual-dieta")
     await pg.wait_for_function("() => window.__chisme && window.__chisme.foodReady && !document.querySelector('#foryou-card').hidden", timeout=90000)
     # 1. the banner: top of ¿Cuál dieta?, above the Latest / Saved spots chips; desk still at the bottom
@@ -49,6 +61,8 @@ async def wk(p):
     await pg.wait_for_timeout(900)
     await pg.screenshot(path=os.path.join(OUT, "dieta-foryou-banner.png"))
     # 2. Start watching → full-screen vertical feed, one video per screen, first one autoplays muted
+    cov = await pg.evaluate("({ tiles: [...document.querySelectorAll('#fy-cover .fy-tile-by')].map(e => e.textContent), next: document.querySelector('#fy-next').textContent, urls: __chisme.forYou.cover })")
+    check(len(cov["tiles"]) == 3 and len(set(cov["tiles"])) == 3 and cov["next"].startswith("Up next:"), f"banner cover: 3 videos from 3 different creators ({cov['tiles']}; '{cov['next'][:90]}')")
     await pg.tap("#fy-start"); await pg.wait_for_function("document.querySelector('#feed').open", timeout=5000); await pg.wait_for_timeout(700)
     f = await pg.evaluate(FEED)
     check(f["open"] and f["h"] == f["vh"] and f["slideH"] == f["vh"], f"feed fills the screen; each video is one screen tall ({f['slideH']} = {f['vh']} px)")
@@ -59,6 +73,14 @@ async def wk(p):
     check(f["pos"] == f"1 / {n}" and n >= 10, f"position '{f['pos']}' ({n} videos)")
     feed = (await pg.evaluate("window.__chisme.forYou"))["feed"]
     check(all(r["why"] for r in feed) and not any(r["explore"] for r in feed), "fresh phone: every card has a why chip; no exploration until it has learned something")
+    check([r["url"] for r in feed[:3]] == cov["urls"], "the feed opens on the same 3 videos the banner cover shows")
+    crews9 = [r["crew"] for r in feed[:9]]
+    check(len(set(crews9)) == min(9, len({r["crew"] for r in feed})), f"new phone: the first 9 videos are {len(set(crews9))} different creators ({', '.join(r['creator'].split(' ')[0] for r in feed[:9])})")
+    top10 = [r["crew"] for r in feed[:10]]
+    check(max(top10.count(c) for c in top10) <= 2 and not any(feed[i]["crew"] == feed[i - 1]["crew"] for i in range(1, len(feed))), "no creator more than 2× in the top 10, never the same creator twice in a row")
+    pl = [r["place"] for r in feed if r["place"]]
+    check(len(pl) == len(set(pl)), f"one video per restaurant ({len(pl)} videos with a known spot, no repeats)")
+    lead0 = feed[0]["crew"]
     # 3. swipe on (keyboard ↓, then a snap scroll): the player moves with you, one at a time; a fast skip is recorded
     await pg.keyboard.press("ArrowDown"); await pg.wait_for_function("window.__chisme.forYou.cur === 1", timeout=5000); await pg.wait_for_timeout(300)
     f = await pg.evaluate(FEED)
@@ -94,6 +116,8 @@ async def wk(p):
     await pg.tap("#feed-close"); await pg.wait_for_timeout(600)
     st = await pg.evaluate("({ open: document.querySelector('#feed').open, view: window.__chisme.view, locked: document.documentElement.classList.contains('feed-open') })")
     check(not st["open"] and st["view"] == "antojos" and not st["locked"], f"‹ Back closes the feed, back on ¿Cuál dieta? ({st})")
+    lead1 = await pg.evaluate("__chisme.forYou.coverCrews[0]")
+    check(lead1 and lead1 != lead0, f"rotation: after closing, the banner cover leads with a different creator ({lead0} → {lead1})")
     await pg.tap("#fy-start"); await pg.wait_for_function("document.querySelector('#feed').open", timeout=5000)
     await pg.evaluate("history.back()"); await pg.wait_for_timeout(800)
     st = await pg.evaluate("({ open: document.querySelector('#feed').open, view: window.__chisme.view, frames: document.querySelectorAll('.vf-frame').length })")

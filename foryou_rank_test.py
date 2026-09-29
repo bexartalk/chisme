@@ -1,6 +1,6 @@
 """Unit tests for the on-device For You ranker (static/foryou.js), run in Node. No browser, no network.
 Checks features, each signal (open/watch time/save/skip-fast/not interested), recency decay, ~20% exploration,
-diversity, the 'Why you're seeing this' text, reset/storage, and that the ranker never talks to a server."""
+diversity + the variety rules (round-robin creators, top-10 cap, restaurant dedupe, lead rotation), the 'Why you're seeing this' text, reset/storage, and that the ranker never talks to a server."""
 import json, os, subprocess, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 JS = r"""
@@ -39,10 +39,11 @@ ok(f(8).includes("p:splurge") && f(9).includes("p:cheap"), "features: price hint
 let p = F.load({ getItem: () => null });
 let r = F.rank(p, items, { now: NOW, seed: 7 });
 ok(r.length === items.length && r.every((x) => !x.explore), "cold start: every video, no exploration yet");
-ok(r[0].item.url === byUrl[items[0].url].url || r[0].item.published >= items[1].published, "cold start: the freshest video leads (" + r[0].item.title.slice(0, 30) + ")");
+const nc = new Set(items.map((i) => i.creator)).size;
+ok(new Set(r.slice(0, nc).map((x) => x.crew)).size === nc, `cold start: round-robin, the first ${nc} videos are all ${nc} creators: ` + r.slice(0, nc).map((x) => x.item.creator).join(", "));
 const threeInRow = (list) => list.some((x, i) => i >= 2 && x.item.creator === list[i - 1].item.creator && x.item.creator === list[i - 2].item.creator);
 ok(!threeInRow(r), "diversity: no creator three times in a row (cold start)");
-ok(r[0].why.text === "Fresh this week", "why (cold): 'Fresh this week'");
+ok(/^(Fresh this week|From )/.test(r[0].why.text), "why (cold): '" + r[0].why.text + "'");
 // 3. saves teach it: two taco saves → taco videos rise, and the chip says so
 p = F.load({ getItem: () => null });
 F.signal(p, "save", items[0], { now: NOW }); F.signal(p, "save", items[6], { now: NOW });
@@ -106,6 +107,71 @@ const back = F.load(store);
 ok(Object.keys(back.f).length <= 300 && Object.keys(back.s).length <= 400 && mem[F.KEY].length < 120000, `storage capped: ${Object.keys(back.f).length} features, ${Object.keys(back.s).length} videos, ${(mem[F.KEY].length / 1024).toFixed(0)} KB`);
 F.reset(store);
 ok(!(F.KEY in mem) && Object.keys(F.load(store).f).length === 0, "reset: the profile is gone");
+
+// 5. VARIETY: many creators, many different places (a realistic SA pool: one creator posts the most + the freshest)
+const V = [];
+const add = (creator, crew, title, daysAgo, place) => V.push({ url: "https://www.youtube.com/shorts/d" + V.length, title, creator, crew, published: ts(daysAgo), video: true, place: place ? { name: place, address: null } : null });
+for (let i = 0; i < 11; i++) add("Cherise SA Texas Food Guide", "satexasfoodies", `Cherise spot ${i} tacos`, i * 0.2, "Cherise Place " + i);
+for (let i = 0; i < 8; i++) add("Eatmigos", "eatmigos", `Eatmigos pick ${i}`, 1 + i, "Eatmigos Spot " + i);
+for (let i = 0; i < 5; i++) add("Texas Eats", "eldereats", `Texas Eats: dish ${i}`, 2 + i, "Texas Eats Kitchen " + i);
+for (let i = 0; i < 2; i++) add("Elder Eats", "eldereats", `Elder Eats TikTok ${i}`, 300 + i, null);
+for (let i = 0; i < 7; i++) add("Full Nelson Eats", "fullnelsoneats", `Full Nelson bite ${i} - Full Nelson Eats`, 3 + i, F.placeKey({ place: { name: "Full Nelson Eats" }, creator: "Full Nelson Eats" }) ? "Full Nelson Eats" : "Nelson Grill " + i);
+for (let i = 0; i < 4; i++) add("Hannah | SATX Creator", "hannah | satx creator", `Hannah tries ${i}`, 4 + i, "Hannah Diner " + i);
+for (let i = 0; i < 3; i++) add("Porter's Food Reviews", "portersfoodreviews", `Porter reviews ${i}`, 5 + i, "Porter Hall " + i);
+for (let i = 0; i < 3; i++) add("San Antonio Munchies", "sanantoniomunchies", `Munchies ${i}`, 400 + i, "Munch Box " + i);
+for (let i = 0; i < 2; i++) add("Siempre San Antonio", "siempre_sanantonio", `Siempre ${i}`, 6 + i, "Siempre Cafe " + i);
+add("Bootleg Food Review", "bootlegfoodreview", "Bootleg review", 700, "Bootleg Burgers");
+// the same restaurant from 4 creators, written 3 ways, one only in the title
+add("Cherise SA Texas Food Guide", "satexasfoodies", "Losoya’s Taqueria street tacos", 0.1, "Losoya’s Taqueria");
+add("Eatmigos", "eatmigos", "LOSOYAS TAQUERIA", 0.3, "LOSOYAS TAQUERIA");
+add("Porter's Food Reviews", "portersfoodreviews", "Porter at losoyas taqueria part 2", 0.5, null);
+add("Hannah | SATX Creator", "hannah | satx creator", "Losoya's Taqueria, San Antonio", 0.4, "Losoya's Taqueria San Antonio");
+const crews = new Set(V.map((x) => x.crew));
+const inTop = (list, n, c) => list.slice(0, n).filter((x) => x.crew === c).length;
+const maxTop10 = (list) => Math.max(...[...crews].map((c) => inTop(list, 10, c)));
+const backToBack = (list, key, n) => list.slice(0, n || list.length).some((x, i) => i > 0 && x[key] && x[key] === list[i - 1][key]);
+const placeRepeat = (list, n) => { const s = list.slice(0, n).map((x) => x.place).filter(Boolean); return s.length !== new Set(s).size; };
+ok(F.placeKey({ place: { name: "Losoya’s Taqueria" } }) === F.placeKey({ place: { name: "LOSOYAS TAQUERIA" } }) && F.placeKey({ place: { name: "Losoya's Taqueria San Antonio" } }) === "losoyas taqueria",
+  "restaurant key: 'Losoya’s Taqueria' = 'LOSOYAS TAQUERIA' = 'Losoya's Taqueria San Antonio' (" + F.placeKey({ place: { name: "Losoya’s Taqueria" } }) + ")");
+ok(F.placeKey({ place: { name: "Full Nelson Eats" }, creator: "Full Nelson Eats" }) === null && F.placeKey({ place: { name: "Hey" } }) === null,
+  "restaurant key: the channel's own name and 'Hey' are not restaurants");
+const fresh = F.load({ getItem: () => null });
+let cold = F.rank(fresh, V, { now: NOW, seed: 3, rot: 0 });
+ok(new Set(cold.slice(0, 9).map((x) => x.crew)).size === 9, "new user: the first 9 videos are 9 different creators: " + cold.slice(0, 9).map((x) => x.item.creator.split(" ")[0]).join(", "));
+ok(inTop(cold, 9, "eldereats") === 1, "new user: Texas Eats + Elder Eats count as one creator (David Elder): 1 of the first 9");
+ok(maxTop10(cold) <= 2, "new user: no creator more than 2× in the top 10 (max " + maxTop10(cold) + ")");
+ok(!backToBack(cold, "crew", 30), "new user: never the same creator twice in a row (first 30)");
+const los = (list) => list.filter((x) => /losoya/i.test(x.item.title));
+ok(los(cold).length === 1, "dedupe: 4 videos about Losoya’s Taqueria (3 spellings + a title mention) → 1 in the feed (" + los(cold).map((x) => x.item.creator).join(", ") + ")");
+ok(!backToBack(cold, "place") && !placeRepeat(cold, 15), "restaurants: never the same spot twice in a row, never twice in the top 15");
+ok(cold.length === V.length - 3, "dedupe drops only the duplicates: " + cold.length + " of " + V.length);
+// the lead creator rotates (and the banner cover uses the same first videos)
+const leads = [...Array(9).keys()].map((k) => F.rank(fresh, V, { now: NOW, seed: 3, rot: k })[0].crew);
+ok(new Set(leads).size === 9, "rotation: 9 visits → 9 different creators lead (" + leads.map((c) => c.slice(0, 8)).join(", ") + ")");
+ok(leads.every((c, i) => i === 0 || c !== leads[i - 1]), "rotation: the lead changes every visit");
+let lastLeadOk = true;
+for (let k = 0; k < 12; k++) { const a = F.rank(fresh, V, { now: NOW, seed: 3, rot: k }); const b = F.rank(fresh, V, { now: NOW, seed: 3, rot: k, lastLead: a[0].crew }); if (b[0].crew === a[0].crew) lastLeadOk = false; }
+ok(lastLeadOk, "rotation: whoever led last time doesn't lead again (12 visits)");
+const top3 = [...Array(9).keys()].map((k) => F.rank(fresh, V, { now: NOW, seed: 3, rot: k }).slice(0, 3));
+ok(top3.every((t) => new Set(t.map((x) => x.crew)).size === 3), "banner cover: the first 3 videos are always 3 different creators");
+ok(leads.filter((c) => c === "satexasfoodies").length === 1, "the creator with the most + freshest videos leads 1 visit in 9, not every time");
+const coldDays = [...Array(7).keys()].map((d) => F.rank(fresh, V, { now: NOW + d * DAY, rot: 0 })[0].crew);
+ok(new Set(coldDays).size >= 3, "daily order changes too: " + new Set(coldDays).size + " different leads over 7 days at the same rotation");
+// someone who loves one creator: still capped, still varied
+const fan = F.load({ getItem: () => null });
+V.filter((x) => x.crew === "satexasfoodies").slice(0, 5).forEach((x) => F.signal(fan, "save", x, { now: NOW }));
+V.filter((x) => x.crew === "satexasfoodies").slice(5, 9).forEach((x) => F.signal(fan, "watch", x, { now: NOW, seconds: 30 }));
+const fr = F.rank(fan, V, { now: NOW, seed: 3, rot: 0 });
+ok(inTop(fr, 10, "satexasfoodies") === 2, "Cherise superfan: she's capped at 2 of the top 10 (" + inTop(fr, 10, "satexasfoodies") + ")");
+ok(inTop(fr, 3, "satexasfoodies") >= 1, "Cherise superfan: taste still counts, she's in the top 3");
+ok(new Set(fr.slice(0, 5).map((x) => x.crew)).size === 5 && new Set(fr.slice(0, 10).map((x) => x.crew)).size >= 7,
+  "Cherise superfan: first 5 are 5 creators, top 10 has " + new Set(fr.slice(0, 10).map((x) => x.crew)).size + " different creators");
+ok(!backToBack(fr, "crew", 30) && !backToBack(fr, "place") && !placeRepeat(fr, 15), "Cherise superfan: no creator/restaurant back-to-back, no spot twice in the top 15");
+ok(fr.filter((x) => x.explore).length === Math.floor(fr.length / 5), "Cherise superfan: exploration still every 5th slot (" + fr.filter((x) => x.explore).length + "/" + fr.length + ")");
+ok(JSON.stringify(F.rank(fan, V, { now: NOW, seed: 3, rot: 2 }).map((x) => x.item.url)) === JSON.stringify(F.rank(fan, V, { now: NOW, seed: 3, rot: 2 }).map((x) => x.item.url)), "variety is stable: same visit, same order");
+// tiny feeds relax the rules instead of dropping videos
+const solo = [0, 1, 2].map((i) => ({ url: "https://www.tiktok.com/@a/video/" + i, title: "Solo " + i, creator: "Solo", published: ts(i), video: true }));
+ok(F.rank(fresh, solo, { now: NOW }).length === 3, "one creator only: all 3 videos still play (rules relax)");
 console.log(JSON.stringify(out));
 """
 src = open(os.path.join(HERE, "static", "foryou.js")).read()

@@ -1,5 +1,5 @@
 {
-  "_readme": "San Antonio food creators Chisme follows, with every platform each one was verified on (2026-09-29). 'uses' says what Chisme pulls in automatically: a YouTube RSS feed (channel_id), hand-picked TikToks (data/food_tiktok.json, checked with TikTok's official oEmbed), or a profile link only (Instagram has no keyless feed or embed). Handles only; nothing is scraped.",
+  "_readme": "San Antonio food creators Chisme follows, with every platform each one was verified on (2026-09-29). 'uses' says what Chisme pulls in automatically: a YouTube RSS feed (channel_id), hand-picked TikToks (data/food_tiktok.json, checked with TikTok's official oEmbed), or a profile link only (Instagram has no keyless feed or embed). Handles only; nothing is scraped. 'aliases' are other channel names of the same person (their videos count as one creator for variety in For You).",
   "creators": [
     {
       "name": "Cherise SA Texas Food Guide",
@@ -26,7 +26,10 @@
       "youtube": "https://www.youtube.com/channel/UCsC3RShvhYxR9bTUfogm6pg",
       "tiktok": "eldereats",
       "instagram": "eldereats",
-      "uses": "Texas Eats YouTube feed + 2 TikToks"
+      "uses": "Texas Eats YouTube feed + 2 TikToks",
+      "aliases": [
+        "Texas Eats"
+      ]
     },
     {
       "name": "San Antonio Munchies",

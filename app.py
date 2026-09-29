@@ -1538,7 +1538,7 @@ FOOD_SOURCES = [
     {"id": "yt-texaseats", "kind": "creator", "name": "Texas Eats", "sa_only": True,
      "url": YT_FEED + "UCsC3RShvhYxR9bTUfogm6pg", "home": "https://www.youtube.com/channel/UCsC3RShvhYxR9bTUfogm6pg"},
     # added 2026-09-29 from the user's favorites (verified: see data/food_creators.json)
-    {"id": "yt-eatmigos", "kind": "creator", "name": "Eatmigos",   # Chris Flores, San Antonio; titles are just the spot's name
+    {"id": "yt-eatmigos", "kind": "creator", "name": "Eatmigos", "title_is_place": True,   # Chris Flores, San Antonio; titles are just the spot's name
      "url": YT_FEED + "UCcRC7jl_YYqciUbzLh__WnA", "home": "https://www.youtube.com/@eatmigos"},
     {"id": "yt-fullnelson", "kind": "creator", "name": "Full Nelson Eats", "food_only": True,   # also posts tech ads and vlogs
      "url": YT_FEED + "UCnPISg_Kx3fn62H1w1Enl1Q", "home": "https://www.youtube.com/@fullnelsoneats"},
@@ -1634,8 +1634,29 @@ async def _fetch_food(src: dict) -> list[dict]:
                     "outlet": outlet, "author": None if src["kind"] == "creator" or src.get("gnews") else e.get("author"),
                     "kind": src["kind"], "video": "youtube.com" in link, "published": entry_time(e),
                     "image": None if src.get("gnews") else thumbnail(e), "summary": summary, "source_id": src["id"],
-                    "place": guess_place(title) if src["kind"] == "creator" else None})
+                    "place": _real_place(_title_place(title) if src.get("title_is_place") else guess_place(title), outlet)
+                    if src["kind"] == "creator" else None})
     return out
+
+
+def _title_place(title: str) -> dict | None:
+    """Channels whose titles are just the spot ("CROCKETT TAVERN", "6ixty Wings"): the title is the place."""
+    t = re.sub(r"[\U0001F000-\U0001FAFF\u2600-\u27BF\uFE0F]", " ", title or "")
+    t = re.sub(r"\s+", " ", t).strip(" -–—|!.")
+    if not t or "#" in t or len(t.split()) > 6 or len(t) > 48:
+        return guess_place(title)
+    return {"name": t, "address": None}
+
+
+def _real_place(place: dict | None, outlet: str) -> dict | None:
+    """Drop guesses that are the channel's own name ("… - Full Nelson Eats") or too short to be a spot ("Hey")."""
+    if not place or not place.get("name"):
+        return place
+    key = lambda s: re.sub(r"[^a-z0-9]+", "", (s or "").lower())
+    name = key(place["name"])
+    if len(name) < 4 or name == key(outlet) or name == key(outlet.split(" · ")[0]):
+        return {"name": None, "address": place["address"]} if place.get("address") else None
+    return place
 
 
 # --- curated TikTok food videos (data/food_tiktok.json). TikTok has no public RSS or keyless listing API, so
@@ -1655,6 +1676,21 @@ def food_creators() -> list[dict]:
                 for c in json.loads(CREATORS_FILE.read_text()).get("creators", []) if c.get("name")]
     except Exception:
         return []
+
+
+def crew_keys() -> dict:
+    """Channel name → one key per person (their TikTok/Instagram handle), so For You counts a creator's YouTube
+    and TikTok videos (and a show they host) as the same creator when it spreads the feed across people."""
+    out = {}
+    try:
+        for c in json.loads(CREATORS_FILE.read_text()).get("creators", []):
+            key = (c.get("tiktok") or c.get("instagram") or c.get("name") or "").lower().lstrip("@")
+            for n in [c.get("name")] + list(c.get("aliases") or []):
+                if n and key:
+                    out[n.lower()] = key
+    except Exception:
+        pass
+    return out
 
 
 def tiktok_curated() -> dict:
@@ -1700,7 +1736,7 @@ async def _fetch_tiktok(src: dict) -> list[dict]:
                 "kind": "creator", "platform": "tiktok", "tiktok": vid, "video": True,
                 "published": float(int(vid) >> 32),   # TikTok ids start with the upload time (unix seconds)
                 "image": o.get("thumbnail_url"), "summary": "", "source_id": src["id"],
-                "place": guess_place(re.sub(r"#[\w\u00C0-\u024F]+", " ", caption))}
+                "place": _real_place(guess_place(re.sub(r"#[\w\u00C0-\u024F]+", " ", caption)), src["creator_name"])}
     res = await asyncio.gather(*(one(v) for v in src["ids"]))
     return [r for r in res if r]
 
@@ -1782,6 +1818,11 @@ async def build_food(lat: float, lon: float) -> dict:
                 seen.add(k)
                 items.append(it)
     items.sort(key=lambda i: -(i["published"] or 0))
+    crews = crew_keys()
+    for it in items:   # one key per person, for For You's creator variety
+        if it.get("creator"):
+            base = it["creator"].split(" · ")[0].lower()
+            it["crew"] = crews.get(base, base)
     info = metro_info(lat, lon, place)
     return {"generated": time.time(), "items": items, "days": FOOD_DAYS, "message": None, "metro": info, "city": info["city"],
             "creators": food_creators(),

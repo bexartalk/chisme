@@ -7,9 +7,9 @@
      open/watch +1, watch time up to +1.5 more (30 s), save +3, unsave −2, skip-fast −0.6,
      "Not interested" −4 (and that video is hidden).
    Weights fade with a 14-day half-life. Score = interest + freshness (10-day half-life) − repeats − already saved,
-   then a light diversity pass (no creator three times in a row) and ~20% exploration slots
-   (every 5th card is something new or different), picked with a seeded shuffle so the order
-   is stable while you scroll. */
+   then hard variety rules (many creators, many different places: see rank()) and ~20% exploration
+   slots (every 5th card is something new or different), with a seeded shuffle so the order is
+   stable while you scroll. */
 (function (root) {
   "use strict";
   const KEY = "chisme-foryou", VERSION = 1, DAY = 864e5;
@@ -158,33 +158,89 @@
     return { text: age < 7 * DAY ? "Fresh this week" : `From ${norm(it.creator) || "a local creator"}`, kind: "fresh" };
   }
 
-  // The feed: ranked by score with a diversity pass; every 5th slot is exploration (a video whose features
-  // this phone knows least, picked at random among the least familiar third). Not-interested videos are hidden.
+  // ---------- variety: many creators, many different places
+  // crew = the person behind the videos (one key for a creator's YouTube + TikTok; the server sends it as it.crew)
+  const crewOf = (it) => norm(it.crew || it.creator || it.source).toLowerCase();
+  const keyText = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[’'`´]/g, "")
+    .replace(/&/g, " and ").replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
+  const PLACE_STOP = /^(the|a|an|new|best|hey|wow|food|eats|san antonio|satx|texas|tx|restaurant|here|this|part \d+)$/;
+  // the restaurant a video is about, as a comparable key ("Losoya’s Taqueria" and "losoyas taqueria" match); null if unknown
+  function placeKey(it) {
+    const n = it && it.place && it.place.name;
+    if (!n) return null;
+    const k = keyText(n).replace(/^the /, "").replace(/ (restaurant|san antonio|satx|tx|texas)$/g, "").trim();
+    if (k.replace(/ /g, "").length < 4 || PLACE_STOP.test(k)) return null;
+    if (k === keyText(it.creator) || k === keyText(it.crew) || k === keyText(it.source)) return null;   // "- Full Nelson Eats" is the channel, not a spot
+    return k;
+  }
+  const CAP_TOP10 = 2, PLACE_WINDOW = 15, ROUND_NEW = 9, ROUND_LEARNED = 5;
+
+  // The feed. Hard variety rules first, then taste:
+  //  • one video per restaurant (videos about the same spot are deduped; the best one stays)
+  //  • never the same creator or the same restaurant twice in a row; no restaurant twice in the top 15
+  //  • at most 2 videos per creator in the top 10
+  //  • new phone: round-robin across creators (the first ~9 are 9 different people), in a daily order that
+  //    rotates with opts.rot so the lead creator changes; a phone that has learned: first 5 are 5 different creators
+  //  • opts.lastLead: the creator who led last time doesn't lead again
+  //  • after that it's score order (taste + freshness), and every 5th slot is exploration (least familiar third)
+  // If the rules can't all be met (a tiny feed), they relax in order: round-robin → caps → back-to-back creator.
   function rank(p, items, opts) {
     opts = opts || {};
     const now = opts.now || Date.now(), rand = rng(opts.seed == null ? Math.floor(now / DAY) : opts.seed);
-    const pool = items.filter((it) => it && it.url && !((p.s[it.url] || {}).ni));
-    const scored = pool.map((it) => ({ it, score: scoreOf(p, it, now), fam: familiarity(p, it, now) }));
+    const urls = new Set();
+    const pool = items.filter((it) => it && it.url && !((p.s[it.url] || {}).ni) && !urls.has(it.url) && urls.add(it.url));
+    let scored = pool.map((it) => ({ it, score: scoreOf(p, it, now), fam: familiarity(p, it, now), crew: crewOf(it), place: placeKey(it), j: rand() }));
+    // a video with no place of its own but whose title names a known spot is about that spot
+    const known = [...new Set(scored.map((x) => x.place).filter((k) => k && k.length >= 6))];
+    for (const x of scored) if (!x.place) { const t = " " + keyText(x.it.title) + " "; const k = known.find((k) => t.includes(" " + k + " ")); if (k) x.place = k; }
+    const best = new Map();
+    for (const x of scored) if (x.place) {
+      const b = best.get(x.place);
+      if (!b || x.score > b.score || (x.score === b.score && (x.it.published || 0) > (b.it.published || 0))) best.set(x.place, x);
+    }
+    scored = scored.filter((x) => !x.place || best.get(x.place) === x);
+
     const learned = Object.keys(p.f).length > 0;
-    const out = [], left = scored.slice();
-    while (left.length) {
-      const slot = out.length;
-      let pickI = -1, explore = false;
-      if (learned && slot % EXPLORE_EVERY === EXPLORE_EVERY - 1) {
-        const byFam = left.map((x, i) => ({ i, fam: x.fam })).sort((a, b) => a.fam - b.fam);
-        const cand = byFam.slice(0, Math.max(1, Math.ceil(byFam.length / 3)));
-        pickI = cand[Math.floor(rand() * cand.length)].i; explore = true;
-      } else {
-        const recent = out.slice(-2).map((o) => norm(o.item.creator));
-        let best = -Infinity;
-        left.forEach((x, i) => {
-          const same = recent.filter((c) => c && c === norm(x.it.creator)).length;
-          const s = x.score - (same === 2 ? 1.2 : same * 0.25) + rand() * 1e-6;   // tiny jitter breaks ties
-          if (s > best) { best = s; pickI = i; }
-        });
+    const crews = [...new Set(scored.map((x) => x.crew))].sort();
+    for (let i = crews.length - 1; i > 0; i--) { const k = Math.floor(rand() * (i + 1)); [crews[i], crews[k]] = [crews[k], crews[i]]; }   // today's order
+    let off = crews.length ? ((opts.rot || 0) % crews.length + crews.length) % crews.length : 0;
+    if (crews.length > 1 && crews[off] === opts.lastLead) off = (off + 1) % crews.length;
+    const pos = new Map(crews.map((c, i) => [c, (i - off + crews.length) % crews.length]));
+    const firstRound = Math.min(learned ? ROUND_LEARNED : ROUND_NEW, crews.length);
+    const used = new Map(), out = [];
+    const cnt = (c) => used.get(c) || 0;
+    const ok = (x, slot, level) => {
+      const prev = out[out.length - 1];
+      if (level <= 3) {
+        if (prev && x.place && prev.place === x.place) return false;
+        if (slot === 0 && opts.lastLead && crews.length > 1 && x.crew === opts.lastLead) return false;
       }
-      const x = left.splice(pickI, 1)[0];
-      out.push({ item: x.it, score: x.score, explore, why: why(p, x.it, now, explore) });
+      if (level <= 2 && prev && prev.crew === x.crew) return false;
+      if (level <= 1) {
+        if (slot < 10 && out.filter((o) => o.crew === x.crew).length >= CAP_TOP10) return false;
+        if (slot < PLACE_WINDOW && x.place && out.some((o) => o.place === x.place)) return false;
+      }
+      if (level === 0 && slot < firstRound && cnt(x.crew) > 0) return false;
+      return true;
+    };
+    let left = scored.slice();
+    while (left.length) {
+      const slot = out.length, explore = learned && slot % EXPLORE_EVERY === EXPLORE_EVERY - 1;
+      let cands;
+      if (!learned) {   // round-robin: fewest shown first, then today's creator order, then that creator's best
+        cands = left.slice().sort((a, b) => cnt(a.crew) - cnt(b.crew) || pos.get(a.crew) - pos.get(b.crew) || b.score - a.score || a.j - b.j);
+      } else if (explore) {
+        const byFam = left.slice().sort((a, b) => a.fam - b.fam || a.j - b.j);
+        const third = byFam.slice(0, Math.max(1, Math.ceil(byFam.length / 3))).sort((a, b) => a.j - b.j);
+        cands = third.concat(byFam.slice(third.length).sort((a, b) => b.score - a.score));
+      } else {
+        cands = left.slice().sort((a, b) => (b.score - 0.3 * cnt(b.crew)) - (a.score - 0.3 * cnt(a.crew)) || a.j - b.j);
+      }
+      let x = null;
+      for (let level = 0; level <= 4 && !x; level++) x = cands.find((c) => ok(c, slot, level)) || null;
+      left = left.filter((c) => c !== x);
+      used.set(x.crew, cnt(x.crew) + 1);
+      out.push({ item: x.it, score: x.score, explore, crew: x.crew, place: x.place, why: why(p, x.it, now, explore) });
     }
     return out;
   }
@@ -194,7 +250,7 @@
     return Object.entries(p.f).map(([k, x]) => ({ k, v: decayed(x, now) })).filter((e) => e.v > 0.2 && e.k[0] !== "p")
       .sort((a, b) => b.v - a.v).slice(0, n || 3).map((e) => (e.k[0] === "k" ? labelOf(e.k.slice(2)) : e.k.slice(2)));
   }
-  const api = { KEY, featuresOf, load, save, reset, signal, scoreOf, rank, why, interests, labelOf, EXPLORE_EVERY };
+  const api = { KEY, crewOf, placeKey, featuresOf, load, save, reset, signal, scoreOf, rank, why, interests, labelOf, EXPLORE_EVERY };
   root.ChismeForYou = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);

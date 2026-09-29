@@ -781,3 +781,13 @@ html.feed-open,html.feed-open body{overflow:hidden}
 [data-theme="dark"] .crew-uses.ig{background:#4a1526;color:var(--ink)}
 [data-theme="dark"] .crew-link{background:var(--card);color:var(--ink);border-color:var(--ink)}
 [data-theme="dark"] .crew-link.primary{background:var(--turq);color:#000;border-color:var(--turq)}
+
+/* For You banner cover: the first 3 videos of your feed, three different creators */
+.fy-cover{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 8px}
+.fy-cover[hidden],.fy-next[hidden]{display:none}
+.fy-tile{position:relative;display:block;aspect-ratio:3/4;overflow:hidden;border:2px solid #000;border-radius:12px;background:#2b1a3a;cursor:pointer}
+.fy-tile img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.fy-tile-by{position:absolute;left:0;right:0;bottom:0;padding:14px 5px 5px;font-size:.72rem;font-weight:900;line-height:1.15;color:#fff;
+  background:linear-gradient(transparent,rgba(0,0,0,.85));overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.fy-next{margin:0 0 12px;font-size:.88rem;font-weight:800;line-height:1.3;color:#fff}
+[data-theme="dark"] .fy-tile{border-color:var(--turq)}

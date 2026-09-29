@@ -1142,6 +1142,29 @@ window.CHISME_APP_BUILD = "25";
   let feedList = [], feedCur = -1, feedT0 = 0, feedMuted = true, feedPlaying = true, feedTimer = null, feedPushed = false, feedOpener = null;
   const feedVideos = () => (foodData && foodData.items ? foodData.items.filter((i) => vidOf(i)) : []);
   const canAutoplay = () => navigator.onLine && !reducedMotion() && !(navigator.connection && navigator.connection.saveData);
+  // Rotation: every visit (and every time you close the feed) a different creator leads, and the one who led
+  // last time never leads again. The banner cover and the feed come from the same ranked list, so they match.
+  const lsGet = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
+  const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
+  let fyRot = (+lsGet("chisme-foryou-rot") || 0) + 1, fyAvoid = lsGet("chisme-foryou-lead"), fyList = [];
+  lsSet("chisme-foryou-rot", String(fyRot));
+  const fyRank = () => FY.rank(fyProfile || FY.load(), feedVideos(), { rot: fyRot, lastLead: fyAvoid });
+  function renderCover() {
+    const cover = $("#fy-cover"), next = $("#fy-next");
+    if (!cover) return;
+    const top = fyList.slice(0, 3);
+    cover.replaceChildren(...top.map((r, i) => {
+      const t = el("span", { class: "fy-tile" });
+      if (r.item.image) { const im = el("img", { src: r.item.image, alt: "", referrerpolicy: "no-referrer", loading: "eager" }); im.onerror = () => im.remove(); t.append(im); }
+      t.append(el("span", { class: "fy-tile-by", text: r.item.creator || r.item.source || "" }));
+      t.onclick = () => openFeed($("#fy-start"), i);
+      return t;
+    }));
+    cover.hidden = !top.length;
+    const people = new Set(fyList.map((r) => r.crew)).size, more = people - new Set(top.map((r) => r.crew)).size;
+    next.textContent = top.length ? `Up next: ${top.map((r) => r.item.creator || r.item.source).join(" · ")}${more > 0 ? ` + ${more} more creators` : ""}` : "";
+    next.hidden = !top.length;
+  }
   function renderForYouCard() {
     const card = $("#foryou-card");
     if (!card) return;
@@ -1152,10 +1175,16 @@ window.CHISME_APP_BUILD = "25";
     $("#fy-sub").textContent = sa
       ? "It learns what you crave. Swipe up for the next bite; every save and skip makes it smarter, right on your phone."
       : "San Antonio's food creators, one video at a time, for your next trip to SA. It learns what you crave from what you watch, save and skip.";
+    if (!feed.open) {
+      fyList = vids.length ? fyRank() : [];
+      if (fyList[0]) lsSet("chisme-foryou-lead", fyList[0].crew);   // next visit leads with someone else
+      renderCover();
+    }
+    const n = fyList.length || vids.length;
     const likes = FY.interests(fyProfile || FY.load(), 3);
     $("#fy-meta").textContent = !vids.length ? "No videos in the feeds right now — check back soon."
-      : likes.length ? `Tuned to you: ${likes.join(", ")}. ${vids.length} videos ready.`
-      : `${vids.length} videos ready. No account, no tracking: it all stays on this phone.`;
+      : likes.length ? `Tuned to you: ${likes.join(", ")}. ${n} videos ready.`
+      : `${n} videos ready. No account, no tracking: it all stays on this phone.`;
     $("#fy-start").disabled = !vids.length;
   }
   function ytCmd(frame, func, args = []) { try { frame.contentWindow.postMessage(JSON.stringify({ event: "command", func, args }), "*"); } catch {} }
@@ -1310,19 +1339,20 @@ window.CHISME_APP_BUILD = "25";
     clearTimeout(notInterested.t); notInterested.t = setTimeout(() => toast.replaceChildren(), 6000);
     (slides()[feedCur]?.querySelector(".vf-rail button") || $("#feed-close")).focus({ preventScroll: true });
   }
-  function openFeed(opener) {
+  function openFeed(opener, startAt) {
     if (!FY) return;
     const vids = feedVideos();
     if (!vids.length) return;
     fyProfile = FY.load();
-    feedList = FY.rank(fyProfile, vids);
+    feedList = fyRank();   // same list as the banner cover
     feedOpener = opener || document.activeElement;
     feedScroll.replaceChildren(...feedList.map(feedSlide), endSlide());
     feedCur = -1; $("#feed-toast").replaceChildren();
     document.documentElement.classList.add("feed-open");
     if (!feed.open) feed.showModal();
     if (!feedPushed) { history.pushState({ chismeFeed: 1 }, ""); feedPushed = true; }
-    feedScroll.scrollTop = 0; activate(0);
+    const at = Math.max(0, Math.min(feedList.length - 1, startAt || 0));
+    feedScroll.scrollTop = at * feedScroll.clientHeight; activate(at);
     $("#feed-close").focus({ preventScroll: true });
   }
   function closeFeed(fromHistory) {
@@ -1330,6 +1360,8 @@ window.CHISME_APP_BUILD = "25";
     finishCurrent(false); unmountFrame(slides()[feedCur]);
     feedScroll.replaceChildren(); feedCur = -1;
     feed.close(); document.documentElement.classList.remove("feed-open");
+    if (feedList[0]) fyAvoid = feedList[0].crew;   // next time, someone else leads
+    fyRot += 1; lsSet("chisme-foryou-rot", String(fyRot));
     if (feedPushed) { feedPushed = false; if (!fromHistory && history.state && history.state.chismeFeed) history.back(); }
     renderForYouCard();
     if (feedOpener && feedOpener.isConnected) feedOpener.focus({ preventScroll: true });
@@ -1337,7 +1369,7 @@ window.CHISME_APP_BUILD = "25";
   addEventListener("popstate", () => { if (feed.open) { feedPushed = false; closeFeed(true); } });
   feed.addEventListener("cancel", (e) => { e.preventDefault(); if (!player.open) closeFeed(); });   // Esc / iOS back gesture on the dialog
   $("#feed-close").onclick = () => closeFeed();
-  $("#fy-start").onclick = (e) => openFeed(e.currentTarget);
+  $("#fy-start").onclick = (e) => openFeed(e.currentTarget, 0);
   $("#feed-sound").onclick = (e) => {
     feedMuted = !feedMuted;
     const b = e.currentTarget; b.setAttribute("aria-pressed", String(!feedMuted));
@@ -1996,7 +2028,7 @@ window.CHISME_APP_BUILD = "25";
     get ready() { return secs.weather.shownUrl === secs.weather.url() && secs.news.shownUrl === secs.news.url(); },
     get fresh() { return rendered.weather === q() && rendered.news === q(); },
     get newsReady() { return secs.news.shownUrl === secs.news.url(); }, get sportsReady() { return secs.sports.shownUrl === secs.sports.url(); }, get eventsReady() { return secs.events.shownUrl === secs.events.url(); }, get foodReady() { return !!foodData; },
-    get sync() { return { busy: [...Sync.busy], failed: [...Sync.failed.keys()], lastOk: Sync.lastOk }; }, refreshNow, get evCat() { return evCat; }, get view() { return VIEWS[cur]; }, goView, get forYou() { return { profile: FY && FY.load(), feed: feedList.map((r) => ({ url: r.item.url, title: r.item.title, creator: r.item.creator, why: r.why.text, explore: r.explore })), cur: feedCur, open: feed.open }; }, openFeed, closeFeed,
+    get sync() { return { busy: [...Sync.busy], failed: [...Sync.failed.keys()], lastOk: Sync.lastOk }; }, refreshNow, get evCat() { return evCat; }, get view() { return VIEWS[cur]; }, goView, get forYou() { return { profile: FY && FY.load(), feed: feedList.map((r) => ({ url: r.item.url, title: r.item.title, creator: r.item.creator, crew: r.crew, place: r.place, why: r.why.text, explore: r.explore })), cur: feedCur, open: feed.open, cover: fyList.slice(0, 3).map((r) => r.item.url), coverCrews: fyList.slice(0, 3).map((r) => r.crew) }; }, openFeed, closeFeed,
     get sportsReady() { return !!rendered.sports; }, get spLg() { return spLg; } };
   window.__chismeBooted = true;
 })();
