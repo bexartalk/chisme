@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Chisme — local news &amp; weather near you</title>
+  <meta name="description" content="Chisme: local news, NWS weather, alerts and live rain radar for wherever you are.">
+  <meta name="theme-color" content="#00C9CD">
+  <meta name="application-name" content="Chisme">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Chisme">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/static/icons/favicon.ico" sizes="any">
+  <link rel="icon" href="/static/icons/favicon-32.png" type="image/png" sizes="32x32">
+  <link rel="icon" href="/static/icons/icon-192.png" type="image/png" sizes="192x192">
+  <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png" sizes="180x180">
+  <link rel="stylesheet" href="/static/vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <div class="brand">
+        <a href="/" class="brand-home"><img src="/static/icons/header-icon.png" alt="Chisme home" width="52" height="52"></a>
+        <div class="brand-text">
+          <h1 class="brand-name">Chisme</h1>
+          <button type="button" id="loc-btn" class="loc-pill" aria-haspopup="dialog" aria-controls="loc-panel">
+            <span aria-hidden="true">📍</span> <span id="loc-label">Near: San Antonio, TX</span> <span class="loc-change">Change</span>
+          </button>
+        </div>
+      </div>
+      <div class="actions">
+        <button type="button" id="install-btn" class="install" hidden>📲 Install</button>
+        <div class="textsize" role="group" aria-label="Text size">
+          <button type="button" id="font-down" aria-label="A− smaller text">A−</button>
+          <button type="button" id="font-up" aria-label="A+ bigger text">A+</button>
+        </div>
+      </div>
+    </div>
+    <nav class="wrap nav" aria-label="Sections">
+      <a href="#weather">Weather</a><a href="#radar-sec">Radar</a><a href="#near">Near You</a><a href="#city" id="nav-city">More news</a>
+    </nav>
+    <div class="picado" aria-hidden="true"></div>
+  </header>
+
+  <section id="loc-panel" class="loc-panel wrap" hidden aria-labelledby="loc-title">
+    <div class="loc-inner">
+      <h2 id="loc-title">Show news &amp; weather for where you are?</h2>
+      <p id="loc-msg">Chisme uses your location only to look up your forecast, weather alerts, radar and nearby stories. It's saved on this device, and you can change it any time.</p>
+      <div class="loc-actions">
+        <button type="button" id="loc-gps" class="install">📍 Use my location</button>
+        <button type="button" id="loc-close">Not now</button>
+      </div>
+      <form id="loc-form" autocomplete="off">
+        <label for="loc-q">Or type a city or ZIP code</label>
+        <div class="loc-search">
+          <input id="loc-q" name="q" type="search" inputmode="search" placeholder="City, State or ZIP code" minlength="2" maxlength="120" required>
+          <button type="submit" class="primary">Search</button>
+        </div>
+      </form>
+      <p id="loc-status" class="loc-status" role="status"></p>
+      <ul id="loc-results" class="loc-results"></ul>
+    </div>
+  </section>
+
+  <div id="offline-banner" class="offline-banner wrap" role="status" hidden></div>
+
+  <div id="install-card" class="ios-hint wrap" hidden>
+    <div class="ios-hint-inner">
+      <img src="/static/icons/icon-192.png" alt="" width="56" height="56">
+      <p><b>Get the Chisme app</b> on your home screen — opens full-screen and works offline.</p>
+      <button type="button" id="install-card-btn" class="install">Install</button>
+      <button type="button" id="install-card-close" aria-label="Dismiss">✕</button>
+    </div>
+  </div>
+
+  <div id="ios-hint" class="ios-hint wrap" hidden>
+    <div class="ios-hint-inner">
+      <img src="/static/icons/icon-192.png" alt="" width="56" height="56">
+      <p><b>Put Chisme on your iPhone:</b> tap the <b>Share</b> button <span class="share-ico" aria-hidden="true">⬆︎</span> at the bottom of Safari, then <b>“Add to Home Screen.”</b></p>
+      <button type="button" id="ios-hint-close" aria-label="Dismiss">✕</button>
+    </div>
+  </div>
+
+  <main class="wrap">
+    <section id="alerts" aria-live="polite"></section>
+
+    <section id="weather" class="card">
+      <div class="sec-head">
+        <h2>Weather now</h2>
+        <span class="stamp" id="wx-updated"></span>
+      </div>
+      <div id="current" class="current"><p class="loading">Loading current conditions…</p></div>
+      <div id="hourly" class="hourly" aria-label="Next 12 hours"></div>
+    </section>
+
+    <section id="forecast-sec" class="card">
+      <div class="sec-head"><h2>7-day forecast</h2><span class="stamp" id="fc-updated"></span></div>
+      <div id="forecast" class="forecast"><p class="loading">Loading forecast…</p></div>
+      <p class="credit" id="fc-credit">Source: National Weather Service (api.weather.gov)</p>
+    </section>
+
+    <section id="radar-sec" class="card">
+      <div class="sec-head"><h2>Live rain radar</h2><span class="stamp" id="radar-time"></span></div>
+      <div id="map" role="region" aria-label="Radar map centered on your location"></div>
+      <div class="radar-controls">
+        <button type="button" id="r-prev" aria-label="Previous frame">◀</button>
+        <button type="button" id="r-play" class="primary" aria-label="Play or pause radar">❚❚ Pause</button>
+        <button type="button" id="r-next" aria-label="Next frame">▶</button>
+        <button type="button" id="r-center" aria-label="Recenter map on your location">📍 Recenter</button>
+        <input type="range" id="r-slider" min="0" max="0" value="0" aria-label="Radar frame">
+      </div>
+      <p class="credit">Radar: <a href="https://www.rainviewer.com/" target="_blank" rel="noopener">RainViewer</a> (past ~2 hours, 10-min frames). Map © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors.</p>
+    </section>
+
+    <section id="near" class="card">
+      <div class="sec-head"><h2>Near You</h2><span class="stamp" id="news-updated"></span></div>
+      <p class="hint" id="near-hint">Stories ranked by how close the places they mention are to you.</p>
+      <div id="near-list" class="news-list"><p class="loading">Loading local news…</p></div>
+    </section>
+
+    <section id="city" class="card">
+      <div class="sec-head"><h2 id="city-title">More local news</h2></div>
+      <div id="city-list" class="news-list"><p class="loading">Loading news…</p></div>
+    </section>
+
+    <section id="sa-sec" class="card" hidden>
+      <details>
+        <summary><h2>San Antonio headlines</h2></summary>
+        <div id="sa-list" class="news-list"></div>
+      </details>
+    </section>
+
+    <section class="card slim">
+      <details class="feeds-status"><summary>News sources for this location</summary><ul id="feeds"></ul></details>
+    </section>
+  </main>
+
+  <footer class="wrap foot">
+    <p>Weather refreshes every 10 minutes, news every 15 minutes. Headlines link to the original publishers. Times are shown in <span id="tz-name">your local time</span>. Location data: © OpenStreetMap contributors (Nominatim).</p>
+  </footer>
+
+  <script src="/static/vendor/leaflet/leaflet.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,427 @@
+{
+ "source": "OpenStreetMap Nominatim lookups (approximate points)",
+ "built": "2026-09-29",
+ "places": [
+  {
+   "name": "Palm Heights",
+   "lat": 29.38968,
+   "lon": -98.52689,
+   "terms": [
+    "Palm Heights"
+   ],
+   "osm": "landuse/residential",
+   "resolved": "Palm Heights, San Antonio, Bexar County, Texas, United States"
+  },
+  {
+   "name": "Harlandale",
+   "lat": 29.36477,
+   "lon": -98.50205,
+   "terms": [
+    "Harlandale"
+   ],
+   "osm": "amenity/school",
+   "resolved": "Harlandale High School, 114, East Gerald Avenue, San Antonio, Bexar County, Texas, 78221, United States"
+  },
+  {
+   "name": "Nogalitos",
+   "lat": 29.37698,
+   "lon": -98.53215,
+   "terms": [
+    "Nogalitos"
+   ],
+   "osm": "highway/primary",
+   "resolved": "Nogalitos Street, San Antonio, Bexar County, Texas, 78225, United States"
+  },
+  {
+   "name": "Quintana",
+   "lat": 29.31805,
+   "lon": -98.61727,
+   "terms": [
+    "Quintana",
+    "Quintana Road",
+    "Quintana Rd"
+   ],
+   "osm": "highway/tertiary",
+   "resolved": "Quintana Road, San Antonio, Bexar County, Texas, 78242, United States"
+  },
+  {
+   "name": "Port San Antonio (Kelly)",
+   "lat": 29.37567,
+   "lon": -98.56584,
+   "terms": [
+    "Port San Antonio (Kelly)",
+    "Port San Antonio",
+    "Kelly Field",
+    "KellyUSA",
+    "former Kelly"
+   ],
+   "osm": "landuse/industrial",
+   "resolved": "Port San Antonio, San Antonio, Bexar County, Texas, United States"
+  },
+  {
+   "name": "Stinson",
+   "lat": 29.3369,
+   "lon": -98.47323,
+   "terms": [
+    "Stinson"
+   ],
+   "osm": "aeroway/aerodrome",
+   "resolved": "Stinson Municipal Airport, 98th Street, San Antonio, Bexar County, Texas, 78221, United States"
+  },
+  {
+   "name": "South San",
+   "lat": 29.35153,
+   "lon": -98.54937,
+   "terms": [
+    "South San"
+   ],
+   "osm": "amenity/school",
+   "resolved": "South San Antonio High School, 7535, Barlite Boulevard, San Antonio, Bexar County, Texas, 78224, United States"
+  },
+  {
+   "name": "Collins Garden",
+   "lat": 29.39892,
+   "lon": -98.52072,
+   "terms": [
+    "Collins Garden"
+   ],
+   "osm": "leisure/park",
+   "resolved": "Collins Garden Park, 1525, San Antonio, Bexar County, Texas, 78204, United States"
+  },
+  {
+   "name": "Loma Park",
+   "lat": 29.44615,
+   "lon": -98.57152,
+   "terms": [
+    "Loma Park"
+   ],
+   "osm": "highway/residential",
+   "resolved": "Loma Park Drive, San Antonio, Bexar County, Texas, 78228, United States"
+  },
+  {
+   "name": "Las Palmas",
+   "lat": 29.41864,
+   "lon": -98.54758,
+   "terms": [
+    "Las Palmas"
+   ],
+   "osm": "leisure/park",
+   "resolved": "Las Palmas Park, 503, San Antonio, Bexar County, Texas, 78237, United States"
+  },
+  {
+   "name": "Villa Coronado",
+   "lat": 29.31411,
+   "lon": -98.47045,
+   "terms": [
+    "Villa Coronado"
+   ],
+   "osm": "leisure/park",
+   "resolved": "Villa Coronado Park, 11030, San Antonio, Bexar County, Texas, 78214, United States"
+  },
+  {
+   "name": "Mission San José",
+   "lat": 29.36235,
+   "lon": -98.47981,
+   "terms": [
+    "Mission San José",
+    "Mission San Jose"
+   ],
+   "osm": "amenity/place_of_worship",
+   "resolved": "Mission San José, 701, East Pyron Avenue, San Antonio, Bexar County, Texas, 78214, United States"
+  },
+  {
+   "name": "Mission Espada",
+   "lat": 29.3182,
+   "lon": -98.45118,
+   "terms": [
+    "Mission Espada"
+   ],
+   "osm": "amenity/place_of_worship",
+   "resolved": "Mission San Francisco de la Espada, 10040, Espada Road, San Antonio, Bexar County, Texas, 78214, United States"
+  },
+  {
+   "name": "Mission Concepción",
+   "lat": 29.39108,
+   "lon": -98.49113,
+   "terms": [
+    "Mission Concepción",
+    "Mission Concepcion"
+   ],
+   "osm": "amenity/place_of_worship",
+   "resolved": "Mission Concepcion, Felisa Street, San Antonio, Bexar County, Texas, 78210, United States"
+  },
+  {
+   "name": "Roosevelt Park",
+   "lat": 29.40077,
+   "lon": -98.48769,
+   "terms": [
+    "Roosevelt Park"
+   ],
+   "osm": "leisure/park",
+   "resolved": "Roosevelt Park, 330, Southtown, San Antonio, Bexar County, Texas, 78210, United States"
+  },
+  {
+   "name": "Highland Park",
+   "lat": 29.39899,
+   "lon": -98.4556,
+   "terms": [
+    "Highland Park"
+   ],
+   "osm": "leisure/park",
+   "resolved": "Highland Park, 901, San Antonio, Bexar County, Texas, 78210, United States"
+  },
+  {
+   "name": "Lone Star",
+   "lat": 29.40108,
+   "lon": -98.49128,
+   "terms": [
+    "Lone Star",
+    "Lone Star Brewery",
+    "Lone Star neighborhood"
+   ],
+   "osm": "landuse/brownfield",
+   "resolved": "Lone Star Brewery, Southtown, San Antonio, Bexar County, Texas, United States"
+  },
+  {
+   "name": "King William",
+   "lat": 29.41424,
+   "lon": -98.49158,
+   "terms": [
+    "King William"
+   ],
+   "osm": "place/neighbourhood",
+   "resolved": "King William, Southtown, San Antonio, Bexar County, Texas, 78205, United States"
+  },
+  {
+   "name": "Southtown",
+   "lat": 29.41021,
+   "lon": -98.49118,
+   "terms": [
+    "Southtown"
+   ],
+   "osm": "place/quarter",
+   "resolved": "Southtown, San Antonio, Bexar County, Texas, 78204, United States"
+  },
+  {
+   "name": "Lavaca",
+   "lat": 29.4144,
+   "lon": -98.48604,
+   "terms": [
+    "Lavaca"
+   ],
+   "osm": "place/neighbourhood",
+   "resolved": "Lavaca, Southtown, San Antonio, Bexar County, Texas, 78205, United States"
+  },
+  {
+   "name": "Denver Heights",
+   "lat": 29.40517,
+   "lon": -98.46559,
+   "terms": [
+    "Denver Heights"
+   ],
+   "osm": "place/neighbourhood",
+   "resolved": "Denver Heights, San Antonio, Bexar County, Texas, 78203, United States"
+  },
+  {
+   "name": "Dignowity Hill",
+   "lat": 29.42821,
+   "lon": -98.47084,
+   "terms": [
+    "Dignowity Hill"
+   ],
+   "osm": "place/neighbourhood",
+   "resolved": "Dignowity Hill, San Antonio, Bexar County, Texas, 78202, United States"
+  },
+  {
+   "name": "Government Hill",
+   "lat": 29.44131,
+   "lon": -98.46421,
+   "terms": [
+    "Government Hill"
+   ],
+   "osm": "place/neighbourhood",
+   "resolved": "Government Hill, San Antonio, Bexar County, Texas, 78208, United States"
+  },
+  {
+   "name": "Tobin Hill",
+   "lat": 29.44537,
+   "lon": -98.4894,
+   "terms": [
+    "Tobin Hill"
+   ],
+   "osm": "place/neighbourhood",
+   "resolved": "Tobin Hill, Midtown, San Antonio, Bexar County, Texas, 78215, United States"
+  },
+  {
+   "name": "Monte Vista",
+   "lat": 29.45791,
+   "lon": -98.49189,
+   "terms": [
+    "Monte Vista"
+   ],
+   "osm": "place/neighbourhood",
+   "resolved": "Monte Vista, Midtown, San Antonio, Bexar County, Texas, 78212, United States"
+  },
+  {
+   "name": "Beacon Hill",
+   "lat": 29.45626,
+   "lon": -98.51005,
+   "terms": [
+    "Beacon Hill"
+   ],
+   "osm": "place/neighbourhood",
+   "resolved": "Beacon Hill, San Antonio, Bexar County, Texas, United States"
+  },
+  {
+   "name": "Prospect Hill",
+   "lat": 29.43576,
+   "lon": -98.53438,
+   "terms": [
+    "Prospect Hill"
+   ],
+   "osm": "place/neighbourhood",
+   "resolved": "Prospect Hill, San Antonio, Bexar County, Texas, 78207, United States"
+  },
+  {
+   "name": "Edgewood",
+   "lat": 29.42128,
+   "lon": -98.57045,
+   "terms": [
+    "Edgewood",
+    "Edgewood ISD"
+   ],
+   "osm": "amenity/school",
+   "resolved": "Edgewood Fine Arts Academy, 607, Southwest 34th Street, San Antonio, Bexar County, Texas, 78237, United States"
+  },
+  {
+   "name": "Brooks",
+   "lat": 29.34514,
+   "lon": -98.44336,
+   "terms": [
+    "Brooks",
+    "Brooks City Base",
+    "Brooks Development"
+   ],
+   "osm": "place/neighbourhood",
+   "resolved": "Brooks, San Antonio, Bexar County, Texas, 78235, United States"
+  },
+  {
+   "name": "Palo Alto",
+   "lat": 29.32283,
+   "lon": -98.54502,
+   "terms": [
+    "Palo Alto",
+    "Palo Alto College"
+   ],
+   "osm": "amenity/college",
+   "resolved": "Palo Alto College, 1400, West Villaret Boulevard, San Antonio, Bexar County, Texas, 78224, United States"
+  },
+  {
+   "name": "South Park Mall",
+   "lat": 29.35468,
+   "lon": -98.53103,
+   "terms": [
+    "South Park Mall"
+   ],
+   "osm": "shop/mall",
+   "resolved": "South Park Mall, 2130, Southwest Military Drive, San Antonio, Bexar County, Texas, 78224, United States"
+  },
+  {
+   "name": "Pearl",
+   "lat": 29.44228,
+   "lon": -98.47995,
+   "terms": [
+    "Pearl",
+    "the Pearl",
+    "Pearl District"
+   ],
+   "osm": "landuse/retail",
+   "resolved": "Pearl Brewery, San Antonio, Bexar County, Texas, 78215, United States"
+  },
+  {
+   "name": "Downtown San Antonio",
+   "lat": 29.42602,
+   "lon": -98.48589,
+   "terms": [
+    "Downtown San Antonio",
+    "downtown San Antonio"
+   ],
+   "osm": "shop/gift",
+   "resolved": "The Alamo Gift Shop, East Houston Street, Downtown, San Antonio, Bexar County, Texas, 78205, United States"
+  },
+  {
+   "name": "Medical Center",
+   "lat": 29.50783,
+   "lon": -98.57809,
+   "terms": [
+    "Medical Center",
+    "South Texas Medical Center",
+    "Medical Center area"
+   ],
+   "osm": "amenity/hospital",
+   "resolved": "University Hospital, 4502, Medical Drive, Medical Center, South Texas Medical Center, San Antonio, Bexar County, Texas, "
+  },
+  {
+   "name": "Stone Oak",
+   "lat": 29.64939,
+   "lon": -98.45135,
+   "terms": [
+    "Stone Oak"
+   ],
+   "osm": "place/suburb",
+   "resolved": "Stone Oak, San Antonio, Bexar County, Texas, 78259, United States"
+  },
+  {
+   "name": "Alamo Heights",
+   "lat": 29.48323,
+   "lon": -98.46846,
+   "terms": [
+    "Alamo Heights"
+   ],
+   "osm": "boundary/administrative",
+   "resolved": "Alamo Heights, Bexar County, Texas, United States"
+  },
+  {
+   "name": "Leon Valley",
+   "lat": 29.49523,
+   "lon": -98.61863,
+   "terms": [
+    "Leon Valley"
+   ],
+   "osm": "boundary/administrative",
+   "resolved": "Leon Valley, Bexar County, Texas, 78238, United States"
+  },
+  {
+   "name": "Lackland",
+   "lat": 29.38629,
+   "lon": -98.6009,
+   "terms": [
+    "Lackland"
+   ],
+   "osm": "military/base",
+   "resolved": "Lackland Air Force Base, Seacomber Place, San Antonio, Bexar County, Texas, 78242, United States"
+  },
+  {
+   "name": "Westside",
+   "lat": 29.41878,
+   "lon": -98.51511,
+   "terms": [
+    "West Side",
+    "Westside"
+   ],
+   "osm": "amenity/community_centre",
+   "resolved": "Guadalupe Cultural Arts Center, Kicaster Alley, Avenida Guadalupe, San Antonio, Bexar County, Texas, 78207, United State"
+  },
+  {
+   "name": "Eastside",
+   "lat": 29.41613,
+   "lon": -98.45423,
+   "terms": [
+    "East Side",
+    "Eastside"
+   ],
+   "osm": "amenity/college",
+   "resolved": "St. Philip's College - MLK Campus, 1801, Martin Luther King Drive, Knob Hill, San Antonio, Bexar County, Texas, 78203, U"
+  }
+ ]
+}

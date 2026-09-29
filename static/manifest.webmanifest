@@ -1,0 +1,29 @@
+{
+  "id": "/",
+  "name": "Chisme — local news & weather",
+  "short_name": "Chisme",
+  "description": "Local news, NWS weather, alerts and live rain radar for wherever you are — neighborhood stories first.",
+  "lang": "en-US",
+  "dir": "ltr",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "background_color": "#00C9CD",
+  "theme_color": "#00C9CD",
+  "categories": ["news", "weather"],
+  "icons": [
+    { "src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/static/icons/maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/static/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "screenshots": [
+    { "src": "/static/screenshots/phone.png", "sizes": "780x1688", "type": "image/png", "form_factor": "narrow", "label": "Chisme on a phone: weather and alerts for your location" },
+    { "src": "/static/screenshots/desktop.png", "sizes": "1280x900", "type": "image/png", "form_factor": "wide", "label": "Chisme on desktop: weather, forecast and news" }
+  ],
+  "shortcuts": [
+    { "name": "Radar", "url": "/?source=pwa#radar-sec", "icons": [{ "src": "/static/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Near You news", "url": "/?source=pwa#near", "icons": [{ "src": "/static/icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}
