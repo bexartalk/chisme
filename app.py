@@ -1490,6 +1490,55 @@ FOOD_SOURCES = [
 ]
 
 
+# --- restaurant guess for food videos (creators put the spot, often with its address, in the title)
+_ST = (r"(?:Road|Rd|Street|St|Avenue|Ave|Boulevard|Blvd|Parkway|Pkwy|Drive|Dr|Highway|Hwy|Lane|Ln|Way|Trail|Trl|"
+       r"Expressway|Expy|Freeway|Fwy|Plaza|Court|Ct|Circle|Cir|Loop\s*\d{3,4})")
+ADDR_RX = re.compile(r"\b(\d{2,6}\s+(?:(?:N|S|E|W|NW|NE|SW|SE|North|South|East|West|Northwest|Northeast|Southwest|Southeast)\.?\s+)?"
+                     r"(?:[A-Z0-9][\w'’.]*\s+){0,4}?" + _ST + r"\.?)(?![\w])"
+                     r"(?:,?\s*(?:Suite|Ste\.?|#)\s*[\w-]+)?"
+                     r"(?:,?\s*([A-Z][a-z]+(?:\s[A-Z][a-z]+)?),?\s*(?:TX|Texas))?(?:\s*(\d{5}))?")
+_MINOR = {"and", "de", "del", "la", "el", "los", "las", "of", "the", "y", "e", "on", "&"}
+_NOT_A_SPOT = re.compile(r"^(san antonio|texas|tx|satx|the best|best|this|that|home|here|there|pearl|downtown|the pearl|"
+                         r"the airport|san antonio international airport|youtube|tiktok|shorts)$", re.I)
+
+
+def _spotlike(s: str, max_words: int = 6) -> str | None:
+    s = re.sub(r"[\s!?.,:;|–—-]+$", "", re.sub(r"^[\s!?.,:;|–—-]+", "", s or "")).strip()
+    words = s.split()
+    if not (1 <= len(words) <= max_words) or len(s) > 48 or _NOT_A_SPOT.match(s):
+        return None
+    if re.match(r"(?:the\s+)?\w+est\b", s, re.I) and not re.match(r"(?:the\s+)?(?:forest|west|crest|nest)\b", s, re.I):
+        return None  # "The Wildest Burger", "Best ..." is a claim, not a place
+    if len(words) > 1 and s.isupper():
+        return None  # "THIS PLACE IS A HOME RUN"
+    if not all(w[:1].isupper() or w[:1].isdigit() or w.lower() in _MINOR for w in words):
+        return None
+    return s
+
+
+def guess_place(title: str) -> dict | None:
+    """Best-effort {name, address} for a food video, from its title. None when we can't tell."""
+    t = re.sub(r"[\U0001F000-\U0001FAFF\u2600-\u27BF\uFE0F]", " ", title or "")
+    t = re.sub(r"\s+", " ", t).strip()
+    m = ADDR_RX.search(t)
+    if m:
+        city = m.group(2) or "San Antonio"
+        addr = f"{m.group(1)}, {city}, TX" + (f" {m.group(3)}" if m.group(3) else "")
+        before = re.sub(r"\b\d+\s+Locations?!?", " ", t[:m.start()], flags=re.I)
+        words = before.split()
+        while len(words) > 1 and words[0].isupper() and len(words[0]) > 1:
+            words.pop(0)  # leading ALL-CAPS dish hype: "GIANT PUMPKIN TORTA Panfila Cantina"
+        name = _spotlike(" ".join(words), 7)
+        return {"name": name, "address": addr}
+    for rx in (r"\bat\s+(.+?)[\s!?.]*$",                    # "... in San Antonio at Alzer’s Roastery"
+               r"\s[-–—|]\s+([^-–—|]+?)[\s!?.]*$",           # "Best Soup in San Antonio? - Picnikins"
+               r"^(.+?)\s+(?:in\s+)?San Antonio\b(?!\s*\?)"):  # "2M Smokehouse in San Antonio is ..."
+        m = re.search(rx, t)
+        if m and (name := _spotlike(m.group(1), 5 if rx.startswith("^") else 6)):
+            return {"name": name, "address": None}
+    return None
+
+
 async def _fetch_food(src: dict) -> list[dict]:
     r = await client().get(src["url"])
     r.raise_for_status()
@@ -1516,7 +1565,8 @@ async def _fetch_food(src: dict) -> list[dict]:
         out.append({"title": title, "url": link, "creator": outlet if src["kind"] == "creator" else None,
                     "outlet": outlet, "author": None if src["kind"] == "creator" or src.get("gnews") else e.get("author"),
                     "kind": src["kind"], "video": "youtube.com" in link, "published": entry_time(e),
-                    "image": None if src.get("gnews") else thumbnail(e), "summary": summary, "source_id": src["id"]})
+                    "image": None if src.get("gnews") else thumbnail(e), "summary": summary, "source_id": src["id"],
+                    "place": guess_place(title) if src["kind"] == "creator" else None})
     return out
 
 

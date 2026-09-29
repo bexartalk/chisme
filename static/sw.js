@@ -1,7 +1,7 @@
 /* Chisme service worker: caches the app shell and the last-loaded news/weather
    so the app opens instantly (and shows the last saved data) even when the server is asleep
    or there's no connection. */
-const VERSION = "chisme-v22";
+const VERSION = "chisme-v23";
 const BUILD = VERSION.replace("chisme-v", "");          // index.html asks for app.js?v=<BUILD>
 const SHELL_CACHE = `${VERSION}-shell`;
 const DATA_CACHE = `${VERSION}-data`;
@@ -14,7 +14,6 @@ const SHELL = [
   "/static/vendor/leaflet/leaflet.js",
   "/static/vendor/leaflet/images/layers.png",
   "/static/vendor/leaflet/images/layers-2x.png",
-  "/static/icons/header-icon.png",
   "/static/icons/icon-192.png",
   "/static/icons/icon-512.png",
   "/static/icons/favicon-32.png",

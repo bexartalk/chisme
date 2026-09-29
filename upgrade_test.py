@@ -2,7 +2,7 @@
 starts serving the current code (what happened on Render when v21 replaced v15). Checks that after
 reopening, the page runs the NEW app.js with the NEW HTML: Sports and Weather tabs work, no JS errors.
 
-    ./venv/bin/python upgrade_test.py [old_commit ...]      (default: v15, v17, v19 and v21)
+    ./venv/bin/python upgrade_test.py [old_commit ...]      (default: v15, v17, v19, v21 and v22)
 Also checks the next deploy (current build -> build+1 with the app open): the page reloads itself once.
 """
 import asyncio, json, os, shutil, subprocess, sys, tempfile, time, urllib.request
@@ -13,7 +13,7 @@ PY = os.path.join(HERE, "venv", "bin", "python")
 PORT = 8230
 URL = f"http://localhost:{PORT}/"
 OUT = os.path.join(HERE, "screenshots")
-OLD = sys.argv[1:] or ["f0f68c2", "a3c1b3c", "4ca7393", "777a9f9"]   # v15, v17, v19, v21
+OLD = sys.argv[1:] or ["f0f68c2", "a3c1b3c", "4ca7393", "777a9f9", "fb94c22"]   # v15, v17, v19, v21, v22
 fails = []
 
 def check(ok, what):
@@ -71,7 +71,8 @@ async def one(p, old):
     errs = []
     pg = ctx.pages[0] if ctx.pages else await ctx.new_page()
     pg.on("pageerror", lambda e: errs.append(f"pageerror: {e}"))
-    pg.on("console", lambda m: errs.append(f"console: {m.text}") if m.type == "error" else None)
+    net = []   # resource-load failures (e.g. an API request cut off by the test's own reopen) are network noise, not JS errors
+    pg.on("console", lambda m: (net if "Failed to load resource" in m.text else errs).append(f"console: {m.text}") if m.type == "error" else None)
     srv = serve(wt)
     try:
         await pg.goto(URL)
@@ -79,20 +80,27 @@ async def one(p, old):
         await pg.wait_for_timeout(4000)                      # let the old SW cache the shell + some data
         cached = await pg.evaluate("async () => (await caches.keys())")
         print("  old caches:", cached)
+        await pg.goto("about:blank")                          # the app is closed before the deploy (no requests in flight)
     finally:
         stop(srv)
     srv = serve(HERE)                                         # "deploy": same origin now serves the current code
     try:
-        errs.clear()
+        await pg.wait_for_timeout(300)                        # serve() blocks the loop: flush events from the down-time first
+        errs.clear(); net.clear()
         await pg.goto(URL)                                    # reopen the app
         await pg.wait_for_timeout(6000)                       # new SW installs/activates; page may reload once
         ver = await pg.evaluate("() => window.CHISME_APP_BUILD || null")
         if ver is None:
             # v19-v21 serve their own cached (consistent) shell first; the new worker installs in the
             # background and the old page offers "Chisme was updated · Reload"
-            await pg.wait_for_function("async () => (await caches.keys()).some(k => k.startsWith('chisme-v22-shell'))", timeout=60000)
+            cur = [l for l in open(os.path.join(HERE, "static", "sw.js")) if "const VERSION" in l][0].split('"')[1]
+            installed = False
+            for _ in range(60):                               # (wait_for_function can't await caches.keys())
+                if any(k.startswith(cur + "-shell") for k in await pg.evaluate("async () => await caches.keys()")):
+                    installed = True; break
+                await pg.wait_for_timeout(1000)
             await pg.wait_for_function("() => !document.querySelector('#update-toast') || !document.querySelector('#update-toast').hidden", timeout=30000)
-            check(True, "first open after deploy: old version's cached shell (consistent), v22 installed, update toast shown")
+            check(installed, f"first open after deploy: old version's cached shell (consistent), {cur} installed, update toast shown")
         else:
             await tab_check(pg, errs, "first open after deploy")
         await pg.goto(URL)                                    # reopen again
@@ -100,6 +108,7 @@ async def one(p, old):
         keys = await pg.evaluate("async () => (await caches.keys())")
         check(all(not k.startswith(("chisme-v1", "chisme-v20")) for k in keys), f"old caches removed ({keys})")
         check(not errs, f"no JS errors ({errs[:5]})")
+        if net: print(f"  note: {len(net)} resource load failure(s) during the reopen: {net[:2]}")
         build = await pg.evaluate("() => [window.CHISME_BUILD, window.CHISME_APP_BUILD, !!window.__chismeBooted]")
         sw_ver = [l for l in open(os.path.join(HERE, "static", "sw.js")) if "const VERSION" in l][0].split('"')[1]
         check(build[0] == build[1] == sw_ver.replace("chisme-v", "") and build[2], f"HTML build, app.js build and sw.js VERSION agree ({build}, {sw_ver})")

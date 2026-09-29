@@ -1,7 +1,7 @@
 /* Chisme — frontend (location-aware) */
 // Build of this file. Must equal the number in sw.js VERSION ("chisme-v22"); the page compares it
 // with the build the HTML was served for and reloads once if an old cached app.js got mixed in.
-window.CHISME_APP_BUILD = "22";
+window.CHISME_APP_BUILD = "23";
 (() => {
   "use strict";
   const WEATHER_MS = 10 * 60 * 1000;
@@ -190,7 +190,16 @@ window.CHISME_APP_BUILD = "22";
   if (hadSavedPlace && !localStorage.getItem(SETUP_KEY)) localStorage.setItem(SETUP_KEY, "1");
   const firstRun = () => !localStorage.getItem(SETUP_KEY);
   const finishSetup = () => { localStorage.setItem(SETUP_KEY, "1"); };
+  // Header skyline: San Antonio's (Tower of the Americas) for SA / Bexar County, the default and
+  // unknown places; a generic skyline anywhere else.
+  function renderSkyline() {
+    const p = loc.place || {};
+    const sa = loc.source === "default" || kmBetween(loc, DEFAULT_LOC) < 40 || /san antonio/i.test(p.city || "") || /bexar/i.test(p.county || "")
+      || (!p.city && !p.county);
+    $("#topbar").dataset.skyline = sa ? "sa" : "city";
+  }
   function renderLocLabel() {
+    renderSkyline();
     const city = loc.place && loc.place.city;
     $("#city-title").textContent = city ? `More ${city} news` : "More local news";
     $("#set-loc-now").textContent = (loc.source === "default" ? "Showing the default: " : loc.source === "gps" ? "Using your location: " : "Showing: ") + placeName();
@@ -242,7 +251,7 @@ window.CHISME_APP_BUILD = "22";
   // ---------- location panel (friendly pre-prompt, denied fallback, change location)
   const PANEL = {
     ask: ["Show news & weather for where you are?",
-      "Chisme uses your location only to look up your forecast, weather alerts, radar and nearby stories. It's saved on this device. You'll only be asked once: to change it later, tap the Chisme logo for Settings. Until then we're showing San Antonio, TX."],
+      "Chisme uses your location only to look up your forecast, weather alerts, radar and nearby stories. It's saved on this device. You'll only be asked once: to change it later, tap the Chisme bubble at the top for Settings. Until then we're showing San Antonio, TX."],
     denied: ["Location is turned off for Chisme",
       "No problem — type a city or ZIP code below. (To use your location later, allow it for this site in your browser or phone settings, then tap “Use my location.”)"],
     unavailable: ["Couldn't find your location",
@@ -555,7 +564,6 @@ window.CHISME_APP_BUILD = "22";
     youMarker.setLatLng([loc.lat, loc.lon]);
     map.setView([loc.lat, loc.lon], zoom || map.getZoom());
   }
-  $("#r-center").onclick = () => recenter(8);
   function radarLayer(frame) {
     if (!layers[frame.path]) {
       // RainViewer's free tiles only go to zoom 7; Leaflet upsamples beyond that.
@@ -842,7 +850,6 @@ window.CHISME_APP_BUILD = "22";
     }
     const list = all.filter(c.test), ongoing = ongoingAll.filter(c.test);
     $("#events-intro").textContent = evCat === "all" || !(all.length + ongoingAll.length) ? evIntro : c.intro(list.length + ongoing.length);
-    $("#food-block").hidden = evCat !== "food";
     if (evCat === "food") renderFood();
     const kids = [];
     let last = null;
@@ -857,15 +864,159 @@ window.CHISME_APP_BUILD = "22";
       : [el("p", { class: "loading", text: empty })]));
     $("#ongoing-sec").hidden = !ongoing.length;
     $("#ongoing-list").replaceChildren(...ongoing.map(eventCard));
+    syncFoodView();
   }
   for (const b of document.querySelectorAll("#ev-chips .chip")) {
     b.onclick = () => {
       evCat = b.dataset.cat; localStorage.setItem(CAT_KEY, evCat);
-      renderEventList();
+      renderEventList(); syncFoodView();
       if (evCat === "food" && !foodData) loadFood();
     };
   }
   const shortDate = (t) => fmt(new Date(t * 1000), { month: "short", day: "numeric" });
+  // ---------- saved food spots: kept in localStorage so they outlive feed refreshes and work offline
+  const SAVED_KEY = "chisme-food-saved", FV_KEY = "chisme-food-view";
+  let foodView = localStorage.getItem(FV_KEY) === "saved" ? "saved" : "latest";
+  const readSaved = () => {
+    try { const a = JSON.parse(localStorage.getItem(SAVED_KEY) || "[]"); return Array.isArray(a) ? a.filter((x) => x && x.url && x.title) : []; }
+    catch { return []; }
+  };
+  let savedSpots = readSaved(), lastRemoved = null;
+  const writeSaved = () => { try { localStorage.setItem(SAVED_KEY, JSON.stringify(savedSpots)); return true; } catch { return false; } };
+  const isSaved = (url) => savedSpots.some((s) => s.url === url);
+  const cleanPlace = (p) => {
+    const name = ((p && p.name) || "").trim().slice(0, 80), address = ((p && p.address) || "").trim().slice(0, 160);
+    return name || address ? { name: name || null, address: address || null, guessed: !!(p && p.guessed) } : null;
+  };
+  const snapshot = (it) => ({
+    url: it.url, title: it.title, image: it.image || null, video: !!it.video, kind: it.kind,
+    source: it.kind === "creator" ? it.creator : [it.outlet, it.author].filter(Boolean).join(" · "),
+    published: it.published || null, place: it.place ? cleanPlace({ ...it.place, guessed: true }) : null, savedAt: Date.now(),
+  });
+  const mapsUrl = (p) => "https://maps.apple.com/?daddr=" + encodeURIComponent(p.address || `${p.name}, San Antonio, TX`) + "&dirflg=d";
+  const bmIcon = () => {
+    const NS = "http://www.w3.org/2000/svg", svg = document.createElementNS(NS, "svg"), path = document.createElementNS(NS, "path");
+    svg.setAttribute("viewBox", "0 0 12 16"); svg.setAttribute("class", "bm"); svg.setAttribute("aria-hidden", "true"); svg.setAttribute("focusable", "false");
+    path.setAttribute("d", "M1.5 1.5h9v13L6 11l-4.5 3.5z");
+    svg.append(path);
+    return svg;
+  };
+  function saveButton(it) {
+    const b = el("button", { type: "button", class: "fr-save", "data-url": it.url });
+    b.onclick = () => toggleSaved(it);
+    paintSave(b);
+    return b;
+  }
+  function paintSave(b) {
+    const on = isSaved(b.dataset.url), t = b.closest(".fr") && b.closest(".fr").querySelector("h4");
+    b.setAttribute("aria-pressed", String(on));
+    b.replaceChildren(bmIcon(), on ? "Saved" : "Save",
+      el("span", { class: "sr-only", text: t ? ": " + t.textContent : "" }));
+  }
+  function syncSaved() {
+    for (const b of document.querySelectorAll(".fr-save")) paintSave(b);
+    $("#n-saved").textContent = `(${savedSpots.length})`;
+    renderSaved();
+  }
+  function flash(msg, undo) {
+    const box = $("#food-saved-status");
+    box.replaceChildren(msg ? el("span", { text: msg }) : "");
+    if (undo) {
+      const u = el("button", { type: "button", class: "fs-undo", text: "Undo" });
+      u.onclick = () => { undo(); box.replaceChildren(); };
+      box.append(" ", u);
+      return u;
+    }
+  }
+  function toggleSaved(it) {
+    const had = isSaved(it.url);
+    savedSpots = had ? savedSpots.filter((s) => s.url !== it.url) : [snapshot(it), ...savedSpots];
+    if (!writeSaved()) { savedSpots = readSaved(); flash("Couldn't save — this phone's storage is full."); }
+    syncSaved();
+  }
+  function removeSaved(s) {
+    const i = savedSpots.findIndex((x) => x.url === s.url);
+    if (i < 0) return;
+    savedSpots.splice(i, 1); writeSaved(); syncSaved();
+    const u = flash(`Removed “${s.title}”.`, () => { if (!isSaved(s.url)) { savedSpots.splice(Math.min(i, savedSpots.length), 0, s); writeSaved(); syncSaved(); } });
+    if (u) u.focus();
+  }
+  function placeForm(s, row) {
+    const f = el("form", { class: "fs-form" });
+    const id = "fs" + Math.random().toString(36).slice(2, 8);
+    const nm = el("input", { id: id + "n", type: "text", autocomplete: "off", maxlength: "80", placeholder: "e.g. Losoya’s Taqueria" });
+    const ad = el("input", { id: id + "a", type: "text", autocomplete: "street-address", maxlength: "160", placeholder: "Street address (optional)" });
+    nm.value = (s.place && s.place.name) || ""; ad.value = (s.place && s.place.address) || "";
+    const cancel = el("button", { type: "button", text: "Cancel" });
+    f.append(el("label", { for: id + "n", text: "Restaurant" }), nm, el("label", { for: id + "a", text: "Address" }), ad,
+      el("div", { class: "fs-act" }, el("button", { type: "submit", class: "primary", text: "Save place" }), cancel));
+    f.onsubmit = (e) => {
+      e.preventDefault();
+      const x = savedSpots.find((y) => y.url === s.url);
+      if (x) { x.place = cleanPlace({ name: nm.value, address: ad.value }); writeSaved(); }
+      syncSaved();
+      const again = [...document.querySelectorAll("#food-saved .fs")].find((a) => a.dataset.url === s.url);
+      if (again) (again.querySelector(".fs-dir") || again.querySelector(".fs-edit")).focus();
+    };
+    cancel.onclick = () => { f.remove(); row.querySelector(".fs-edit").focus(); };
+    return f;
+  }
+  function savedItem(s) {
+    const thumb = el("a", { class: "fr-thumb", href: s.url, target: "_blank", rel: "noopener", tabindex: "-1", "aria-hidden": "true" });
+    const ph = () => el("div", { class: "ev-ph", role: "img", "aria-label": s.image ? "Photo loads when you're online" : "No photo in the feed" },
+      el("b", { text: s.video ? "🎥" : "📰", "aria-hidden": "true" }), el("span", { text: s.image ? "offline" : "no photo" }));
+    if (s.image) {  // try even offline: the browser cache often still has it
+      const img = el("img", { src: s.image, alt: "", loading: "lazy", referrerpolicy: "no-referrer" });
+      img.onerror = () => img.replaceWith(ph());
+      thumb.append(img);
+      if (s.video) thumb.append(el("span", { class: "play", text: "▶" }));
+    } else thumb.append(ph());
+    const p = s.place;
+    const row = el("article", { class: "fr fs", "data-url": s.url }, thumb,
+      el("div", { class: "fr-body" },
+        el("h4", {}, ext(s.url, s.title)),
+        el("p", { class: "fr-by" }, el("b", { text: s.source || "" }), s.published ? " · " + shortDate(s.published) : ""),
+        p ? el("p", { class: "fs-place" }, el("span", { "aria-hidden": "true", text: "📍 " }),
+          el("b", { text: p.name || p.address }), p.name && p.address ? " · " + p.address : "",
+          p.guessed ? el("span", { class: "fs-guess", text: " (from the title)" }) : "") : null));
+    const edit = el("button", { type: "button", class: "fs-edit", text: p ? "Edit place" : "📍 Add place" });
+    edit.setAttribute("aria-label", (p ? "Edit place for " : "Add place for ") + s.title);
+    edit.onclick = () => {
+      const open = row.querySelector(".fs-form");
+      if (open) { open.remove(); return; }
+      const f = placeForm(s, row); row.append(f); f.querySelector("input").focus();
+    };
+    const rm = el("button", { type: "button", class: "fs-rm", text: "Remove" });
+    rm.setAttribute("aria-label", "Remove " + s.title);
+    rm.onclick = () => removeSaved(s);
+    const dir = p ? ext(mapsUrl(p), "Directions ↗", "fs-dir") : null;
+    if (dir) dir.setAttribute("aria-label", `Directions to ${p.name || p.address} in Apple Maps`);
+    row.append(el("div", { class: "fs-act" }, ext(s.url, s.video ? "▶ Watch" : "Read", "fs-open"), dir, edit, rm));
+    return row;
+  }
+  function renderSaved() {
+    const box = $("#food-saved");
+    if (!box) return;
+    box.replaceChildren(...(savedSpots.length ? savedSpots.map(savedItem)
+      : [el("p", { class: "loading", text: "Nothing saved yet. Tap 🔖 Save on any review and it'll wait here — even offline." })]));
+  }
+  function syncFoodView() {
+    const sv = foodView === "saved", food = evCat === "food";
+    $("#food-block").hidden = !food;
+    for (const b of document.querySelectorAll("#food-view .chip")) b.setAttribute("aria-pressed", String(b.dataset.fv === foodView));
+    $("#food-saved-view").hidden = !sv; $("#food-latest").hidden = sv; $("#food-events-h").hidden = sv;
+    $("#events-list").hidden = food && sv;
+    if (food && sv) $("#ongoing-sec").hidden = true;
+  }
+  for (const b of document.querySelectorAll("#food-view .chip")) {
+    b.onclick = () => {
+      foodView = b.dataset.fv; localStorage.setItem(FV_KEY, foodView);
+      syncFoodView();
+      if (foodView === "latest") renderEventList();
+    };
+  }
+  addEventListener("storage", (e) => { if (e.key === SAVED_KEY) { savedSpots = readSaved(); syncSaved(); } });
+  syncSaved(); syncFoodView();
   function foodItem(it) {
     const thumb = el("a", { class: "fr-thumb", href: it.url, target: "_blank", rel: "noopener", tabindex: "-1", "aria-hidden": "true" });
     const ph = () => el("div", { class: "ev-ph", role: "img", "aria-label": it.image ? "Photo loads when you're online" : "No photo in the feed" },
@@ -882,7 +1033,7 @@ window.CHISME_APP_BUILD = "22";
         el("h4", {}, ext(it.url, it.title)),
         el("p", { class: "fr-by" }, el("b", { text: by }), it.published ? " · " + shortDate(it.published) : ""),
         it.summary ? el("p", { class: "fr-sum", text: it.summary }) : null,
-        ext(it.url, it.video ? "▶ Watch on YouTube ↗" : "Read it ↗", "fr-go")));
+        el("div", { class: "fr-actions" }, ext(it.url, it.video ? "▶ Watch on YouTube ↗" : "Read it ↗", "fr-go"), saveButton(it))));
   }
   function renderFood() {
     const n = foodData;
@@ -901,6 +1052,7 @@ window.CHISME_APP_BUILD = "22";
     };
     $("#food-creators").replaceChildren(...(cr.length ? cr.map(foodItem) : [el("p", { class: "loading", text: "The creators are between bites — no new videos lately." })]));
     $("#food-outlets").replaceChildren(...group(out, 5, "No new food coverage in the feeds right now."));
+    for (const b of document.querySelectorAll("#food-latest .fr-save")) paintSave(b);
     $("#food-sources").replaceChildren(...(n.sources || []).map((f) => el("li", { class: f.ok ? "" : "bad" },
       ext(f.home, f.name), f.ok ? `: ${f.count} recent ${f.kind === "creator" ? "videos" : "stories"}` : `: unavailable right now (${f.error})`)));
   }
