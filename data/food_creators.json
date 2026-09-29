@@ -1,0 +1,106 @@
+{
+  "_readme": "San Antonio food creators Chisme follows, with every platform each one was verified on (2026-09-29). 'uses' says what Chisme pulls in automatically: a YouTube RSS feed (channel_id), hand-picked TikToks (data/food_tiktok.json, checked with TikTok's official oEmbed), or a profile link only (Instagram has no keyless feed or embed). Handles only; nothing is scraped.",
+  "creators": [
+    {
+      "name": "Cherise SA Texas Food Guide",
+      "person": "Cherise Moreno",
+      "city": "San Antonio",
+      "youtube": "https://www.youtube.com/channel/UCr5gIcFnRxKTaDNrcfA8ZaA",
+      "tiktok": "satexasfoodies",
+      "instagram": "satexasfoodies",
+      "uses": "YouTube feed + 3 TikToks"
+    },
+    {
+      "name": "Eatmigos",
+      "person": "Chris Flores",
+      "city": "San Antonio",
+      "youtube": "https://www.youtube.com/@eatmigos",
+      "tiktok": "eatmigos",
+      "instagram": "eatmigos",
+      "uses": "YouTube feed + 2 TikToks"
+    },
+    {
+      "name": "Elder Eats",
+      "person": "David Elder (host of KSAT's Texas Eats)",
+      "city": "San Antonio",
+      "youtube": "https://www.youtube.com/channel/UCsC3RShvhYxR9bTUfogm6pg",
+      "tiktok": "eldereats",
+      "instagram": "eldereats",
+      "uses": "Texas Eats YouTube feed + 2 TikToks"
+    },
+    {
+      "name": "San Antonio Munchies",
+      "person": "Alex Serna",
+      "city": "San Antonio",
+      "youtube": null,
+      "tiktok": "sanantoniomunchies",
+      "instagram": "sanantoniomunchies",
+      "uses": "3 TikToks"
+    },
+    {
+      "name": "Siempre San Antonio",
+      "person": "Gabby Gonzalez",
+      "city": "San Antonio",
+      "youtube": "https://www.youtube.com/@siempre_sanantonio",
+      "tiktok": "siempre_sanantonio",
+      "instagram": "siempre_sanantonio",
+      "uses": "YouTube feed (food videos)"
+    },
+    {
+      "name": "S.A. Foodie",
+      "person": "Amanda Spencer",
+      "city": "San Antonio",
+      "youtube": null,
+      "tiktok": null,
+      "instagram": "s.a.foodie",
+      "uses": "Instagram only"
+    },
+    {
+      "name": "Bootleg Food Review",
+      "person": "Jason Longoria",
+      "city": "San Antonio",
+      "youtube": null,
+      "tiktok": "bootlegfoodreview",
+      "instagram": "bootlegfoodreview",
+      "uses": "1 TikTok"
+    },
+    {
+      "name": "Full Nelson Eats",
+      "person": "Full Nelson",
+      "city": "San Antonio",
+      "youtube": "https://www.youtube.com/@fullnelsoneats",
+      "tiktok": "fullnelsoneats",
+      "instagram": "fullnelsoneats",
+      "uses": "YouTube feed (food videos)"
+    },
+    {
+      "name": "Porter's Food Reviews",
+      "person": "Jarnell Porter",
+      "city": "San Antonio",
+      "youtube": "https://www.youtube.com/@portersfoodreviews",
+      "tiktok": "portersfoodreviews",
+      "instagram": "portersfoodreviews",
+      "uses": "YouTube feed"
+    },
+    {
+      "name": "Hannah | SATX Creator",
+      "person": null,
+      "city": "San Antonio",
+      "youtube": "https://www.youtube.com/channel/UCuluE-lMh--_7hyziZAvDvQ",
+      "tiktok": null,
+      "instagram": null,
+      "uses": "YouTube feed (food videos)"
+    }
+  ],
+  "verification": {
+    "eatmigos": "TikTok oEmbed author 'Texas Food & Lifestyle Creator'; YouTube UCcRC7jl_YYqciUbzLh__WnA 'Eatmigos' (about: Chris Flores, San Antonio-based, 20.3K subs, RSS 15 recent); Instagram 'Chris Flores | San Antonio-based Texas Food & Lifestyle Creator' 122K.",
+    "satexasfoodies": "TikTok oEmbed 'Cherise SA Texas Food Guide'; YouTube UCr5gIcFnRxKTaDNrcfA8ZaA (already a source); Instagram 'Cherise Moreno' 218K.",
+    "eldereats": "TikTok oEmbed 'David Elder | Elder Eats'; KSAT: host/EP of Texas Eats; Instagram 'David Elder' 153K; personal YouTube UCpYRm6eaznq9xZRUA1kaRHw has no public uploads (RSS 0).",
+    "sanantoniomunchies": "TikTok oEmbed 'San Antonio Munchies 🍴'; Instagram 'ALEX SERNA🍴' 107K; YouTube @sanantoniomunchies 404.",
+    "siempre_sanantonio": "TikTok oEmbed 'Siempre 💖 San Antonio' (Gabby Gonzalez per KSAT 2021, San Antonio Magazine); Instagram 93K; YouTube @siempre_sanantonio UCdxqYEScHFdNhUOqKBRkTXg (same handle, 4 uploads Sep 2026, San Antonio hashtags; the channel doesn't link back, matched by handle + content).",
+    "s.a.foodie": "Instagram 'San Antonio, Texas | Amanda' 599K (Amanda Spencer per Express-News). No TikTok at @s.a.foodie (oEmbed 400); @safoodie / @safoodietx exist but nothing ties them to her, so not used. No YouTube.",
+    "bootlegfoodreview": "See data/food_tiktok.json. YouTube @bootlegfoodreview has 0 public uploads in RSS and no tie to him.",
+    "fullnelsoneats": "YouTube UCnPISg_Kx3fn62H1w1Enl1Q 'Full Nelson' (about: filmmaker in San Antonio; links to instagram.com/fullnelsoneats); TikTok oEmbed 'Full Nelson'; Instagram 3.2K. No TikTok video links found publicly.",
+    "portersfoodreviews": "YouTube UCQVETXoLaNtOMj8Bom9pUdg \"Porter's Food Reviews\" (Jarnell Porter; San Antonio spots e.g. Eisenhauer Flea Market); TikTok oEmbed 'Porters Food Reviews 🥘'; Instagram 579. No TikTok video links found publicly."
+  }
+}

@@ -1,0 +1,120 @@
+"""Unit tests for the on-device For You ranker (static/foryou.js), run in Node. No browser, no network.
+Checks features, each signal (open/watch time/save/skip-fast/not interested), recency decay, ~20% exploration,
+diversity, the 'Why you're seeing this' text, reset/storage, and that the ranker never talks to a server."""
+import json, os, subprocess, sys
+HERE = os.path.dirname(os.path.abspath(__file__))
+JS = r"""
+const F = require(process.argv[1]);
+const DAY = 864e5, NOW = Date.UTC(2026, 8, 29, 20), ts = (d) => (NOW - d * DAY) / 1000;
+const out = [], ok = (c, what) => out.push([!!c, what]);
+const mk = (i, creator, title, daysAgo, extra = {}) => ({ url: "https://www.youtube.com/shorts/v" + i, title, creator, published: ts(daysAgo), video: true, ...extra });
+const items = [
+  mk(1, "Cherise", "Losoya’s Taqueria 4445 Walzem Road San Antonio, TX 78218 street tacos", 1),
+  mk(2, "Cherise", "Birria tacos at Tacos El Regio", 2),
+  mk(3, "Hannah", "2M Smokehouse is the best BBQ spot around!!", 3),
+  mk(4, "Texas Eats", "Brisket and ribs at a new smokehouse", 4),
+  mk(5, "Eatmigos", "Mariscos and aguachile on the Westside", 2),
+  mk(6, "Eatmigos", "Churros, paletas and the best dessert in Stone Oak", 5),
+  mk(7, "Hannah", "Breakfast tacos and chilaquiles brunch", 6),
+  mk(8, "Porter's", "Fine dining at Dean’s Steak and Seafood", 7),
+  mk(9, "Munchies", "Chinese buffet: $9.99 all you can eat", 8),
+  mk(10, "Cherise", "Fruit Desserts La Café 11840 Alamo Ranch Parkway", 9),
+  mk(11, "Full Nelson", "HEB spicy chips snack review", 10),
+  mk(12, "Siempre", "Pizza night at The Pizza Spot", 11),
+  mk(13, "Texas Eats", "Ramen and sushi downtown", 12),
+  mk(14, "Eatmigos", "TX FRONTYARD BBQ", 13),
+  mk(15, "Porter's", "Mac and cheese at the flea market", 14),
+];
+const byUrl = Object.fromEntries(items.map((i) => [i.url, i]));
+// 1. features
+const f = (i) => F.featuresOf(items[i - 1]);
+ok(f(1).includes("k:tacos") && f(1).includes("n:Northeast") && f(1).includes("c:Cherise"), "features: creator + tacos + neighborhood from the ZIP (78218 → Northeast): " + f(1));
+ok(f(2).includes("k:birria") && f(2).includes("k:tacos"), "features: birria tacos → birria + tacos");
+ok(f(3).includes("k:bbq") && f(4).includes("k:bbq"), "features: BBQ / smokehouse / brisket → bbq");
+ok(f(5).includes("k:mariscos") && f(5).includes("n:Westside"), "features: mariscos + Westside");
+ok(f(6).includes("k:desserts") && f(6).includes("n:Stone Oak"), "features: desserts + Stone Oak");
+ok(f(7).includes("k:breakfast"), "features: breakfast / brunch");
+ok(f(8).includes("p:splurge") && f(9).includes("p:cheap"), "features: price hints (fine dining → splurge, $9.99 all you can eat → cheap)");
+// 2. cold start: freshest first, no explore slots, no creator three times in a row
+let p = F.load({ getItem: () => null });
+let r = F.rank(p, items, { now: NOW, seed: 7 });
+ok(r.length === items.length && r.every((x) => !x.explore), "cold start: every video, no exploration yet");
+ok(r[0].item.url === byUrl[items[0].url].url || r[0].item.published >= items[1].published, "cold start: the freshest video leads (" + r[0].item.title.slice(0, 30) + ")");
+const threeInRow = (list) => list.some((x, i) => i >= 2 && x.item.creator === list[i - 1].item.creator && x.item.creator === list[i - 2].item.creator);
+ok(!threeInRow(r), "diversity: no creator three times in a row (cold start)");
+ok(r[0].why.text === "Fresh this week", "why (cold): 'Fresh this week'");
+// 3. saves teach it: two taco saves → taco videos rise, and the chip says so
+p = F.load({ getItem: () => null });
+F.signal(p, "save", items[0], { now: NOW }); F.signal(p, "save", items[6], { now: NOW });
+r = F.rank(p, items, { now: NOW, seed: 7 });
+const pos = (url) => r.findIndex((x) => x.item.url === url);
+ok(pos(items[1].url) <= 1, "save ×2 (taco spots): the other taco video (birria tacos) ranks in the top 2 (#" + (pos(items[1].url) + 1) + ")");
+const birria = r.find((x) => x.item.url === items[1].url);
+ok(birria.why.text === "Because you saved 2 taco spots", "why: '" + birria.why.text + "'");
+// 4. watch time: long watches beat short ones
+p = F.load({ getItem: () => null });
+F.signal(p, "watch", items[2], { now: NOW, seconds: 30 }); F.signal(p, "watch", items[3], { now: NOW, seconds: 28 });
+const pShort = F.load({ getItem: () => null }); F.signal(pShort, "watch", items[2], { now: NOW, seconds: 4 }); F.signal(pShort, "watch", items[3], { now: NOW, seconds: 4 });
+const bbq14 = items[13];
+ok(F.scoreOf(p, bbq14, NOW) > F.scoreOf(pShort, bbq14, NOW) && F.scoreOf(pShort, bbq14, NOW) > F.scoreOf(F.load({ getItem: () => null }), bbq14, NOW),
+   "watch time: 30 s watches lift another BBQ video more than 4 s watches, which still beat nothing");
+r = F.rank(p, items, { now: NOW, seed: 7 });
+const bb = r.find((x) => x.item.url === bbq14.url);
+ok(r.findIndex((x) => x === bb) < 5 && /BBQ video|Eatmigos/.test(bb.why.text), "BBQ watcher: TX FRONTYARD BBQ (13 days old) moves into the top 5, why '" + bb.why.text + "'");
+// 5. skip-fast pushes a topic down; repeats sink
+p = F.load({ getItem: () => null });
+for (const d of [5, 9]) for (let k = 0; k < 3; k++) F.signal(p, "skip", items[d], { now: NOW });
+r = F.rank(p, items, { now: NOW, seed: 7 });
+ok(r.findIndex((x) => x.item.url === items[5].url) >= items.length / 2 && r.findIndex((x) => x.item.url === items[9].url) >= items.length / 2, "skip-fast ×3 on dessert videos: both drop to the bottom half");
+// 6. not interested: hidden, similar videos pushed down, undo brings it back
+p = F.load({ getItem: () => null });
+F.signal(p, "not_interested", items[7], { now: NOW });
+r = F.rank(p, items, { now: NOW, seed: 7 });
+ok(!r.some((x) => x.item.url === items[7].url), "not interested: that video is hidden");
+ok(F.scoreOf(p, mk(99, "Porter's", "Steakhouse wagyu fine dining", 1), NOW) < F.scoreOf(F.load({ getItem: () => null }), mk(99, "Porter's", "Steakhouse wagyu fine dining", 1), NOW), "not interested: similar (steak, splurge, same creator) score lower");
+F.signal(p, "undo_not_interested", items[7], { now: NOW });
+ok(F.rank(p, items, { now: NOW, seed: 7 }).some((x) => x.item.url === items[7].url), "undo: it's back");
+// 7. exploration ≈ 20%: every 5th slot, from the least familiar videos, labeled
+p = F.load({ getItem: () => null });
+F.signal(p, "save", items[0], { now: NOW }); F.signal(p, "save", items[1], { now: NOW }); F.signal(p, "watch", items[2], { now: NOW, seconds: 30 });
+r = F.rank(p, items, { now: NOW, seed: 7 });
+const ex = r.filter((x) => x.explore);
+ok(ex.length === Math.floor(items.length / 5) && r.every((x, i) => x.explore === (i % 5 === 4)), `exploration: ${ex.length}/${r.length} slots (${Math.round(100 * ex.length / r.length)}%), every 5th`);
+ok(ex.every((x) => !/tacos|bbq/.test(F.featuresOf(x.item).join(" ")) || F.featuresOf(x.item).length > 2), "exploration picks aren't more of what you already saved: " + ex.map((x) => x.item.title.slice(0, 18)).join(" | "));
+ok(ex.every((x) => /^Something (different|new)/.test(x.why.text)), "exploration chip: " + ex.map((x) => x.why.text).join(" | "));
+const big = Array.from({ length: 50 }, (_, i) => mk(100 + i, "C" + (i % 7), ["tacos", "BBQ", "sushi", "pizza", "dessert", "breakfast", "mariscos"][i % 7] + " spot " + i, i % 20));
+const rb = F.rank(p, big, { now: NOW, seed: 3 });
+ok(rb.filter((x) => x.explore).length === 10, "exploration on 50 videos: 10 (20%)");
+ok(JSON.stringify(F.rank(p, big, { now: NOW, seed: 3 }).map((x) => x.item.url)) === JSON.stringify(rb.map((x) => x.item.url)), "stable: same seed, same order (the feed doesn't reshuffle while you scroll)");
+// 8. recency decay: an old save counts less than a fresh one
+const pOld = F.load({ getItem: () => null }), pNew = F.load({ getItem: () => null });
+F.signal(pOld, "save", items[0], { now: NOW - 28 * DAY }); F.signal(pNew, "save", items[0], { now: NOW });
+const sOld = F.scoreOf(pOld, items[1], NOW), sNew = F.scoreOf(pNew, items[1], NOW), s0 = F.scoreOf(F.load({ getItem: () => null }), items[1], NOW);
+ok(sNew > sOld && sOld > s0 && Math.abs((sOld - s0) / (sNew - s0) - 0.25) < 0.05, `recency decay: a 28-day-old save counts ~1/4 of today's (14-day half-life): ${((sOld - s0) / (sNew - s0)).toFixed(2)}`);
+// 9. unsave takes it back; interests for the banner
+p = F.load({ getItem: () => null });
+F.signal(p, "save", items[0], { now: NOW }); F.signal(p, "save", items[1], { now: NOW });
+ok(F.interests(p, 3, NOW).includes("taco"), "interests: " + F.interests(p, 3, NOW).join(", "));
+F.signal(p, "unsave", items[1], { now: NOW });
+ok(p.f["k:tacos"].sv === 1, "unsave: the save count goes back down");
+// 10. storage: round trip, caps, reset
+const mem = {}, store = { getItem: (k) => mem[k] ?? null, setItem: (k, v) => { mem[k] = v; }, removeItem: (k) => { delete mem[k]; } };
+p = F.load(store);
+for (let i = 0; i < 600; i++) F.signal(p, "watch", mk(1000 + i, "Creator " + i, "Taco " + i + " review", 1), { now: NOW, seconds: 10 });
+F.save(p, store);
+const back = F.load(store);
+ok(Object.keys(back.f).length <= 300 && Object.keys(back.s).length <= 400 && mem[F.KEY].length < 120000, `storage capped: ${Object.keys(back.f).length} features, ${Object.keys(back.s).length} videos, ${(mem[F.KEY].length / 1024).toFixed(0)} KB`);
+F.reset(store);
+ok(!(F.KEY in mem) && Object.keys(F.load(store).f).length === 0, "reset: the profile is gone");
+console.log(JSON.stringify(out));
+"""
+src = open(os.path.join(HERE, "static", "foryou.js")).read()
+res = subprocess.run(["node", "-e", JS, os.path.join(HERE, "static", "foryou.js")], capture_output=True, text=True, timeout=60)
+if res.returncode:
+    print(res.stderr); sys.exit(1)
+checks = json.loads(res.stdout.strip().splitlines()[-1])
+checks.append([not any(w in src for w in ("fetch(", "XMLHttpRequest", "sendBeacon", "WebSocket", "navigator.sendBeacon", "import(")), "on-device only: foryou.js makes no network calls"])
+fails = 0
+for good, what in checks:
+    print(("  ok   " if good else "  FAIL ") + what); fails += not good
+print("ALL PASS" if not fails else f"{fails} FAIL(S)"); sys.exit(1 if fails else 0)

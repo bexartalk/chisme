@@ -9,9 +9,55 @@
       "instagram": "bootlegfoodreview",
       "youtube": null,
       "verified": "2026-09-29: TikTok @bootlegfoodreview (BootlegFoodReview, ~513K followers, bio: P.O. Box, San Antonio, TX 78223, linktr.ee/BootlegFoodReview); Instagram @bootlegfoodreview (Jason Longoria, ~126K followers, linked from his Linktree). No YouTube channel is linked anywhere of his; youtube.com/@bootlegfoodreview exists but has 0 uploads and no tie to him, so it is not used."
+    },
+    {
+      "handle": "eatmigos",
+      "name": "Eatmigos",
+      "person": "Chris Flores",
+      "city": "San Antonio",
+      "instagram": "eatmigos",
+      "youtube": "UCcRC7jl_YYqciUbzLh__WnA",
+      "verified": "2026-09-29: TikTok oEmbed author 'Texas Food & Lifestyle Creator' (@eatmigos); YouTube 'Eatmigos' (Chris Flores, San Antonio-based, 20.3K subs); Instagram Chris Flores | San Antonio-based Texas Food & Lifestyle Creator (@eatmigos), 122K."
+    },
+    {
+      "handle": "satexasfoodies",
+      "name": "Cherise SA Texas Food Guide",
+      "person": "Cherise Moreno",
+      "city": "San Antonio",
+      "instagram": "satexasfoodies",
+      "youtube": "UCr5gIcFnRxKTaDNrcfA8ZaA",
+      "verified": "2026-09-29: TikTok oEmbed author 'Cherise SA Texas Food Guide' (@satexasfoodies); same name as the YouTube channel already in Chisme; Instagram Cherise Moreno (@satexasfoodies), 218K."
+    },
+    {
+      "handle": "eldereats",
+      "name": "Elder Eats",
+      "person": "David Elder",
+      "city": "San Antonio",
+      "instagram": "eldereats",
+      "youtube": null,
+      "verified": "2026-09-29: TikTok oEmbed author 'David Elder | Elder Eats'; KSAT 12 host/executive producer of Texas Eats (ksat.com/team); Instagram David Elder (@eldereats), 153K. His own YouTube 'Elder Eats' (UCpYRm6eaznq9xZRUA1kaRHw) has no public uploads; his show is the Texas Eats channel already in Chisme."
+    },
+    {
+      "handle": "sanantoniomunchies",
+      "name": "San Antonio Munchies",
+      "person": "Alexis (Alex) Serna",
+      "city": "San Antonio",
+      "instagram": "sanantoniomunchies",
+      "youtube": null,
+      "verified": "2026-09-29: TikTok oEmbed author 'San Antonio Munchies 🍴'; Instagram ALEX SERNA🍴 (@sanantoniomunchies), 107K. No YouTube channel (youtube.com/@sanantoniomunchies is 404). Not the Munchies snack shop."
     }
   ],
   "videos": [
-    "https://www.tiktok.com/@bootlegfoodreview/video/7652897855673306382"
+    "https://www.tiktok.com/@bootlegfoodreview/video/7652897855673306382",
+    "https://www.tiktok.com/@eatmigos/video/7228355885179997483",
+    "https://www.tiktok.com/@eatmigos/video/7190150759017762091",
+    "https://www.tiktok.com/@satexasfoodies/video/7655381342229712142",
+    "https://www.tiktok.com/@satexasfoodies/video/7613225748924615967",
+    "https://www.tiktok.com/@satexasfoodies/video/7303340459986930986",
+    "https://www.tiktok.com/@eldereats/video/7131162335535926574",
+    "https://www.tiktok.com/@eldereats/video/7086291554075184430",
+    "https://www.tiktok.com/@sanantoniomunchies/video/7463498721045613867",
+    "https://www.tiktok.com/@sanantoniomunchies/video/7398918251016752415",
+    "https://www.tiktok.com/@sanantoniomunchies/video/7380013911715695903"
   ]
 }

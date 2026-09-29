@@ -1,7 +1,7 @@
 /* Chisme — frontend (location-aware) */
 // Build of this file. Must equal the number in sw.js VERSION ("chisme-v22"); the page compares it
 // with the build the HTML was served for and reloads once if an old cached app.js got mixed in.
-window.CHISME_APP_BUILD = "24";
+window.CHISME_APP_BUILD = "25";
 (() => {
   "use strict";
   const WEATHER_MS = 10 * 60 * 1000;
@@ -932,6 +932,7 @@ window.CHISME_APP_BUILD = "24";
     const had = isSaved(it.url);
     savedSpots = had ? savedSpots.filter((s) => s.url !== it.url) : [snapshot(it), ...savedSpots];
     if (!writeSaved()) { savedSpots = readSaved(); flash("Couldn't save — this phone's storage is full."); }
+    else if (it.video) fySignal(had ? "unsave" : "save", it);   // For You learns from saves (videos only)
     syncSaved();
   }
   function removeSaved(s) {
@@ -1096,6 +1097,7 @@ window.CHISME_APP_BUILD = "24";
   function openPlayer(raw, opener, opts = {}) {
     playerItem = { ...raw, raw, noSave: !!opts.noSave, source: raw.source || (raw.kind === "creator" ? raw.creator : [raw.outlet, raw.author].filter(Boolean).join(" · ")) };
     playerOpener = opener || document.activeElement;
+    if (!opts.noSave && vidOf(raw) && !(feed && feed.open)) fySignal("open", raw);   // opened from the strip / Saved spots
     renderPlayer();
     if (!player.open) player.showModal();
     player.scrollTop = 0; player.style.transform = "";
@@ -1131,6 +1133,225 @@ window.CHISME_APP_BUILD = "24";
     if (go) player.close();
   };
   player.addEventListener("touchend", endSheetDrag); player.addEventListener("touchcancel", endSheetDrag);
+  // ---------- ¿Cuál dieta? For You: a full-screen vertical feed (one video per screen, scroll-snap), ranked on this
+  // phone by static/foryou.js from what you watch, save and skip. Nothing is sent to the server.
+  const FY = window.ChismeForYou || null;
+  let fyProfile = FY ? FY.load() : null;
+  const fySignal = (kind, it, opts) => { if (!FY || !it || !it.url) return; fyProfile = FY.signal(FY.load(), kind, it, opts); FY.save(fyProfile); renderForYouCard(); };
+  const feed = $("#feed"), feedScroll = $("#feed-scroll");
+  let feedList = [], feedCur = -1, feedT0 = 0, feedMuted = true, feedPlaying = true, feedTimer = null, feedPushed = false, feedOpener = null;
+  const feedVideos = () => (foodData && foodData.items ? foodData.items.filter((i) => vidOf(i)) : []);
+  const canAutoplay = () => navigator.onLine && !reducedMotion() && !(navigator.connection && navigator.connection.saveData);
+  function renderForYouCard() {
+    const card = $("#foryou-card");
+    if (!card) return;
+    const vids = feedVideos();
+    card.hidden = !FY || !foodData || !!foodData.message;
+    if (card.hidden) return;
+    const sa = !foodData.metro || !!foodData.metro.in_sa;
+    $("#fy-sub").textContent = sa
+      ? "It learns what you crave. Swipe up for the next bite; every save and skip makes it smarter, right on your phone."
+      : "San Antonio's food creators, one video at a time, for your next trip to SA. It learns what you crave from what you watch, save and skip.";
+    const likes = FY.interests(fyProfile || FY.load(), 3);
+    $("#fy-meta").textContent = !vids.length ? "No videos in the feeds right now — check back soon."
+      : likes.length ? `Tuned to you: ${likes.join(", ")}. ${vids.length} videos ready.`
+      : `${vids.length} videos ready. No account, no tracking: it all stays on this phone.`;
+    $("#fy-start").disabled = !vids.length;
+  }
+  function ytCmd(frame, func, args = []) { try { frame.contentWindow.postMessage(JSON.stringify({ event: "command", func, args }), "*"); } catch {} }
+  function ttCmd(frame, type) { try { frame.contentWindow.postMessage({ "x-tiktok-player": true, type }, "*"); } catch {} }
+  function feedCommand(slide, what) {   // what: play | pause | mute | unmute
+    const f = slide && slide.querySelector(".vf-frame");
+    if (!f) return;
+    if (f.dataset.kind === "yt") ytCmd(f, { play: "playVideo", pause: "pauseVideo", mute: "mute", unmute: "unMute" }[what]);
+    else ttCmd(f, { play: "play", pause: "pause", mute: "mute", unmute: "unMute" }[what]);
+  }
+  function mountFrame(slide, it, autoplay) {
+    const v = vidOf(it), media = slide.querySelector(".vf-media");
+    media.querySelector(".vf-play")?.remove(); media.querySelector(".vf-off")?.remove();
+    if (!navigator.onLine) { media.append(el("p", { class: "vf-off", role: "status", text: "📡 You're offline — this video plays as soon as you're back." })); return; }
+    const mute = feedMuted ? 1 : 0, origin = encodeURIComponent(location.origin);
+    const src = v.tt
+      ? `https://www.tiktok.com/player/v1/${v.tt}?autoplay=${autoplay ? 1 : 0}&loop=1&rel=0&music_info=0&description=0&controls=0&play_button=0&volume_control=0&fullscreen_button=0&progress_bar=1`
+      : `https://www.youtube-nocookie.com/embed/${v.yt}?playsinline=1&rel=0&modestbranding=1&controls=0&loop=1&playlist=${v.yt}&autoplay=${autoplay ? 1 : 0}&mute=${mute}&enablejsapi=1&origin=${origin}`;
+    const f = el("iframe", { class: "vf-frame", src, title: (v.tt ? "TikTok video: " : "YouTube video: ") + it.title, "data-kind": v.tt ? "tt" : "yt",
+      allow: "autoplay; encrypted-media; picture-in-picture; fullscreen", allowfullscreen: "", referrerpolicy: "strict-origin-when-cross-origin" });
+    f.addEventListener("load", () => {
+      if (v.yt) try { f.contentWindow.postMessage(JSON.stringify({ event: "listening", id: 1, channel: "widget" }), "*"); } catch {}   // ask YouTube for state events
+      if (feedMuted) feedCommand(slide, "mute"); else feedCommand(slide, "unmute");
+      if (autoplay) feedCommand(slide, "play");
+    });
+    // the thumbnail stays on top until the player says it's playing (no black flash); after 5 s show the player anyway
+    slide.classList.add("vf-loading");
+    clearTimeout(slide._reveal);
+    slide._reveal = setTimeout(() => { if (slide.classList.contains("vf-loading")) { slide.classList.remove("vf-loading"); slide.classList.add("vf-tap"); } }, 5000);
+    media.append(f);
+    // the shield takes the touches so vertical swipes scroll the feed; a tap pauses/plays
+    const shield = el("button", { type: "button", class: "vf-shield", "aria-label": "Pause or play" }), st = el("span", { class: "vf-state", "aria-hidden": "true" });
+    shield.onclick = () => { if (slide.classList.contains("vf-tap") || slide.classList.contains("vf-loading")) { slide.classList.remove("vf-tap", "vf-loading"); feedPlaying = true; feedCommand(slide, "play"); fySignal("open", it); return; }
+      feedPlaying = !feedPlaying; feedCommand(slide, feedPlaying ? "play" : "pause"); st.textContent = feedPlaying ? "▶" : "❚❚"; st.classList.add("show"); setTimeout(() => st.classList.remove("show"), 700); };
+    media.append(shield, st);
+    feedPlaying = true;
+  }
+  addEventListener("message", (e) => {   // play-state events from the YouTube / TikTok players in the feed
+    if (!feed.open || !/youtube-nocookie\.com$|tiktok\.com$/.test(hostOf(e.origin))) return;
+    let d = e.data; if (typeof d === "string") { try { d = JSON.parse(d); } catch { return; } }
+    if (!d) return;
+    const state = d["x-tiktok-player"] ? (d.type === "onStateChange" ? d.value : null)
+      : d.event === "onStateChange" ? d.info : d.event === "infoDelivery" && d.info ? d.info.playerState : null;
+    if (state !== 1) return;   // 1 = playing (both players)
+    const s = [...document.querySelectorAll(".vf-frame")].find((f) => f.contentWindow === e.source)?.closest(".vf-slide");
+    if (s) { s.classList.remove("vf-loading", "vf-tap"); s.dataset.playing = "1"; }
+  });
+  function unmountFrame(slide) {
+    if (!slide) return;
+    clearTimeout(slide._reveal); slide.classList.remove("vf-loading", "vf-tap"); delete slide.dataset.playing;
+    slide.querySelectorAll(".vf-frame, .vf-shield, .vf-state, .vf-off").forEach((n) => n.remove());
+    const thumb = slide.querySelector(".vf-thumb"); if (thumb) thumb.hidden = false;
+    if (!slide.querySelector(".vf-play") && slide.dataset.url) addPlayButton(slide);
+  }
+  function addPlayButton(slide) {
+    const it = feedList.find((x) => x.item.url === slide.dataset.url)?.item;
+    if (!it) return;
+    const b = el("button", { type: "button", class: "vf-play" }, el("b", { text: "▶", "aria-hidden": "true" }), "Tap to play");
+    b.setAttribute("aria-label", "Play: " + it.title);
+    b.onclick = () => { fySignal("open", it); mountFrame(slide, it, true); slide.querySelector(".vf-shield")?.focus(); };
+    slide.querySelector(".vf-media").append(b);
+  }
+  function feedSlide(r, i) {
+    const it = r.item, v = vidOf(it), tall = !!(v.tt || isShort(it.url));
+    const saved = savedSpots.find((s) => s.url === it.url);
+    const p = saved ? saved.place : it.place ? cleanPlace({ ...it.place, guessed: it.place.guessed !== false }) : null;
+    const media = el("div", { class: "vf-media" });
+    if (it.image) {
+      const bg = el("img", { class: "vf-bg", src: it.image, alt: "", referrerpolicy: "no-referrer", loading: i < 2 ? "eager" : "lazy" });
+      const th = el("img", { class: "vf-thumb", src: it.image, alt: "", referrerpolicy: "no-referrer", loading: i < 2 ? "eager" : "lazy" });
+      bg.onerror = () => bg.remove(); th.onerror = () => th.remove();
+      media.append(bg, th);
+    }
+    const whyId = "why" + i;
+    const chip = el("button", { type: "button", class: "why-chip " + r.why.kind, "aria-expanded": "false", "aria-controls": whyId },
+      el("span", { "aria-hidden": "true", text: r.explore ? "🧭" : "✨" }), r.why.text);
+    chip.setAttribute("aria-label", "Why you're seeing this: " + r.why.text);
+    const more = el("p", { class: "why-more", id: whyId, hidden: "" ,
+      text: (r.explore ? "About 1 in 5 videos is something different, so your feed doesn't get stuck on one thing. " : "")
+        + "For You ranks these videos on this phone from what you watch, save and skip. Nothing leaves your phone; reset it anytime in Settings." });
+    chip.onclick = () => { const o = more.hidden; more.hidden = !o; chip.setAttribute("aria-expanded", String(o)); };
+    const by = [it.creator || it.source, v.tt ? "TikTok" : "YouTube"].filter(Boolean).join(" · ") + (it.published ? " · " + shortDate(it.published) : "");
+    const info = el("div", { class: "vf-info" }, chip, more, el("h3", { text: it.title }), el("p", { class: "vf-by", text: by }),
+      p ? el("p", { class: "vf-place" }, ...placeLine(p)) : null,
+      it.elsewhere ? el("p", { class: "vf-by", text: "A San Antonio spot" }) : null);
+    const rail = el("div", { class: "vf-rail" });
+    const sv = saveButton(saved || it); rail.append(sv);
+    if (p) {
+      const d = ext(mapsUrl(p, saved ? saved.city : it.elsewhere ? "San Antonio, TX" : [cityName(), loc.place && loc.place.state].filter(Boolean).join(", ")), "", "vf-dir");
+      d.replaceChildren(el("span", { class: "ic", "aria-hidden": "true", text: "📍" }), "Directions");
+      d.setAttribute("aria-label", `Directions to ${p.name || p.address} in Apple Maps`);
+      rail.append(d);
+    }
+    const ni = el("button", { type: "button", class: "vf-ni" }, el("span", { class: "ic", "aria-hidden": "true", text: "🙅" }), "Not for me");
+    ni.setAttribute("aria-label", "Not interested: " + it.title);
+    ni.onclick = () => notInterested(r);
+    const full = el("button", { type: "button", class: "vf-full" }, el("span", { class: "ic", "aria-hidden": "true", text: "⤢" }), "Details");
+    full.setAttribute("aria-label", "Open the full player: " + it.title);
+    full.onclick = () => { unmountFrame(slides()[feedCur]); openPlayer(it, full); };
+    rail.append(ni, full);
+    const slide = el("section", { class: "vf-slide" + (tall ? " tall" : ""), "data-url": it.url, "aria-roledescription": "video", "aria-label": `${i + 1} of ${feedList.length}: ${it.title}` }, media, info, rail);
+    return slide;
+  }
+  const slides = () => [...feedScroll.querySelectorAll(".vf-slide")];
+  function endSlide() {
+    const again = el("button", { type: "button", class: "fy-start" }, el("span", { "aria-hidden": "true", text: "↺" }), "Watch again from the top");
+    again.onclick = () => { feedScroll.scrollTo({ top: 0, behavior: "instant" }); };
+    const back = el("button", { type: "button", class: "feed-btn", text: "Back to ¿Cuál dieta?" });
+    back.onclick = () => closeFeed();
+    return el("section", { class: "vf-slide vf-end", "aria-label": "End of the feed" }, el("h3", { text: "¡Ya! You're all caught up." }),
+      el("p", { text: "Keep saving and skipping — the next batch of videos lines up around what you liked." }), again, back);
+  }
+  function finishCurrent(moving) {   // turn the time spent on the current video into a signal
+    const s = slides()[feedCur];
+    if (!s || !s.dataset.url || !feedT0) return;
+    const it = feedList.find((x) => x.item.url === s.dataset.url)?.item, secs = (Date.now() - feedT0) / 1000;
+    feedT0 = 0;
+    if (!it) return;
+    if (secs >= 3) fySignal("watch", it, { seconds: secs });
+    else if (moving && secs < 2) fySignal("skip", it);
+  }
+  function activate(i) {
+    const all = slides();
+    i = Math.max(0, Math.min(all.length - 1, i));
+    if (i === feedCur) return;
+    finishCurrent(true);
+    unmountFrame(all[feedCur]);
+    feedCur = i;
+    const s = all[i], r = s && feedList.find((x) => x.item.url === s.dataset.url);
+    $("#feed-pos").textContent = r ? `${feedList.indexOf(r) + 1} / ${feedList.length}` : "";
+    if (!r) return;
+    feedT0 = Date.now();
+    s.querySelector(".vf-play")?.remove();
+    if (canAutoplay()) mountFrame(s, r.item, true); else addPlayButton(s);
+  }
+  const nearest = () => Math.round(feedScroll.scrollTop / Math.max(1, feedScroll.clientHeight));
+  feedScroll.addEventListener("scroll", () => { clearTimeout(feedTimer); feedTimer = setTimeout(() => activate(nearest()), 140); }, { passive: true });
+  function notInterested(r) {
+    const s = slides().find((x) => x.dataset.url === r.item.url);
+    if (!s) return;
+    const idx = feedList.indexOf(r);
+    feedT0 = 0; fySignal("not_interested", r.item);
+    unmountFrame(s); const next = s.nextElementSibling; s.remove(); feedList.splice(idx, 1);
+    feedCur = -1; activate(nearest());
+    const toast = $("#feed-toast"), u = el("button", { type: "button", text: "Undo" });
+    u.onclick = () => {
+      fySignal("undo_not_interested", r.item);
+      feedList.splice(idx, 0, r); (next && next.isConnected ? next.before(s) : feedScroll.append(s)); s.querySelector(".vf-play")?.remove();
+      feedCur = -1; s.scrollIntoView({ behavior: "instant", block: "start" }); activate(slides().indexOf(s)); toast.replaceChildren();
+    };
+    toast.replaceChildren(el("span", { text: "Got it — fewer like this." }), u);
+    clearTimeout(notInterested.t); notInterested.t = setTimeout(() => toast.replaceChildren(), 6000);
+    (slides()[feedCur]?.querySelector(".vf-rail button") || $("#feed-close")).focus({ preventScroll: true });
+  }
+  function openFeed(opener) {
+    if (!FY) return;
+    const vids = feedVideos();
+    if (!vids.length) return;
+    fyProfile = FY.load();
+    feedList = FY.rank(fyProfile, vids);
+    feedOpener = opener || document.activeElement;
+    feedScroll.replaceChildren(...feedList.map(feedSlide), endSlide());
+    feedCur = -1; $("#feed-toast").replaceChildren();
+    document.documentElement.classList.add("feed-open");
+    if (!feed.open) feed.showModal();
+    if (!feedPushed) { history.pushState({ chismeFeed: 1 }, ""); feedPushed = true; }
+    feedScroll.scrollTop = 0; activate(0);
+    $("#feed-close").focus({ preventScroll: true });
+  }
+  function closeFeed(fromHistory) {
+    if (!feed.open) return;
+    finishCurrent(false); unmountFrame(slides()[feedCur]);
+    feedScroll.replaceChildren(); feedCur = -1;
+    feed.close(); document.documentElement.classList.remove("feed-open");
+    if (feedPushed) { feedPushed = false; if (!fromHistory && history.state && history.state.chismeFeed) history.back(); }
+    renderForYouCard();
+    if (feedOpener && feedOpener.isConnected) feedOpener.focus({ preventScroll: true });
+  }
+  addEventListener("popstate", () => { if (feed.open) { feedPushed = false; closeFeed(true); } });
+  feed.addEventListener("cancel", (e) => { e.preventDefault(); if (!player.open) closeFeed(); });   // Esc / iOS back gesture on the dialog
+  $("#feed-close").onclick = () => closeFeed();
+  $("#fy-start").onclick = (e) => openFeed(e.currentTarget);
+  $("#feed-sound").onclick = (e) => {
+    feedMuted = !feedMuted;
+    const b = e.currentTarget; b.setAttribute("aria-pressed", String(!feedMuted));
+    b.replaceChildren(el("span", { "aria-hidden": "true", text: feedMuted ? "🔇" : "🔊" }), feedMuted ? " Muted" : " Sound on");
+    const s = slides()[feedCur];
+    if (s && s.querySelector(".vf-frame")) feedCommand(s, feedMuted ? "mute" : "unmute");
+  };
+  feed.addEventListener("keydown", (e) => {
+    if (player.open || e.target.closest("input, textarea")) return;
+    const step = { ArrowDown: 1, PageDown: 1, j: 1, ArrowUp: -1, PageUp: -1, k: -1 }[e.key];
+    if (step) { e.preventDefault(); const t = slides()[Math.max(0, Math.min(slides().length - 1, nearest() + step))]; if (t) feedScroll.scrollTo({ top: t.offsetTop, behavior: reducedMotion() ? "instant" : "smooth" }); }
+  });
+  player.addEventListener("close", () => { if (feed.open && feedCur >= 0) { const s = slides()[feedCur]; feedCur = -1; if (s) { s.querySelector(".vf-play")?.remove(); activate(slides().indexOf(s)); } } });
+  addEventListener("online", () => { if (feed.open) { const i = feedCur; feedCur = -1; activate(i); } });
   function foodItem(it) {
     const open = (a) => openPlayer(it, a);
     const thumb = el("a", { class: "fr-thumb", href: it.url, tabindex: "-1", "aria-hidden": "true" });
@@ -1159,6 +1380,22 @@ window.CHISME_APP_BUILD = "24";
         el("p", { class: "fr-by" }, el("b", { text: [it.outlet, it.author].filter(Boolean).join(" · ") }), it.published ? " · " + shortDate(it.published) : "")),
       saveButton(it)), open);
   }
+  function renderCrew(list, sa) {   // profile link cards for every creator Chisme follows (Instagram-only ones included)
+    $("#food-crew").hidden = !list.length;
+    $("#food-crew-list").replaceChildren(...list.map((c) => {
+      const links = [];
+      if (c.youtube) links.push(ext(c.youtube, "▶ YouTube ↗", "crew-link"));
+      if (c.tiktok) links.push(ext("https://www.tiktok.com/@" + c.tiktok, "TikTok ↗", "crew-link"));
+      if (c.instagram) links.push(ext("https://www.instagram.com/" + c.instagram + "/", (c.youtube || c.tiktok ? "Instagram ↗" : "See their posts on Instagram ↗"), "crew-link" + (c.youtube || c.tiktok ? "" : " primary")));
+      for (const l of links) l.setAttribute("aria-label", `${l.textContent.replace(/[▶↗]/g, "").trim()}: ${c.name} (opens the app or site)`);
+      const handle = c.instagram || c.tiktok;
+      return el("li", { class: "crew" },
+        el("p", { class: "crew-name" }, el("b", { text: c.name }), handle ? el("span", { class: "crew-h", text: " @" + handle }) : ""),
+        el("p", { class: "crew-by", text: [c.person, sa ? null : c.city].filter(Boolean).join(" · ") }),
+        el("p", { class: "crew-uses" + (/only/i.test(c.uses || "") ? " ig" : ""), text: c.uses || "" }),
+        el("div", { class: "crew-links" }, ...links));
+    }));
+  }
   function renderFood() {
     const n = foodData;
     if (!n) return;
@@ -1185,7 +1422,8 @@ window.CHISME_APP_BUILD = "24";
     while (desk.length < 5 && queues.some((q) => q.length)) for (const q of queues) if (q.length && desk.length < 5) desk.push(q.shift());
     desk.sort((a, b) => (b.published || 0) - (a.published || 0));
     $("#food-outlets").replaceChildren(...(desk.length ? desk.map(deskItem) : [el("p", { class: "loading", text: "No new food coverage in the feeds right now." })]));
-    syncFoodView();
+    renderCrew(n.creators || [], sa);
+    syncFoodView(); renderForYouCard();
     $("#food-sources").replaceChildren(...(n.sources || []).map((f) => el("li", { class: f.ok ? "" : "bad" },
       ext(f.home, f.name), f.elsewhere && !(n.metro || {}).in_sa ? " (San Antonio creator)" : "", f.ok ? (f.platform === "tiktok" ? `: ${f.count} hand-picked TikTok${f.count === 1 ? "" : "s"}` : `: ${f.count} recent ${f.kind === "creator" ? "videos" : "stories"}`) : `: unavailable right now (${f.error})`)));
   }
@@ -1614,6 +1852,11 @@ window.CHISME_APP_BUILD = "24";
   };
   $("#set-gps").onclick = () => requestGPS(true);
   $("#set-refresh").onclick = () => { refreshNow(); $("#set-refresh-note").textContent = "Updating…"; };
+  $("#set-fy-reset").onclick = () => {
+    if (!FY) return;
+    fyProfile = FY.reset(); renderForYouCard();
+    $("#set-fy-note").textContent = "Done: your For You feed forgot everything and starts fresh.";
+  };
   $("#set-version").textContent = "· build " + window.CHISME_APP_BUILD;
 
   // ---------- boot + auto refresh
@@ -1753,7 +1996,7 @@ window.CHISME_APP_BUILD = "24";
     get ready() { return secs.weather.shownUrl === secs.weather.url() && secs.news.shownUrl === secs.news.url(); },
     get fresh() { return rendered.weather === q() && rendered.news === q(); },
     get newsReady() { return secs.news.shownUrl === secs.news.url(); }, get sportsReady() { return secs.sports.shownUrl === secs.sports.url(); }, get eventsReady() { return secs.events.shownUrl === secs.events.url(); }, get foodReady() { return !!foodData; },
-    get sync() { return { busy: [...Sync.busy], failed: [...Sync.failed.keys()], lastOk: Sync.lastOk }; }, refreshNow, get evCat() { return evCat; }, get view() { return VIEWS[cur]; }, goView,
+    get sync() { return { busy: [...Sync.busy], failed: [...Sync.failed.keys()], lastOk: Sync.lastOk }; }, refreshNow, get evCat() { return evCat; }, get view() { return VIEWS[cur]; }, goView, get forYou() { return { profile: FY && FY.load(), feed: feedList.map((r) => ({ url: r.item.url, title: r.item.title, creator: r.item.creator, why: r.why.text, explore: r.explore })), cur: feedCur, open: feed.open }; }, openFeed, closeFeed,
     get sportsReady() { return !!rendered.sports; }, get spLg() { return spLg; } };
   window.__chismeBooted = true;
 })();

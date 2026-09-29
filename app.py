@@ -1398,7 +1398,8 @@ FOOD_RX = re.compile(r"\b(food|foodie|tacos?|taquer[ií]a|bbq|barbecue|brisket|b
                      r"cook(ing)?|culinary|chef|beer|wine|tequila|mezcal|margaritas?|chili|pozole|tamales?|coffee|brew(ery|ing)?|"
                      r"bak(ery|ed)|pastr(y|ies)|croissants?|pizza|burgers?|dining|feast|eats?|restaurant|menu|dessert|"
                      r"cookies?|seafood|steak(house)?|smokehouse|cantina|caf[eé]|kitchen|torta|birria|barbacoa|"
-                     r"panader[ií]a|donuts?|ice cream|paleta|aguas? frescas|cocktails?|sushi|ramen|pho|buffet)\b", re.I)
+                     r"panader[ií]a|donuts?|ice cream|paleta|aguas? frescas|cocktails?|sushi|ramen|pho|buffet|crab(boil)?|crawfish|elotes?|"
+                     r"mariscos|antojitos?|mangonadas?|churros?|snacks?|wings|boba|raspas?|foodtok|foodtiktok|foodreview|soup)\b", re.I)
 FREE_TITLE_RX = re.compile(r"\bfree\b(?!\s*(with|w/|for members|parking|refills?|-\s*\$))", re.I)
 
 
@@ -1536,6 +1537,15 @@ FOOD_SOURCES = [
      "url": YT_FEED + "UCuluE-lMh--_7hyziZAvDvQ", "home": "https://www.youtube.com/channel/UCuluE-lMh--_7hyziZAvDvQ"},
     {"id": "yt-texaseats", "kind": "creator", "name": "Texas Eats", "sa_only": True,
      "url": YT_FEED + "UCsC3RShvhYxR9bTUfogm6pg", "home": "https://www.youtube.com/channel/UCsC3RShvhYxR9bTUfogm6pg"},
+    # added 2026-09-29 from the user's favorites (verified: see data/food_creators.json)
+    {"id": "yt-eatmigos", "kind": "creator", "name": "Eatmigos",   # Chris Flores, San Antonio; titles are just the spot's name
+     "url": YT_FEED + "UCcRC7jl_YYqciUbzLh__WnA", "home": "https://www.youtube.com/@eatmigos"},
+    {"id": "yt-fullnelson", "kind": "creator", "name": "Full Nelson Eats", "food_only": True,   # also posts tech ads and vlogs
+     "url": YT_FEED + "UCnPISg_Kx3fn62H1w1Enl1Q", "home": "https://www.youtube.com/@fullnelsoneats"},
+    {"id": "yt-porters", "kind": "creator", "name": "Porter's Food Reviews",
+     "url": YT_FEED + "UCQVETXoLaNtOMj8Bom9pUdg", "home": "https://www.youtube.com/@portersfoodreviews"},
+    {"id": "yt-siempre", "kind": "creator", "name": "Siempre San Antonio", "food_only": True,   # also city events and rides
+     "url": YT_FEED + "UCdxqYEScHFdNhUOqKBRkTXg", "home": "https://www.youtube.com/@siempre_sanantonio"},
     # local food desks
     {"id": "sacurrent-food", "kind": "outlet", "name": "San Antonio Current · Food & Drink",
      "url": "https://www.sacurrent.com/category/food-drink/feed/", "home": "https://www.sacurrent.com/food-drink/"},
@@ -1633,6 +1643,18 @@ async def _fetch_food(src: dict) -> list[dict]:
 # played with TikTok's official embed player (https://www.tiktok.com/player/v1/<id>). Nothing is scraped.
 TIKTOK_FILE = BASE / "data" / "food_tiktok.json"
 TT_VIDEO_RX = re.compile(r"^https://(?:www\.|m\.)?tiktok\.com/@([\w.]+)/video/(\d{15,20})\b")
+
+
+CREATORS_FILE = BASE / "data" / "food_creators.json"
+
+
+def food_creators() -> list[dict]:
+    """The San Antonio food creators Chisme follows (profile links for every platform they're verified on)."""
+    try:
+        return [{k: c.get(k) for k in ("name", "person", "city", "youtube", "tiktok", "instagram", "uses")}
+                for c in json.loads(CREATORS_FILE.read_text()).get("creators", []) if c.get("name")]
+    except Exception:
+        return []
 
 
 def tiktok_curated() -> dict:
@@ -1762,6 +1784,7 @@ async def build_food(lat: float, lon: float) -> dict:
     items.sort(key=lambda i: -(i["published"] or 0))
     info = metro_info(lat, lon, place)
     return {"generated": time.time(), "items": items, "days": FOOD_DAYS, "message": None, "metro": info, "city": info["city"],
+            "creators": food_creators(),
             "sources": [dict(st, elsewhere=src.get("elsewhere")) for (_, st), src in zip(res, sources)]}
 
 
