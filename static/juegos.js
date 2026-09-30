@@ -1,60 +1,16 @@
 /* Chisme · 🎲 Juegos: a list of small games that run entirely on the phone (offline, no outside requests).
    Add a game by pushing { id, name, emoji, blurb, mount(el, ctx) } onto GAMES; the tab lists them and mounts one.
-   Game 1: Lotería Chismosa, an original chisme-style lotería (our own 40 cards and art, not the traditional deck).
+   Game 1: Lotería Chismosa. v41: the 54 traditional cards and verses, called in Spanish, with our own original art
+   (static/loteria_cards.js); the UI around the game stays English.
    v40: the tab is called 🎲 Juegitos (the view id stays "juegos"); games play full screen in portrait (fullscreen() below). */
 (function (root) {
   "use strict";
   const KEY = "chisme-juegos";
   const FIESTA = ["#00b8b0", "#ff3d8b", "#ff8a00", "#111111", "#b9c0c7"];   // turquoise, pink, orange, black, silver
-  // Two cards have no good emoji, so they get small inline SVGs (Fiesta colors).
-  const SVG = {
-    tubos: '<svg viewBox="0 0 64 64" aria-hidden="true"><g stroke="#111" stroke-width="3"><rect x="6" y="14" width="16" height="36" rx="8" fill="#ff3d8b"/><rect x="24" y="10" width="16" height="40" rx="8" fill="#00b8b0"/><rect x="42" y="14" width="16" height="36" rx="8" fill="#ff8a00"/></g><g stroke="#fff" stroke-width="2" opacity=".8"><path d="M10 24h8M10 32h8M10 40h8M28 20h8M28 30h8M28 40h8M46 24h8M46 32h8M46 40h8"/></g></svg>',
-    concha: '<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M6 44c0-16 12-28 26-28s26 12 26 28z" fill="#ff3d8b" stroke="#111" stroke-width="3"/><path d="M6 44h52v6c0 3-2 5-5 5H11c-3 0-5-2-5-5z" fill="#e8b27a" stroke="#111" stroke-width="3"/><g stroke="#fff" stroke-width="2.5" fill="none" opacity=".9"><path d="M32 18v24M18 26l8 16M46 26l-8 16M11 36l12 6M53 36l-12 6"/></g></svg>',
-  };
-  // [name, art (emoji or SVG key), Tía's call line]
-  const CARDS = [
-    ["The Coffee", "☕", "To get you through the morning chisme."],
-    ["The Best Friend", "👩🏽", "She knows everything before the newspaper does."],
-    ["The Rollers", "svg:tubos", "Rollers still in, and already at the store."],
-    ["The Phone", "☎️", "Ring, ring… did you hear?"],
-    ["The Neighbor", "🪟", "Behind the curtain, always watching."],
-    ["The Gossip", "🤫", "I'll tell you, but you didn't hear it from me."],
-    ["The Flip-Flop", "🩴", "It flies without warning, and it never misses."],
-    ["The Sweet Bread", "svg:concha", "A sweet roll with coffee, and let's talk."],
-    ["The Soap Opera", "📺", "She fainted… and it was her twin!"],
-    ["The Snow Cone", "🍧", "With a little chili on top, for the heat."],
-    ["The Mariachi", "🎺", "Showed up singing, and nobody invited him."],
-    ["The Party", "🎉", "Everybody's invited, except the ex."],
-    ["The Taco", "🌮", "One is never enough."],
-    ["The Grandma", "👵🏽", "Did you eat yet? Let me fix you another plate."],
-    ["The Tamale", "🫔", "Wrapped up tight, like a family secret."],
-    ["The Piñata", "🪅", "Swing, swing, swing, and don't lose your aim."],
-    ["The Tortilla", "🫓", "Warm and fresh off the griddle."],
-    ["The Buddy", "🧔🏽", "Promised to help you move… and never showed up."],
-    ["The Nosy Cat", "🐈‍⬛", "Sees everything from the top of the fence."],
-    ["The Pickup Truck", "🛻", "Speakers you can hear three blocks away."],
-    ["The Dance", "💃🏽", "The music starts, and nobody stays sitting down."],
-    ["The Avocado", "🥑", "Pricier than the rent."],
-    ["The Flea Market", "🛍️", "Everything's two for five, honey."],
-    ["The Chili Pepper", "🌶️", "It stings, but with love."],
-    ["The Sweet Fifteen", "👑", "Six months of rehearsing the waltz."],
-    ["The Uncle", "🤠", "With his stories from thirty years ago."],
-    ["The Radio", "📻", "Same station as always, at full blast."],
-    ["The Ice Cream", "🍦", "From the little truck with the little song."],
-    ["The Sunday Soup", "🍲", "The cure for every Sunday morning."],
-    ["The Group Chat", "💬", "Two hundred messages and nobody knows anything."],
-    ["The Selfie", "🤳🏽", "One more, my eyes were closed."],
-    ["The Brother", "🤜🏽", "Always has your back."],
-    ["The Suitcase", "🧳", "Packed for the ranch this weekend."],
-    ["The Market", "🧺", "Where everybody hears everything first."],
-    ["The Candle", "🕯️", "So everything turns out all right."],
-    ["The Street Corn", "🌽", "With mayo, cheese and chili."],
-    ["The Speaker", "🔊", "Now the whole block knows."],
-    ["The Stew", "🥣", "For the big September party."],
-    ["The Corner Store", "🏪", "Put it on my tab till Friday, okay?"],
-    ["The Gossip Queen", "🗣️", "That's me, honey!"],
-  ].map(([name, art, call], i) => ({ id: i + 1, name, art, call, color: FIESTA[i % FIESTA.length] }));
-  // v39: everything in English except the word "Lotería" (said with a Spanish voice; see say())
+  // v41: the 54 traditional cards (names + folk verses) with our own original SVG art, from static/loteria_cards.js
+  const LC = typeof module === "object" && module.exports ? require("./loteria_cards.js") : root.ChismeLoteriaCards;
+  const CARDS = LC.CARDS, callText = LC.callText, LINES_ES = LC.LINES_ES;
+  // the UI text is English; what Tía says out loud (the calls, ¡Lotería!) is Spanish
   const BRAG = ["¡Lotería! I told you today was your day, honey.", "That's it! Not even the neighbor saw that coming.", "¡Lotería! I'm making you my official best friend.",
     "You won! I'm telling the group chat right now.", "What luck! Share your secret with me, okay?"];
   const TEASE_EARLY = "Oh honey, that card hasn't been called yet. No cheating at this table.";
@@ -131,8 +87,7 @@
   // ---- Lotería Chismosa UI ----
   const byId = (id) => CARDS[id - 1];
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-  const art = (c) => c.art.startsWith("svg:") ? SVG[c.art.slice(4)] : `<span class="lc-emo" aria-hidden="true">${c.art}</span>`;
-  const cardHTML = (c, cls = "") => `<span class="lcard ${cls}" style="--lc:${c.color}"><span class="lc-n">${c.id}</span>${art(c)}<span class="lc-name">${esc(c.name)}</span></span>`;
+  const cardHTML = (c, cls = "") => `<span class="lcard ${cls}" style="--lc:${c.tint}"><span class="lc-n">${c.id}</span><span class="lc-art">${c.svg}</span><span class="lc-name${c.name.length >= 12 ? " long" : ""}" lang="es">${esc(c.name)}</span></span>`;
 
   function mountLoteria(el, ctx) {
     const reduced = () => (ctx && ctx.reducedMotion ? ctx.reducedMotion() : matchMedia("(prefers-reduced-motion: reduce)").matches);
@@ -161,21 +116,18 @@
       onExit: () => { pause(); hush(); speak(started && !over ? "Game paused. Tap Resume when you're back, honey." : "Pull up a chair, honey! Tap Start and I'll start calling cards.", null); },
       onLeave: () => { pause(); } });
     const hasVoice = "speechSynthesis" in window && typeof SpeechSynthesisUtterance === "function";
-    // v39: Tía calls in English; only the word "Lotería" is said with a Spanish voice
-    let enVoice = null, esVoice = null;
+    // v41: every call is Spanish, in a Mexican-Spanish voice when the phone has one
+    let esVoice = null;
     const pickVoice = () => { if (!hasVoice) return; const vs = speechSynthesis.getVoices();
-      enVoice = vs.find((v) => /^en[-_]US/i.test(v.lang)) || vs.find((v) => /^en/i.test(v.lang)) || null;
       esVoice = vs.find((v) => /^es[-_]MX/i.test(v.lang)) || vs.find((v) => /^es[-_]US/i.test(v.lang)) || vs.find((v) => /^es/i.test(v.lang)) || null; };
     if (hasVoice) { pickVoice(); speechSynthesis.addEventListener && speechSynthesis.addEventListener("voiceschanged", pickVoice); }
     function say(text) {
       if (!hasVoice || st.muted) return;
       try {
         speechSynthesis.cancel();
-        for (const [t, lang] of voicePartsOf(text)) {
-          const u = new SpeechSynthesisUtterance(t), v = lang === "es" ? esVoice : enVoice;
-          u.lang = v ? v.lang : lang === "es" ? "es-MX" : "en-US"; if (v) u.voice = v; u.rate = st.speed === "fast" ? 1.15 : 1;
-          speechSynthesis.speak(u);
-        }
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = esVoice ? esVoice.lang : "es-MX"; if (esVoice) u.voice = esVoice; u.rate = st.speed === "fast" ? 1.1 : 0.95;
+        speechSynthesis.speak(u);
       } catch (e) {}
     }
     const hush = () => { if (hasVoice) try { speechSynthesis.cancel(); } catch (e) {} };
@@ -194,9 +146,9 @@
         return `<button type="button" class="lot-cell${m ? " marked" : ""}" data-i="${i}" aria-pressed="${m}" aria-label="${esc(c.name)}${m ? ", marked" : ""}">${cardHTML(c)}<span class="ficha" aria-hidden="true"></span></button>`; }).join("");
     }
     function history() { $("#lot-hist").innerHTML = [...called].reverse().slice(0, 12).map((id) => cardHTML(byId(id), "mini")).join(""); }
-    function speak(line, card) {
+    function speak(line, card, lang) {   // what's on screen: the called card + its verse (Spanish), or Tía's English asides
       $("#lot-card").innerHTML = card ? cardHTML(card, "big") : "";
-      $("#lot-line").textContent = line;
+      const l = $("#lot-line"); l.textContent = line; if (lang) l.setAttribute("lang", lang); else l.removeAttribute("lang");
     }
     function deal(first) {
       if (!first && started && !over && called.size) { st.streak = 0; st.played++; save(st); }
@@ -205,9 +157,9 @@
       if (!first) speak("New board, new luck. Tap Start when you're ready.", null);
     }
     function callNext() {
-      if (!deck.length) { over = true; stop(); st.streak = 0; st.played++; save(st); stats(); controls(); speak("The deck ran out! Nobody won this time… the next one's yours.", null); say("The deck ran out."); return; }
-      const c = byId(deck.shift()); called.add(c.id);
-      speak(c.call, c); say(`${c.name}. ${c.call}`); history(); controls();
+      if (!deck.length) { over = true; stop(); st.streak = 0; st.played++; save(st); stats(); controls(); speak("The deck ran out! Nobody won this time… the next one's yours.", null); say(LINES_ES.over); return; }
+      const first = !called.size, c = byId(deck.shift()); called.add(c.id);
+      speak(c.verse, c, "es"); say((first ? LINES_ES.intro + " " : "") + callText(c)); history(); controls();
     }
     function tick() { callNext(); if (running) timer = setTimeout(tick, SPEEDS[st.speed]); }
     function start() { if (over) { deal(true); } fs.enter(); started = true; running = true; controls(); clearTimeout(timer); tick(); }
@@ -228,10 +180,10 @@
         el.classList.add("won");
         const brag = BRAG[(st.wins - 1) % BRAG.length];
         speak(`${brag} (${r.line.kind === "corners" ? "the 4 corners" : r.line.kind === "row" ? "a row" : r.line.kind === "column" ? "a column" : "a diagonal"})`, null);
-        say(brag); stats(); controls(); confetti();
+        say(LINES_ES.loteria); stats(); controls(); confetti();
         return;
       }
-      speak(r.early.length ? TEASE_EARLY : TEASE_NOPE, null); say(r.early.length ? TEASE_EARLY : TEASE_NOPE);
+      speak(r.early.length ? TEASE_EARLY : TEASE_NOPE, null);
     }
     $("#lot-tabla").addEventListener("click", (e) => {
       const b = e.target.closest(".lot-cell"); if (!b || over) return;
@@ -279,9 +231,7 @@
       get game() { return active; }, get id() { return activeId; } };
   }
 
-  // "¡Lotería! I told you…" → [["Lotería", "es"], ["I told you…", "en"]]
-  const voicePartsOf = (text) => String(text).split(/(¡?Lotería!?)/).map((t) => t.trim()).filter(Boolean).map((t) => (/^¡?Lotería!?$/.test(t) ? ["Lotería", "es"] : [t, "en"]));
-  const api = { KEY, CARDS, GAMES, voicePartsOf, LINES, FIESTA, shuffle, newTabla, newDeck, check, load, save, reset, mountTab, fullscreen };
+  const api = { KEY, CARDS, GAMES, callText, LINES_ES, LINES, FIESTA, shuffle, newTabla, newDeck, check, load, save, reset, mountTab, fullscreen };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.ChismeJuegos = api;
 })(typeof window !== "undefined" ? window : this);

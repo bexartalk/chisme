@@ -953,20 +953,19 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
 .lot-tabla{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;padding:6px;background:#000;border-radius:12px;border:3px solid #c9d0d8}
 .lot-cell{position:relative;padding:0;border:0;background:none;border-radius:8px;min-width:0;cursor:pointer}
 .lot-cell:focus-visible{outline:4px solid var(--focus);outline-offset:1px}
-.lcard{display:flex;flex-direction:column;align-items:center;justify-content:space-between;aspect-ratio:3/4.2;background:#fff;color:#000;border-radius:7px;
-  border:3px solid var(--lc);box-shadow:inset 0 0 0 2px #fff,inset 0 0 0 4px #111;padding:3px 2px 2px;position:relative;overflow:hidden}
-.lcard::before{content:"";position:absolute;inset:4px 4px auto;height:58%;border-radius:4px;background:var(--lc);opacity:.4}
-.lc-n{position:absolute;top:4px;left:6px;font-size:.62rem;font-weight:900}
-.lc-emo,.lcard svg{position:relative;font-size:clamp(1.3rem,8vw,2.1rem);line-height:1.25;margin-top:.35em}
-.lcard svg{width:52%;height:auto}
-.lc-name{position:relative;font-size:clamp(.5rem,2.4vw,.72rem);font-weight:900;text-align:center;line-height:1.05;background:#111;color:#fff;border-radius:4px;padding:2px 3px;width:100%;
-  overflow-wrap:anywhere}
+/* v41: the 54 cards, original art (static/loteria_cards.js): number, the drawing on a tinted panel, the Spanish name */
+.lcard{container-type:inline-size;display:flex;flex-direction:column;gap:2px;aspect-ratio:3/4.2;box-sizing:border-box;background:#fff;color:#000;border-radius:7px;border:2px solid #111;padding:3px;position:relative;overflow:hidden}
+.lc-art{flex:1 1 0;min-height:0;display:flex;align-items:center;justify-content:center;background:var(--lc);border-radius:4px;box-shadow:inset 0 0 0 1.5px #111;overflow:hidden}
+.lc-art svg{display:block;width:100%;height:100%}
+.lc-n{position:absolute;top:4px;left:4px;z-index:1;font-size:.62rem;font-weight:900;line-height:1.25;background:#fff;border:1.5px solid #111;border-radius:4px;padding:0 3px}
+.lc-name{flex:none;font-size:clamp(5px,12.5cqw,15px);font-weight:900;text-align:center;line-height:1.1;background:#111;color:#fff;border-radius:4px;padding:2px 2px;
+  white-space:nowrap;overflow:hidden;text-overflow:clip;letter-spacing:-.01em}
+.lc-name.long{font-size:clamp(5px,10.5cqw,13px)}
+.lc-n{font-size:clamp(6px,11cqw,13px)}
 .lcard.big{width:74px;flex:none}
-.lcard.big .lc-emo{font-size:1.9rem}
-.lcard.mini{width:44px;flex:none;border-width:2px}
-.lcard.mini .lc-emo{font-size:1.05rem;margin-top:.5em}
-.lcard.mini .lc-name{font-size:.45rem}
-.lcard.mini .lc-n{font-size:.5rem;top:2px;left:4px}
+.lcard.mini{width:44px;flex:none;border-width:1.5px;padding:2px}
+.lcard.mini .lc-name{padding:1px 0}
+.lcard.mini .lc-n{top:2px;left:2px;border-width:1px;padding:0 2px}
 /* the ficha: a bean-colored token */
 .ficha{position:absolute;left:50%;top:44%;width:44%;aspect-ratio:1.25;transform:translate(-50%,-50%) scale(0);border-radius:50% 46% 52% 48%;
   background:radial-gradient(circle at 35% 30%,#d9a066,#8a4f22 60%,#5a3012);box-shadow:0 2px 0 rgba(0,0,0,.45);transition:transform .15s ease-out;pointer-events:none}
@@ -1049,7 +1048,6 @@ html.game-fs .track{transform:none!important;will-change:auto}   /* a transforme
 .gfs .lot-bubble{min-height:76px;padding:.45em .6em}
 .gfs .lot-line{font-size:.95rem}
 .gfs .lcard.big{width:60px}
-.gfs .lcard.big .lc-emo{font-size:1.6rem}
 .gfs .lot-count{flex:none;order:2;margin:.35em 0 .25em;text-align:center;color:#c9d0d8}
 .gfs .lot-fit{order:3;flex:1 1 0;min-height:0;container-type:size;display:flex;align-items:center;justify-content:center}
 .gfs .lot-tabla{width:min(100%,calc((100cqh - 33px) / 1.4 + 33px));box-sizing:border-box;margin:0 auto}
