@@ -732,6 +732,12 @@ html.feed-open,html.feed-open body{overflow:hidden}
 .vf-state{position:absolute;left:50%;top:50%;z-index:1;transform:translate(-50%,-50%);width:76px;height:76px;border-radius:50%;background:rgba(0,0,0,.55);
   display:flex;align-items:center;justify-content:center;font-size:2rem;opacity:0;transition:opacity .25s;pointer-events:none}
 .vf-state.show{opacity:1}
+.vf-state.hold{opacity:1;font-size:2.2rem}
+/* while a video plays the info (why chip, title, creator, spot, the rail) gets out of the way; a tap pauses and brings it back.
+   ‹ Back and 🔇/🔊 in the top bar always stay. Keyboard focus inside the info shows it too. */
+.vf-info,.vf-rail{transition:opacity .25s ease,visibility .25s}
+.vf-slide.vf-playing:not(:has(.vf-info :focus-visible,.vf-rail :focus-visible)) :is(.vf-info,.vf-rail){opacity:0;visibility:hidden}
+.reduce-motion .vf-info,.reduce-motion .vf-rail{transition:none}
 .vf-play{position:absolute;left:50%;top:44%;z-index:2;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:6px;
   min-width:120px;min-height:120px;padding:14px 16px;border:3px solid #fff;border-radius:24px;background:rgba(0,0,0,.6);color:#fff;font-weight:900;font-size:1rem}
 .vf-play b{font-size:2.4rem;line-height:1}

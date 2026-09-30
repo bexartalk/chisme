@@ -6,7 +6,7 @@ back close the feed; reduced motion → tap-to-play thumbnail; Settings → Rese
 labeled). v40: the feed is named "Bigger the Pansa, Better the Chansa" (banner, feed top bar, aria, Settings).
 Screens: dieta-foryou-banner.png, dieta-vertical-feed.png, dieta-why-chip.png, food-panza.png"""
 import re
-import asyncio, os, sys, json
+import asyncio, time, os, sys, json
 from playwright.async_api import async_playwright
 URL = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8211/"
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "screenshots")
@@ -18,6 +18,9 @@ PROF = "JSON.parse(localStorage.getItem('chisme-foryou') || 'null')"
 FEED = """() => { const s = document.querySelector('#feed-scroll'), sl = [...s.querySelectorAll('.vf-slide')];
   return { open: document.querySelector('#feed').open, cur: window.__chisme.forYou.cur, pos: document.querySelector('#feed-pos').textContent,
     frames: [...document.querySelectorAll('.vf-frame')].map(f => ({ slide: sl.indexOf(f.closest('.vf-slide')), src: f.src })),
+    playingUi: sl.map((x, i) => x.classList.contains('vf-playing') ? i : -1).filter(i => i >= 0), warm: sl.map((x, i) => x.dataset.warm ? i : -1).filter(i => i >= 0),
+    info: sl.length && window.__chisme.forYou.cur >= 0 ? (() => { const x = sl[window.__chisme.forYou.cur], a = x.querySelector('.vf-info'), r = x.querySelector('.vf-rail');
+      return a ? { info: getComputedStyle(a).visibility + ' ' + getComputedStyle(a).opacity, rail: getComputedStyle(r).visibility, paused: x.classList.contains('vf-paused') } : null; })() : null,
     h: s.clientHeight, vh: innerHeight, slideH: sl.length ? Math.round(sl[0].getBoundingClientRect().height) : 0, n: sl.length,
     snap: getComputedStyle(s).scrollSnapType, align: sl.length ? getComputedStyle(sl[0]).scrollSnapAlign : '', top: s.scrollTop } }"""
 
@@ -31,6 +34,19 @@ def own_error(m):
         return False
     return not re.search(r"tiktok|ttwstatic|byteimg|ibytedtos|youtube|ytimg|googlevideo", m.text, re.I)   # the players' own domains
 
+
+async def wait_frames(pg, slides_, ms=4000):   # the next players are warmed once the one on screen plays (or ≤ 1.2 s later)
+    try: await pg.wait_for_function("(w) => JSON.stringify([...document.querySelectorAll('.vf-frame')].map(f => [...document.querySelectorAll('#feed-scroll .vf-slide')].indexOf(f.closest('.vf-slide')))) === JSON.stringify(w)", arg=slides_, timeout=ms)
+    except Exception: pass
+
+async def show_info(pg, i):   # while a video plays its info + buttons are hidden; a tap on the video pauses it and brings them back
+    sel = f"#feed-scroll .vf-slide:nth-child({i + 1})"
+    for _ in range(2):
+        if not await pg.evaluate(f"document.querySelector('{sel}').classList.contains('vf-playing')"): break
+        await pg.tap(f"{sel} .vf-shield")
+        try: await pg.wait_for_function(f"getComputedStyle(document.querySelector('{sel} .vf-rail')).visibility === 'visible'", timeout=2000)
+        except Exception: pass
+    await pg.wait_for_timeout(300)
 
 async def go(pg, i):   # scroll the feed to slide i the way a snap scroll ends up
     await pg.evaluate("(i) => { const s = document.querySelector('#feed-scroll'); s.scrollTo({ top: i * s.clientHeight, behavior: 'instant' }); }", i)
@@ -73,12 +89,10 @@ async def wk(p):
     # 2. Start watching → full-screen vertical feed, one video per screen, first one autoplays muted
     cov = await pg.evaluate("({ tiles: [...document.querySelectorAll('#fy-cover .fy-tile-by')].map(e => e.textContent), next: document.querySelector('#fy-next').textContent, urls: __chisme.forYou.cover })")
     check(len(cov["tiles"]) == 3 and len(set(cov["tiles"])) == 3 and cov["next"].startswith("Up next:"), f"banner cover: 3 videos from 3 different creators ({cov['tiles']}; '{cov['next'][:90]}')")
-    await pg.tap("#fy-start"); await pg.wait_for_function("document.querySelector('#feed').open", timeout=5000); await pg.wait_for_timeout(700)
+    await pg.tap("#fy-start"); t_open = time.time(); await pg.wait_for_function("document.querySelector('#feed').open", timeout=5000); await pg.wait_for_timeout(700)
     f = await pg.evaluate(FEED)
     check(f["open"] and f["h"] == f["vh"] and f["slideH"] == f["vh"], f"feed fills the screen; each video is one screen tall ({f['slideH']} = {f['vh']} px)")
     check(f["snap"].startswith("y") and "mandatory" in f["snap"] and f["align"] == "start", f"scroll-snap: '{f['snap']}', slides snap to '{f['align']}'")
-    check(len(f["frames"]) == 1 and f["frames"][0]["slide"] == 0 and "autoplay=1" in f["frames"][0]["src"] and ("mute=1" in f["frames"][0]["src"] or "tiktok.com/player" in f["frames"][0]["src"]) and "playsinline=1" in f["frames"][0]["src"] + "playsinline=1",
-          f"first video: one muted, inline autoplay player ({f['frames'][0]['src'][:90] if f['frames'] else None})")
     n = f["n"] - 1
     check(f["pos"] == f"1 / {n}" and n >= 10, f"position '{f['pos']}' ({n} videos)")
     feed = (await pg.evaluate("window.__chisme.forYou"))["feed"]
@@ -92,16 +106,26 @@ async def wk(p):
     check(len(pl) == len(set(pl)), f"one video per restaurant ({len(pl)} videos with a known spot, no repeats)")
     lead0 = feed[0]["crew"]
     # 3. swipe on (keyboard ↓, then a snap scroll): the player moves with you, one at a time; a fast skip is recorded
-    await pg.keyboard.press("ArrowDown"); await pg.wait_for_function("window.__chisme.forYou.cur === 1", timeout=5000); await pg.wait_for_timeout(300)
+    await pg.keyboard.press("ArrowDown"); await pg.wait_for_function("window.__chisme.forYou.cur === 1", timeout=5000); await wait_frames(pg, [0, 1, 2, 3])
     f = await pg.evaluate(FEED)
-    check([x["slide"] for x in f["frames"]] == [1] and f["pos"] == f"2 / {n}", f"↓ next video: the player moved to video 2 and video 1 stopped ({[x['slide'] for x in f['frames']]})")
+    check([x["slide"] for x in f["frames"]] == [0, 1, 2, 3] and f["playingUi"] == [1] and f["pos"] == f"2 / {n}",
+          f"↓ next video: video 2 plays (it was preloaded), video 1 is paused and kept for a swipe back, video 4 is now preloaded ({[x['slide'] for x in f['frames']]})")
     prof = await pg.evaluate(PROF)
-    check(prof and (prof["s"].get(feed[0]["url"]) or {}).get("sk") == 1, "skip-fast (< 2 s) on video 1 is recorded on the phone")
-    await pg.wait_for_timeout(3600); await go(pg, 2)
+    check(prof and (prof["s"].get(feed[0]["url"]) or {}).get("sk") == 1, f"[{time.time() - t_open:.1f} s on video 1; {prof and prof['s'].get(feed[0]['url'])}] skip-fast (< 2 s) on video 1 is recorded on the phone")
+    await pg.tap("#feed-scroll .vf-slide:nth-child(2) .vf-shield"); await pg.wait_for_timeout(400)
+    f = await pg.evaluate(FEED)
+    check(f["info"]["paused"] and f["info"]["info"] == "visible 1" and f["info"]["rail"] == "visible" and f["playingUi"] == [], f"tap the video: it pauses and the info + buttons come back ({f['info']})")
+    await pg.tap("#feed-scroll .vf-slide:nth-child(2) .vf-shield"); await pg.wait_for_timeout(700)
+    f = await pg.evaluate(FEED)
+    check(not f["info"]["paused"] and f["info"]["info"].startswith("hidden") and f["playingUi"] == [1], f"tap again: it plays and the info hides ({f['info']}, {f['playingUi']})")
+    await pg.wait_for_timeout(3600); await go(pg, 2); await wait_frames(pg, [1, 2, 3, 4])
+    f = await pg.evaluate(FEED)
+    check([x["slide"] for x in f["frames"]] == [1, 2, 3, 4] and len(f["frames"]) <= 4, f"far-behind players are unloaded to save memory (players on {[x['slide'] for x in f['frames']]})")
     prof = await pg.evaluate(PROF)
     check((prof["s"].get(feed[1]["url"]) or {}).get("v", 0) >= 1, "watching video 2 for 3.6 s counts as a watch")
     # 4. overlay actions: Save, Not for me (+ Undo)
     s2 = "#feed-scroll .vf-slide:nth-child(3)"
+    await show_info(pg, 2)
     await pg.tap(f"{s2} .vf-rail .fr-save"); await pg.wait_for_timeout(300)
     sv = await pg.evaluate(f"({{ pressed: document.querySelector('{s2} .fr-save').getAttribute('aria-pressed'), n: document.querySelector('#n-saved').textContent }})")
     prof = await pg.evaluate(PROF)
@@ -111,12 +135,13 @@ async def wk(p):
     prof = await pg.evaluate(PROF)
     check(ni["gone"] and "fewer like this" in ni["toast"] and (prof["s"].get(feed[2]["url"]) or {}).get("ni") == 1, f"🙅 Not for me: the video is gone, '{ni['toast']}'")
     await pg.tap("#feed-toast button"); await pg.wait_for_timeout(500)
+    await show_info(pg, 2)
     back = await pg.evaluate(f"({{ back: !!document.querySelector('#feed-scroll .vf-slide[data-url=\"' + CSS.escape({json.dumps(feed[2]['url'])}) + '\"]'), cur: window.__chisme.forYou.cur }})")
     prof = await pg.evaluate(PROF)
     check(back["back"] and not (prof["s"].get(feed[2]["url"]) or {}).get("ni"), "Undo brings it back")
     has_dir = await pg.evaluate("[...document.querySelectorAll('#feed-scroll .vf-slide')].findIndex(s => s.querySelector('.vf-dir'))")
     if has_dir >= 0:
-        await go(pg, has_dir); await pg.wait_for_timeout(1400)
+        await go(pg, has_dir); await pg.wait_for_timeout(1400); await show_info(pg, has_dir)
         d = await pg.evaluate(f"(() => {{ const s = document.querySelectorAll('#feed-scroll .vf-slide')[{has_dir}], a = s.querySelector('.vf-dir'); return {{ href: a.href, place: s.querySelector('.vf-place')?.textContent }}; }})()")
         check(d["href"].startswith("https://maps.apple.com/?daddr=") and d["place"], f"📍 restaurant info + Directions on the video ({d['place'][:50]})")
         await pg.screenshot(path=os.path.join(OUT, "dieta-vertical-feed.png"))
@@ -129,6 +154,14 @@ async def wk(p):
     lead1 = await pg.evaluate("__chisme.forYou.coverCrews[0]")
     check(lead1 and lead1 != lead0, f"rotation: after closing, the banner cover leads with a different creator ({lead0} → {lead1})")
     await pg.tap("#fy-start"); await pg.wait_for_function("document.querySelector('#feed').open", timeout=5000); await pg.wait_for_timeout(700)
+    await wait_frames(pg, [0, 1, 2]); f = await pg.evaluate(FEED)
+    yt = [x["src"] for x in f["frames"] if "youtube" in x["src"]]
+    check([x["slide"] for x in f["frames"]] == [0, 1, 2] and all("autoplay=1" in x["src"] for x in f["frames"]) and all("mute=1" in u and "playsinline=1" in u for u in yt),
+          f"first video autoplays muted + inline, and the next 2 are preloaded (players on slides {[x['slide'] for x in f['frames']]}; {f['frames'][0]['src'][:80] if f['frames'] else None})")
+    check(f["playingUi"] == [0] and f["warm"] == [1, 2], f"only the video on screen plays; the preloaded ones wait (playing {f['playingUi']}, warm {f['warm']})")
+    check(f["info"] and f["info"]["info"].startswith("hidden") and f["info"]["rail"] == "hidden", f"while it plays, the title / creator / spot / buttons are hidden ({f['info']})")
+    tb = await pg.evaluate("[...document.querySelectorAll('#feed-close, #feed-sound')].map(b => { const r = b.getBoundingClientRect(), st = getComputedStyle(b); return st.visibility === 'visible' && +st.opacity > .9 && r.top >= 0 && r.height >= 44; })")
+    check(tb == [True, True], "‹ Back and 🔇 Muted stay on screen while it plays")
     fl = await pg.evaluate("""() => { const l = document.querySelector('.feed-label'), b = l.querySelector('b'), r = l.getBoundingClientRect(), back = document.querySelector('#feed-close').getBoundingClientRect(), snd = document.querySelector('#feed-sound').getBoundingClientRect();
       return { name: b.textContent, clear: r.left >= back.right - 1 && r.right <= snd.left + 1, fits: l.scrollWidth <= l.clientWidth + 1, h: Math.round(r.height) }; }""")
     check(fl["name"] == NAME and fl["clear"] and fl["fits"] and fl["h"] <= 60, f"feed top bar: '{fl['name']}' wraps/shrinks between ‹ Back and 🔇 Muted without overlapping ({fl['h']} px tall)")
@@ -154,7 +187,7 @@ async def wk(p):
     check(dish is not None, f"dish with ≥ 2 videos in today's feed: {dish and dish['label']} ({dish and len(dish['idx'])} videos)")
     if dish:
         for i in dish["idx"][:2]:
-            await go(pg, i); await pg.tap(f"#feed-scroll .vf-slide:nth-child({i + 1}) .vf-rail .fr-save"); await pg.wait_for_timeout(250)
+            await go(pg, i); await show_info(pg, i); await pg.tap(f"#feed-scroll .vf-slide:nth-child({i + 1}) .vf-rail .fr-save"); await pg.wait_for_timeout(250)
         await pg.tap("#feed-close"); await pg.wait_for_timeout(500)
         meta = await pg.text_content("#fy-meta")
         check(meta.startswith("Tuned to you:"), f"banner shows what it learned: '{meta}'")
@@ -166,7 +199,7 @@ async def wk(p):
         ex = [r for r in feed2 if r["explore"]]
         check(len(ex) == len(feed2) // 5 and all(r["why"].startswith("Something") for r in ex), f"exploration: {len(ex)} of {len(feed2)} videos (~20%), chip '{ex[0]['why'] if ex else ''}'")
         if hit >= 0:
-            await go(pg, hit); await pg.wait_for_timeout(1400)
+            await go(pg, hit); await pg.wait_for_timeout(1400); await show_info(pg, hit)
             sel = f"#feed-scroll .vf-slide:nth-child({hit + 1}) .why-chip"
             await pg.tap(sel); await pg.wait_for_timeout(300)
             exp = await pg.evaluate(f"({{ exp: document.querySelector('{sel}').getAttribute('aria-expanded'), more: document.querySelector('{sel}').nextElementSibling.textContent, label: document.querySelector('{sel}').getAttribute('aria-label') }})")
@@ -206,6 +239,11 @@ async def cr(p):   # a real finger swipe on the video itself scrolls to the next
         for i in range(1, 16):
             await cdp.send("Input.dispatchTouchEvent", {"type": "touchMove", "touchPoints": [{"x": 195, "y": y0 + dy * i / 15}]}); await pg.wait_for_timeout(16)
         await cdp.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
+    try: await pg.wait_for_function("[2, 3].every(i => { const s = document.querySelectorAll('#feed-scroll .vf-slide')[i - 1]; return s.dataset.warm === 'ready' && s._st === 2; })", timeout=15000)
+    except Exception: pass
+    w = await pg.evaluate("[...document.querySelectorAll('#feed-scroll .vf-slide')].slice(0, 4).map(s => [s.dataset.warm || '', s._st])")
+    check(w[1][0] == "ready" and w[2][0] == "ready" and w[1][1] == 2 and w[3][0] == "", f"Chromium preload: videos 2 and 3 are loaded, started muted and held paused on their first frame ({w})")
+    await pg.tap("#feed-sound"); await pg.wait_for_timeout(300)
     for want in (1, 2):
         under = await pg.evaluate("document.elementFromPoint(195, 380).className")
         await swipe(380, -450)
@@ -213,16 +251,24 @@ async def cr(p):   # a real finger swipe on the video itself scrolls to the next
         except Exception: pass
         await pg.wait_for_timeout(400)
         f = await pg.evaluate(FEED)
-        check(f["cur"] == want and f["top"] % f["h"] == 0 and [x["slide"] for x in f["frames"]] == [want],
-              f"Chromium: finger swipe up on the video ({under}) → video {want + 1}, snapped exactly (scrollTop {f['top']}), player moved along")
+        pl = await pg.evaluate("(w) => { const s = document.querySelectorAll('#feed-scroll .vf-slide')[w]; return { st: s._st, loading: s.classList.contains('vf-loading'), snd: document.querySelector('#feed-sound').textContent.trim() }; }", want)
+        check(pl["st"] == 1 and not pl["loading"] and pl["snd"] == "🔊 Sound on", f"Chromium: video {want + 1} is already playing 0.4 s after the swipe, no spinner, sound stays on ({pl})")
+        await wait_frames(pg, list(range(want - 1, want + 3))); f = await pg.evaluate(FEED)
+        check(f["cur"] == want and f["top"] % f["h"] == 0 and [x["slide"] for x in f["frames"]] == list(range(want - 1, want + 3)) and f["playingUi"] == [want],
+              f"Chromium: finger swipe up on the video ({under}) → video {want + 1}, snapped exactly (scrollTop {f['top']}), it plays; players on {[x['slide'] for x in f['frames']]}")
     await swipe(300, 450)
     try: await pg.wait_for_function("window.__chisme.forYou.cur === 1", timeout=5000)
     except Exception: pass
     check((await pg.evaluate(FEED))["cur"] == 1, "swipe down goes back a video")
     # a tap on the video pauses / plays (it doesn't open anything or scroll)
     await pg.wait_for_timeout(5200)
-    await pg.tap("#feed-scroll .vf-slide:nth-child(2) .vf-shield"); await pg.wait_for_timeout(200)
-    check((await pg.evaluate(FEED))["cur"] == 1 and await pg.evaluate("document.querySelector('#feed').open"), "a tap on the video toggles play/pause and stays put")
+    await pg.tap("#feed-scroll .vf-slide:nth-child(2) .vf-shield"); await pg.wait_for_timeout(600)
+    f = await pg.evaluate(FEED); st = await pg.evaluate("document.querySelectorAll('#feed-scroll .vf-slide')[1]._st")
+    check(f["cur"] == 1 and await pg.evaluate("document.querySelector('#feed').open") and f["info"]["paused"] and f["info"]["info"] == "visible 1" and st == 2,
+          f"a tap on the video pauses it (player state {st}), shows the info, and stays put")
+    await pg.tap("#feed-scroll .vf-slide:nth-child(2) .vf-shield"); await pg.wait_for_timeout(1200)
+    f = await pg.evaluate(FEED); st = await pg.evaluate("document.querySelectorAll('#feed-scroll .vf-slide')[1]._st")
+    check(st == 1 and f["info"]["info"].startswith("hidden"), f"tap again: playing (state {st}), info hidden")
     await b.close()
 
 async def main():
