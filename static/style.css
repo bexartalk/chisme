@@ -1083,3 +1083,10 @@ html.game-fs .track{transform:none!important;will-change:auto}   /* a transforme
 .ice-ov.clear .ice-big{font-size:1.2em}
 /* v40: on narrow phones the feed's long name gets its own centered row under ‹ Back / 🔇 Muted instead of a skinny column */
 @media (max-width:360px){ .feed-top{flex-wrap:wrap;row-gap:2px} .feed-label{order:3;flex-basis:100%} .feed-label b{display:inline} }
+/* v41: the feed's sound is on by default; when the browser holds it until a touch, a small hint sits under the top bar */
+#feed.sound-held .feed-top::after{content:"👆 Tap anywhere for sound";position:absolute;right:10px;top:calc(100% + 6px);padding:.3em .75em;border-radius:999px;
+  background:#ff3d8b;color:#fff;font-weight:900;font-size:.85rem;border:2px solid #fff;box-shadow:0 2px 0 #000;pointer-events:none;animation:held-pulse 1.6s ease-in-out infinite}
+@keyframes held-pulse{50%{transform:scale(1.05)}}
+.reduce-motion #feed.sound-held .feed-top::after{animation:none}
+@media (prefers-reduced-motion:reduce){ #feed.sound-held .feed-top::after{animation:none} }
+

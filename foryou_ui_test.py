@@ -4,7 +4,9 @@ overlaid Save / Directions / Not for me / Details; signals (skip-fast, watch, sa
 localStorage; the 'Why you're seeing this' chip learns ("Because you saved 2 … spots"); Back button and the browser's
 back close the feed; reduced motion → tap-to-play thumbnail; Settings → Reset my feed; creator cards (Instagram-only
 labeled). v40: the feed is named "Bigger the Pansa, Better the Chansa" (banner, feed top bar, aria, Settings).
-Screens: dieta-foryou-banner.png, dieta-vertical-feed.png, dieta-why-chip.png, food-panza.png"""
+v41: sound is ON by default (remembered; 🔇 Muted turns it off). The video on screen tries sound first; when the browser refuses
+(Chrome without a tap, iPhone Safari), it plays muted with a "Tap anywhere for sound" hint, and the first tap in the feed unmutes it.
+Screens: dieta-foryou-banner.png, dieta-vertical-feed.png, dieta-why-chip.png, food-panza.png, food-sound.png, food-sound-held.png"""
 import re
 import asyncio, time, os, sys, json
 from playwright.async_api import async_playwright
@@ -55,7 +57,7 @@ async def go(pg, i):   # scroll the feed to slide i the way a snap scroll ends u
 async def wk(p):
     b = await p.webkit.launch()
     dev = dict(p.devices["iPhone 13"]); dev.pop("default_browser_type", None)
-    ctx = await b.new_context(**dev); await ctx.add_init_script(INIT % "")
+    ctx = await b.new_context(**dev); await ctx.add_init_script(INIT % "localStorage.setItem('chisme-feed-sound','off');")   # v41: this run is muted (sound() tests the default)
     pg = await ctx.new_page(); errs = []
     # WebKit: an embedded player torn down mid-call (far-behind players are unloaded) can throw "Context is stopped" from inside
     # its own frame; it's only the app's if the stack points into Chisme's code
@@ -167,7 +169,7 @@ async def wk(p):
     await wait_frames(pg, [0, 1, 2]); f = await pg.evaluate(FEED)
     yt = [x["src"] for x in f["frames"] if "youtube" in x["src"]]
     check([x["slide"] for x in f["frames"]] == [0, 1, 2] and all("autoplay=1" in x["src"] for x in f["frames"]) and all("mute=1" in u and "playsinline=1" in u for u in yt),
-          f"first video autoplays muted + inline, and the next 2 are preloaded (players on slides {[x['slide'] for x in f['frames']]}; {f['frames'][0]['src'][:80] if f['frames'] else None})")
+          f"(🔇 Muted chosen) first video autoplays muted + inline, and the next 2 are preloaded (players on slides {[x['slide'] for x in f['frames']]}; {f['frames'][0]['src'][:80] if f['frames'] else None})")
     check(f["playingUi"] == [0] and f["warm"] == [1, 2], f"only the video on screen plays; the preloaded ones wait (playing {f['playingUi']}, warm {f['warm']})")
     check(f["info"] and f["info"]["info"].startswith("hidden") and f["info"]["rail"] == "hidden", f"while it plays, the title / creator / spot / buttons are hidden ({f['info']})")
     tb = await pg.evaluate("[...document.querySelectorAll('#feed-close, #feed-sound')].map(b => { const r = b.getBoundingClientRect(), st = getComputedStyle(b); return st.visibility === 'visible' && +st.opacity > .9 && r.top >= 0 && r.height >= 44; })")
@@ -258,7 +260,7 @@ async def cr(p):   # a real finger swipe on the video itself scrolls to the next
     except Exception: pass
     w = await pg.evaluate("[...document.querySelectorAll('#feed-scroll .vf-slide')].slice(0, 4).map(s => [s.dataset.warm || '', s._st])")
     check(w[1][0] == "ready" and w[2][0] == "ready" and w[1][1] == 2 and w[3][0] == "", f"Chromium preload: videos 2 and 3 are loaded, started muted and held paused on their first frame ({w})")
-    await pg.tap("#feed-sound"); await pg.wait_for_timeout(300)
+    check(await pg.evaluate("document.querySelector('#feed-sound').textContent.trim()") == "🔊 Sound on", "Chromium (autoplay allowed): sound is on by default")
     for want in (1, 2):
         under = await pg.evaluate("document.elementFromPoint(195, 380).className")
         await swipe(380, -450)
@@ -286,8 +288,69 @@ async def cr(p):   # a real finger swipe on the video itself scrolls to the next
     check(st == 1 and f["info"]["info"].startswith("hidden"), f"tap again: playing (state {st}), info hidden")
     await b.close()
 
+SND = """() => { const f = window.__chisme.forYou, s = document.querySelectorAll('#feed-scroll .vf-slide')[f.cur], fr = s && s.querySelector('.vf-frame'), b = document.querySelector('#feed-sound'), h = getComputedStyle(document.querySelector('#feed .feed-top'), '::after');
+  return { ...f.sound, btn: b.textContent.trim(), pressed: b.getAttribute('aria-pressed'), label: b.getAttribute('aria-label'), src: fr ? fr.src : '', yt: !!fr && fr.dataset.kind === 'yt', st: s && s._st, ytMuted: s && s._ytMuted,
+    playing: !!s && s.classList.contains('vf-playing'), hint: h.content, pref: localStorage.getItem('chisme-feed-sound') }; }"""
+async def sound(p):
+    print("\n== v41: sound on by default")
+    # Chrome with its normal autoplay rule (sound needs a tap on the page); the feed opened without a tap, like a browser that says no
+    b = await p.chromium.launch(executable_path="/usr/bin/google-chrome", args=["--no-sandbox", "--autoplay-policy=document-user-activation-required"])
+    ctx = await b.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True, device_scale_factor=1)
+    await ctx.add_init_script(INIT % ""); pg = await ctx.new_page(); errs = []
+    pg.on("console", lambda m: errs.append(m.text[:160]) if own_error(m) else None)
+    await pg.goto(URL + "#cual-dieta")
+    await pg.wait_for_function("() => window.__chisme && window.__chisme.foodReady && !document.querySelector('#foryou-card').hidden", timeout=90000)
+    await pg.evaluate("window.__chisme.openFeed(null, 0)")
+    s0 = await pg.evaluate(SND)
+    check(s0["wanted"] and s0["pref"] is None and (not s0["yt"] or "mute=0" in s0["src"]), f"nothing chosen yet: sound is wanted, and the video on screen tries to start WITH sound ({s0['src'][:40]}… mute=0: {'mute=0' in s0['src']})")
+    try: await pg.wait_for_function("window.__chisme.forYou.sound.held", timeout=12000)
+    except Exception: pass
+    await pg.wait_for_timeout(1500)
+    s1 = await pg.evaluate(SND)
+    if s1["held"]:
+        check(s1["btn"] == "🔇 Muted" and "Tap anywhere for sound" in s1["hint"] and s1["st"] == 1, f"Chrome refused sound without a tap: it plays muted, the button says 🔇 Muted, and a 'Tap anywhere for sound' hint shows ({ {k: s1[k] for k in ('held', 'btn', 'st', 'ytMuted')} })")
+        await pg.screenshot(path=os.path.join(OUT, "food-sound-held.png"))
+        await pg.tap(f"#feed-scroll .vf-slide:nth-child({await pg.evaluate('window.__chisme.forYou.cur') + 1}) .vf-shield"); await pg.wait_for_timeout(2500)
+        s2 = await pg.evaluate(SND)
+        check(s2["unlocks"] == 1 and not s2["held"] and s2["btn"] == "🔊 Sound on" and s2["playing"] and s2["st"] == 1, f"the first tap in the feed turns the sound on (and doesn't pause the video) ({ {k: s2[k] for k in ('unlocks', 'btn', 'st', 'playing')} })")
+    else:   # this Chrome let it start with sound right away
+        s2 = s1
+        check(s1["btn"] == "🔊 Sound on" and s1["st"] == 1 and s1["playing"] and not s1["hint"].startswith('"'), f"Chrome allowed sound without a tap: it plays with sound, 🔊 Sound on, no hint ({ {k: s1[k] for k in ('btn', 'st', 'ytMuted')} })")
+    check(not s2["yt"] or s2["ytMuted"] is False, f"…YouTube itself reports it isn't muted (muted={s2['ytMuted']})")
+    await pg.wait_for_timeout(1000); await pg.screenshot(path=os.path.join(OUT, "food-sound.png"))
+    await pg.tap("#feed-sound"); await pg.wait_for_timeout(400)
+    s3 = await pg.evaluate(SND)
+    check(s3["btn"] == "🔇 Muted" and s3["pref"] == "off" and not s3["held"], "🔇 Muted turns it off and remembers it")
+    await pg.tap("#feed-close"); await pg.wait_for_timeout(500); await pg.tap("#fy-start"); await pg.wait_for_function("document.querySelector('#feed').open", timeout=5000); await pg.wait_for_timeout(800)
+    s4 = await pg.evaluate(SND)
+    check(s4["btn"] == "🔇 Muted" and not s4["wanted"] and (not s4["yt"] or "mute=1" in s4["src"]), f"reopened: still muted, the video starts muted ({s4['btn']})")
+    await pg.tap("#feed-sound"); await pg.wait_for_timeout(1500)
+    s5 = await pg.evaluate(SND)
+    check(s5["btn"] == "🔊 Sound on" and s5["pref"] == "on", "tap it again: 🔊 Sound on (remembered)")
+    check(not errs, f"no errors from Chisme ({errs[:2]})")
+    await b.close()
+    # iPhone (WebKit): the default, opened with a real tap; what the browser does with sound is reported, and a tap in the feed brings it
+    b = await p.webkit.launch(); dev = dict(p.devices["iPhone 13"]); dev.pop("default_browser_type", None)
+    ctx = await b.new_context(**dev); await ctx.add_init_script(INIT % ""); pg = await ctx.new_page()
+    await pg.goto(URL + "#cual-dieta")
+    await pg.wait_for_function("() => window.__chisme && window.__chisme.foodReady && !document.querySelector('#foryou-card').hidden", timeout=90000)
+    await pg.tap("#fy-start"); await pg.wait_for_function("document.querySelector('#feed').open", timeout=5000); await pg.wait_for_timeout(5000)
+    w1 = await pg.evaluate(SND)
+    check(w1["wanted"] and w1["btn"] in ("🔊 Sound on", "🔇 Muted") and (w1["btn"] == "🔊 Sound on") == (not w1["held"]), f"WebKit iPhone: sound wanted by default; the button tells the truth ({w1['btn']}, held by the browser: {w1['held']}, state {w1['st']})")
+    if w1["held"]:
+        check("Tap anywhere for sound" in w1["hint"] and w1["st"] == 1, f"WebKit iPhone refused sound without a tap on the player: it plays muted with the 'Tap anywhere for sound' hint (state {w1['st']})")
+        await pg.screenshot(path=os.path.join(OUT, "food-sound-held.png"))
+        await pg.tap(f"#feed-scroll .vf-slide:nth-child({await pg.evaluate('window.__chisme.forYou.cur') + 1}) .vf-shield"); await pg.wait_for_timeout(2500)
+        w2 = await pg.evaluate(SND)
+        check(w2["unlocks"] == 1 and w2["btn"] == "🔊 Sound on" and w2["playing"] and w2["st"] == 1 and not w2["held"], f"WebKit iPhone: the first tap in the feed sends unMute and it keeps playing ({ {k: w2[k] for k in ('btn', 'st', 'playing', 'ytMuted')} })")
+        await pg.wait_for_timeout(3000); w3 = await pg.evaluate(SND)
+        print(f"    (WebKit after the tap, 3 s later: state {w3['st']}, YouTube muted={w3['ytMuted']}, held={w3['held']})")
+    await b.close()
+
 async def main():
     async with async_playwright() as p:
-        await wk(p); await cr(p)
+        only = os.environ.get("FY_ONLY")   # e.g. FY_ONLY=sound
+        for name, fn in (("wk", wk), ("cr", cr), ("sound", sound)):
+            if not only or only == name: await fn(p)
     print("ALL PASS" if not fails else f"{len(fails)} FAIL(S)"); sys.exit(1 if fails else 0)
 asyncio.run(main())

@@ -1469,7 +1469,12 @@ window.CHISME_APP_BUILD = "41";
   // PRELOAD_AHEAD players are created ahead of time and warmed: started muted and held on their first frame, so a swipe
   // lands on a video that's ready. The one you just left stays (paused) for a quick swipe back; farther ones are unloaded.
   const PRELOAD_AHEAD = 2, KEEP_BEHIND = 1, PREFETCH_AHEAD = 3;
-  let soundWanted = false;   // you turned 🔊 on: every next video tries sound too
+  // v41: sound is ON by default (🔇 Muted turns it off, remembered on this phone). Each video on screen first tries to play
+  // with sound; if the browser won't allow sound without a tap (iPhone Safari), it plays muted and the very first tap or
+  // swipe anywhere in the feed turns the sound on (unMute sent to the player right inside that touch).
+  const FEED_SOUND_KEY = "chisme-feed-sound";
+  let soundWanted = lsGet(FEED_SOUND_KEY) !== "off";
+  let feedUnlocks = 0;
   function ytCmd(frame, func, args = []) { try { frame.contentWindow.postMessage(JSON.stringify({ event: "command", func, args }), "*"); } catch {} }
   function ttCmd(frame, type, value) { try { frame.contentWindow.postMessage({ "x-tiktok-player": true, type, value }, "*"); } catch {} }
   function feedCommand(slide, what) {   // what: play | pause | mute | unmute | rewind
@@ -1499,16 +1504,19 @@ window.CHISME_APP_BUILD = "41";
     if (slide.querySelector(".vf-frame")) return;
     media.querySelector(".vf-play")?.remove();
     const origin = encodeURIComponent(location.origin);
+    // the one on screen tries sound first (YouTube starts unmuted); preloaded ones always start muted
+    const loud = mode === "play" && soundWanted && !slide._soundBlocked;
+    slide._loud = loud;
     const src = v.tt
       ? `https://www.tiktok.com/player/v1/${v.tt}?autoplay=1&loop=1&rel=0&music_info=0&description=0&controls=0&play_button=0&volume_control=0&fullscreen_button=0&progress_bar=1`
-      : `https://www.youtube-nocookie.com/embed/${v.yt}?playsinline=1&rel=0&modestbranding=1&controls=0&loop=1&playlist=${v.yt}&autoplay=1&mute=1&enablejsapi=1&origin=${origin}`;
+      : `https://www.youtube-nocookie.com/embed/${v.yt}?playsinline=1&rel=0&modestbranding=1&controls=0&loop=1&playlist=${v.yt}&autoplay=1&mute=${loud ? 0 : 1}&enablejsapi=1&origin=${origin}`;
     const f = el("iframe", { class: "vf-frame", src, title: (v.tt ? "TikTok video: " : "YouTube video: ") + it.title, "data-kind": v.tt ? "tt" : "yt",
       allow: "autoplay; encrypted-media; picture-in-picture; fullscreen", allowfullscreen: "", referrerpolicy: "strict-origin-when-cross-origin" });
     if (mode === "warm") { f.tabIndex = -1; slide.dataset.warm = "1"; }
     f.addEventListener("load", () => {
       if (v.yt) try { f.contentWindow.postMessage(JSON.stringify({ event: "listening", id: 1, channel: "widget" }), "*"); } catch {}   // ask YouTube for state events
-      feedCommand(slide, "mute");
-      if (isCur(slide) && feedPlaying) feedCommand(slide, "play");
+      feedCommand(slide, slide._loud && isCur(slide) ? "unmute" : "mute");
+      if (isCur(slide) && feedPlaying) { feedCommand(slide, "play"); if (slide._loud) { slide._triedSound = Date.now(); watchLoud(slide); } }
     });
     slide.classList.add("vf-loading");
     media.append(f);
@@ -1525,6 +1533,27 @@ window.CHISME_APP_BUILD = "41";
     media.append(shield, st);
     if (mode === "play") armReveal(slide);
   }
+  // an unmuted start that doesn't get going within 2.5 s was refused by the browser: play muted, wait for a touch
+  function watchLoud(s) {
+    clearTimeout(s._loudT);
+    // (not playing at all, or YouTube played it but muted itself because the browser said no to sound)
+    s._loudT = setTimeout(() => { if (isCur(s) && feedPlaying && soundWanted && !s._soundBlocked && (s._st !== 1 || s._ytMuted === true)) soundBlocked(s); }, 2500);
+  }
+  function soundBlocked(s) {
+    s._soundBlocked = true; s._loud = false; feedCommand(s, "mute"); feedCommand(s, "play"); updateSoundBtn();
+  }
+  // the first real touch in the feed (a tap, or the finger lifting after a swipe) turns the sound on for the video on screen
+  function unlockSound(e) {
+    const s = slides()[feedCur], onShield = !!(e.target.closest && e.target.closest(".vf-shield"));
+    // the click that follows the unlocking touch is part of the same tap: it doesn't also pause the video
+    if (e.type === "click" && onShield && s && s._unlockAt && Date.now() - s._unlockAt < 900) { s._unlockAt = 0; e.stopPropagation(); e.preventDefault(); return; }
+    if (!feed.open || !soundWanted || !s || !s._soundBlocked) return;
+    if (e.target.closest && e.target.closest("#feed-sound")) return;   // the button does it itself
+    s._soundBlocked = false; s._triedSound = Date.now(); s._unlockAt = e.type === "click" ? 0 : Date.now(); feedUnlocks++;
+    feedPlaying = true; feedCommand(s, "unmute"); feedCommand(s, "play"); setUi(s, true); updateSoundBtn();
+    if (e.type === "click" && onShield) { e.stopPropagation(); e.preventDefault(); }   // that tap means "sound", not "pause"
+  }
+  for (const t of ["touchend", "pointerup", "click", "keydown"]) feed.addEventListener(t, unlockSound, true);
   function onPlayerState(s, state) {
     s._st = state;
     const now = Date.now();
@@ -1533,16 +1562,21 @@ window.CHISME_APP_BUILD = "41";
       if (!isCur(s)) { feedCommand(s, "pause"); s.dataset.warm = "ready"; return; }   // preloaded: hold it on its first frame (rewound when it comes on)
       if (!feedPlaying) { feedCommand(s, "pause"); return; }
       setUi(s, true); warmSoon(0);   // the one on screen is playing: now warm up the next ones
+      clearTimeout(s._loudT);
       if (soundWanted && !s._soundBlocked && !s._triedSound) { s._triedSound = now; feedCommand(s, "unmute"); }
-    } else if (state === 2 && isCur(s) && feedPlaying && soundWanted && s._triedSound && now - s._triedSound < 2500) {
+    } else if (state === 2 && isCur(s) && feedPlaying && soundWanted && !s._soundBlocked && s._triedSound && now - s._triedSound < 2500) {
       // the browser stopped it as soon as sound went on (iPhone Safari does this without a tap): back to muted, keep playing
-      s._soundBlocked = true; feedCommand(s, "mute"); feedCommand(s, "play"); updateSoundBtn();
+      soundBlocked(s);
     }
   }
   addEventListener("message", (e) => {   // play-state events from the YouTube / TikTok players in the feed
     if (!feed.open || !/youtube-nocookie\.com$|tiktok\.com$/.test(hostOf(e.origin))) return;
     let d = e.data; if (typeof d === "string") { try { d = JSON.parse(d); } catch { return; } }
     if (!d) return;
+    if (d.event === "infoDelivery" && d.info && typeof d.info.muted === "boolean") {   // YouTube tells us if it's really muted
+      const ms = [...document.querySelectorAll(".vf-frame")].find((f) => f.contentWindow === e.source)?.closest(".vf-slide");
+      if (ms) ms._ytMuted = d.info.muted;
+    }
     const state = d["x-tiktok-player"] ? (d.type === "onStateChange" ? d.value : null)
       : d.event === "onStateChange" ? d.info : d.event === "infoDelivery" && d.info && "playerState" in d.info ? d.info.playerState : null;
     if (state == null) return;
@@ -1552,7 +1586,7 @@ window.CHISME_APP_BUILD = "41";
   function unmountFrame(slide) {
     if (!slide) return;
     clearTimeout(slide._reveal); slide.classList.remove("vf-loading", "vf-tap", "vf-playing", "vf-paused");
-    delete slide.dataset.playing; delete slide.dataset.warm; slide._st = null; slide._triedSound = 0; slide._soundBlocked = false;
+    delete slide.dataset.playing; delete slide.dataset.warm; slide._st = null; slide._triedSound = 0; slide._soundBlocked = false; slide._loud = false; clearTimeout(slide._loudT);
     slide.querySelectorAll(".vf-frame, .vf-shield, .vf-state, .vf-off").forEach((n) => n.remove());
     const thumb = slide.querySelector(".vf-thumb"); if (thumb) thumb.hidden = false;
     if (!slide.querySelector(".vf-play") && slide.dataset.url) addPlayButton(slide);
@@ -1638,8 +1672,9 @@ window.CHISME_APP_BUILD = "41";
     else {
       f.tabIndex = 0; s.querySelector(".vf-shield")?.removeAttribute("tabindex");
       if (!s.dataset.playing) { s.classList.add("vf-loading"); armReveal(s); }   // a warmed player is already on its first frame: no spinner
-      feedCommand(s, "mute"); feedCommand(s, "rewind"); feedCommand(s, "play");
-      if (s._st === 1 && soundWanted) { s._triedSound = Date.now(); feedCommand(s, "unmute"); }
+      feedCommand(s, "rewind");
+      if (soundWanted) { s._triedSound = Date.now(); feedCommand(s, "unmute"); feedCommand(s, "play"); watchLoud(s); }   // a warmed player: try it with sound
+      else { feedCommand(s, "mute"); feedCommand(s, "play"); }
     }
     setUi(s, true); updateSoundBtn();
   }
@@ -1726,18 +1761,22 @@ window.CHISME_APP_BUILD = "41";
   feed.addEventListener("cancel", (e) => { e.preventDefault(); if (!player.open) closeFeed(); });   // Esc / iOS back gesture on the dialog
   $("#feed-close").onclick = () => closeFeed();
   $("#fy-start").onclick = (e) => openFeed(e.currentTarget, 0);
+  // the button says what you hear: 🔊 Sound on, or 🔇 Muted (you muted it, or the browser is holding the sound until you
+  // touch the feed, then a small "tap anywhere for sound" hint shows under it)
   function updateSoundBtn() {
     const b = $("#feed-sound"), s = slides()[feedCur], blocked = soundWanted && !!(s && s._soundBlocked);
     feedMuted = !soundWanted || blocked;
     b.setAttribute("aria-pressed", String(!feedMuted));
-    b.replaceChildren(el("span", { "aria-hidden": "true", text: feedMuted ? "🔇" : "🔊" }), blocked ? " Tap for sound" : feedMuted ? " Muted" : " Sound on");
+    b.setAttribute("aria-label", blocked ? "Muted: tap anywhere in the feed for sound" : feedMuted ? "Muted: tap for sound" : "Sound on: tap to mute");
+    b.replaceChildren(el("span", { "aria-hidden": "true", text: feedMuted ? "🔇" : "🔊" }), feedMuted ? " Muted" : " Sound on");
+    feed.classList.toggle("sound-held", blocked);
   }
   $("#feed-sound").onclick = () => {   // a real tap: the one moment every browser lets sound start
     const s = slides()[feedCur];
-    if (soundWanted && s && s._soundBlocked) { s._soundBlocked = false; s._triedSound = 0; feedCommand(s, "unmute"); feedCommand(s, "play"); }
+    if (soundWanted && s && s._soundBlocked) { s._soundBlocked = false; s._triedSound = Date.now(); feedUnlocks++; feedCommand(s, "unmute"); feedCommand(s, "play"); }
     else {
-      soundWanted = !soundWanted;
-      if (s) { s._triedSound = soundWanted ? Date.now() : 0; s._soundBlocked = false; feedCommand(s, soundWanted ? "unmute" : "mute"); }
+      soundWanted = !soundWanted; lsSet(FEED_SOUND_KEY, soundWanted ? "on" : "off");
+      if (s) { s._triedSound = soundWanted ? Date.now() : 0; s._soundBlocked = false; feedCommand(s, soundWanted ? "unmute" : "mute"); if (soundWanted) feedCommand(s, "play"); }
     }
     updateSoundBtn();
   };
@@ -2746,7 +2785,7 @@ window.CHISME_APP_BUILD = "41";
     get ready() { return secs.weather.shownUrl === secs.weather.url() && secs.news.shownUrl === secs.news.url(); },
     get fresh() { return rendered.weather === q() && rendered.news === q(); },
     get newsReady() { return secs.news.shownUrl === secs.news.url(); }, get sportsReady() { return secs.sports.shownUrl === secs.sports.url(); }, get eventsReady() { return secs.events.shownUrl === secs.events.url(); }, get foodReady() { return !!foodData; },
-    get sync() { return { busy: [...Sync.busy], failed: [...Sync.failed.keys()], lastOk: Sync.lastOk }; }, refreshNow, get evCat() { return evCat; }, get view() { return VIEWS[cur]; }, radarColor: (r, g, b) => radarColor(r, g, b), get donateMid() { const c = document.getElementById("donate-mid"); return { opens: midLaunch.opens, line: midLaunch.line, tab: midTab, where: midWhere, placed: !!(c && c.isConnected), dismissed: midGone() }; }, goView, get juegos() { return juegosOpen(); }, get forYou() { return { profile: FY && FY.load(), feed: feedList.map((r) => ({ url: r.item.url, title: r.item.title, creator: r.item.creator, crew: r.crew, place: r.place, why: r.why.text, explore: r.explore, recipe: !!r.item.recipe })), cur: feedCur, open: feed.open, cover: fyList.slice(0, 3).map((r) => r.item.url), coverCrews: fyList.slice(0, 3).map((r) => r.crew) }; }, openFeed, closeFeed,
+    get sync() { return { busy: [...Sync.busy], failed: [...Sync.failed.keys()], lastOk: Sync.lastOk }; }, refreshNow, get evCat() { return evCat; }, get view() { return VIEWS[cur]; }, radarColor: (r, g, b) => radarColor(r, g, b), get donateMid() { const c = document.getElementById("donate-mid"); return { opens: midLaunch.opens, line: midLaunch.line, tab: midTab, where: midWhere, placed: !!(c && c.isConnected), dismissed: midGone() }; }, goView, get juegos() { return juegosOpen(); }, get forYou() { return { profile: FY && FY.load(), feed: feedList.map((r) => ({ url: r.item.url, title: r.item.title, creator: r.item.creator, crew: r.crew, place: r.place, why: r.why.text, explore: r.explore, recipe: !!r.item.recipe })), cur: feedCur, open: feed.open, sound: { wanted: soundWanted, muted: feedMuted, unlocks: feedUnlocks, held: feed.classList.contains("sound-held") }, cover: fyList.slice(0, 3).map((r) => r.item.url), coverCrews: fyList.slice(0, 3).map((r) => r.crew) }; }, openFeed, closeFeed,
     get sportsReady() { return !!rendered.sports; }, get spLg() { return spLg; } };
   window.__chismeBooted = true;
 })();
