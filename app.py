@@ -1778,6 +1778,51 @@ def food_sources_for(metro: dict | None, place: dict) -> list[dict]:
     return out
 
 
+# --- cooking & recipe videos (data/recipe_videos.json), mixed into the Bigger the Pansa, Better the Chansa feed.
+# Hand-picked, public YouTube Shorts from many cooks; every id was checked (oEmbed + playableInEmbed) before it was
+# added. They play in YouTube's own embed player. Once a day each id is re-checked with YouTube's official oEmbed
+# endpoint: 404 (gone / private) or 401/403 (embedding turned off) drops it; if YouTube can't be reached it stays.
+RECIPES_FILE = BASE / "data" / "recipe_videos.json"
+YT_ID_RX = re.compile(r"^[\w-]{11}$")
+
+
+def recipe_list() -> list[dict]:
+    try:
+        return [v for v in json.loads(RECIPES_FILE.read_text()).get("videos", []) if YT_ID_RX.match(v.get("id") or "") and v.get("creator")]
+    except Exception:
+        return []
+
+
+async def _yt_oembed_code(vid: str) -> int:
+    r = await client().get("https://www.youtube.com/oembed", params={"url": f"https://www.youtube.com/watch?v={vid}", "format": "json"})
+    return r.status_code
+
+
+async def recipe_items() -> list[dict]:
+    vids = recipe_list()
+    sem = asyncio.Semaphore(8)
+
+    async def ok(v):
+        async with sem:
+            try:
+                code = await cached("ytoembed:" + v["id"], 24 * 3600, lambda: _yt_oembed_code(v["id"]))
+            except Exception:
+                return True   # YouTube unreachable: keep it (it was checked by hand)
+            return code == 200 or code >= 500 or code == 429
+    keep = await asyncio.gather(*(ok(v) for v in vids))
+    out = []
+    for v, k in zip(vids, keep):
+        if not k:
+            continue
+        creator = clean_text(v["creator"], 80)
+        out.append({"title": clean_text(v.get("title") or "", 200) or f"A recipe from {creator}", "url": f"https://www.youtube.com/shorts/{v['id']}",
+                    "creator": creator, "outlet": creator, "author": None, "kind": "recipe", "recipe": True, "topic": v.get("topic"),
+                    "platform": "youtube", "video": True, "published": None, "summary": "", "source_id": "recipes",
+                    "image": f"https://i.ytimg.com/vi/{v['id']}/hqdefault.jpg", "channel": v.get("channel_url"), "place": None,
+                    "crew": "cook:" + (v.get("channel_id") or creator).lower()})
+    return out
+
+
 async def build_food(lat: float, lon: float) -> dict:
     try:
         place = dict(await get_place(lat, lon))
@@ -1823,7 +1868,11 @@ async def build_food(lat: float, lon: float) -> dict:
             base = it["creator"].split(" · ")[0].lower()
             it["crew"] = crews.get(base, base)
     info = metro_info(lat, lon, place)
-    return {"generated": time.time(), "items": items, "days": FOOD_DAYS, "message": None, "metro": info, "city": info["city"],
+    try:
+        recipes = await cached("recipes:" + hashlib.sha1(RECIPES_FILE.read_bytes()).hexdigest()[:10], 3600, recipe_items)
+    except Exception:
+        recipes = []
+    return {"generated": time.time(), "items": items, "recipes": recipes, "days": FOOD_DAYS, "message": None, "metro": info, "city": info["city"],
             "creators": food_creators(),
             "sources": [dict(st, elsewhere=src.get("elsewhere")) for (_, st), src in zip(res, sources)]}
 

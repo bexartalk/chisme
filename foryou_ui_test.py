@@ -104,6 +104,9 @@ async def wk(p):
     check(max(top10.count(c) for c in top10) <= 2 and not any(feed[i]["crew"] == feed[i - 1]["crew"] for i in range(1, len(feed))), "no creator more than 2× in the top 10, never the same creator twice in a row")
     pl = [r["place"] for r in feed if r["place"]]
     check(len(pl) == len(set(pl)), f"one video per restaurant ({len(pl)} videos with a known spot, no repeats)")
+    rec = [i for i, r in enumerate(feed) if r["recipe"]]
+    check(len(rec) >= 40 and len({feed[i]["crew"] for i in rec}) >= 35 and all(feed[i]["recipe"] == (i % 3 == 2) for i in range(30)),
+          f"cooking / recipe videos mixed in: {len(rec)} from {len({feed[i]['crew'] for i in rec})} cooks, every 3rd video ({''.join('R' if r['recipe'] else '·' for r in feed[:15])}; {', '.join(feed[i]['title'][:22] for i in rec[:3])})")
     lead0 = feed[0]["crew"]
     # 3. swipe on (keyboard ↓, then a snap scroll): the player moves with you, one at a time; a fast skip is recorded
     await pg.keyboard.press("ArrowDown"); await pg.wait_for_function("window.__chisme.forYou.cur === 1", timeout=5000); await wait_frames(pg, [0, 1, 2, 3])
@@ -121,6 +124,10 @@ async def wk(p):
     await pg.wait_for_timeout(3600); await go(pg, 2); await wait_frames(pg, [1, 2, 3, 4])
     f = await pg.evaluate(FEED)
     check([x["slide"] for x in f["frames"]] == [1, 2, 3, 4] and len(f["frames"]) <= 4, f"far-behind players are unloaded to save memory (players on {[x['slide'] for x in f['frames']]})")
+    rs = await pg.evaluate("""(u) => { const s = document.querySelectorAll('#feed-scroll .vf-slide')[2], f = s.querySelector('.vf-frame'), id = (u.match(/shorts\\/([\\w-]{11})/) || [])[1];
+      return { tag: s.querySelector('.vf-recipe')?.textContent, dir: !!s.querySelector('.vf-dir'), inApp: !!f && f.src.startsWith('https://www.youtube-nocookie.com/embed/' + id + '?'), tall: s.classList.contains('tall'), why: s.querySelector('.why-chip').textContent }; }""", feed[2]["url"])
+    check(feed[2]["recipe"] and rs["tag"] == "🍳 Recipe · cook it at home" and not rs["dir"] and rs["inApp"] and rs["tall"] and rs["why"].startswith("✨Cook it at home: "),
+          f"video 3 is a recipe: plays in the app (YouTube embed, full height), '{rs['tag']}', chip '{rs['why']}', no Directions")
     prof = await pg.evaluate(PROF)
     check((prof["s"].get(feed[1]["url"]) or {}).get("v", 0) >= 1, "watching video 2 for 3.6 s counts as a watch")
     # 4. overlay actions: Save, Not for me (+ Undo)

@@ -172,6 +172,30 @@ ok(JSON.stringify(F.rank(fan, V, { now: NOW, seed: 3, rot: 2 }).map((x) => x.ite
 // tiny feeds relax the rules instead of dropping videos
 const solo = [0, 1, 2].map((i) => ({ url: "https://www.tiktok.com/@a/video/" + i, title: "Solo " + i, creator: "Solo", published: ts(i), video: true }));
 ok(F.rank(fresh, solo, { now: NOW }).length === 3, "one creator only: all 3 videos still play (rules relax)");
+// 6. RECIPES: cooking videos from many cooks are mixed in (every 3rd video), and the variety rules still hold
+const R = [];
+const dishes = ["spaghetti", "birria tacos", "enchiladas", "brownies", "one pot dinner", "flan", "guacamole", "kitchen hack"];
+for (let i = 0; i < 45; i++) R.push({ url: "https://www.youtube.com/shorts/r" + i, title: `How to make ${dishes[i % dishes.length]} ${i}`, creator: "Cook " + (i % 40),
+  crew: "cook:" + (i % 40), video: true, kind: "recipe", recipe: true, published: null, place: null });
+const M = V.concat(R);
+const mixed = F.rank(fresh, M, { now: NOW, seed: 3, rot: 0 });
+const isR = (x) => F.isRecipe(x.item);
+ok(mixed.length === V.length - 3 + R.length, `recipes: all ${R.length} cooking videos are in the feed (${mixed.length} videos)`);
+ok(mixed.slice(0, 30).every((x, i) => isR(x) === (i % 3 === 2)), "recipes: every 3rd video is a cooking video (slots 3, 6, 9 …): " + mixed.slice(0, 12).map((x) => (isR(x) ? "R" : "·")).join(""));
+ok(new Set(mixed.slice(0, 9).map((x) => x.crew)).size === 9, "recipes: the first 9 are still 9 different creators: " + mixed.slice(0, 9).map((x) => x.item.creator.split(" ")[0]).join(", "));
+const mcrews = new Set(M.map((x) => x.crew)), maxIn10 = Math.max(...[...mcrews].map((c) => mixed.slice(0, 10).filter((x) => x.crew === c).length));
+ok(maxIn10 <= 2 && !backToBack(mixed, "crew") && !backToBack(mixed, "place") && !placeRepeat(mixed, 15), `recipes: caps + no creator/restaurant back-to-back + no spot twice in the top 15 (max ${maxIn10} per creator in the top 10)`);
+ok(/^Cook it at home: Cook /.test(mixed[2].why.text), "recipes: why chip '" + mixed[2].why.text + "'");
+const mleads = [...Array(6).keys()].map((k) => F.rank(fresh, M, { now: NOW, seed: 3, rot: k })[0]);
+ok(new Set(mleads.map((x) => x.crew)).size === 6 && mleads.every((x) => !isR(x)), "recipes: a local creator still leads, and a different one each visit (" + mleads.map((x) => x.crew.slice(0, 8)).join(", ") + ")");
+const cook3 = [...Array(6).keys()].map((k) => F.rank(fresh, M, { now: NOW, seed: 3, rot: k })[2].crew);
+ok(new Set(cook3).size === 6, "recipes: the first cooking video comes from a different cook each visit");
+const tacoFan = F.load({ getItem: () => null });
+R.filter((x) => /tacos/.test(x.title)).slice(0, 3).forEach((x) => F.signal(tacoFan, "save", x, { now: NOW }));
+const tf = F.rank(tacoFan, M, { now: NOW, seed: 3, rot: 0 });
+ok(tf.filter(isR).slice(0, 3).some((x) => /tacos/.test(x.item.title)) && tf.slice(0, 30).filter(isR).length === 10, "recipes: saved taco recipes → taco recipes come sooner, still 1 in 3 (" + tf.slice(0, 30).filter(isR).length + " of the first 30)");
+const fewR = F.rank(fresh, V.concat(R.slice(0, 2)), { now: NOW, seed: 3, rot: 0 });
+ok(fewR.length === V.length - 3 + 2 && fewR.filter(isR).length === 2, "recipes: with only 2 cooking videos, the rest of the feed is local videos (rule relaxes)");
 console.log(JSON.stringify(out));
 """
 src = open(os.path.join(HERE, "static", "foryou.js")).read()

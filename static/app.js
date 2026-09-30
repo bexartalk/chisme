@@ -1416,7 +1416,8 @@ window.CHISME_APP_BUILD = "40";
   const fySignal = (kind, it, opts) => { if (!FY || !it || !it.url) return; fyProfile = FY.signal(FY.load(), kind, it, opts); FY.save(fyProfile); renderForYouCard(); };
   const feed = $("#feed"), feedScroll = $("#feed-scroll");
   let feedList = [], feedCur = -1, feedT0 = 0, feedMuted = true, feedPlaying = true, feedTimer = null, feedPushed = false, feedOpener = null;
-  const feedVideos = () => (foodData && foodData.items ? foodData.items.filter((i) => vidOf(i)) : []);
+  // the local creators' videos + cooking / recipe videos from many cooks (the ranker mixes them: every 3rd is a recipe)
+  const feedVideos = () => (foodData && foodData.items ? foodData.items.concat(foodData.recipes || []).filter((i) => vidOf(i)) : []);
   const canAutoplay = () => navigator.onLine && !reducedMotion() && !(navigator.connection && navigator.connection.saveData);
   // Rotation: every visit (and every time you close the feed) a different creator leads, and the one who led
   // last time never leads again. The banner cover and the feed come from the same ranked list, so they match.
@@ -1431,7 +1432,7 @@ window.CHISME_APP_BUILD = "40";
     const top = fyList.slice(0, 3);
     cover.replaceChildren(...top.map((r, i) => {
       const t = el("span", { class: "fy-tile" });
-      if (r.item.image) { const im = el("img", { src: r.item.image, alt: "", referrerpolicy: "no-referrer", loading: "eager" }); im.onerror = () => im.remove(); t.append(im); }
+      if (r.item.image && navigator.onLine) { const im = el("img", { src: r.item.image, alt: "", referrerpolicy: "no-referrer", loading: "eager" }); im.onerror = () => im.remove(); t.append(im); }
       t.append(el("span", { class: "fy-tile-by", text: r.item.creator || r.item.source || "" }));
       t.onclick = () => openFeed($("#fy-start"), i);
       return t;
@@ -1449,8 +1450,8 @@ window.CHISME_APP_BUILD = "40";
     if (card.hidden) return;
     const sa = !foodData.metro || !!foodData.metro.in_sa;
     $("#fy-sub").textContent = sa
-      ? "It learns what you crave. Swipe up for the next bite; every save and skip makes it smarter, right on your phone."
-      : "San Antonio's food creators, one video at a time, for your next trip to SA. It learns what you crave from what you watch, save and skip.";
+      ? "SA's food spots plus easy recipes to cook at home. Swipe up for the next bite; every save and skip makes it smarter, right on your phone."
+      : "San Antonio's food creators plus easy recipes to cook at home, one video at a time. It learns what you crave from what you watch, save and skip.";
     if (!feed.open) {
       fyList = vids.length ? fyRank() : [];
       if (fyList[0]) lsSet("chisme-foryou-lead", fyList[0].crew);   // next visit leads with someone else
@@ -1586,6 +1587,7 @@ window.CHISME_APP_BUILD = "40";
     const by = [it.creator || it.source, v.tt ? "TikTok" : "YouTube"].filter(Boolean).join(" · ") + (it.published ? " · " + shortDate(it.published) : "");
     const info = el("div", { class: "vf-info" }, chip, more, el("h3", { text: it.title }), el("p", { class: "vf-by", text: by }),
       p ? el("p", { class: "vf-place" }, ...placeLine(p)) : null,
+      it.recipe ? el("p", { class: "vf-place vf-recipe" }, el("span", { "aria-hidden": "true", text: "🍳 " }), "Recipe · cook it at home") : null,
       it.elsewhere ? el("p", { class: "vf-by", text: "A San Antonio spot" }) : null);
     const rail = el("div", { class: "vf-rail" });
     const sv = saveButton(saved || it); rail.append(sv);
@@ -2739,7 +2741,7 @@ window.CHISME_APP_BUILD = "40";
     get ready() { return secs.weather.shownUrl === secs.weather.url() && secs.news.shownUrl === secs.news.url(); },
     get fresh() { return rendered.weather === q() && rendered.news === q(); },
     get newsReady() { return secs.news.shownUrl === secs.news.url(); }, get sportsReady() { return secs.sports.shownUrl === secs.sports.url(); }, get eventsReady() { return secs.events.shownUrl === secs.events.url(); }, get foodReady() { return !!foodData; },
-    get sync() { return { busy: [...Sync.busy], failed: [...Sync.failed.keys()], lastOk: Sync.lastOk }; }, refreshNow, get evCat() { return evCat; }, get view() { return VIEWS[cur]; }, radarColor: (r, g, b) => radarColor(r, g, b), get donateMid() { const c = document.getElementById("donate-mid"); return { opens: midLaunch.opens, line: midLaunch.line, tab: midTab, where: midWhere, placed: !!(c && c.isConnected), dismissed: midGone() }; }, goView, get juegos() { return juegosOpen(); }, get forYou() { return { profile: FY && FY.load(), feed: feedList.map((r) => ({ url: r.item.url, title: r.item.title, creator: r.item.creator, crew: r.crew, place: r.place, why: r.why.text, explore: r.explore })), cur: feedCur, open: feed.open, cover: fyList.slice(0, 3).map((r) => r.item.url), coverCrews: fyList.slice(0, 3).map((r) => r.crew) }; }, openFeed, closeFeed,
+    get sync() { return { busy: [...Sync.busy], failed: [...Sync.failed.keys()], lastOk: Sync.lastOk }; }, refreshNow, get evCat() { return evCat; }, get view() { return VIEWS[cur]; }, radarColor: (r, g, b) => radarColor(r, g, b), get donateMid() { const c = document.getElementById("donate-mid"); return { opens: midLaunch.opens, line: midLaunch.line, tab: midTab, where: midWhere, placed: !!(c && c.isConnected), dismissed: midGone() }; }, goView, get juegos() { return juegosOpen(); }, get forYou() { return { profile: FY && FY.load(), feed: feedList.map((r) => ({ url: r.item.url, title: r.item.title, creator: r.item.creator, crew: r.crew, place: r.place, why: r.why.text, explore: r.explore, recipe: !!r.item.recipe })), cur: feedCur, open: feed.open, cover: fyList.slice(0, 3).map((r) => r.item.url), coverCrews: fyList.slice(0, 3).map((r) => r.crew) }; }, openFeed, closeFeed,
     get sportsReady() { return !!rendered.sports; }, get spLg() { return spLg; } };
   window.__chismeBooted = true;
 })();

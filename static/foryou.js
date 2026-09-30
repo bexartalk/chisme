@@ -140,7 +140,7 @@
   function why(p, it, now, explore) {
     if (explore) {
       const k = featuresOf(it).find((f) => f[0] === "k");
-      return { text: k ? `Something different: ${labelOf(k.slice(2))}` : `Something new from ${norm(it.creator) || "a local creator"}`, kind: "explore" };
+      return { text: k ? `Something different: ${labelOf(k.slice(2))}` : `Something new from ${norm(it.creator) || (isRecipe(it) ? "a home cook" : "a local creator")}`, kind: "explore" };
     }
     const top = contributions(p, it, now).filter((c) => c.v > 0.05).sort((a, b) => b.v - a.v)[0];
     if (top) {
@@ -154,6 +154,7 @@
       if (t === "n") return { text: x.sv ? `Near spots you saved in ${name}` : `Because you like ${name} spots`, kind: x.sv ? "save" : "watch" };
       if (t === "p") return { text: name === "cheap" ? "Because you like cheap eats" : "Because you like a splurge", kind: "watch" };
     }
+    if (isRecipe(it)) return { text: `Cook it at home: ${norm(it.creator) || "a home cook"}`, kind: "fresh" };
     const age = it.published ? now - it.published * 1000 : Infinity;
     return { text: age < 7 * DAY ? "Fresh this week" : `From ${norm(it.creator) || "a local creator"}`, kind: "fresh" };
   }
@@ -174,6 +175,9 @@
     return k;
   }
   const CAP_TOP10 = 2, PLACE_WINDOW = 15, ROUND_NEW = 9, ROUND_LEARNED = 5;
+  // cooking & recipe videos (it.recipe) are mixed in: every MIX_EVERY-th video is one, as long as both kinds are left
+  const MIX_EVERY = 3;
+  const isRecipe = (it) => !!(it && (it.recipe || it.kind === "recipe"));
 
   // The feed. Hard variety rules first, then taste:
   //  • one video per restaurant (videos about the same spot are deduped; the best one stays)
@@ -183,7 +187,8 @@
   //    rotates with opts.rot so the lead creator changes; a phone that has learned: first 5 are 5 different creators
   //  • opts.lastLead: the creator who led last time doesn't lead again
   //  • after that it's score order (taste + freshness), and every 5th slot is exploration (least familiar third)
-  // If the rules can't all be met (a tiny feed), they relax in order: round-robin → caps → back-to-back creator.
+  //  • the mix: every 3rd video is a cooking / recipe video (slots 3, 6, 9 …) while there are both kinds left
+  // If the rules can't all be met (a tiny feed), they relax in order: round-robin → caps → the mix / back-to-back creator.
   function rank(p, items, opts) {
     opts = opts || {};
     const now = opts.now || Date.now(), rand = rng(opts.seed == null ? Math.floor(now / DAY) : opts.seed);
@@ -203,14 +208,20 @@
     const learned = Object.keys(p.f).length > 0;
     const crews = [...new Set(scored.map((x) => x.crew))].sort();
     for (let i = crews.length - 1; i > 0; i--) { const k = Math.floor(rand() * (i + 1)); [crews[i], crews[k]] = [crews[k], crews[i]]; }   // today's order
-    let off = crews.length ? ((opts.rot || 0) % crews.length + crews.length) % crews.length : 0;
-    if (crews.length > 1 && crews[off] === opts.lastLead) off = (off + 1) % crews.length;
-    const pos = new Map(crews.map((c, i) => [c, (i - off + crews.length) % crews.length]));
+    // local creators and cooks each rotate in their own order (so every visit a different local creator leads)
+    const cooks = new Set(scored.filter((x) => isRecipe(x.it)).map((x) => x.crew)), pos = new Map();
+    for (const group of [crews.filter((c) => !cooks.has(c)), crews.filter((c) => cooks.has(c))]) {
+      if (!group.length) continue;
+      let off = ((opts.rot || 0) % group.length + group.length) % group.length;
+      if (group.length > 1 && group[off] === opts.lastLead) off = (off + 1) % group.length;
+      group.forEach((c, i) => pos.set(c, (i - off + group.length) % group.length));
+    }
     const firstRound = Math.min(learned ? ROUND_LEARNED : ROUND_NEW, crews.length);
     const used = new Map(), out = [];
     const cnt = (c) => used.get(c) || 0;
-    const ok = (x, slot, level) => {
+    const ok = (x, slot, level, mix) => {
       const prev = out[out.length - 1];
+      if (level <= 2 && mix && isRecipe(x.it) !== (slot % MIX_EVERY === MIX_EVERY - 1)) return false;
       if (level <= 3) {
         if (prev && x.place && prev.place === x.place) return false;
         if (slot === 0 && opts.lastLead && crews.length > 1 && x.crew === opts.lastLead) return false;
@@ -236,8 +247,9 @@
       } else {
         cands = left.slice().sort((a, b) => (b.score - 0.3 * cnt(b.crew)) - (a.score - 0.3 * cnt(a.crew)) || a.j - b.j);
       }
+      const mix = left.some((c) => isRecipe(c.it)) && left.some((c) => !isRecipe(c.it));
       let x = null;
-      for (let level = 0; level <= 4 && !x; level++) x = cands.find((c) => ok(c, slot, level)) || null;
+      for (let level = 0; level <= 4 && !x; level++) x = cands.find((c) => ok(c, slot, level, mix)) || null;
       left = left.filter((c) => c !== x);
       used.set(x.crew, cnt(x.crew) + 1);
       out.push({ item: x.it, score: x.score, explore, crew: x.crew, place: x.place, why: why(p, x.it, now, explore) });
@@ -250,7 +262,7 @@
     return Object.entries(p.f).map(([k, x]) => ({ k, v: decayed(x, now) })).filter((e) => e.v > 0.2 && e.k[0] !== "p")
       .sort((a, b) => b.v - a.v).slice(0, n || 3).map((e) => (e.k[0] === "k" ? labelOf(e.k.slice(2)) : e.k.slice(2)));
   }
-  const api = { KEY, crewOf, placeKey, featuresOf, load, save, reset, signal, scoreOf, rank, why, interests, labelOf, EXPLORE_EVERY };
+  const api = { KEY, isRecipe, MIX_EVERY, crewOf, placeKey, featuresOf, load, save, reset, signal, scoreOf, rank, why, interests, labelOf, EXPLORE_EVERY };
   root.ChismeForYou = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);
