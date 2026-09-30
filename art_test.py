@@ -10,7 +10,7 @@ OUT = Path(__file__).parent / "screenshots"
 ART = {a["n"]: a for a in json.load(open(Path(__file__).parent / "static/art/art.json"))["items"]}
 LAYOUT_JS = """() => { const res = {};
   for (const id of ['near-list', 'city-list', 'sa-list']) {
-    const kids = [...document.getElementById(id).children];
+    const kids = [...document.getElementById(id).children].filter(k => k.id !== 'donate-mid');   // the once-per-launch donate card (v32) isn't part of the photo rhythm
     res[id] = kids.map(k => k.matches('figure.art') ? 'A' + k.dataset.art : k.matches('article.story') ? 's' : '?').join(' ');
   }
   return res; }"""

@@ -973,3 +973,10 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
 .ice-ov.caught{justify-content:flex-end;padding-bottom:1em;background:none}
 .ice-caught{background:#000;border-radius:10px;padding:.2em .7em}
 .ice-note{margin:.5em 0 0;font-weight:700;min-height:1.3em}
+/* the once-per-launch "Enjoying the chisme?" card in the middle of a list (app.js placeMid) */
+.donate-mid{position:relative;margin:14px 0;background:var(--card)}
+.donate-mid .donate-text{padding:0 34px}
+.donate-x{position:absolute;top:4px;right:4px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;border:0;border-radius:50%;
+  background:none;color:var(--muted);font-size:1.05rem;font-weight:900;cursor:pointer}
+.donate-x:hover{color:var(--ink)}
+.donate-x:focus-visible{outline:4px solid #f5b400;outline-offset:0}

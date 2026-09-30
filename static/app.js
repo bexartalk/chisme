@@ -1,7 +1,7 @@
 /* Chisme — frontend (location-aware) */
 // Build of this file. Must equal the number in sw.js VERSION ("chisme-v22"); the page compares it
 // with the build the HTML was served for and reloads once if an old cached app.js got mixed in.
-window.CHISME_APP_BUILD = "31";
+window.CHISME_APP_BUILD = "32";
 (() => {
   "use strict";
   const WEATHER_MS = 10 * 60 * 1000;
@@ -624,6 +624,43 @@ window.CHISME_APP_BUILD = "31";
   $("#r-next").onclick = () => { setPlaying(false); showFrame(idx + 1); };
   $("#r-slider").oninput = (e) => { setPlaying(false); showFrame(+e.target.value); };
 
+  // ---------- "Enjoying the chisme?" donate card, once per launch: an inline card (not a pop-up) in the middle of the
+  // tab Chisme opened on, after about the 5th item. It stays in that list while it re-renders; switching tabs never
+  // adds another. ✕ hides it for the rest of the session (sessionStorage), so a reload doesn't bring it back.
+  const MID_KEY = "chisme-donate-mid-x";
+  let midTab = null, midCard = null;
+  const midGone = () => { try { return sessionStorage.getItem(MID_KEY) === "1"; } catch (e) { return false; } };
+  const midAfter = (items) => (items.length < 2 ? null : items[Math.min(5, Math.ceil(items.length / 2)) - 1]);   // ~5th, or the middle of a short list
+  function midSpot(tab) {
+    const kids = (box, sel) => box ? [...box.children].filter((n) => n !== midCard && n.matches(sel)) : [];
+    if (tab === "news") return midAfter(kids($("#near-list"), ".story"));
+    if (tab === "sports") return midAfter(kids($("#sports-body"), ":not(.loading):not(.error)"));
+    if (tab === "events") return midAfter(kids($("#events-list"), ":not(.ev-day):not(.loading):not(.error)"));
+    if (tab === "weather") return $("#radar-sec");      // between the radar and the 7-day forecast
+    if (tab === "antojos") return $("#food-block");     // after the videos, before the food news desk
+    if (tab === "juegos") return $("#juegos");          // between the list of games and the game
+    return null;
+  }
+  function placeMid() {
+    if (!midTab || midGone()) return;
+    const after = midSpot(midTab);
+    if (!after || !after.parentNode) return;
+    if (!midCard) {
+      midCard = el("aside", { class: "card donate donate-mid", id: "donate-mid", "aria-labelledby": "donate-mid-t" });
+      midCard.innerHTML = `<button type="button" class="donate-x" aria-label="Dismiss this for now">✕</button>
+        <p class="donate-text" id="donate-mid-t">Enjoying the chisme? ☕ Donate for more (and better) chisme!</p>
+        <a class="donate-btn" href="https://cash.app/$Slurmkaos" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">💸</span> Donate on Cash App<span class="sr-only"> (opens Cash App)</span></a>
+        <p class="donate-tag">$Slurmkaos</p>`;
+      midCard.querySelector(".donate-x").onclick = () => {
+        try { sessionStorage.setItem(MID_KEY, "1"); } catch (e) {}
+        const next = midCard.nextElementSibling; midCard.remove(); midTab = null;
+        const f = next && (next.matches("a, button") ? next : next.querySelector("a, button"));
+        if (f) f.focus({ preventScroll: true });
+      };
+    }
+    if (after.nextSibling !== midCard) after.after(midCard);
+  }
+
   // ---------- news order: when nothing's new, each visit shows the stories in a different order (static/newsorder.js).
   // What you've seen/opened stays on this phone; Settings → Reset my feed and Forget me clear it.
   const NO = window.ChismeNewsOrder;
@@ -796,6 +833,7 @@ window.CHISME_APP_BUILD = "31";
       $("#sa-list").replaceChildren(...withArt(otherO.map((i) => story(i, false))));
       saveArtCursor();
       trackNews([nearO, moreO, otherO]);
+      placeMid();
       $("#news-updated").textContent = stampFor(saved, n);
       $("#feeds").replaceChildren(...(n.feeds || []).map((f) => el("li", { class: f.ok ? "" : "bad",
         text: (f.ok ? `${f.name}: ${f.count} items` : `${f.name}: unavailable (${f.error})`) + (f.query ? ` — search: ${f.query}` : "") })));
@@ -937,6 +975,7 @@ window.CHISME_APP_BUILD = "31";
       : [el("p", { class: "loading", text: empty })]));
     $("#ongoing-sec").hidden = !ongoing.length;
     $("#ongoing-list").replaceChildren(...ongoing.map(eventCard));
+    placeMid();
   }
   for (const b of document.querySelectorAll("#ev-chips .chip")) {
     b.onclick = () => {
@@ -1887,6 +1926,7 @@ window.CHISME_APP_BUILD = "31";
     } else kids = renderMissions(d.missions);
     $("#sports-body").replaceChildren(...kids.filter(Boolean));
     $("#sports-body").dataset.lg = spLg;
+    placeMid();
   }
   for (const b of document.querySelectorAll("#sp-chips .chip")) {
     b.onclick = () => { spLg = b.dataset.lg; localStorage.setItem(SP_KEY, spLg); renderSports(); };
@@ -2229,6 +2269,7 @@ window.CHISME_APP_BUILD = "31";
   const hv = HASH_VIEW[location.hash] || [defaultTab()];
   juegosWant = hv[2] || null;
   if (hv[0] !== "news") goView(hv[0], { instant: true });
+  midTab = VIEWS[cur]; placeMid();   // the launch tab gets the one mid-list donate card
   window.addEventListener("hashchange", () => {   // #juegos, #loteria, #ice … typed or tapped while Chisme is open
     const h = HASH_VIEW[location.hash]; if (!h) return;
     juegosWant = h[2] || null; goView(h[0], { scrollTo: h[1] || undefined });
@@ -2560,7 +2601,7 @@ window.CHISME_APP_BUILD = "31";
     get ready() { return secs.weather.shownUrl === secs.weather.url() && secs.news.shownUrl === secs.news.url(); },
     get fresh() { return rendered.weather === q() && rendered.news === q(); },
     get newsReady() { return secs.news.shownUrl === secs.news.url(); }, get sportsReady() { return secs.sports.shownUrl === secs.sports.url(); }, get eventsReady() { return secs.events.shownUrl === secs.events.url(); }, get foodReady() { return !!foodData; },
-    get sync() { return { busy: [...Sync.busy], failed: [...Sync.failed.keys()], lastOk: Sync.lastOk }; }, refreshNow, get evCat() { return evCat; }, get view() { return VIEWS[cur]; }, goView, get juegos() { return juegosOpen(); }, get forYou() { return { profile: FY && FY.load(), feed: feedList.map((r) => ({ url: r.item.url, title: r.item.title, creator: r.item.creator, crew: r.crew, place: r.place, why: r.why.text, explore: r.explore })), cur: feedCur, open: feed.open, cover: fyList.slice(0, 3).map((r) => r.item.url), coverCrews: fyList.slice(0, 3).map((r) => r.crew) }; }, openFeed, closeFeed,
+    get sync() { return { busy: [...Sync.busy], failed: [...Sync.failed.keys()], lastOk: Sync.lastOk }; }, refreshNow, get evCat() { return evCat; }, get view() { return VIEWS[cur]; }, get donateMid() { const c = document.getElementById("donate-mid"); return { tab: midTab, placed: !!(c && c.isConnected), dismissed: midGone() }; }, goView, get juegos() { return juegosOpen(); }, get forYou() { return { profile: FY && FY.load(), feed: feedList.map((r) => ({ url: r.item.url, title: r.item.title, creator: r.item.creator, crew: r.crew, place: r.place, why: r.why.text, explore: r.explore })), cur: feedCur, open: feed.open, cover: fyList.slice(0, 3).map((r) => r.item.url), coverCrews: fyList.slice(0, 3).map((r) => r.crew) }; }, openFeed, closeFeed,
     get sportsReady() { return !!rendered.sports; }, get spLg() { return spLg; } };
   window.__chismeBooted = true;
 })();
