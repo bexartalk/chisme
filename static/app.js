@@ -2480,6 +2480,28 @@ window.CHISME_APP_BUILD = "28";
     $("#set-forget-note").textContent = "Done. Tía forgot your chats and your interests, and the For You feed starts fresh.";
     if (tiaDlg.open) tiaRender();
   };
+  // ---------- Share Chisme: a small pill in the footer. The phone's own share sheet (Web Share API) where there is
+  // one; otherwise the link is copied and a toast says so. Nothing opens outside the app.
+  const SHARE = { title: "Chisme", text: "Pull up a chair, grab the tea ☕ Local chisme, weather, food & events:", url: "https://chisme.onrender.com/" };
+  let shareT = null;
+  function shareToast(msg) {
+    const t = $("#share-toast"); t.textContent = msg; t.hidden = false;
+    clearTimeout(shareT); shareT = setTimeout(() => { t.hidden = true; }, 2600);
+  }
+  async function copyLink(url) {
+    try { await navigator.clipboard.writeText(url); return true; } catch {}
+    const ta = el("textarea", { readonly: "", "aria-hidden": "true", class: "sr-only" }); ta.value = url;
+    document.body.append(ta); ta.select();
+    let ok = false; try { ok = document.execCommand("copy"); } catch {}
+    ta.remove(); return ok;
+  }
+  $("#share-btn").onclick = async () => {
+    if (navigator.share) {
+      try { await navigator.share(SHARE); return; }
+      catch (e) { if (e && e.name === "AbortError") return; }   // closed the share sheet: nothing to do
+    }
+    shareToast(await copyLink(SHARE.url) ? "Link copied!" : "Copy this link: " + SHARE.url);
+  };
   window.__chisme = { get newsPill() { return { held: !!newsHold, n: newsHoldN, shown: !$("#news-pill").hidden }; }, checkNews: () => { loadNews(); lastNews = Date.now(); }, openFromAlert, get pushPrefs() { return pushPrefs(); },
     get frames() { return frames; }, get map() { return map; }, get loc() { return loc; },
     // ready = showing this location's news + weather (fresh or the saved copy); fresh = straight from the server

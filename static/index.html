@@ -51,6 +51,7 @@
     <button type="button" id="sync-retry" hidden>Retry now</button>
   </div>
   <div id="ptr" class="ptr" aria-hidden="true" hidden>↻</div>
+  <div id="share-toast" class="share-toast" role="status" aria-live="polite" hidden></div>
   <div id="update-toast" class="update-toast" role="status" hidden>
     <span>✨ Chisme was updated.</span> <button type="button" id="update-reload" class="primary">Reload</button>
   </div>
@@ -471,6 +472,7 @@
   </dialog>
 
   <footer class="wrap foot">
+    <p class="share-row"><button type="button" id="share-btn" class="share-pill"><span aria-hidden="true">📤</span> Share Chisme</button></p>
     <p>Weather refreshes every 10 minutes, news every 4 minutes while Chisme is open, events every 30 minutes. Headlines link to the original publishers; story text is theirs, unedited. Times are shown in <span id="tz-name">your local time</span>. Location data: © OpenStreetMap contributors (Nominatim, Photon). Sports: ESPN, MLB Stats API.</p>
   </footer>
 
