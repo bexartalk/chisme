@@ -2,7 +2,7 @@ FROM python:3.12-slim
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-COPY app.py push.py ./
+COPY app.py push.py reader.py limits.py ./
 COPY data ./data
 COPY static ./static
 ENV PORT=8080
