@@ -58,7 +58,7 @@ async def webkit_part(p):
     check(d["last"] and d["parent"] == "view-news" and not d["inList"], "it's the last thing in News, not between stories")
     check(d["bg"] == "rgb(0, 214, 50)" and contrast(rgb(d["bg"]), rgb(d["fg"])) >= 7 and d["h"] >= 48, f"Cash App green button, black text (contrast {contrast(rgb(d['bg']), rgb(d['fg'])):.1f}:1), {d['h']} px tall")
     between = await pg.evaluate("[...document.querySelectorAll('#near-list > *, #city-list > *, #sa-list > *')].filter(n => n.querySelector && (n.matches('.donate') || n.querySelector('.donate'))).map(n => n.id)")
-    check(between == ["donate-mid"], f"between stories only the one dismissible once-per-launch card (v32; donate_every_tab_test.py) ({between})")
+    check(between == [], f"no donate card between stories on a first open (the mid-list one only comes on every 5th open; donate_every_tab_test.py) ({between})")
     await pg.wait_for_timeout(3000)
     pop = await pg.evaluate("({ dialogs: [...document.querySelectorAll('dialog')].filter(d => d.open).map(d => d.id), ask: !document.querySelector('#push-ask').hidden })")
     check(not pop["dialogs"] and not pop["ask"], f"no popups on the first visit (open dialogs {pop['dialogs']}, alerts prompt shown: {pop['ask']})")

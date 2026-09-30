@@ -1,7 +1,7 @@
 /* Chisme — frontend (location-aware) */
 // Build of this file. Must equal the number in sw.js VERSION ("chisme-v22"); the page compares it
 // with the build the HTML was served for and reloads once if an old cached app.js got mixed in.
-window.CHISME_APP_BUILD = "32";
+window.CHISME_APP_BUILD = "33";
 (() => {
   "use strict";
   const WEATHER_MS = 10 * 60 * 1000;
@@ -624,11 +624,11 @@ window.CHISME_APP_BUILD = "32";
   $("#r-next").onclick = () => { setPlaying(false); showFrame(idx + 1); };
   $("#r-slider").oninput = (e) => { setPlaying(false); showFrame(+e.target.value); };
 
-  // ---------- "Enjoying the chisme?" donate card, once per launch: an inline card (not a pop-up) in the middle of the
-  // tab Chisme opened on, after about the 5th item. It stays in that list while it re-renders; switching tabs never
-  // adds another. ✕ hides it for the rest of the session (sessionStorage), so a reload doesn't bring it back.
+  // ---------- mid-list donate card: on every 5th app open (static/donatelines.js counts opens and picks a line that
+  // wasn't one of the last 5), an inline card (not a pop-up) in the middle of the tab Chisme opened on, after about the
+  // 5th item. It stays in that list while it re-renders; switching tabs never adds another. ✕ hides it for the session.
   const MID_KEY = "chisme-donate-mid-x";
-  let midTab = null, midCard = null;
+  let midTab = null, midCard = null, midLaunch = { opens: 0, line: null };
   const midGone = () => { try { return sessionStorage.getItem(MID_KEY) === "1"; } catch (e) { return false; } };
   const midAfter = (items) => (items.length < 2 ? null : items[Math.min(5, Math.ceil(items.length / 2)) - 1]);   // ~5th, or the middle of a short list
   function midSpot(tab) {
@@ -648,9 +648,10 @@ window.CHISME_APP_BUILD = "32";
     if (!midCard) {
       midCard = el("aside", { class: "card donate donate-mid", id: "donate-mid", "aria-labelledby": "donate-mid-t" });
       midCard.innerHTML = `<button type="button" class="donate-x" aria-label="Dismiss this for now">✕</button>
-        <p class="donate-text" id="donate-mid-t">Enjoying the chisme? ☕ Donate for more (and better) chisme!</p>
+        <p class="donate-text" id="donate-mid-t"></p>
         <a class="donate-btn" href="https://cash.app/$Slurmkaos" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">💸</span> Donate on Cash App<span class="sr-only"> (opens Cash App)</span></a>
         <p class="donate-tag">$Slurmkaos</p>`;
+      midCard.querySelector(".donate-text").textContent = midLaunch.line;
       midCard.querySelector(".donate-x").onclick = () => {
         try { sessionStorage.setItem(MID_KEY, "1"); } catch (e) {}
         const next = midCard.nextElementSibling; midCard.remove(); midTab = null;
@@ -2269,7 +2270,8 @@ window.CHISME_APP_BUILD = "32";
   const hv = HASH_VIEW[location.hash] || [defaultTab()];
   juegosWant = hv[2] || null;
   if (hv[0] !== "news") goView(hv[0], { instant: true });
-  midTab = VIEWS[cur]; placeMid();   // the launch tab gets the one mid-list donate card
+  if (window.ChismeDonate) midLaunch = window.ChismeDonate.launch();
+  if (midLaunch.line) { midTab = VIEWS[cur]; placeMid(); }   // a 5th open: the launch tab gets the one mid-list donate card
   window.addEventListener("hashchange", () => {   // #juegos, #loteria, #ice … typed or tapped while Chisme is open
     const h = HASH_VIEW[location.hash]; if (!h) return;
     juegosWant = h[2] || null; goView(h[0], { scrollTo: h[1] || undefined });
@@ -2601,7 +2603,7 @@ window.CHISME_APP_BUILD = "32";
     get ready() { return secs.weather.shownUrl === secs.weather.url() && secs.news.shownUrl === secs.news.url(); },
     get fresh() { return rendered.weather === q() && rendered.news === q(); },
     get newsReady() { return secs.news.shownUrl === secs.news.url(); }, get sportsReady() { return secs.sports.shownUrl === secs.sports.url(); }, get eventsReady() { return secs.events.shownUrl === secs.events.url(); }, get foodReady() { return !!foodData; },
-    get sync() { return { busy: [...Sync.busy], failed: [...Sync.failed.keys()], lastOk: Sync.lastOk }; }, refreshNow, get evCat() { return evCat; }, get view() { return VIEWS[cur]; }, get donateMid() { const c = document.getElementById("donate-mid"); return { tab: midTab, placed: !!(c && c.isConnected), dismissed: midGone() }; }, goView, get juegos() { return juegosOpen(); }, get forYou() { return { profile: FY && FY.load(), feed: feedList.map((r) => ({ url: r.item.url, title: r.item.title, creator: r.item.creator, crew: r.crew, place: r.place, why: r.why.text, explore: r.explore })), cur: feedCur, open: feed.open, cover: fyList.slice(0, 3).map((r) => r.item.url), coverCrews: fyList.slice(0, 3).map((r) => r.crew) }; }, openFeed, closeFeed,
+    get sync() { return { busy: [...Sync.busy], failed: [...Sync.failed.keys()], lastOk: Sync.lastOk }; }, refreshNow, get evCat() { return evCat; }, get view() { return VIEWS[cur]; }, get donateMid() { const c = document.getElementById("donate-mid"); return { opens: midLaunch.opens, line: midLaunch.line, tab: midTab, placed: !!(c && c.isConnected), dismissed: midGone() }; }, goView, get juegos() { return juegosOpen(); }, get forYou() { return { profile: FY && FY.load(), feed: feedList.map((r) => ({ url: r.item.url, title: r.item.title, creator: r.item.creator, crew: r.crew, place: r.place, why: r.why.text, explore: r.explore })), cur: feedCur, open: feed.open, cover: fyList.slice(0, 3).map((r) => r.item.url), coverCrews: fyList.slice(0, 3).map((r) => r.crew) }; }, openFeed, closeFeed,
     get sportsReady() { return !!rendered.sports; }, get spLg() { return spLg; } };
   window.__chismeBooted = true;
 })();
