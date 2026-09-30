@@ -1540,7 +1540,7 @@ window.CHISME_APP_BUILD = "40";
     chip.setAttribute("aria-label", "Why you're seeing this: " + r.why.text);
     const more = el("p", { class: "why-more", id: whyId, hidden: "" ,
       text: (r.explore ? "About 1 in 5 videos is something different, so your feed doesn't get stuck on one thing. " : "")
-        + "More Pansa, Better the Chansa ranks these videos on this phone from what you watch, save and skip. Nothing leaves your phone; reset it anytime in Settings." });
+        + "Bigger the Pansa, Better the Chansa ranks these videos on this phone from what you watch, save and skip. Nothing leaves your phone; reset it anytime in Settings." });
     chip.onclick = () => { const o = more.hidden; more.hidden = !o; chip.setAttribute("aria-expanded", String(o)); };
     const by = [it.creator || it.source, v.tt ? "TikTok" : "YouTube"].filter(Boolean).join(" · ") + (it.published ? " · " + shortDate(it.published) : "");
     const info = el("div", { class: "vf-info" }, chip, more, el("h3", { text: it.title }), el("p", { class: "vf-by", text: by }),
@@ -2184,7 +2184,7 @@ window.CHISME_APP_BUILD = "40";
     newsForget();   // also forgets which stories you've seen/opened (News order)
     if (!FY) return;
     fyProfile = FY.reset(); renderForYouCard();
-    $("#set-fy-note").textContent = "Done: your More Pansa, Better the Chansa feed forgot everything and starts fresh.";
+    $("#set-fy-note").textContent = "Done: your Bigger the Pansa, Better the Chansa feed forgot everything and starts fresh.";
   };
   $("#set-version").textContent = "· build " + window.CHISME_APP_BUILD;
 
@@ -2628,7 +2628,7 @@ window.CHISME_APP_BUILD = "40";
     newsForget();
     if (window.ChismeForYou) window.ChismeForYou.reset();
     b.textContent = "Forget me";
-    $("#set-forget-note").textContent = "Done. Tía forgot your chats and your interests, and the More Pansa, Better the Chansa feed starts fresh.";
+    $("#set-forget-note").textContent = "Done. Tía forgot your chats and your interests, and the Bigger the Pansa, Better the Chansa feed starts fresh.";
     if (tiaDlg.open) tiaRender();
   };
   // ---------- Share Chisme: a small pill in the footer. The phone's own share sheet (Web Share API) where there is

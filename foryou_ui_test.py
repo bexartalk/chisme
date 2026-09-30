@@ -1,9 +1,9 @@
-"""¿Cuál dieta? For You (v40: "More Pansa, Better the Chansa"), in WebKit (iPhone 13) + a real touch swipe in Chromium.
+"""¿Cuál dieta? For You (v40: "Bigger the Pansa, Better the Chansa"), in WebKit (iPhone 13) + a real touch swipe in Chromium.
 Banner at the top with Start watching; full-screen vertical scroll-snap feed; one muted-autoplay player at a time;
 overlaid Save / Directions / Not for me / Details; signals (skip-fast, watch, save, not interested + undo) land in
 localStorage; the 'Why you're seeing this' chip learns ("Because you saved 2 … spots"); Back button and the browser's
 back close the feed; reduced motion → tap-to-play thumbnail; Settings → Reset my feed; creator cards (Instagram-only
-labeled). v40: the feed is named "More Pansa, Better the Chansa" (banner, feed top bar, aria, Settings).
+labeled). v40: the feed is named "Bigger the Pansa, Better the Chansa" (banner, feed top bar, aria, Settings).
 Screens: dieta-foryou-banner.png, dieta-vertical-feed.png, dieta-why-chip.png, food-panza.png"""
 import re
 import asyncio, os, sys, json
@@ -53,16 +53,16 @@ async def wk(p):
         title: document.querySelector('#fy-title').textContent.trim(), btn: document.querySelector('#fy-start').textContent.trim(), btnH: Math.round(b.height), btnW: Math.round(b.width),
         meta: document.querySelector('#fy-meta').textContent } }""")
     check(lay["afterHead"] and lay["aboveChips"], "For You banner is the first thing under the ¿Cuál dieta? heading, above the chips")
-    check(lay["title"] == "🌮 Tu feed de antojos" and lay["btn"] == "▶ Start watching" and lay["btnH"] >= 52 and lay["btnW"] >= 300, f"banner: '{lay['title']}', big '{lay['btn']}' button ({lay['btnW']}×{lay['btnH']})")
+    check(lay["title"] == "🌮 Bigger the Pansa, Better the Chansa" and lay["btn"] == "▶ Start watching" and lay["btnH"] >= 52 and lay["btnW"] >= 300, f"banner: '{lay['title']}', big '{lay['btn']}' button ({lay['btnW']}×{lay['btnH']})")
     check(lay["chips"] == ["latest", "saved"] and lay["deskLast"], "Latest + Saved spots chips kept; food desk still at the bottom")
-    # v40: the feed is called "More Pansa, Better the Chansa" everywhere (banner, feed top bar, aria, Settings); no "For You" left
-    NAME = "More Pansa, Better the Chansa"
-    nm = await pg.evaluate("""() => { const k = document.querySelector('#fy-kicker'), card = document.querySelector('#foryou-card'), r = k.getBoundingClientRect(), c = card.getBoundingClientRect();
+    # v40: the feed is called "Bigger the Pansa, Better the Chansa" everywhere (banner title, feed top bar, aria, tip note, Settings); no "For You" / "Tu feed de antojos" left
+    NAME = "Bigger the Pansa, Better the Chansa"
+    nm = await pg.evaluate("""() => { const k = document.querySelector('#fy-title'), card = document.querySelector('#foryou-card'), r = k.getBoundingClientRect(), c = card.getBoundingClientRect();
       const txt = document.body.innerText + ' ' + [...document.querySelectorAll('[aria-label]')].map(e => e.getAttribute('aria-label')).join(' ') + ' ' + document.querySelector('#settings').textContent;
-      return { kicker: k.textContent.trim(), fits: k.scrollWidth <= k.clientWidth + 1 && r.left >= c.left && r.right <= c.right + 1, lines: Math.round(r.height / parseFloat(getComputedStyle(k).lineHeight)),
+      return { title: k.textContent.trim(), dup: !!document.querySelector('#fy-kicker'), fits: k.scrollWidth <= k.clientWidth + 1 && r.left >= c.left && r.right <= c.right + 1, lines: Math.round(r.height / parseFloat(getComputedStyle(k).lineHeight)),
         region: card.getAttribute('aria-labelledby'), dialog: document.querySelector('#feed').getAttribute('aria-label'), legend: [...document.querySelectorAll('#settings legend')].map(l => l.textContent).find(t => /feed/i.test(t)) || '',
-        forYou: /for you\b/i.test(txt.replace(/for your/gi, '')) }; }""")
-    check(nm["kicker"] == "✨ " + NAME and nm["fits"] and nm["lines"] <= 2 and nm["region"] == "fy-kicker", f"banner: '{nm['kicker']}' fits the card on a phone ({nm['lines']} line(s), no overflow)")
+        forYou: /for you\\b|feed de antojos/i.test(txt.replace(/for your/gi, '')) }; }""")
+    check(nm["title"] == "🌮 " + NAME and not nm["dup"] and nm["fits"] and nm["lines"] <= 3 and nm["region"] == "fy-title", f"banner title: '{nm['title']}' fits the card on a phone ({nm['lines']} line(s), no overflow, not repeated)")
     check(nm["dialog"].startswith(NAME) and nm["legend"] == NAME + " feed" and not nm["forYou"], f"the feed's aria label and Settings say '{NAME}', and 'For You' is gone ({nm['dialog'][:40]!r}, {nm['legend']!r})")
     crew = await pg.evaluate("[...document.querySelectorAll('#food-crew-list .crew')].map(c => ({ name: c.querySelector('b').textContent, uses: c.querySelector('.crew-uses').textContent, links: [...c.querySelectorAll('a')].map(a => a.href + ' ' + a.target) }))")
     saf = next((c for c in crew if c["name"] == "S.A. Foodie"), None)
