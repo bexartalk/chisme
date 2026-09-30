@@ -1,7 +1,7 @@
 /* Chisme — frontend (location-aware) */
 // Build of this file. Must equal the number in sw.js VERSION ("chisme-v22"); the page compares it
 // with the build the HTML was served for and reloads once if an old cached app.js got mixed in.
-window.CHISME_APP_BUILD = "29";
+window.CHISME_APP_BUILD = "30";
 (() => {
   "use strict";
   const WEATHER_MS = 10 * 60 * 1000;
@@ -1906,8 +1906,17 @@ window.CHISME_APP_BUILD = "29";
   });
   const loadSports = () => load("sports");
 
-  // ---------- views: News | Sports | ¿Cuál dieta? | Weather | Events (tap the fixed buttons or swipe sideways)
-  const VIEWS = ["news", "sports", "antojos", "weather", "events"];
+  // ---------- views: News | Sports | ¿Cuál dieta? | Weather | Events | Juegos (tap the fixed buttons or swipe sideways)
+  const VIEWS = ["news", "sports", "antojos", "weather", "events", "juegos"];
+  // 🎲 Juegos: mounted the first time the tab opens (static/juegos.js lists the games; icebebe.js adds game 2).
+  let juegos = null;
+  function juegosOpen(game) {
+    if (!juegos && window.ChismeJuegos) juegos = window.ChismeJuegos.mountTab($("#games-list"), $("#game-stage"), { reducedMotion });
+    if (juegos && game) juegos.open(game);
+    return juegos;
+  }
+  const juegosPause = () => { if (juegos) juegos.pause(); };
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") juegosPause(); });
   const GAP = 24;
   const track = $("#track"), viewsEl = $("#views"), tabsEl = $("#tabs");
   const panes = VIEWS.map((v) => $("#view-" + v));
@@ -1962,12 +1971,14 @@ window.CHISME_APP_BUILD = "29";
     if (VIEWS[i] === "weather" && map) map.invalidateSize();
     updateNewsPill();
     if (VIEWS[i] === "events" && rendered.events !== q()) loadEvents();
+    if (VIEWS[i] === "juegos") juegosOpen(juegosWant); else juegosPause();
+    juegosWant = null;
     if (VIEWS[i] === "sports" && !rendered.sports) loadSports();
     if (VIEWS[i] === "antojos" && (!foodData || secs.food.shownUrl !== secs.food.url())) loadFood();   // new place → new city's food
     if (scrollId) { const t = document.getElementById(scrollId); if (t) window.scrollTo({ top: t.getBoundingClientRect().top + window.scrollY - tabsH() - 8, behavior: "instant" }); }
     localStorage.setItem("chisme-swiped", "1");
   }
-  let animT = null;
+  let animT = null, juegosWant = null;
   function goView(name, opts = {}) {
     const i = typeof name === "number" ? name : VIEWS.indexOf(name);
     if (i < 0) return;
@@ -2029,7 +2040,8 @@ window.CHISME_APP_BUILD = "29";
   // Deep links (manifest shortcuts): #sports, #weather, #radar-sec, #events. Otherwise the default tab (News unless changed in Settings).
   const HASH_VIEW = { "#weather": ["weather"], "#forecast-sec": ["weather", "forecast-sec"], "#radar-sec": ["weather", "radar-sec"], "#radar": ["weather", "radar-sec"],
     "#alerts": ["weather", "alerts"], "#events": ["events"], "#antojos": ["antojos"], "#cual-dieta": ["antojos"], "#dieta": ["antojos"], "#food": ["antojos"], "#near": ["news", "near"], "#city": ["news", "city"],
-    "#sports": ["sports"], "#spurs": ["sports"], "#nfl": ["sports"], "#mlb": ["sports"], "#missions": ["sports"], "#news": ["news"] };
+    "#sports": ["sports"], "#spurs": ["sports"], "#nfl": ["sports"], "#mlb": ["sports"], "#missions": ["sports"], "#news": ["news"],
+    "#juegos": ["juegos"], "#games": ["juegos"], "#loteria": ["juegos", null, "loteria"], "#ice": ["juegos", null, "icebebe"], "#icebebe": ["juegos", null, "icebebe"] };
   pos(0); updateTabs();
 
   // ---------- settings sheet (tap the Chisme icon in the header)
@@ -2187,7 +2199,8 @@ window.CHISME_APP_BUILD = "29";
       openReader(hit ? { url: hit.link, ...storyMeta(hit) }
         : { url: link, title: u.searchParams.get("t") || "New chisme", source: u.searchParams.get("s") || "", published: +u.searchParams.get("p") || null }, null);
     } else if (HASH_VIEW[u.hash]) {
-      const hv = HASH_VIEW[u.hash]; goView(hv[0], { scrollTo: hv[1] });
+      const hv = HASH_VIEW[u.hash]; juegosWant = hv[2] || null; goView(hv[0], { scrollTo: hv[1] || undefined });
+      if (hv[2] && VIEWS[cur] === "juegos") juegosOpen(hv[2]);
     }
   }
   if (navigator.serviceWorker) navigator.serviceWorker.addEventListener("message", (e) => { if (e.data && typeof e.data.chismeOpen === "string") openFromAlert(e.data.chismeOpen); });
@@ -2214,7 +2227,13 @@ window.CHISME_APP_BUILD = "29";
   const LG_HASH = { "#spurs": "nba", "#nfl": "nfl", "#mlb": "mlb", "#missions": "missions" };
   if (LG_HASH[location.hash]) { spLg = LG_HASH[location.hash]; localStorage.setItem(SP_KEY, spLg); }
   const hv = HASH_VIEW[location.hash] || [defaultTab()];
+  juegosWant = hv[2] || null;
   if (hv[0] !== "news") goView(hv[0], { instant: true });
+  window.addEventListener("hashchange", () => {   // #juegos, #loteria, #ice … typed or tapped while Chisme is open
+    const h = HASH_VIEW[location.hash]; if (!h) return;
+    juegosWant = h[2] || null; goView(h[0], { scrollTo: h[1] || undefined });
+    if (h[2] && VIEWS[cur] === "juegos") juegosOpen(h[2]);
+  });
   refreshAll();
   if (hv[1]) setTimeout(() => goView(hv[0], { scrollTo: hv[1] }), 50);
   lookupPlace();
@@ -2541,7 +2560,7 @@ window.CHISME_APP_BUILD = "29";
     get ready() { return secs.weather.shownUrl === secs.weather.url() && secs.news.shownUrl === secs.news.url(); },
     get fresh() { return rendered.weather === q() && rendered.news === q(); },
     get newsReady() { return secs.news.shownUrl === secs.news.url(); }, get sportsReady() { return secs.sports.shownUrl === secs.sports.url(); }, get eventsReady() { return secs.events.shownUrl === secs.events.url(); }, get foodReady() { return !!foodData; },
-    get sync() { return { busy: [...Sync.busy], failed: [...Sync.failed.keys()], lastOk: Sync.lastOk }; }, refreshNow, get evCat() { return evCat; }, get view() { return VIEWS[cur]; }, goView, get forYou() { return { profile: FY && FY.load(), feed: feedList.map((r) => ({ url: r.item.url, title: r.item.title, creator: r.item.creator, crew: r.crew, place: r.place, why: r.why.text, explore: r.explore })), cur: feedCur, open: feed.open, cover: fyList.slice(0, 3).map((r) => r.item.url), coverCrews: fyList.slice(0, 3).map((r) => r.crew) }; }, openFeed, closeFeed,
+    get sync() { return { busy: [...Sync.busy], failed: [...Sync.failed.keys()], lastOk: Sync.lastOk }; }, refreshNow, get evCat() { return evCat; }, get view() { return VIEWS[cur]; }, goView, get juegos() { return juegosOpen(); }, get forYou() { return { profile: FY && FY.load(), feed: feedList.map((r) => ({ url: r.item.url, title: r.item.title, creator: r.item.creator, crew: r.crew, place: r.place, why: r.why.text, explore: r.explore })), cur: feedCur, open: feed.open, cover: fyList.slice(0, 3).map((r) => r.item.url), coverCrews: fyList.slice(0, 3).map((r) => r.crew) }; }, openFeed, closeFeed,
     get sportsReady() { return !!rendered.sports; }, get spLg() { return spLg; } };
   window.__chismeBooted = true;
 })();

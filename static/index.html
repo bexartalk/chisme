@@ -42,6 +42,7 @@
       <button type="button" class="tab" data-view="antojos" aria-controls="view-antojos"><span aria-hidden="true">🌮</span> <b class="tl">¿Cuál dieta?</b></button>
       <button type="button" class="tab" data-view="weather" aria-controls="view-weather"><span aria-hidden="true">🌤️</span> Weather</button>
       <button type="button" class="tab" data-view="events" aria-controls="view-events"><span aria-hidden="true">🎉</span> Events</button>
+      <button type="button" class="tab" data-view="juegos" aria-controls="view-juegos"><span aria-hidden="true">🎲</span> Juegos</button>
     </div>
   </nav>
   <!-- outside the swiping views (they're transformed, which would break position:fixed) -->
@@ -310,6 +311,21 @@
             <p class="hint">Categories are tagged automatically from each listing's title and the source's own categories, so a few may land in the wrong bucket. “Free classes” only shows classes, talks and workshops the listing says are free.</p></details>
         </section>
       </section>
+
+      <!-- ============ JUEGOS (static/juegos.js + static/icebebe.js; all offline, nothing leaves the phone) ============ -->
+      <section id="view-juegos" class="view" aria-label="Juegos" data-view="juegos" inert>
+        <section id="juegos" class="card">
+          <div class="sec-head"><h2>🎲 Juegos</h2></div>
+          <p class="blurb">For when the chisme's slow. These games work offline, and your scores stay on this phone.</p>
+          <div id="games-list" class="games-list" role="group" aria-label="Pick a game"></div>
+        </section>
+        <section id="game-stage" class="card game-stage" aria-label="Game"><p class="loading">Shuffling the cards…</p></section>
+        <aside class="card donate" id="donate-juegos" aria-labelledby="donate-juegos-t">
+          <p class="donate-text" id="donate-juegos-t">The tea ain’t free! Help a chismoso out — donate now!</p>
+          <a class="donate-btn" href="https://cash.app/$Slurmkaos" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">💸</span> Donate on Cash App<span class="sr-only"> (opens Cash App)</span></a>
+          <p class="donate-tag">$Slurmkaos</p>
+        </aside>
+      </section>
     </div>
   </main>
 
@@ -427,6 +443,7 @@
           <label><input type="radio" name="deftab" value="antojos"><span><i class="emo" aria-hidden="true">🌮</i> ¿Cuál dieta?</span></label>
           <label><input type="radio" name="deftab" value="weather"><span><i class="emo" aria-hidden="true">🌤️</i> Weather</span></label>
           <label><input type="radio" name="deftab" value="events"><span><i class="emo" aria-hidden="true">🎉</i> Events</span></label>
+          <label><input type="radio" name="deftab" value="juegos"><span><i class="emo" aria-hidden="true">🎲</i> Juegos</span></label>
         </div>
       </fieldset>
       <fieldset class="set-group set-alerts" id="set-alerts">
@@ -479,6 +496,8 @@
   <script src="/static/vendor/leaflet/leaflet.js"></script>
   <script src="/static/foryou.js?v=__BUILD__"></script>
   <script src="/static/newsorder.js?v=__BUILD__"></script>
+  <script src="/static/juegos.js?v=__BUILD__"></script>
+  <script src="/static/icebebe.js?v=__BUILD__"></script>
   <script src="/static/app.js?v=__BUILD__"></script>
   <div id="boot-fail" class="boot-fail" role="alert" hidden>
     <p><b>Chisme didn't start properly.</b> <span id="boot-fail-why">This usually fixes itself with a reload.</span></p>

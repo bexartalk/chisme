@@ -157,9 +157,9 @@ h2{margin:0;font-size:1.55rem;font-weight:900;color:var(--ink);letter-spacing:-.
   padding-top:env(safe-area-inset-top,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);
   transform:translateZ(0)}
 body{padding-top:var(--tabs-h,calc(66px + env(safe-area-inset-top,0px)))}
-/* 5 tabs: labels are capped by the screen width (3.4vw), so even the largest Text size fits at 320 px; if a label
+/* 6 tabs: labels are capped by the screen width (3.4vw), so even the largest Text size fits at 320 px; if a label
    ever can't fit, the columns keep their content width and the row scrolls sideways instead of clipping */
-.tabs-inner{display:grid;grid-template-columns:repeat(5,minmax(min-content,1fr));gap:4px;padding-top:6px;padding-bottom:6px;
+.tabs-inner{display:grid;grid-template-columns:repeat(6,minmax(min-content,1fr));gap:4px;padding-top:6px;padding-bottom:6px;
   overflow-x:auto;scrollbar-width:none;overscroll-behavior-x:contain}
 .tabs-inner::-webkit-scrollbar{display:none}
 @media (max-width:420px){ .tabs .tabs-inner{padding-left:6px;padding-right:6px;gap:3px} }
@@ -896,3 +896,80 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
   border:2px solid var(--turq);border-radius:999px;padding:.45em 1.1em;font-weight:800;font-size:.9rem;box-shadow:0 6px 18px rgba(0,0,0,.3)}
 .share-toast[hidden]{display:none}
 [data-theme="dark"] .share-pill{background:#101a1d;color:var(--ink);border-color:var(--ink)}
+
+/* ---------- 🎲 Juegos (static/juegos.js: the game list + Lotería Chismosa; static/icebebe.js: Ice Ice Bebé) */
+.games-list{display:grid;gap:8px;margin-top:.6em}
+.game-pick{display:flex;align-items:center;gap:.7em;text-align:left;padding:.6em .8em;min-height:56px;border:2px solid var(--ink);border-radius:14px;background:var(--card);color:var(--ink);font:inherit}
+.game-pick .gp-emo{font-size:1.8em;line-height:1}
+.game-pick b{display:block;font-size:1.05em}
+.game-pick small{display:block;font-size:.85em;opacity:.85}
+.game-pick[aria-pressed="true"]{background:#000;color:#fff;border-color:#000;box-shadow:inset 0 -5px 0 var(--turq)}
+.game-more{margin:.2em 0 0;font-size:.85em;opacity:.8}
+.game-stage{padding-top:.8em}
+.lot-top{display:flex;gap:.6em;align-items:flex-start}
+.lot-tia{width:64px;height:64px;border-radius:50%;border:3px solid var(--pink);flex:none;background:#000}
+.lot-bubble{flex:1;min-width:0;position:relative;background:#000;color:#fff;border-radius:16px;padding:.55em .7em;display:flex;gap:.6em;align-items:center;min-height:88px}
+.lot-bubble::before{content:"";position:absolute;left:-8px;top:22px;border:8px solid transparent;border-right-color:#000;border-left:0}
+.lot-line{margin:0;font-weight:700;line-height:1.3}
+.lot-card:empty{display:none}
+.lot-count{margin:.5em 0 .3em;font-size:.9em;font-weight:700}
+.lot-controls,.ice-controls{display:flex;flex-wrap:wrap;gap:6px;margin:.4em 0 .7em}
+.lot-btn{min-height:44px;padding:.3em .8em;border:2px solid var(--ink);border-radius:12px;background:var(--card);color:var(--ink);font:inherit;font-weight:800}
+.lot-btn[aria-pressed="true"].lot-main,.lot-main{background:var(--turq);border-color:#000;color:#000}
+.lot-tabla{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;padding:6px;background:#000;border-radius:12px;border:3px solid #c9d0d8}
+.lot-cell{position:relative;padding:0;border:0;background:none;border-radius:8px;min-width:0;cursor:pointer}
+.lot-cell:focus-visible{outline:4px solid #f5b400;outline-offset:1px}
+.lcard{display:flex;flex-direction:column;align-items:center;justify-content:space-between;aspect-ratio:3/4.2;background:#fff;color:#000;border-radius:7px;
+  border:3px solid var(--lc);box-shadow:inset 0 0 0 2px #fff,inset 0 0 0 4px #111;padding:3px 2px 2px;position:relative;overflow:hidden}
+.lcard::before{content:"";position:absolute;inset:4px 4px auto;height:58%;border-radius:4px;background:var(--lc);opacity:.28}
+.lc-n{position:absolute;top:4px;left:6px;font-size:.62rem;font-weight:900}
+.lc-emo,.lcard svg{position:relative;font-size:clamp(1.3rem,8vw,2.1rem);line-height:1.25;margin-top:.35em}
+.lcard svg{width:52%;height:auto}
+.lc-name{position:relative;font-size:clamp(.5rem,2.4vw,.72rem);font-weight:900;text-align:center;line-height:1.05;background:#111;color:#fff;border-radius:4px;padding:2px 3px;width:100%;
+  overflow-wrap:anywhere}
+.lcard.big{width:74px;flex:none}
+.lcard.big .lc-emo{font-size:1.9rem}
+.lcard.mini{width:44px;flex:none;border-width:2px}
+.lcard.mini .lc-emo{font-size:1.05rem;margin-top:.5em}
+.lcard.mini .lc-name{font-size:.45rem}
+.lcard.mini .lc-n{font-size:.5rem;top:2px;left:4px}
+/* the ficha: a bean-colored token */
+.ficha{position:absolute;left:50%;top:44%;width:44%;aspect-ratio:1.25;transform:translate(-50%,-50%) scale(0);border-radius:50% 46% 52% 48%;
+  background:radial-gradient(circle at 35% 30%,#d9a066,#8a4f22 60%,#5a3012);box-shadow:0 2px 0 rgba(0,0,0,.45);transition:transform .15s ease-out;pointer-events:none}
+.lot-cell.marked .ficha{transform:translate(-50%,-50%) scale(1)}
+.lot-cell.win .lcard{border-color:#ffd23f;box-shadow:inset 0 0 0 2px #fff,inset 0 0 0 4px #111,0 0 0 3px #ffd23f}
+.lot-claim{display:block;width:100%;margin:.7em 0 .4em;min-height:56px;border:3px solid #000;border-radius:16px;background:var(--pink);color:#fff;font:inherit;font-size:1.35em;font-weight:900;
+  text-shadow:0 2px 0 rgba(0,0,0,.35);box-shadow:inset 0 -6px 0 rgba(0,0,0,.25)}
+.won .lot-claim{background:#ffd23f;color:#000;text-shadow:none}
+.lot-rules{font-size:.85em;margin:.3em 0}
+.lot-stats{font-weight:800;margin:.4em 0}
+.lot-hist-h{margin:.6em 0 .3em;font-size:.85em;font-weight:800}
+.lot-hist{display:flex;gap:4px;overflow-x:auto;padding-bottom:4px}
+.lot-hist:empty::after{content:"No cards yet.";font-size:.85em;opacity:.75}
+.lot-confetti{position:fixed;inset:0;pointer-events:none;z-index:5000;overflow:hidden}
+.lot-confetti i{position:absolute;top:-12px;width:8px;height:12px;border-radius:2px;animation:conf-fall linear forwards}
+@keyframes conf-fall{to{top:105%;transform:translateX(30px) rotate(540deg)}}
+.reduce-motion .lot-confetti,.reduce-motion .ficha{transition:none}
+@media (prefers-reduced-motion:reduce){ .lot-confetti{display:none} .ficha{transition:none} }
+.reduce-motion .lot-confetti{display:none}
+/* Ice Ice Bebé */
+.ice-wrap{position:relative;border:3px solid #000;border-radius:12px;overflow:hidden;background:#000}
+.ice-cv{display:block;width:100%;height:auto;aspect-ratio:16/9;image-rendering:pixelated;image-rendering:crisp-edges;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.ice-ov{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:.3em;padding:.5em;color:#fff;font-size:.92em;
+  background:rgba(0,0,0,.62);font-weight:700;line-height:1.25}
+.ice-ov.on{display:flex}
+.ice-ov.soft{background:rgba(0,0,0,.42)}
+.ice-ov.win{background:none;justify-content:flex-start;padding-top:1.5em;pointer-events:none}
+.ice-ov.win .ice-big{background:rgba(0,0,0,.6);border-radius:10px;padding:.15em .5em}
+.ice-note .ice-score{display:block;margin:.3em 0}
+.ice-ov.win .ice-big{font-size:1.15em}
+.ice-ov p{margin:0}
+.ice-big{font-size:1.3em;line-height:1.1;font-weight:900;color:#ffd23f;text-shadow:2px 2px 0 #000}
+.ice-btns{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:.3em!important}
+.ice-ov .lot-btn{border-color:#000}
+.ice-ov .lot-btn:not(.lot-main){background:#fff;color:#000}
+.ice-jump{flex:1 1 100%;min-height:56px;font-size:1.15em;touch-action:manipulation}
+[data-theme="dark"] .game-pick[aria-pressed="true"]{background:var(--turq);color:#000;border-color:var(--turq)}
+.ice-ov.caught{justify-content:flex-end;padding-bottom:1em;background:none}
+.ice-caught{background:#000;border-radius:10px;padding:.2em .7em}
+.ice-note{margin:.5em 0 0;font-weight:700;min-height:1.3em}

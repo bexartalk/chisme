@@ -29,17 +29,17 @@ async def wk(p):
     await pg.goto(URL)
     await pg.wait_for_function("() => window.__chisme && window.__chisme.ready", timeout=90000)
     tabs = await pg.evaluate("[...document.querySelectorAll('#tabs .tab')].map(t => t.textContent.trim().replace(/^\\S+\\s/, ''))")
-    check(tabs == ["News", "Sports", "¿Cuál dieta?", "Weather", "Events"], f"nav is News · Sports · ¿Cuál dieta? · Weather · Events ({tabs})")
+    check(tabs == ["News", "Sports", "¿Cuál dieta?", "Weather", "Events", "Juegos"], f"nav is News · Sports · ¿Cuál dieta? · Weather · Events · Juegos ({tabs})")
     panes = await pg.evaluate("[...document.querySelectorAll('#track > .view')].map(v => v.dataset.view)")
-    check(panes == ["news", "sports", "antojos", "weather", "events"], f"swipe panes in the same order ({panes})")
+    check(panes == ["news", "sports", "antojos", "weather", "events", "juegos"], f"swipe panes in the same order ({panes})")
     opts = await pg.evaluate("[...document.querySelectorAll('#settings input[name=deftab]')].map(i => i.value)")
-    check(opts == ["news", "sports", "antojos", "weather", "events"], f"Settings 'Open Chisme to' in the same order ({opts})")
+    check(opts == ["news", "sports", "antojos", "weather", "events", "juegos"], f"Settings 'Open Chisme to' in the same order ({opts})")
     check(await pg.evaluate("document.querySelector('#antojos-title').textContent.trim()") == "🌮 ¿Cuál dieta?", "section title is 🌮 ¿Cuál dieta?")
     check(await pg.evaluate("document.querySelector('#settings input[name=deftab][value=antojos]').parentElement.textContent.trim()") == "🌮 ¿Cuál dieta?", "Settings option reads 🌮 ¿Cuál dieta?")
     check(await pg.evaluate("document.querySelector('#tabs [data-view=antojos] span').textContent") == "🌮", "¿Cuál dieta? keeps the 🌮 icon")
     check(await pg.evaluate("!document.querySelector('#ev-chips [data-cat=food]') && !document.querySelector('#view-events #food-block')"), "no Food chip / food block left in Events")
     fit = await pg.evaluate("(() => { const i = document.querySelector('.tabs-inner'); return i.scrollWidth <= i.clientWidth && [...i.children].every(t => t.getBoundingClientRect().right <= innerWidth); })()")
-    check(fit, "5 tabs fit at 390 px")
+    check(fit, "6 tabs fit at 390 px")
     await pg.tap('#tabs [data-view="antojos"]')
     await pg.wait_for_function("() => window.__chisme.view === 'antojos' && window.__chisme.foodReady && document.querySelectorAll('#food-creators .fr').length > 2", timeout=60000)
     check("Diet? Not today." in (await pg.text_content("#antojos-intro")), "witty intro line")
@@ -146,7 +146,7 @@ async def wk(p):
     check(not errs, f"no console/page errors ({errs[:3]})")
     if third: print(f"   note: {len(third)} error(s) from framed sites' own scripts (news site / TikTok player), e.g. {third[0][:90]!r}")
     await ctx.close()
-    # 320 px, largest text: the 5 tabs still fit
+    # 320 px, largest text: the 6 tabs still fit
     for w, font in ((320, 30), (320, None), (390, 30), (390, None)):
         dev2 = dict(dev); dev2["viewport"] = {"width": w, "height": 740}; dev2["screen"] = {"width": w, "height": 740}
         ctx = await b.new_context(**dev2)
@@ -160,7 +160,7 @@ async def wk(p):
         m = await pg.evaluate("""(() => { const i = document.querySelector('.tabs-inner'), t = [...i.children];
             return { fits: i.scrollWidth <= i.clientWidth + 1 && t.every(x => x.getBoundingClientRect().right <= innerWidth + 0.5 && x.scrollWidth <= x.clientWidth + 1),
                      font: getComputedStyle(t[0]).fontSize, lines: (() => { const l = i.querySelector('[data-view=antojos] .tl'); return Math.round(l.getBoundingClientRect().height / parseFloat(getComputedStyle(l).lineHeight)); })(), rootFont: getComputedStyle(document.documentElement).fontSize, widths: t.map(x => Math.round(x.getBoundingClientRect().width)) }; })()""")
-        check(m["fits"] and m["lines"] <= 2, f"{w} px, text {font or 'default'}: 5 tabs fit, no clipping, label ≤ 2 lines ({m})")
+        check(m["fits"] and m["lines"] <= 2, f"{w} px, text {font or 'default'}: 6 tabs fit, no clipping, label ≤ 2 lines ({m})")
         if w == 320 and font == 30:
             await settle(pg)
             await pg.screenshot(path=os.path.join(OUT, "nav-320.png"), clip={"x": 0, "y": 0, "width": 320, "height": 200})
