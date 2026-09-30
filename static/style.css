@@ -90,7 +90,8 @@ h2{margin:0;font-size:1.55rem;font-weight:900;color:var(--ink);letter-spacing:-.
 .news-list{display:grid;grid-template-columns:1fr;gap:10px}
 @media (min-width:900px){ .news-list{grid-template-columns:1fr 1fr} }
 .story{display:flex;gap:12px;align-items:flex-start;border:2px solid var(--line);border-radius:14px;padding:12px;background:#fff}
-.story.near{background:var(--near);border-color:var(--near-line)}
+/* v36: no yellow/cream in News; the closest stories get a subtle turquoise edge instead */
+.story.near{background:#fff;border-color:var(--turq);border-left-width:6px}
 .story .body{flex:1;min-width:0}
 .story h3{margin:0 0 4px;font-size:1.2rem;line-height:1.25;font-weight:850}
 .story h3 a{color:var(--ink);text-decoration:none}
@@ -574,7 +575,7 @@ body { overscroll-behavior-y: contain; }
 [data-theme="dark"] .card{background:var(--card);border-color:var(--line)}
 [data-theme="dark"] .greet{background:linear-gradient(135deg,#0f3a3c,var(--card) 65%);border-color:var(--turq)}
 [data-theme="dark"] .story{background:#101a1d}
-[data-theme="dark"] .story.near{background:var(--near);border-color:var(--near-line)}
+[data-theme="dark"] .story.near{background:#101a1d;border-color:var(--turq)}
 [data-theme="dark"] .story .src{color:var(--turq)}
 [data-theme="dark"] .story img{background:#243236}
 [data-theme="dark"] .tag{background:#2c3d41;color:#fff}
