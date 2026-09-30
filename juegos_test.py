@@ -396,7 +396,7 @@ async def fullscreen_shots(p):
     # a sample of the original art: 24 of the 54 cards in a grid
     await pg.evaluate("""() => { const L = ChismeLoteriaCards, d = document.createElement('div'); d.id = 'art-sheet';
       d.style.cssText = 'position:fixed;inset:0;z-index:9000;background:#0d0f1a;padding:8px;box-sizing:border-box;display:grid;grid-template-columns:repeat(4,1fr);gap:6px;align-content:start;overflow:hidden';
-      d.innerHTML = '<p style="grid-column:1/-1;margin:2px 0 4px;color:#fff;font-weight:900;text-align:center">Lotería Chismosa · our own art (24 of 54)</p>' + L.CARDS.filter((c, i) => i % 9 < 4 || i % 9 === 8).slice(0, 24).map(c => `<span class="lcard" style="--lc:${c.tint}"><span class="lc-n">${c.id}</span><span class="lc-art">${c.svg}</span><span class="lc-name${c.name.length >= 12 ? ' long' : ''}">${c.name}</span></span>`).join('');
+      d.innerHTML = '<p style="grid-column:1/-1;margin:2px 0 4px;color:#fff;font-weight:900;text-align:center">Our own Lotería art · 24 of 54 cards</p>' + L.CARDS.filter((c, i) => i % 9 < 4 || i % 9 === 8).slice(0, 24).map(c => `<span class="lcard" style="--lc:${c.tint}"><span class="lc-n">${c.id}</span><span class="lc-art">${c.svg}</span><span class="lc-name${c.name.length >= 12 ? ' long' : ''}">${c.name}</span></span>`).join('');
       document.body.appendChild(d); }""")
     await pg.wait_for_timeout(300)
     sheet = await pg.evaluate("(() => { const d = document.querySelector('#art-sheet'), l = [...d.querySelectorAll('.lcard')]; return { n: l.length, fits: l[l.length - 1].getBoundingClientRect().bottom <= innerHeight }; })()")
@@ -418,6 +418,10 @@ async def fullscreen_shots(p):
     s = await st(pg)
     for i in [i for i, c in enumerate(s["tabla"]) if c in s["called"]][:3]: await pg.click(f'.lot-cell[data-i="{i}"]')
     await pg.wait_for_timeout(600)
+    # every card's verse in the bubble (the long ones wrap the most), ending on the longest, so the check is the worst case
+    vs = await pg.evaluate("""(() => { const C = ChismeLoteriaCards, l = document.querySelector('#lot-line'), all = C.CARDS.map(c => C.callText(c)).sort((a, b) => a.length - b.length); let min = 1e9;
+      for (const t of all) { l.textContent = t; min = Math.min(min, document.querySelector('#lot-tabla').getBoundingClientRect().height); } return { min, longest: all[all.length - 1] }; })()""")
+    check(vs["min"] >= 0.58 * 640, f"320×640: with any card's verse (even the longest) the board stays {vs['min']:.0f}+ px tall")
     lay = await pg.evaluate(LAYOUT_JS); ctl = await pg.evaluate("[...document.querySelectorAll('.lot-controls .lot-btn')].every(b => b.scrollWidth <= b.clientWidth + 1 && b.getBoundingClientRect().height >= 44)")
     check(lay["ok"] and not lay["scroll"] and lay["w"] >= 0.85 * 320 and lay["h"] >= 0.58 * 640 and ctl and not lay["clipped"],
           f"320×640: everything fits with no scrolling, board {lay['w']:.0f}×{lay['h']:.0f}, controls one row of 44 px buttons ({ctl}), no clipped names {lay['clipped']}")

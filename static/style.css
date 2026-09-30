@@ -1065,6 +1065,9 @@ html.game-fs .track{transform:none!important;will-change:auto}   /* a transforme
 .gfs .lot-bubble::before{top:50%;margin-top:-7px;border-width:7px;left:-7px}
 .gfs .lot-line{font-size:clamp(.78rem,3.6vw,.92rem);line-height:1.2}
 .gfs .lot-bubble .lot-count{font-size:.72rem;margin-top:.15em;color:#c9d0d8;opacity:1}
+/* v41: on narrow phones the long verses (La Garza, El Violoncello) wrapped to 5 lines and squeezed the board; a smaller Tía + text keeps it to ~3 */
+@media (max-width:380px){.gfs .lot-tia{width:30px;height:30px}.gfs .lot-bubble{gap:.4em;padding:.25em .45em}.gfs .lot-line{font-size:.74rem;line-height:1.15}.gfs .lot-bubble .lot-count{font-size:.68rem;margin-top:.05em}}
+@media (max-width:360px){.gfs .lot-line{font-size:.7rem}.gfs .lot-bubble .lot-count{font-size:.66rem}}
 .gfs .lcard.big{width:clamp(40px,11.5vw,50px)}
 .gfs .lot-fit{order:2;flex:1 1 0;min-height:0;margin:6px 0;container-type:size;display:flex;align-items:center;justify-content:center}
 .gfs .lot-tabla{box-sizing:border-box;margin:0 auto;padding:5px;gap:4px;border-width:2px;grid-template-rows:repeat(4,minmax(0,1fr));

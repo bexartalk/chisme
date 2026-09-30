@@ -24,6 +24,8 @@ async def new(p, b, width=None, grant=None, init=None):
     kw = {}
     if grant: kw = dict(permissions=["geolocation"], geolocation={"latitude": grant[0], "longitude": grant[1]})
     ctx = await b.new_context(**dev, **kw)
+    # v41: the Add to Home Screen tutorial (3rd Safari open) has its own test (a2hs_test.py); keep it out of these flows
+    await ctx.add_init_script("if (!localStorage.getItem('chisme-a2hs')) localStorage.setItem('chisme-a2hs', JSON.stringify({ done: true }))")
     if init: await ctx.add_init_script(init)
     pg = await ctx.new_page()
     errs = []
@@ -94,9 +96,6 @@ async def main():
         await pg.goto(URL); await ready(pg)
         await pg.wait_for_function("() => window.__chisme.loc.source === 'gps'", timeout=30000)
         check(await pg.is_hidden("#loc-panel"), "granted permission: no card, location set automatically")
-        try:   # v41: a Safari tab (not standalone) gets the Add to Home Screen tutorial once setup is done (a2hs_test covers it)
-            await pg.wait_for_selector("#a2hs:not([hidden])", timeout=5000); await pg.click("#a2hs-ok")
-        except Exception: pass
         await pg.evaluate("document.activeElement && document.activeElement.blur()")
         for v in ("sports", "weather"):
             r = await view_ok(pg, v)
