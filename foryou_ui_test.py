@@ -24,7 +24,7 @@ def check(ok, what):
 INIT = "if (!localStorage.getItem('chisme-location-setup')) { localStorage.setItem('chisme-location-setup','1'); localStorage.setItem('chisme-ios-hint-dismissed','1'); localStorage.setItem('chisme-swiped','1'); %s }"
 PROF = "JSON.parse(localStorage.getItem('chisme-foryou') || 'null')"
 FEED = """() => { const s = document.querySelector('#feed-scroll'), sl = [...s.querySelectorAll('.vf-slide')];
-  return { open: document.querySelector('#feed').open, cur: window.__chisme.forYou.cur, pos: document.querySelector('#feed-pos').textContent,
+  return { open: document.querySelector('#feed').open, cur: window.__chisme.forYou.cur, pos: document.querySelector('#feed-pos') ? document.querySelector('#feed-pos').textContent : null, label: (document.querySelector('.feed-label') || {}).textContent,
     // v42: players = the YouTube players' layers on a slide (not the one warming the next video) + TikTok iframes in their slides
     frames: [...window.__chisme.forYou.player.players.filter(p => p.slide >= 0 && !p.warm).map(p => ({ slide: p.slide, src: 'yt:' + p.vid })),
       ...[...s.querySelectorAll('.vf-slide:not([data-warm]) iframe')].map(f => ({ slide: sl.indexOf(f.closest('.vf-slide')), src: f.src }))].sort((a, b) => a.slide - b.slide),
@@ -108,7 +108,7 @@ async def wk(p):
     check(f["open"] and f["h"] == f["vh"] and f["slideH"] == f["vh"], f"feed fills the screen; each video is one screen tall ({f['slideH']} = {f['vh']} px)")
     check(f["snap"].startswith("y") and "mandatory" in f["snap"] and f["align"] == "start", f"scroll-snap: '{f['snap']}', slides snap to '{f['align']}'")
     n = f["n"] - 1
-    check(f["pos"] == f"1 / {n}" and n >= 10, f"position '{f['pos']}' ({n} videos)")
+    check(f["pos"] is None and (f["label"] or "").strip() == "Bigger the Pansa, Better the Chansa" and f["cur"] == 0 and n >= 10, f"v43: just the title at the top, no 'N / {n}' counter ({f['label']!r}, {n} videos)")
     feed = (await pg.evaluate("window.__chisme.forYou"))["feed"]
     check(all(r["why"] for r in feed) and not any(r["explore"] for r in feed), "fresh phone: every card has a why chip; no exploration until it has learned something")
     check([r["url"] for r in feed[:3]] == cov["urls"], "the feed opens on the same 3 videos the banner cover shows")
@@ -125,7 +125,7 @@ async def wk(p):
     # 3. swipe on (keyboard ↓, then a snap scroll): the player moves with you, one at a time; a fast skip is recorded
     await pg.keyboard.press("ArrowDown"); await pg.wait_for_function("window.__chisme.forYou.cur === 1", timeout=5000); await wait_warm(pg)
     f = await pg.evaluate(FEED)
-    check([x["slide"] for x in f["frames"]] == [1] and f["playingUi"] == [1] and f["warm"] == [2] and f["pos"] == f"2 / {n}",
+    check([x["slide"] for x in f["frames"]] == [1] and f["playingUi"] == [1] and f["warm"] == [2] and f["cur"] == 1,
           f"↓ next video: video 2 plays in the player that had it warming, and the other player now warms video 3 (on screen {[x['slide'] for x in f['frames']]}, warm {f['warm']})")
     check(f["yt"] == 2 and f["ytInSlides"] == 0, f"two YouTube players for the whole feed, reused from video to video (no iframe per video: {f['yt']} players, {f['ytInSlides']} in slides)")
     prof = await pg.evaluate(PROF)
@@ -154,7 +154,7 @@ async def wk(p):
     prof = await pg.evaluate(PROF)
     check(sv["pressed"] == "true" and sv["n"] == "(1)" and (prof["s"].get(feed[2]["url"]) or {}).get("sv") == 1, f"🔖 Save on the video: saved to Saved spots {sv['n']} and learned")
     await pg.tap(f"{s2} .vf-ni"); await pg.wait_for_timeout(500)
-    ni = await pg.evaluate(f"({{ gone: !document.querySelector('#feed-scroll .vf-slide[data-url=\"' + CSS.escape({json.dumps(feed[2]['url'])}) + '\"]'), toast: document.querySelector('#feed-toast').textContent, pos: document.querySelector('#feed-pos').textContent }})")
+    ni = await pg.evaluate(f"({{ gone: !document.querySelector('#feed-scroll .vf-slide[data-url=\"' + CSS.escape({json.dumps(feed[2]['url'])}) + '\"]'), toast: document.querySelector('#feed-toast').textContent }})")
     prof = await pg.evaluate(PROF)
     check(ni["gone"] and "fewer like this" in ni["toast"] and (prof["s"].get(feed[2]["url"]) or {}).get("ni") == 1, f"🙅 Not for me: the video is gone, '{ni['toast']}'")
     await pg.tap("#feed-toast button"); await pg.wait_for_timeout(500)

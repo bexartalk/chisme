@@ -1,7 +1,7 @@
 /* Chisme — frontend (location-aware) */
 // Build of this file. Must equal the number in sw.js VERSION ("chisme-v22"); the page compares it
 // with the build the HTML was served for and reloads once if an old cached app.js got mixed in.
-window.CHISME_APP_BUILD = "42";
+window.CHISME_APP_BUILD = "43";
 (() => {
   "use strict";
   const WEATHER_MS = 10 * 60 * 1000;
@@ -1467,7 +1467,8 @@ window.CHISME_APP_BUILD = "42";
   const IOS_FEED = /iphone|ipod|ipad/i.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
   let feedList = [], feedCur = -1, feedT0 = 0, feedMuted = true, feedPlaying = true, feedTimer = null, feedPushed = false, feedOpener = null;
   // the local creators' videos + cooking / recipe videos from many cooks (the ranker mixes them: every 3rd is a recipe)
-  const feedVideos = () => (foodData && foodData.items ? foodData.items.concat(foodData.recipes || []).filter((i) => vidOf(i)) : []);
+  // + v43 food reviewers from the US and around the world (after a local creator leads, local and world take turns)
+  const feedVideos = () => (foodData && foodData.items ? foodData.items.concat(foodData.recipes || [], foodData.world || []).filter((i) => vidOf(i)) : []);
   // v42: the feed autoplays unless you turned on Reduce motion in Chisme's own Settings (the phone's system-wide
   // Reduce Motion alone no longer stops it: you opened the feed to watch, and a tap pauses), you're offline, or Data Saver is on
   const canAutoplay = () => navigator.onLine && lsGet("chisme-reduce-motion") !== "1" && !(navigator.connection && navigator.connection.saveData);
@@ -1510,8 +1511,8 @@ window.CHISME_APP_BUILD = "42";
     if (card.hidden) return;
     const sa = !foodData.metro || !!foodData.metro.in_sa;
     $("#fy-sub").textContent = sa
-      ? "SA's food spots plus easy recipes to cook at home. Swipe up for the next bite; every save and skip makes it smarter, right on your phone."
-      : "San Antonio's food creators plus easy recipes to cook at home, one video at a time. It learns what you crave from what you watch, save and skip.";
+      ? "SA's food spots first, plus food reviewers from around the world and easy recipes to cook at home. Swipe up for the next bite; every save and skip makes it smarter, right on your phone."
+      : "San Antonio's food creators plus food reviewers from around the world and easy recipes to cook at home, one video at a time. It learns what you crave from what you watch, save and skip.";
     if (!feed.open) {
       fyList = vids.length ? fyRank() : [];
       if (fyList[0]) lsSet("chisme-foryou-lead", fyList[0].crew);   // next visit leads with someone else
@@ -1843,6 +1844,7 @@ window.CHISME_APP_BUILD = "42";
     const info = el("div", { class: "vf-info" }, chip, more, el("h3", { text: it.title }), el("p", { class: "vf-by", text: by }),
       p ? el("p", { class: "vf-place" }, ...placeLine(p)) : null,
       it.recipe ? el("p", { class: "vf-place vf-recipe" }, el("span", { "aria-hidden": "true", text: "🍳 " }), "Recipe · cook it at home") : null,
+      it.world ? el("p", { class: "vf-place vf-world" }, el("span", { "aria-hidden": "true", text: "🌎 " }), it.where ? `Food around the world · ${it.where}` : "Food around the world") : null,
       it.elsewhere ? el("p", { class: "vf-by", text: "A San Antonio spot" }) : null);
     const rail = el("div", { class: "vf-rail" });
     const sv = saveButton(saved || it); rail.append(sv);
@@ -1926,7 +1928,6 @@ window.CHISME_APP_BUILD = "42";
     }
     feedCur = i;
     const s = all[i], r = s && feedList.find((x) => x.item.url === s.dataset.url);
-    $("#feed-pos").textContent = r ? `${feedList.indexOf(r) + 1} / ${feedList.length}` : "";
     if (r) {
       feedT0 = Date.now();
       if (canAutoplay() || s.querySelector(".vf-frame") || ytOf(s)) startSlide(s, r.item);
@@ -3069,7 +3070,7 @@ window.CHISME_APP_BUILD = "42";
     get ready() { return secs.weather.shownUrl === secs.weather.url() && secs.news.shownUrl === secs.news.url(); },
     get fresh() { return rendered.weather === q() && rendered.news === q(); },
     get newsReady() { return secs.news.shownUrl === secs.news.url(); }, get sportsReady() { return secs.sports.shownUrl === secs.sports.url(); }, get eventsReady() { return secs.events.shownUrl === secs.events.url(); }, get foodReady() { return !!foodData; },
-    get sync() { return { busy: [...Sync.busy], failed: [...Sync.failed.keys()], lastOk: Sync.lastOk }; }, refreshNow, get evCat() { return evCat; }, get view() { return VIEWS[cur]; }, radarColor: (r, g, b) => radarColor(r, g, b), get a2hs() { return { ...a2, open: !a2Sheet.hidden, ipad: isIPad, safari: isIOSSafari, standalone }; }, get donateMid() { const c = document.getElementById("donate-mid"); return { opens: midLaunch.opens, line: midLaunch.line, tab: midTab, where: midWhere, placed: !!(c && c.isConnected), dismissed: midGone() }; }, goView, get juegos() { return juegosOpen(); }, get forYou() { return { profile: FY && FY.load(), feed: feedList.map((r) => ({ url: r.item.url, title: r.item.title, creator: r.item.creator, crew: r.crew, place: r.place, why: r.why.text, explore: r.explore, recipe: !!r.item.recipe })), cur: feedCur, open: feed.open, sound: { wanted: soundWanted, muted: feedMuted, unlocks: feedUnlocks, held: feed.classList.contains("sound-held") }, get player() { const sl = slides(), c = YT.find((p) => p.slide && !p.warm && sl.indexOf(p.slide) === feedCur) || YT.find((p) => p.slide && !p.warm) || YT[0] || {}, w = YT.find((p) => p.warm && p.slide);
+    get sync() { return { busy: [...Sync.busy], failed: [...Sync.failed.keys()], lastOk: Sync.lastOk }; }, refreshNow, get evCat() { return evCat; }, get view() { return VIEWS[cur]; }, radarColor: (r, g, b) => radarColor(r, g, b), get a2hs() { return { ...a2, open: !a2Sheet.hidden, ipad: isIPad, safari: isIOSSafari, standalone }; }, get donateMid() { const c = document.getElementById("donate-mid"); return { opens: midLaunch.opens, line: midLaunch.line, tab: midTab, where: midWhere, placed: !!(c && c.isConnected), dismissed: midGone() }; }, goView, get juegos() { return juegosOpen(); }, get forYou() { return { profile: FY && FY.load(), feed: feedList.map((r) => ({ url: r.item.url, title: r.item.title, creator: r.item.creator, crew: r.crew, place: r.place, why: r.why.text, explore: r.explore, recipe: !!r.item.recipe, world: !!r.item.world, where: r.item.where || null })), cur: feedCur, open: feed.open, sound: { wanted: soundWanted, muted: feedMuted, unlocks: feedUnlocks, held: feed.classList.contains("sound-held") }, get player() { const sl = slides(), c = YT.find((p) => p.slide && !p.warm && sl.indexOf(p.slide) === feedCur) || YT.find((p) => p.slide && !p.warm) || YT[0] || {}, w = YT.find((p) => p.warm && p.slide);
       return { made: YT.length > 0, ready: !!c.ready, vid: c.vid || null, st: c.st ?? -1, ytMuted: c.ytMuted ?? null, unlocked: !!c.unlocked, slide: c.slide ? sl.indexOf(c.slide) : -1, frames: document.querySelectorAll("iframe.vf-yt").length,
         players: YT.map((p) => ({ slide: p.slide ? sl.indexOf(p.slide) : -1, warm: p.warm, vid: p.vid, st: p.st, ready: p.ready, unlocked: p.unlocked, muted: p.ytMuted })), warm: w ? sl.indexOf(w.slide) : -1, ios: IOS_FEED }; }, cover: fyList.slice(0, 3).map((r) => r.item.url), coverCrews: fyList.slice(0, 3).map((r) => r.crew) }; }, openFeed, closeFeed,
     get sportsReady() { return !!rendered.sports; }, get spLg() { return spLg; } };

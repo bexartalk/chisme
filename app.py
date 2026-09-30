@@ -1799,8 +1799,8 @@ async def _yt_oembed_code(vid: str) -> int:
     return r.status_code
 
 
-async def recipe_items() -> list[dict]:
-    vids = recipe_list()
+async def _still_embeddable(vids: list[dict]) -> list[bool]:
+    """Once a day per id, YouTube's oEmbed: 404 (gone / private) or 401/403 (embedding off) → drop; unreachable → keep."""
     sem = asyncio.Semaphore(8)
 
     async def ok(v):
@@ -1810,7 +1810,12 @@ async def recipe_items() -> list[dict]:
             except Exception:
                 return True   # YouTube unreachable: keep it (it was checked by hand)
             return code == 200 or code >= 500 or code == 429
-    keep = await asyncio.gather(*(ok(v) for v in vids))
+    return list(await asyncio.gather(*(ok(v) for v in vids)))
+
+
+async def recipe_items() -> list[dict]:
+    vids = recipe_list()
+    keep = await _still_embeddable(vids)
     out = []
     for v, k in zip(vids, keep):
         if not k:
@@ -1821,6 +1826,36 @@ async def recipe_items() -> list[dict]:
                     "platform": "youtube", "video": True, "published": None, "summary": "", "source_id": "recipes",
                     "image": f"https://i.ytimg.com/vi/{v['id']}/hqdefault.jpg", "channel": v.get("channel_url"), "place": None,
                     "crew": "cook:" + (v.get("channel_id") or creator).lower()})
+    return out
+
+
+# --- v43: food reviewers from the US and around the world (data/world_food_videos.json): Best Ever Food Review Show,
+# Mark Wiens, Luke Martin, Davidsbeenhere, Strictly Dumpling … Hand-picked public Shorts from each channel's own feed,
+# checked like the recipes (oEmbed + playableInEmbed) and re-checked daily. For You mixes them in after San Antonio's
+# creators: a local creator always leads, then local and world take turns (every 3rd is still a recipe).
+WORLD_FILE = BASE / "data" / "world_food_videos.json"
+
+
+def world_list() -> list[dict]:
+    try:
+        return [v for v in json.loads(WORLD_FILE.read_text()).get("videos", []) if YT_ID_RX.match(v.get("id") or "") and v.get("creator")]
+    except Exception:
+        return []
+
+
+async def world_items() -> list[dict]:
+    vids = world_list()
+    keep = await _still_embeddable(vids)
+    out = []
+    for v, k in zip(vids, keep):
+        if not k:
+            continue
+        creator = clean_text(v["creator"], 80)
+        out.append({"title": clean_text(v.get("title") or "", 200) or f"A food review from {creator}", "url": f"https://www.youtube.com/shorts/{v['id']}",
+                    "creator": creator, "outlet": creator, "author": None, "kind": "world", "world": True, "where": clean_text(v.get("where") or "", 60) or None,
+                    "topic": v.get("topic"), "platform": "youtube", "video": True, "published": None, "summary": "", "source_id": "world",
+                    "image": f"https://i.ytimg.com/vi/{v['id']}/hqdefault.jpg", "channel": v.get("channel_url"), "place": None,
+                    "crew": "world:" + (v.get("person") or v.get("channel_id") or creator).lower()})
     return out
 
 
@@ -1873,7 +1908,11 @@ async def build_food(lat: float, lon: float) -> dict:
         recipes = await cached("recipes:" + hashlib.sha1(RECIPES_FILE.read_bytes()).hexdigest()[:10], 3600, recipe_items)
     except Exception:
         recipes = []
-    return {"generated": time.time(), "items": items, "recipes": recipes, "days": FOOD_DAYS, "message": None, "metro": info, "city": info["city"],
+    try:
+        world = await cached("world:" + hashlib.sha1(WORLD_FILE.read_bytes()).hexdigest()[:10], 3600, world_items)
+    except Exception:
+        world = []
+    return {"generated": time.time(), "items": items, "recipes": recipes, "world": world, "days": FOOD_DAYS, "message": None, "metro": info, "city": info["city"],
             "creators": food_creators(),
             "sources": [dict(st, elsewhere=src.get("elsewhere")) for (_, st), src in zip(res, sources)]}
 
