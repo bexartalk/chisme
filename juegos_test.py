@@ -16,7 +16,7 @@
 4. v41 full screen: the board fills the width and most of the height at 390×844 and 320×640 with no scrolling; the called card sits small above it.
 Screenshots: juegos-tab.png, juegos-english.png, loteria-calls.png, loteria-win.png, loteria-tabla-big.png, loteria-cards.png, ice-ice-bebe-level1.png,
 ice-ice-bebe-win.png (+ ice-ice-bebe-home-dehole.png, loteria-320.png)."""
-import asyncio, json, os, subprocess
+import asyncio, json, os, re, subprocess
 from urllib.parse import urlparse
 from playwright.async_api import async_playwright
 
@@ -443,7 +443,8 @@ async def offline(p):
     await pg.click(".gfs-x"); await pg.wait_for_timeout(200)
     await pg.click('.game-pick[data-game="loteria"]'); await pg.wait_for_timeout(200)
     check(ok and s["mode"] == "run" and await pg.evaluate("document.querySelectorAll('#lot-tabla .lot-cell').length") == 16, "offline: Juegitos opens (#ice), Ice Ice Bebé runs, Lotería deals a tabla")
-    cached = await pg.evaluate("(async () => { const c = await caches.open('chisme-v41-shell'), k = (await c.keys()).map(r => new URL(r.url).pathname); const r = await fetch('/static/loteria/audio/01.mp3', { headers: { Range: 'bytes=0-99' } }); return { n: k.filter(p => p.startsWith('/static/loteria/audio/')).length, cards: k.includes('/static/loteria_cards.js'), status: r.status, len: (await r.arrayBuffer()).byteLength, cr: r.headers.get('Content-Range') }; })()")
+    shell = re.search(r'VERSION\s*=\s*"(chisme-v\d+)"', open(os.path.join(HERE, "static", "sw.js")).read()).group(1) + "-shell"   # (this build's cache)
+    cached = await pg.evaluate("(async () => { const c = await caches.open('" + shell + "'), k = (await c.keys()).map(r => new URL(r.url).pathname); const r = await fetch('/static/loteria/audio/01.mp3', { headers: { Range: 'bytes=0-99' } }); return { n: k.filter(p => p.startsWith('/static/loteria/audio/')).length, cards: k.includes('/static/loteria_cards.js'), status: r.status, len: (await r.arrayBuffer()).byteLength, cr: r.headers.get('Content-Range') }; })()")
     check(cached["n"] == 57 and cached["cards"] and cached["status"] == 206 and cached["len"] == 100, f"offline: the service worker has all 57 recorded calls + the card art, and answers a Range request with 206 (for Safari) ({cached})")
     await b.close()
 
