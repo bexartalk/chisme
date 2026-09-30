@@ -166,6 +166,7 @@ body{padding-top:var(--tabs-h,calc(66px + env(safe-area-inset-top,0px)))}
   overflow-x:auto;scrollbar-width:none;overscroll-behavior-x:contain}
 .tabs-inner::-webkit-scrollbar{display:none}
 @media (max-width:420px){ .tabs .tabs-inner{padding-left:6px;padding-right:6px;gap:3px} }
+@media (max-width:380px){ .gfs-bar-x .gfs-lot-t{display:none} }
 .tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;min-height:52px;padding:.2em .25em;min-width:0;
   background:#000;color:#fff;border:2px solid #000;border-radius:12px;font-size:min(.85rem,18px,3.4vw);font-weight:900;line-height:1.1;white-space:nowrap}
 .tab span{font-size:1.15em;line-height:1}
@@ -952,53 +953,79 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
 .game-pick[aria-pressed="true"]{background:#000;color:#fff;border-color:#000;box-shadow:inset 0 -5px 0 var(--turq)}
 .game-more{margin:.2em 0 0;font-size:.85em;opacity:.8}
 .game-stage{padding-top:.8em}
-.lot-top{display:flex;gap:.6em;align-items:flex-start}
-.lot-tia{width:64px;height:64px;border-radius:50%;border:3px solid var(--pink);flex:none;background:#000}
-.lot-bubble{flex:1;min-width:0;position:relative;background:#000;color:#fff;border-radius:16px;padding:.55em .7em;display:flex;gap:.6em;align-items:center;min-height:88px}
-.lot-bubble::before{content:"";position:absolute;left:-8px;top:22px;border:8px solid transparent;border-right-color:#000;border-left:0}
-.lot-say{flex:1;min-width:0}
-.lot-line{margin:0;font-weight:700;line-height:1.3}
-.lot-bubble .lot-count{margin:.3em 0 0;font-size:.8em;font-weight:700;opacity:.8}
-.lot-card:empty{display:none}
-.lot-count{margin:.5em 0 .3em;font-size:.9em;font-weight:700}
+/* v43: Lotería Chismosa looks like a real tabla app: warm cream, a teal bar (the tabla picker + the bean count), the called card
+   in a strip with ▶/⏸ and ¡Lotería!, a 4×4 tabla of big vintage cards (static/loteria/cards/NN.webp), then Limpiar and
+   Nueva tabla. Fiesta colors only (turquoise, pink, orange, black), no yellow; the cream is a warm peachy cream. */
 .lot-controls,.ice-controls{display:flex;flex-wrap:wrap;gap:6px;margin:.4em 0 .7em}
 .lot-btn{min-height:44px;padding:.3em .8em;border:2px solid var(--ink);border-radius:12px;background:var(--card);color:var(--ink);font:inherit;font-weight:800}
 .lot-btn[aria-pressed="true"].lot-main,.lot-main{background:var(--turq);border-color:#000;color:#000}
-.lot-tabla{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;padding:6px;background:#000;border-radius:12px;border:3px solid #c9d0d8}
-.lot-cell{position:relative;padding:0;border:0;background:none;border-radius:8px;min-width:0;cursor:pointer}
-.lot-cell:focus-visible{outline:4px solid var(--focus);outline-offset:1px}
-/* v41: the 54 cards, original art (static/loteria_cards.js): number, the drawing on a tinted panel, the Spanish name */
-.lcard{container-type:inline-size;display:flex;flex-direction:column;gap:2px;aspect-ratio:3/4.2;box-sizing:border-box;background:#fff;color:#000;border-radius:7px;border:2px solid #111;padding:3px;position:relative;overflow:hidden}
-.lc-art{flex:1 1 0;min-height:0;display:flex;align-items:center;justify-content:center;background:var(--lc);border-radius:4px;box-shadow:inset 0 0 0 1.5px #111;overflow:hidden}
-.lc-art svg{display:block;width:100%;height:100%}
-.lc-n{position:absolute;top:4px;left:4px;z-index:1;font-size:.62rem;font-weight:900;line-height:1.25;background:#fff;border:1.5px solid #111;border-radius:4px;padding:0 3px}
-.lc-name{flex:none;font-size:clamp(5px,12.5cqw,15px);font-weight:900;text-align:center;line-height:1.1;background:#111;color:#fff;border-radius:4px;padding:2px 2px;
-  white-space:nowrap;overflow:hidden;text-overflow:clip;letter-spacing:-.01em}
-.lc-name.long{font-size:clamp(5px,10.5cqw,13px)}
-.lc-n{font-size:clamp(6px,11cqw,13px)}
-.lcard.big{width:74px;flex:none}
-.lcard.mini{width:44px;flex:none;border-width:1.5px;padding:2px}
-.lcard.mini .lc-name{padding:1px 0}
-.lcard.mini .lc-n{top:2px;left:2px;border-width:1px;padding:0 2px}
-/* v41: the marker is a pinto bean (juegos.js BEAN). It drops onto the card with a bounce; an uncalled card only shakes. */
+.lot-app{--lc-cream:#f7e8df;--lc-ink:#1d1612;--lc-teal:#0f6d73;position:relative;background:var(--lc-cream);color:var(--lc-ink);border:2px solid var(--lc-ink);border-radius:16px;overflow:hidden}
+.lot-head{display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--lc-teal);padding:6px 8px}
+.lot-pick{display:inline-flex;align-items:center;gap:.3em;min-height:44px;min-width:0;max-width:100%;padding:0 .4em;border:0;background:none;color:#fff;font:inherit;font-size:1.05rem;font-weight:900;
+  text-decoration:underline;text-underline-offset:4px;text-decoration-thickness:2px;cursor:pointer;white-space:nowrap}
+.lot-pick #lot-pick-t{overflow:hidden;text-overflow:ellipsis}
+.lot-caret::before{content:"";display:inline-block;width:.5em;height:.5em;border:solid #fff;border-width:0 3px 3px 0;transform:translateY(-.15em) rotate(45deg);margin-left:.2em}
+.lot-pick:focus-visible{outline:4px solid var(--pink);outline-offset:1px;border-radius:8px}
+.lot-marked{flex:none;min-width:4.4em;text-align:center;background:var(--orange);color:var(--lc-ink,#1d1612);border:3px solid #1d1612;border-radius:999px;padding:.12em .7em;font-weight:900;font-size:1.05rem;line-height:1.35;font-variant-numeric:tabular-nums}
+.lot-now{display:flex;align-items:center;gap:8px;padding:6px 8px;border-bottom:2px solid rgba(29,22,18,.18)}
+.lot-card{flex:none}
+.lot-card:empty{display:block;width:52px;aspect-ratio:2/3;border:2px dashed rgba(29,22,18,.35);border-radius:6px}
+.lot-say{flex:1;min-width:0}
+.lot-line{margin:0;font-weight:800;line-height:1.22;font-size:.92rem;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
+.lot-count{margin:.2em 0 0;font-size:.74rem;font-weight:800;opacity:.75}
+.lot-now-btns{flex:none;display:flex;flex-direction:column;gap:5px;width:auto;min-width:92px}
+.lot-now-btns .lot-btn,.lot-now-btns .lot-claim{width:100%;min-height:44px;margin:0;padding:0 .3em;border:3px solid #1d1612;border-radius:12px;font-size:.95rem;font-weight:900;white-space:nowrap;box-shadow:0 3px 0 #1d1612}
+.lot-claim{display:block;background:var(--pink);color:#fff;font:inherit;text-shadow:0 1px 0 rgba(0,0,0,.3);cursor:pointer}
+.won .lot-claim{background:var(--turq);color:#000;text-shadow:none}
+.lot-fit{padding:8px;container-type:inline-size}
+.lot-tabla{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;margin:0 auto}
+.lot-cell{position:relative;display:block;padding:0;border:0;background:none;border-radius:8px;min-width:0;cursor:pointer;box-shadow:0 2px 0 rgba(29,22,18,.4);-webkit-tap-highlight-color:transparent}
+.lot-cell:focus-visible{outline:4px solid var(--pink);outline-offset:1px}
+.lcard{display:block;position:relative;aspect-ratio:2/3;border-radius:7px;overflow:hidden;background:#f7e8df}
+.lot-cell .lcard{height:100%}
+.lc-img{display:block;width:100%;height:100%;object-fit:cover;transition:filter .2s ease}
+.lcard.big{width:52px}
+.gfs .lcard.big{width:64px} .gfs .lot-card:empty{width:64px}
+.lcard.mini{width:44px;flex:none;border-radius:4px}
+/* the bean: a big pinto bean right on the card, and the card a little dimmed under it */
 .bean-defs{position:absolute;width:0;height:0;overflow:hidden}
-.frijol{position:absolute;left:50%;top:44%;width:52%;aspect-ratio:60/44;pointer-events:none;opacity:0;
+.lot-cell.marked .lc-img{filter:brightness(.72) saturate(.85)}
+.frijol{position:absolute;left:50%;top:50%;width:84%;aspect-ratio:60/44;pointer-events:none;opacity:0;z-index:1;
   transform:translate(calc(-50% + var(--dx,0%)),calc(-50% + var(--dy,0%))) rotate(var(--r,0deg)) scale(.6);transition:opacity .16s ease-in,transform .16s ease-in}
-.frijol svg{display:block;width:100%;height:100%;transform:scaleX(var(--fx,1));filter:drop-shadow(0 1px 0 rgba(0,0,0,.35))}
+.frijol svg{display:block;width:100%;height:100%;transform:scaleX(var(--fx,1));filter:drop-shadow(0 3px 2px rgba(0,0,0,.45))}
 .lot-cell.marked .frijol{opacity:1;transform:translate(calc(-50% + var(--dx,0%)),calc(-50% + var(--dy,0%))) rotate(var(--r,0deg)) scale(1);animation:bean-drop .46s cubic-bezier(.3,.7,.4,1) both}
 @keyframes bean-drop{
   0%{opacity:0;transform:translate(calc(-50% + var(--dx,0%)),calc(-190% + var(--dy,0%))) rotate(calc(var(--r,0deg) - 50deg)) scale(1.55)}
   45%{opacity:1;transform:translate(calc(-50% + var(--dx,0%)),calc(-50% + var(--dy,0%))) rotate(var(--r,0deg)) scale(.92)}
-  68%{transform:translate(calc(-50% + var(--dx,0%)),calc(-66% + var(--dy,0%))) rotate(calc(var(--r,0deg) + 6deg)) scale(1.03)}
+  68%{transform:translate(calc(-50% + var(--dx,0%)),calc(-62% + var(--dy,0%))) rotate(calc(var(--r,0deg) + 6deg)) scale(1.03)}
   84%{transform:translate(calc(-50% + var(--dx,0%)),calc(-50% + var(--dy,0%))) rotate(var(--r,0deg)) scale(.98)}
   100%{opacity:1;transform:translate(calc(-50% + var(--dx,0%)),calc(-50% + var(--dy,0%))) rotate(var(--r,0deg)) scale(1)}}
 .lot-cell.nope{animation:card-nope .4s ease-in-out}
 @keyframes card-nope{0%,100%{transform:translateX(0)}20%{transform:translateX(-4px) rotate(-1.5deg)}45%{transform:translateX(4px) rotate(1.5deg)}70%{transform:translateX(-2px)}85%{transform:translateX(2px)}}
-.lot-cell.win .lcard{border-color:var(--turq);box-shadow:inset 0 0 0 2px #fff,inset 0 0 0 4px #111,0 0 0 3px var(--turq),0 0 0 5px var(--pink)}
-.lot-claim{display:block;width:100%;margin:.7em 0 .4em;min-height:56px;border:3px solid #000;border-radius:16px;background:var(--pink);color:#fff;font:inherit;font-size:1.35em;font-weight:900;
-  text-shadow:0 2px 0 rgba(0,0,0,.35);box-shadow:inset 0 -6px 0 rgba(0,0,0,.25)}
-.won .lot-claim{background:var(--turq);color:#000;text-shadow:none}
-.lot-rules{font-size:.85em;margin:.3em 0}
+.lot-cell.win .lcard{box-shadow:0 0 0 3px var(--turq),0 0 0 6px var(--pink)}
+.lot-cell.win{z-index:1}
+.lot-actions{display:flex;flex-wrap:nowrap;gap:8px;margin:0;padding:6px 8px 10px}
+.lot-actions .lot-btn{min-height:54px;border:3px solid #1d1612;border-radius:14px;font-weight:900;font-size:1.05rem;letter-spacing:.05em;text-transform:uppercase;box-shadow:0 4px 0 #1d1612;white-space:nowrap;padding:0 .4em}
+.lot-actions .lot-clear{flex:1 1 0;min-width:0;background:#1f7f86;color:#fff}
+.lot-actions .lot-new{flex:1.25 1 0;min-width:0;background:var(--orange);color:#1d1612}
+.lot-actions .lot-icon{flex:0 0 54px;padding:0;background:#fff;color:#1d1612;letter-spacing:0}
+.lot-actions .lot-btn:active,.lot-now-btns .lot-btn:active,.lot-now-btns .lot-claim:active{transform:translateY(2px);box-shadow:0 1px 0 #1d1612}
+.lot-actions .lb-x{display:none}
+/* Pick your tabla */
+.lot-sheet{position:absolute;inset:0;z-index:20;display:flex;align-items:flex-start;justify-content:center;padding:8px;background:rgba(29,22,18,.45)}
+.lot-sheet[hidden]{display:none}
+.lot-sheet-in{width:min(100%,430px);max-height:100%;overflow:auto;background:#f7e8df;color:#1d1612;border:3px solid #1d1612;border-radius:16px;padding:8px 10px 10px;box-shadow:0 6px 0 rgba(29,22,18,.35)}
+.lot-sheet-h{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.lot-sheet-h h3{margin:0;font-size:1.15rem;font-weight:900}
+.lot-sheet-x{width:44px;height:44px;min-height:0;padding:0;border:2px solid #1d1612;border-radius:50%;background:#fff;color:#1d1612;font:inherit;font-weight:900}
+.lot-pickopt{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;min-height:58px;margin:6px 0;padding:6px 8px;text-align:left;border:2px solid #1d1612;border-radius:12px;background:#fff;color:#1d1612;font:inherit;cursor:pointer}
+.lot-pickopt[aria-pressed="true"]{background:#d6f3f1;box-shadow:inset 0 0 0 3px #0f6d73}
+.lpo-t{min-width:0}.lpo-t b{display:block;font-size:1rem}.lpo-t small{display:block;font-size:.72rem;font-weight:700;opacity:.8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lpo-cards{flex:none;display:flex}.lpo-cards img{width:28px;height:42px;border-radius:3px;box-shadow:0 1px 0 #1d1612;margin-left:-8px;background:#f7e8df}
+.lpo-cards img:first-child{margin-left:0}.lpo-rand{font-size:1.6rem;line-height:1}
+.lot-sheet-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;padding-top:8px;border-top:2px solid rgba(29,22,18,.18);font-weight:900}
+.lot-sheet-row .lot-btn{border-color:#1d1612;background:#fff;color:#1d1612}
+.lot-rules{font-size:.85em;margin:.6em 0 .3em}
 .lot-stats{font-weight:800;margin:.4em 0}
 .lot-hist-h{margin:.6em 0 .3em;font-size:.85em;font-weight:800}
 .lot-hist{display:flex;gap:4px;overflow-x:auto;padding-bottom:4px}
@@ -1066,33 +1093,34 @@ html.game-fs .track{transform:none!important;will-change:auto}   /* a transforme
 .gfs .ice-lbl{display:none}
 .ice-ov.win button{pointer-events:auto}
 .ice-win-score{font-weight:800;background:rgba(0,0,0,.6);border-radius:8px;padding:.1em .5em}
-/* Lotería Chismosa, full screen (v41): a slim row with Tía + the called card (small) + its verse, then the 4×4 board as big as the
-   screen allows (full width; the cards stretch taller when there's height to spare), then ¡Lotería! and one row of controls.
-   Fits 390×844 and 320×640 with no scrolling. */
-.game-stage.gfs:has(.lot-fit){padding-left:max(8px,env(safe-area-inset-left,0px));padding-right:max(8px,env(safe-area-inset-right,0px));padding-bottom:max(6px,env(safe-area-inset-bottom,0px))}
-.gfs:has(.lot-fit) .gfs-bar{min-height:50px;padding:3px 2px}
-.gfs .lot-top{flex:none;order:1;gap:.4em;align-items:center}
-.gfs .lot-tia{width:40px;height:40px;border-width:2px}
-.gfs .lot-bubble{min-height:0;padding:.3em .5em;gap:.5em;border-radius:12px}
-.gfs .lot-bubble::before{top:50%;margin-top:-7px;border-width:7px;left:-7px}
-.gfs .lot-line{font-size:clamp(.78rem,3.6vw,.92rem);line-height:1.2}
-.gfs .lot-bubble .lot-count{font-size:.72rem;margin-top:.15em;color:#c9d0d8;opacity:1}
-/* v41: on narrow phones the long verses (La Garza, El Violoncello) wrapped to 5 lines and squeezed the board; a smaller Tía + text keeps it to ~3 */
-@media (max-width:380px){.gfs .lot-tia{width:30px;height:30px}.gfs .lot-bubble{gap:.4em;padding:.25em .45em}.gfs .lot-line{font-size:.74rem;line-height:1.15}.gfs .lot-bubble .lot-count{font-size:.68rem;margin-top:.05em}}
-@media (max-width:360px){.gfs .lot-line{font-size:.7rem}.gfs .lot-bubble .lot-count{font-size:.66rem}}
-.gfs .lcard.big{width:clamp(40px,11.5vw,50px)}
-.gfs .lot-fit{order:2;flex:1 1 0;min-height:0;margin:6px 0;container-type:size;display:flex;align-items:center;justify-content:center}
-.gfs .lot-tabla{box-sizing:border-box;margin:0 auto;padding:5px;gap:4px;border-width:2px;grid-template-rows:repeat(4,minmax(0,1fr));
-  width:min(100cqw,calc((100cqh - 26px) * 3 / 3.6 + 26px));height:min(100cqh,calc((100cqw - 26px) * 5.2 / 3 + 26px))}
-.gfs .lot-cell{min-height:0;display:flex}
-.gfs .lot-cell .lcard{aspect-ratio:auto;width:100%;height:100%}
-.gfs .lot-claim{order:3;flex:none;margin:0 0 6px;min-height:50px;font-size:1.3em}
-.gfs .lot-controls{order:4;flex:none;flex-wrap:nowrap;justify-content:center;margin:0;gap:6px}
-.gfs .lot-controls .lot-btn{flex:1 1 auto;min-width:0;min-height:44px;padding:.2em .3em;font-size:clamp(.72rem,3.4vw,.92rem);white-space:nowrap;background:#1b1f2e;color:#fff;border-color:#3a4058}
-.gfs .lot-controls .lot-main{flex-grow:1.6;background:var(--turq);color:#000;border-color:#000}
-.gfs .lot-controls #lot-voice{flex:0 0 48px}
-.gfs .lb-x{display:none}
-.gfs .lot-hist-wrap{display:none}
+/* Lotería Chismosa, full screen (v43): the teal bar (title badge · tabla picker · bean count · ✕) reaches under the notch,
+   then the called-card strip, the 4×4 tabla as big as the space allows (cards 2:3, full width at 390×844), Limpiar + Nueva tabla.
+   Fits 390×844 and 320×640 with no scrolling (the tabla shrinks with the height). */
+.game-stage.gfs:has(.lot-app){padding:0 env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);background:#f7e8df;color:#1d1612}
+.gfs:has(.lot-app) .gfs-bar{background:#0f6d73;color:#fff;padding:calc(env(safe-area-inset-top,0px) + 4px) 8px 4px;min-height:52px;gap:6px}
+.gfs-bar.gfs-bar-x{grid-template-columns:auto minmax(0,1fr) 44px}
+.gfs-extra{display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0}
+.gfs-bar-x .gfs-badge{justify-self:start}
+.gfs-bar-x .lot-marked{font-size:.98rem;min-width:4.1em}
+.gfs-bar-x .lot-pick{font-size:1rem;flex:0 1 auto}
+.gfs:has(.lot-app) .gfs-lot{padding:.15em .6em .2em;box-shadow:0 2px 0 #000}
+.gfs:has(.lot-app) .gfs-x{border-color:#fff;background:#1d1612}
+.gfs .lot-app{flex:1 1 0;min-height:0;display:flex;flex-direction:column;border:0;border-radius:0;background:transparent;overflow:visible}
+.gfs .lot-head{display:none}
+.gfs .lot-now{flex:none}
+.gfs .lot-fit{flex:1 1 0;min-height:0;padding:6px 8px;container-type:size;display:flex;align-items:center;justify-content:center}
+.gfs .lot-tabla{--w:min(calc((100cqw - 15px) / 4),calc((100cqh - 15px) / 6));grid-template-columns:repeat(4,var(--w));grid-auto-rows:calc(var(--w) * 1.5);gap:5px}
+.gfs .lot-cell .lcard{width:100%;height:100%;aspect-ratio:auto}
+.gfs .lot-actions{flex:none}
+.gfs .lot-rules,.gfs .lot-stats,.gfs .lot-hist-wrap{display:none}
+@media (max-width:420px){ .gfs-bar-x .gfs-lot-t b{display:none} .gfs-bar-x .lot-marked{font-size:.92rem;min-width:3.6em;padding:.1em .45em} .gfs-bar-x .lot-pick{font-size:.92rem;padding:0 .2em;letter-spacing:-.01em} .gfs-bar-x .gfs-extra{gap:4px} .gfs-bar-x .lot-pick-emo{display:none} .gfs-bar-x .lot-caret{margin-left:-.1em} .gfs-bar-x .gfs-badge{padding-left:.5em;padding-right:.55em} }
+@media (max-width:360px){
+  .gfs-bar-x .gfs-lot-t{display:none} .gfs-bar-x .lot-pick{font-size:.92rem} .gfs-bar-x .lot-marked{font-size:.88rem;min-width:3.8em;padding:.1em .45em}
+  .lot-now{gap:6px;padding:4px 6px} .lcard.big,.gfs .lcard.big{width:40px} .lot-card:empty,.gfs .lot-card:empty{width:40px} .lot-line{font-size:.78rem;-webkit-line-clamp:3} .lot-count{font-size:.68rem}
+  .lot-now-btns{min-width:80px;gap:4px} .lot-now-btns .lot-btn,.lot-now-btns .lot-claim{min-height:40px;font-size:.84rem}
+  .lot-actions{gap:6px;padding:4px 6px 8px} .lot-actions .lot-btn{min-height:48px;font-size:.9rem;letter-spacing:.02em} .lot-actions .lot-icon{flex-basis:48px}
+}
+@media (max-height:700px){ .gfs .lcard.big,.gfs .lot-card:empty{width:44px} .lot-now-btns{gap:4px} .lot-now-btns .lot-btn,.lot-now-btns .lot-claim{min-height:40px} .gfs .lot-actions .lot-btn{min-height:48px} }
 /* level cleared: the message sits up in the sky so the destination (Home Dehole's sign, the shop, Mom's house) stays in view */
 .ice-ov.clear{justify-content:flex-start;padding-top:max(3.6em,11%);background:linear-gradient(rgba(0,0,0,.62),rgba(0,0,0,.35) 32%,rgba(0,0,0,0) 48%)}
 .ice-ov.clear .ice-big{font-size:1.2em}

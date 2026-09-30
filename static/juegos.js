@@ -9,7 +9,7 @@
   const FIESTA = ["#00b8b0", "#ff3d8b", "#ff8a00", "#111111", "#b9c0c7"];   // turquoise, pink, orange, black, silver
   // v41: the 54 traditional cards (names + folk verses) with our own original SVG art, from static/loteria_cards.js
   const LC = typeof module === "object" && module.exports ? require("./loteria_cards.js") : root.ChismeLoteriaCards;
-  const CARDS = LC.CARDS, callText = LC.callText, LINES_ES = LC.LINES_ES;
+  const CARDS = LC.CARDS, callText = LC.callText, LINES_ES = LC.LINES_ES, PRESETS = LC.PRESETS || [];
   // the UI text is English; what Tía says out loud (the calls, ¡Lotería!) is Spanish
   const BRAG = ["¡Lotería! I told you today was your day, honey.", "That's it! Not even the neighbor saw that coming.", "¡Lotería! I'm making you my official best friend.",
     "You won! I'm telling the group chat right now.", "What luck! Share your secret with me, okay?"];
@@ -47,8 +47,12 @@
     let on = false;
     const bar = document.createElement("div");
     bar.className = "gfs-bar";
-    bar.innerHTML = `<span class="gfs-side" aria-hidden="true"></span><div class="gfs-badge ${opts.badgeClass || ""}">${opts.badge || esc(opts.title)}<span class="sr-only">${esc(opts.title)}</span></div>`
+    const items = opts.barItems || [];   // v43: controls that live in the bar while full screen (Lotería: the tabla picker + the bean count)
+    if (items.length) bar.classList.add("gfs-bar-x");
+    bar.innerHTML = (items.length ? "" : `<span class="gfs-side" aria-hidden="true"></span>`) + `<div class="gfs-badge ${opts.badgeClass || ""}">${opts.badge || esc(opts.title)}<span class="sr-only">${esc(opts.title)}</span></div>`
+      + (items.length ? `<div class="gfs-extra"></div>` : "")
       + `<button type="button" class="gfs-x" aria-label="Exit ${esc(opts.title)} and go back to Juegitos"><span aria-hidden="true">✕</span></button>`;
+    const homes = items.map((n) => ({ n, parent: n.parentNode, next: n.nextSibling }));
     bar.querySelector(".gfs-x").addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); exit(); });
     const onKey = (e) => { if (on && e.key === "Escape" && !document.querySelector("dialog[open]")) { e.preventDefault(); exit(); } };
     const onResize = () => { if (on && opts.onResize) opts.onResize(); };
@@ -56,6 +60,7 @@
       if (on || !stageEl.isConnected) return;
       on = true;
       stageEl.prepend(bar);
+      for (const h of homes) bar.querySelector(".gfs-extra").append(h.n);
       stageEl.classList.add("gfs", "no-swipe"); stageEl.setAttribute("aria-label", opts.title + ", full screen");
       document.documentElement.classList.add("game-fs");
       document.addEventListener("keydown", onKey); window.addEventListener("resize", onResize);
@@ -72,6 +77,7 @@
       if (!on) return;
       on = false;
       bar.remove();
+      for (const h of homes) if (h.parent) h.parent.insertBefore(h.n, h.next && h.next.parentNode === h.parent ? h.next : null);
       stageEl.classList.remove("gfs", "no-swipe"); stageEl.setAttribute("aria-label", "Game");
       document.documentElement.classList.remove("game-fs");
       document.removeEventListener("keydown", onKey); window.removeEventListener("resize", onResize);
@@ -102,30 +108,39 @@
   const BEAN = '<svg viewBox="0 0 60 44" focusable="false"><use href="#bean"/></svg>';
   const byId = (id) => CARDS[id - 1];
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-  const cardHTML = (c, cls = "") => `<span class="lcard ${cls}" style="--lc:${c.tint}"><span class="lc-n">${c.id}</span><span class="lc-art">${c.svg}</span><span class="lc-name${c.name.length >= 12 ? " long" : ""}" lang="es">${esc(c.name)}</span></span>`;
+  // v43: a card is its finished vintage picture (static/loteria/cards/NN.webp: number + name banner drawn in); the name stays as text for screen readers
+  const cardHTML = (c, cls = "") => `<span class="lcard ${cls}"><img class="lc-img" src="${c.img}" alt="" decoding="async" draggable="false" width="200" height="300"><span class="lc-name sr-only" lang="es">${esc(c.name)}</span></span>`;
 
   function mountLoteria(el, ctx) {
     const reduced = () => (ctx && ctx.reducedMotion ? ctx.reducedMotion() : matchMedia("(prefers-reduced-motion: reduce)").matches);
     const st = load();
     let tabla, deck, called, marks, timer = null, running = false, over = false, started = false;
+    // v43: laid out like a real tabla app: the tabla picker + the bean count (in the top bar while playing), the called card in a
+    // strip with ▶/⏸ and ¡Lotería!, a 4×4 tabla of big cards, then Limpiar (beans off) and Nueva tabla (a random new mix)
     el.innerHTML = `${BEAN_DEFS}
-      <div class="lot-top">
-        <img class="lot-tia" src="/static/mascot/avatar-128.webp?art=3" width="64" height="64" alt="Tía Chismosa">
-        <div class="lot-bubble" id="lot-bubble" aria-live="polite"><div id="lot-card" class="lot-card"></div><div class="lot-say"><p id="lot-line" class="lot-line">Pull up a chair, honey! Tap <b>Start</b> and I'll start calling cards.</p><p class="lot-count" id="lot-count"></p></div></div>
+      <div class="lot-app">
+        <div class="lot-head"><button type="button" id="lot-pick" class="lot-pick" aria-haspopup="dialog" aria-expanded="false" aria-controls="lot-sheet"><span id="lot-pick-t"></span><span class="lot-caret" aria-hidden="true"></span></button>
+          <span id="lot-marked" class="lot-marked" role="status" aria-label="Beans on your tabla">0 / 16</span></div>
+        <div class="lot-now" id="lot-bubble" aria-live="polite"><div id="lot-card" class="lot-card"></div>
+          <div class="lot-say"><p id="lot-line" class="lot-line">Pull up a chair, honey! Tap <b>Start</b> and I'll start calling cards.</p><p class="lot-count" id="lot-count"></p></div>
+          <div class="lot-now-btns"><button type="button" id="lot-play" class="lot-btn lot-main">▶ Start</button><button type="button" id="lot-claim" class="lot-claim">¡Lotería!</button></div></div>
+        <div class="lot-fit"><div id="lot-tabla" class="lot-tabla" role="grid" aria-label="Your tabla: when Tía calls one of your cards, tap it to drop a bean on it"></div></div>
+        <div class="lot-actions lot-controls" role="group" aria-label="Game controls">
+          <button type="button" id="lot-voice" class="lot-btn lot-icon" aria-pressed="false"></button>
+          <button type="button" id="lot-clear" class="lot-btn lot-clear" aria-label="Limpiar: take all the beans off">Limpiar</button>
+          <button type="button" id="lot-new" class="lot-btn lot-new" aria-label="Nueva tabla: a new random mix of 16 cards">Nueva tabla</button>
+        </div>
+        <div class="lot-sheet" id="lot-sheet" role="dialog" aria-labelledby="lot-sheet-t" hidden><div class="lot-sheet-in">
+          <div class="lot-sheet-h"><h3 id="lot-sheet-t">Pick your tabla</h3><button type="button" id="lot-sheet-x" class="lot-sheet-x" aria-label="Close"><span aria-hidden="true">✕</span></button></div>
+          <div class="lot-picks" id="lot-picks"></div>
+          <div class="lot-sheet-row"><span>Calling speed</span><button type="button" id="lot-speed" class="lot-btn" aria-label="Calling speed"></button></div>
+        </div></div>
       </div>
-      <div class="lot-controls" role="group" aria-label="Game controls">
-        <button type="button" id="lot-play" class="lot-btn lot-main">▶ Start</button>
-        <button type="button" id="lot-speed" class="lot-btn" aria-label="Calling speed"></button>
-        <button type="button" id="lot-new" class="lot-btn" aria-label="New board">🔀 New<span class="lb-x"> board</span></button>
-        <button type="button" id="lot-voice" class="lot-btn" aria-pressed="false"></button>
-      </div>
-      <div class="lot-fit"><div id="lot-tabla" class="lot-tabla" role="grid" aria-label="Your board: when Tía calls one of your cards, tap it to drop a bean on it"></div></div>
-      <button type="button" id="lot-claim" class="lot-claim">¡Lotería!</button>
-      <p class="lot-rules">When Tía calls a card that's on your board, tap it to drop a bean on it (tap again to take it off). Win with a row, a column, a diagonal or the 4 corners, then tap <b>¡Lotería!</b> A game you don't win (the deck runs out, or you deal a new board mid-game) resets your streak.</p>
+      <p class="lot-rules">When Tía calls a card that's on your tabla, tap it to drop a bean on it (tap again to take it off). Win with a row, a column, a diagonal or the 4 corners, then tap <b>¡Lotería!</b> <b>Limpiar</b> takes the beans off; <b>Nueva tabla</b> deals a random new mix, or pick one of the ready-made tablas at the top. A game you don't win (the deck runs out, or you deal a new tabla mid-game) resets your streak.</p>
       <p class="lot-stats" id="lot-stats"></p>
       <div class="lot-hist-wrap"><p class="lot-hist-h">Already called</p><div id="lot-hist" class="lot-hist"></div></div>`;
     const $ = (s) => el.querySelector(s);
-    const fs = fullscreen(el, { title: "Lotería Chismosa", badgeClass: "gfs-lot",
+    const fs = fullscreen(el, { title: "Lotería Chismosa", badgeClass: "gfs-lot", barItems: [el.querySelector("#lot-pick"), el.querySelector("#lot-marked")],
       badge: '<span class="gfs-lot-emo" aria-hidden="true">🎴</span><span class="gfs-lot-t" aria-hidden="true">Lotería <b>Chismosa</b></span>',
       onExit: () => { pause(); hush(); speak(started && !over ? "Game paused. Tap Resume when you're back, honey." : "Pull up a chair, honey! Tap Start and I'll start calling cards.", null); },
       onLeave: () => { pause(); } });
@@ -179,10 +194,16 @@
       v.innerHTML = st.muted ? '🔇<span class="lb-x"> Sound</span>' : '🔊<span class="lb-x"> Sound</span>'; v.setAttribute("aria-pressed", st.muted ? "false" : "true");
       v.setAttribute("aria-label", st.muted ? "Sound is off (Tía's voice and the beans)" : "Sound is on (Tía's voice and the beans)");
       $("#lot-count").textContent = started ? `${called.size} of ${CARDS.length} cards called` : `${CARDS.length} cards in the deck`;
+      $("#lot-marked").textContent = `${marks ? marks.size : 0} / 16`;
+      const pr = PRESETS.find((x) => x.id === st.pick);
+      const pt = $("#lot-pick-t");
+      if (pr) pt.textContent = pr.name;
+      else pt.innerHTML = '<span class="lot-pick-emo" aria-hidden="true">🔀 </span>Random';
+      $("#lot-pick").setAttribute("aria-label", `Pick your tabla (now: ${pr ? pr.name : "a random mix"})`);
     }
     const cellLabel = (i) => byId(tabla[i]).name + (marks.has(i) ? ", bean on it" : called.has(tabla[i]) ? ", called: tap to put a bean on it" : "");
     function drawTabla() {   // each cell's bean lands a little differently (turned, nudged, sometimes flipped), like a real one
-      $("#lot-tabla").innerHTML = tabla.map((id, i) => { const c = byId(id), m = marks.has(i), r = Math.round(Math.random() * 70 - 35), dx = Math.round(Math.random() * 12 - 6), dy = Math.round(Math.random() * 10 - 5);
+      $("#lot-tabla").innerHTML = tabla.map((id, i) => { const c = byId(id), m = marks.has(i), r = Math.round(Math.random() * 50 - 25), dx = Math.round(Math.random() * 6 - 3), dy = Math.round(Math.random() * 6 - 3);
         return `<button type="button" class="lot-cell${m ? " marked" : ""}" data-i="${i}" aria-pressed="${m}" aria-label="${esc(cellLabel(i))}">${cardHTML(c)}`
           + `<span class="frijol" aria-hidden="true" style="--r:${r}deg;--dx:${dx}%;--dy:${dy}%;--fx:${Math.random() < 0.5 ? -1 : 1}">${BEAN}</span></button>`; }).join("");
     }
@@ -193,9 +214,10 @@
     }
     function deal(first) {
       if (!first && started && !over && called.size) { st.streak = 0; st.played++; save(st); }
-      stop(); tabla = newTabla(); deck = newDeck(); called = new Set(); marks = new Set(); over = false; started = false;
+      const pr = PRESETS.find((x) => x.id === st.pick);
+      stop(); tabla = pr ? pr.cards.slice() : newTabla(); deck = newDeck(); called = new Set(); marks = new Set(); over = false; started = false;
       el.classList.remove("won"); drawTabla(); history(); stats(); controls();
-      if (!first) speak("New board, new luck. Tap Start when you're ready.", null);
+      if (!first) speak(pr ? `${pr.name}: new tabla, new luck. Tap Start when you're ready.` : "New tabla, new luck. Tap Start when you're ready.", null);
     }
     function callNext() {
       if (!deck.length) { over = true; stop(); st.streak = 0; st.played++; save(st); stats(); controls(); speak("The deck ran out! Nobody won this time… the next one's yours.", null); say([{ key: "over", text: LINES_ES.over }]); return; }
@@ -244,6 +266,32 @@
       }
       if (marks.has(i)) { marks.delete(i); plink(false); } else { marks.add(i); plink(true); }
       const m = marks.has(i); b.classList.toggle("marked", m); b.setAttribute("aria-pressed", m); b.setAttribute("aria-label", cellLabel(i));
+      controls();
+    });
+    function clearBeans() {   // Limpiar: every bean off (same tabla, same game)
+      if (!marks.size) return;
+      marks = new Set(); plink(false);
+      for (const b of el.querySelectorAll(".lot-cell")) { b.classList.remove("marked", "win"); b.setAttribute("aria-pressed", "false"); b.setAttribute("aria-label", cellLabel(+b.dataset.i)); }
+      controls();
+    }
+    // "Pick your tabla": a random mix or a ready-made one (remembered)
+    const sheet = $("#lot-sheet");
+    $("#lot-picks").innerHTML = [{ id: "random", name: "🔀 Random mix", note: "16 cards, mixed up every time", cards: [] }, ...PRESETS].map((p) =>
+      `<button type="button" class="lot-pickopt" data-pick="${p.id}" aria-pressed="false"><span class="lpo-t"><b>${esc(p.name)}</b><small>${p.note || p.cards.slice(0, 4).map((id) => esc(byId(id).name)).join(" · ") + " …"}</small></span>`
+      + `<span class="lpo-cards" aria-hidden="true">${p.cards.length ? p.cards.slice(0, 4).map((id) => `<img src="${byId(id).img}" alt="" width="200" height="300" loading="lazy">`).join("") : '<span class="lpo-rand">🔀</span>'}</span></button>`).join("");
+    function sheetOpen(on) {
+      sheet.hidden = !on; $("#lot-pick").setAttribute("aria-expanded", on ? "true" : "false");
+      for (const b of sheet.querySelectorAll(".lot-pickopt")) b.setAttribute("aria-pressed", b.dataset.pick === (st.pick || "random") ? "true" : "false");
+      if (on) (sheet.querySelector('.lot-pickopt[aria-pressed="true"]') || sheet.querySelector(".lot-pickopt")).focus({ preventScroll: true });
+      else if (sheet.contains(document.activeElement)) $("#lot-pick").focus({ preventScroll: true });
+    }
+    $("#lot-pick").onclick = () => sheetOpen(sheet.hidden);
+    $("#lot-sheet-x").onclick = () => sheetOpen(false);
+    sheet.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); sheetOpen(false); } });
+    sheet.addEventListener("click", (e) => { if (e.target === sheet) sheetOpen(false); });
+    $("#lot-picks").addEventListener("click", (e) => {
+      const b = e.target.closest(".lot-pickopt"); if (!b) return;
+      st.pick = b.dataset.pick === "random" ? "random" : b.dataset.pick; save(st); sheetOpen(false); deal(false);
     });
     // the bean's little "tock" on the card (made on the phone with Web Audio; off with 🔇 Sound)
     let actx = null;
@@ -266,7 +314,8 @@
     let plinks = 0;
     $("#lot-play").onclick = () => (running ? pause() : start());
     $("#lot-speed").onclick = () => { st.speed = st.speed === "normal" ? "fast" : st.speed === "fast" ? "slow" : "normal"; save(st); controls(); if (running) schedule(); };
-    $("#lot-new").onclick = () => deal(false);
+    $("#lot-new").onclick = () => { st.pick = "random"; save(st); deal(false); };   // Nueva tabla: always a random new mix
+    $("#lot-clear").onclick = clearBeans;
     $("#lot-voice").onclick = () => { st.muted = !st.muted; save(st); if (st.muted) hush(); controls(); };
     $("#lot-claim").onclick = claim;
     deal(true);
@@ -275,7 +324,8 @@
       fs, exitFullscreen: (quiet) => fs.exit(quiet),
       destroy() { fs.exit(true); stop(); hush(); if (au) au.removeAttribute("src"); if (actx) try { actx.close(); } catch (e) {} if (hasVoice && speechSynthesis.removeEventListener) speechSynthesis.removeEventListener("voiceschanged", pickVoice); },
       reload() { Object.assign(st, load()); stats(); controls(); },
-      get state() { return { tabla: tabla.slice(), called: [...called], marks: [...marks], running, over, started, stats: { wins: st.wins, streak: st.streak, best: st.best }, muted: st.muted, speed: st.speed, fullscreen: fs.on, plinks,
+      clearBeans, pick: (id) => { st.pick = id; save(st); deal(false); },
+      get state() { return { pick: st.pick || "random", tabla: tabla.slice(), called: [...called], marks: [...marks], running, over, started, stats: { wins: st.wins, streak: st.streak, best: st.best }, muted: st.muted, speed: st.speed, fullscreen: fs.on, plinks,
         voice: { last: voice.last, clips: voice.clips, fallbacks: voice.fallbacks, bad: [...bad], talking: talking(), src: au ? au.currentSrc || au.src : "" } }; },
       callNext, claim,
     };
@@ -305,7 +355,7 @@
       get game() { return active; }, get id() { return activeId; } };
   }
 
-  const api = { KEY, CARDS, GAMES, callText, LINES_ES, LINES, FIESTA, shuffle, newTabla, newDeck, check, load, save, reset, mountTab, fullscreen };
+  const api = { KEY, CARDS, PRESETS, GAMES, callText, LINES_ES, LINES, FIESTA, shuffle, newTabla, newDeck, check, load, save, reset, mountTab, fullscreen };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.ChismeJuegos = api;
 })(typeof window !== "undefined" ? window : this);

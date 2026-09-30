@@ -126,9 +126,9 @@ async def run_theme(b, dev, theme, shots):
     await pg.click("#lot-claim"); await pg.wait_for_timeout(300)
     check(await pg.evaluate("document.querySelectorAll('.lot-cell.win').length") == 4, "Lotería: a win, the winning row highlighted")
     win = await pg.evaluate("(() => { const s = getComputedStyle(document.querySelector('.lot-cell.win .lcard')); return [s.borderTopColor, s.boxShadow]; })()")
-    check(win[0] == "rgb(0, 201, 205)", f"…in turquoise (+ pink ring), not gold ({win[0]})")
+    check(win[0] == "rgb(0, 201, 205)" or win[1].startswith("rgb(0, 201, 205)"), f"…in turquoise (+ pink ring), not gold ({win})")   # v43: a ring (box-shadow) around the big card
     await scan(pg, "#view-juegos", "Lotería win (cards, ¡Lotería! button, bubble)")
-    await pg.evaluate("() => window.scrollTo(0, document.querySelector('.lot-top').getBoundingClientRect().top + scrollY - 70)"); await pg.wait_for_timeout(2600)
+    await pg.evaluate("() => window.scrollTo(0, document.querySelector('.lot-app').getBoundingClientRect().top + scrollY - 70)"); await pg.wait_for_timeout(2600)
     shots["loteria"].append(await shot(pg))
     await scan(pg, ".gfs-bar", "Lotería full screen: ✕ + title badge")
     await pg.click(".gfs-x"); await pg.wait_for_timeout(300)   # v40: out of full screen, back to the Juegitos list

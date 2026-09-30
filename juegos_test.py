@@ -14,6 +14,7 @@
    confetti, no parallax). No links and no outside requests in the games. Settings → default tab Juegitos.
 3. Chromium: offline (service worker), Juegitos still opens and both games run.
 4. v41 full screen: the board fills the width and most of the height at 390×844 and 320×640 with no scrolling; the called card sits small above it.
+   v43: the tabla-app layout (picker + bean count in the top bar, the called-card strip, big vintage cards, Limpiar / Nueva tabla): see loteria_v43_test.py.
 Screenshots: juegos-tab.png, juegos-english.png, loteria-calls.png, loteria-win.png, loteria-tabla-big.png, loteria-cards.png, ice-ice-bebe-level1.png,
 ice-ice-bebe-win.png (+ ice-ice-bebe-home-dehole.png, loteria-320.png)."""
 import asyncio, json, os, re, subprocess
@@ -40,12 +41,15 @@ TRADITIONAL = ["El Gallo", "El Diablito", "La Dama", "El Catrín", "El Paraguas"
   "El Cazo", "El Mundo", "El Apache", "El Nopal", "El Alacrán", "La Rosa", "La Calavera", "La Campana", "El Cantarito", "El Venado", "El Sol", "La Corona",
   "La Chalupa", "El Pino", "El Pescado", "La Palma", "La Maceta", "El Arpa", "La Rana"]   # #26: El Chocolate replaces the racist "El Negrito"
 # v39: Spanish words that must not show up in the games' UI (v41: the Spanish is the card names and Tía's calls, not the buttons/rules)
+# v43: the user asked for these (the big buttons, the picker and its preset tablas' names)
+ALLOWED_ES = ["Limpiar", "Nueva tabla", "Pick your tabla", "your tabla", "tabla", "La Clásica", "Del Campo", "La Fiesta", "Cielo y Mar", "La Gente"]
 SPANISH = ["Empezar", "Pausa", "Seguir", "Otra vez", "Nueva tabla", "Voz", "Lenta", "Rápida", "mija", "Siéntate", "carta", "baraja", "Primero", "Todavía",
   "Ganaste", "Bienvenido", "Llegaste", "Qué", "fiesta", "Mamá", "Cafecito", "chancla", "Taquería", "Tiendita", "Casa de", "La Plaza", "tabla", "ficha", "esquinas", "fila", "columna"]
 UNIT = r"""
 const J = require(process.argv[1]), I = require(process.argv[2]);
 const t = J.newTabla(), called = new Set(t), out = { n: J.CARDS.length, names: J.CARDS.map((c) => c.name), tabla: t.length, uniq: new Set(t).size, calls: J.CARDS.every((c) => c.verse && c.verse.length <= 100) };
 out.art = J.CARDS.filter((c) => /^<svg[^>]*viewBox="0 0 100 100"/.test(c.svg) && c.svg.length > 300).length; out.artUniq = new Set(J.CARDS.map((c) => c.svg)).size;
+out.imgs = J.CARDS.map((c) => c.img); out.presets = (J.PRESETS || []).map((p) => [p.id, p.cards.length, new Set(p.cards).size]);
 out.call1 = J.callText(J.CARDS[0]); out.lines_es = J.LINES_ES; out.ids = J.CARDS.map((c) => c.id);
 const win = (cells, calledSet) => J.check(t, new Set(cells), calledSet || called);
 out.row = win([4, 5, 6, 7]); out.col = win([1, 5, 9, 13]); out.diag = win([3, 6, 9, 12]); out.corners = win([0, 3, 12, 15]); out.none = win([0, 1, 2, 5]);
@@ -70,6 +74,10 @@ def unit():
     check(o["n"] == 54 and o["names"] == TRADITIONAL and o["ids"] == list(range(1, 55)), f"the 54 traditional cards in order, El Gallo … La Rana ({o['n']}; #26 {o['names'][25]!r})")
     check("El Negrito" not in o["names"] and o["names"][25] == "El Chocolate", "#26 is El Chocolate (the racist 'El Negrito' is left out)")
     check(o["art"] == 54 and o["artUniq"] == 54, f"every card has its own original SVG drawing ({o['art']} drawn, {o['artUniq']} different)")
+    cards_dir = os.path.join(HERE, "static", "loteria", "cards")
+    okimg = [u == f"/static/loteria/cards/{i:02d}.webp" and os.path.getsize(os.path.join(cards_dir, f"{i:02d}.webp")) > 5000 for i, u in enumerate(o["imgs"], 1) if u]
+    check(len(okimg) == 54 and all(okimg), f"v43: every card has its finished vintage picture (static/loteria/cards/01–54.webp, made by tools/make_loteria_cards.py from our drawings) ({sum(okimg)})")
+    check(len(o["presets"]) >= 4 and all(n == 16 and u == 16 for _, n, u in o["presets"]), f"v43: ready-made tablas of 16 different cards each ({o['presets']})")
     check(o["calls"] and o["call1"] == "El que le cantó a San Pedro no le volverá a cantar. ¡El Gallo!", f"each call is the traditional verse, then the name ({o['call1']!r})")
     check(o["lines_es"] == {"intro": "¡Se va y se corre con…!", "loteria": "¡Lotería!", "over": "¡Se acabaron las cartas!"}, f"the other calls are Spanish too ({o['lines_es']})")
     es = [w for w in SPANISH if any(w.lower() in t.lower().split() or (" " in w and w.lower() in t.lower()) for t in o["hints"])]
@@ -100,11 +108,12 @@ FS_JS = """(() => { const st = document.querySelector('#game-stage'), r = st.get
     badge: badge ? badge.textContent.trim() : '', badgeMid: !!br && Math.abs((br.left + br.right) / 2 - innerWidth / 2) < 24 && br.top < 70, ih: innerHeight, iw: innerWidth }; })()"""
 async def fs(pg): return await pg.evaluate(FS_JS)
 # v41: the full-screen Lotería layout: top row, board, ¡Lotería!, controls stacked in order and all on screen; how big the board is
-LAYOUT_JS = """(() => { const r = (s) => document.querySelector(s).getBoundingClientRect(); const t = r('#lot-tabla'), c = r('#lot-claim'), k = r('.lot-controls'), top = r('.lot-top'), bar = r('.gfs-bar'), st = document.querySelector('#game-stage');
+# (v43: bar → the called-card strip with ¡Lotería! in it → the board → Limpiar / Nueva tabla)
+LAYOUT_JS = """(() => { const r = (s) => document.querySelector(s).getBoundingClientRect(); const t = r('#lot-tabla'), c = r('#lot-claim'), k = r('.lot-controls'), top = r('.lot-now'), bar = r('.gfs-bar'), st = document.querySelector('#game-stage');
   const cell = document.querySelector('#lot-tabla .lcard').getBoundingClientRect(), card = document.querySelector('#lot-card .lcard');
-  const names = [...document.querySelectorAll('#lot-tabla .lc-name')].filter(e => e.scrollWidth > e.clientWidth + 1).map(e => e.textContent);
+  const names = [...document.querySelectorAll('#lot-tabla .lc-img')].filter(e => !e.complete || !e.naturalWidth).map(e => e.getAttribute('src'));   // v43: the name is in the picture, so 'clipped' = a picture that didn't load
   return { h: t.height, w: t.width, cell: cell.width, card: card ? card.getBoundingClientRect().width : 0, clipped: names, scroll: st.scrollHeight > st.clientHeight + 1 || document.scrollingElement.scrollHeight > innerHeight + 1 && getComputedStyle(document.documentElement).overflow !== 'hidden',
-    ok: bar.bottom <= top.top + 1 && top.bottom <= t.top + 1 && t.bottom <= c.top + 1 && c.bottom <= k.top + 1 && k.bottom <= innerHeight + 1 && t.left >= 0 && t.right <= innerWidth + 0.5 }; })()"""
+    ok: bar.bottom <= top.top + 1 && top.bottom <= t.top + 1 && t.bottom <= k.top + 1 && k.bottom <= innerHeight + 1 && c.top >= top.top - 1 && c.bottom <= top.bottom + 1 && t.left >= 0 && t.right <= innerWidth + 0.5 }; })()"""
 def fs_ok(f): return f["on"] and f["fixed"] and f["covers"] and not f["tabs"] and not f["foot"] and not f["fab"] and f["x"] and f["xtext"] == "✕" and "Juegitos" in f["xlabel"]
 async def st(pg): return await pg.evaluate(G + ".state")
 async def until(pg, js, secs):
@@ -131,18 +140,20 @@ async def webkit(p):
     games = await pg.evaluate("[...document.querySelectorAll('.game-pick b')].map(b => b.textContent)")
     check(games == ["Lotería Chismosa", "Ice Ice Bebé"], f"a list of games ({games})")
     watch["on"] = True
-    check(await pg.evaluate("document.querySelector('.lot-tia').naturalWidth > 0"), "Tía Chismosa's avatar is there")
     check(await pg.evaluate("document.querySelectorAll('#lot-tabla .lot-cell').length") == 16, "a 4×4 tabla")
     await pg.evaluate("() => window.scrollTo(0, document.querySelector('#juegos').getBoundingClientRect().top + scrollY - 70)"); await pg.wait_for_timeout(400)
     await pg.screenshot(path=os.path.join(OUT, "juegos-tab.png"))
     # v39: the UI is English (v41: the card names and Tía's calls are the Spanish part)
     UI_TXT = "(() => { const j = document.querySelector('#view-juegos'); return [...j.querySelectorAll('#juegos, .lot-controls, .lot-rules, .lot-stats, #lot-count, .lot-hist-h, #lot-claim, .gfs-bar')].map(e => e.textContent).join(' ') + ' ' + [...j.querySelectorAll('[aria-label]:not(.lot-cell)')].map(e => e.getAttribute('aria-label')).join(' '); })()"
     txt = await pg.evaluate(UI_TXT) + " " + await pg.text_content("#lot-line")
-    es = [w for w in SPANISH if w.lower() in txt.lower().replace("lotería", "")]
-    check(not es and "Start" in txt and "New board" in txt and "Sound is on" in txt and "Pull up a chair" in txt and "drop a bean" in txt, f"Lotería's UI is English: ▶ Start · 🔀 New board · 🔊 Sound · the bean rules ({es})")
+    has_es = "Limpiar" in txt and "Nueva tabla" in txt   # v43: the two big buttons are Spanish on purpose (like a real tabla app)
+    low = txt.lower().replace("lotería", "")
+    for w in ALLOWED_ES: low = low.replace(w.lower(), "")
+    es = [w for w in SPANISH if w.lower() in low]
+    check(not es and has_es and "Start" in txt and "Sound is on" in txt and "Pull up a chair" in txt and "drop a bean" in txt, f"Lotería's UI is English (▶ Start · 🔊 Sound · the bean rules) besides the Limpiar / Nueva tabla buttons, the preset names and 'tabla' ({es})")
     names = await pg.evaluate("[...document.querySelectorAll('#lot-tabla .lc-name')].map(e => e.textContent)")
-    check(len(names) == 16 and all(n in TRADITIONAL for n in names) and await pg.evaluate("document.querySelectorAll('#lot-tabla .lcard .lc-art svg').length") == 16,
-          f"the tabla shows the traditional Spanish names with our own drawings ({names[:4]})")
+    check(len(names) == 16 and all(n in TRADITIONAL for n in names) and await pg.evaluate("[...document.querySelectorAll('#lot-tabla .lcard .lc-img')].filter(i => /\\/static\\/loteria\\/cards\\/\\d\\d\\.webp$/.test(i.src) && i.naturalWidth >= 200).length") == 16,
+          f"the tabla shows the traditional Spanish names with our own vintage pictures ({names[:4]})")
     await pg.evaluate("() => window.scrollTo(0, document.querySelector('#juegos').getBoundingClientRect().top + scrollY - 70)"); await pg.wait_for_timeout(200)
     await until(pg, "(document.querySelector('#sync') || {}).dataset?.state !== 'ok'", 6); await pg.wait_for_timeout(400)   # the "Updated" pill gone
     await pg.screenshot(path=os.path.join(OUT, "juegos-english.png"))
@@ -162,17 +173,20 @@ async def webkit(p):
           f"she says it out loud from the recorded clips: '¡Se va y se corre con…!' then the card's verse + name ({v}, fetched {clips[:3]})")
     check(await pg.evaluate("__spoken.length") == 0, "…not the phone's robot voice (speechSynthesis only as a fallback)")
     f = await fs(pg)
-    check(fs_ok(f) and "Lotería Chismosa" in f["badge"] and f["badgeMid"], f"v40 ▶ Start: Lotería goes full screen (fixed overlay {f['iw']}×{f['ih']}, tab bar + footer hidden, ✕ top right, 'Lotería Chismosa' badge top center) {f}")
+    bar = await pg.evaluate("(() => { const b = document.querySelector('.gfs-badge').getBoundingClientRect(), p = document.querySelector('.gfs-bar #lot-pick'), m = document.querySelector('.gfs-bar #lot-marked'); return { left: b.left < 30 && b.top < 60, pick: !!p, marked: !!m && /^\\d+ \\/ 16$/.test(m.textContent) }; })()")
+    check(fs_ok(f) and "Lotería Chismosa" in f["badge"] and bar["left"] and bar["pick"] and bar["marked"], f"v40 ▶ Start: Lotería goes full screen (fixed overlay {f['iw']}×{f['ih']}, tab bar + footer hidden, ✕ top right); v43 the bar holds the badge (left), the tabla picker and the 'x / 16' bean count {bar}")
     lay = await pg.evaluate(LAYOUT_JS)
-    check(lay["ok"] and lay["w"] >= 0.85 * f["iw"] and lay["h"] >= 0.6 * f["ih"] and not lay["scroll"], f"v41 the board fills (nearly) the width and most of the height, nothing cut off, no scrolling (board {lay['w']:.0f}×{lay['h']:.0f} on {f['iw']}×{f['ih']})")
+    check(lay["ok"] and (lay["w"] >= 0.85 * f["iw"] or lay["h"] >= 0.62 * f["ih"]) and lay["h"] >= 0.6 * f["ih"] and not lay["scroll"], f"v41 the board fills (nearly) the width or (on this short {f['ih']} px screen) the height, nothing cut off, no scrolling (board {lay['w']:.0f}×{lay['h']:.0f} on {f['iw']}×{f['ih']})")
     check(lay["card"] < lay["cell"] * 0.75, f"…the called card sits small above the board ({lay['card']:.0f} px wide vs {lay['cell']:.0f} px board cards)")
     check(await pg.evaluate("__chisme.view") == "juegos" and (await st(pg))["fullscreen"], "…and the game says it's full screen")
     await pg.screenshot(path=os.path.join(OUT, "loteria-calls.png"))
     await pg.click("#lot-play"); n0 = len((await st(pg))["called"]); await pg.wait_for_timeout(5200)
     check(not (await st(pg))["running"] and len((await st(pg))["called"]) == n0 and not (await st(pg))["voice"]["talking"], "⏸ Pause stops the calling (and her voice)")
+    await pg.click("#lot-pick"); await pg.wait_for_timeout(250)   # v43: the speed lives in the "Pick your tabla" sheet
     await pg.click("#lot-speed"); s = await st(pg)
     check(s["speed"] == "fast" and json.loads(await pg.evaluate("localStorage.getItem('chisme-juegos')"))["speed"] == "fast", "speed: Normal → Fast (remembered)")
     check(await pg.text_content("#lot-speed") == "🐇 Fast", "the speed button says 🐇 Fast")
+    await pg.click("#lot-sheet-x"); await pg.wait_for_timeout(200)
     # beans: only on a called card; an uncalled card shakes; tap again takes the bean off
     s = await st(pg)
     un = next(i for i, c in enumerate(s["tabla"]) if c not in s["called"])
@@ -186,8 +200,8 @@ async def webkit(p):
     ci = next(i for i, c in enumerate(s["tabla"]) if c in s["called"]); p0 = (await st(pg))["plinks"]
     await pg.click(f'.lot-cell[data-i="{ci}"]'); await pg.wait_for_timeout(600)
     bean = await pg.evaluate(f"(() => {{ const c = document.querySelector('.lot-cell[data-i=\"{ci}\"]'), b = c.querySelector('.frijol'), r = b.getBoundingClientRect(), cr = c.getBoundingClientRect(); return {{ op: getComputedStyle(b).opacity, anim: getComputedStyle(b).animationName, w: r.width / cr.width, use: !!b.querySelector('use'), sym: !!document.querySelector('symbol#bean') }}; }})()")
-    check(await pg.get_attribute(f'.lot-cell[data-i="{ci}"]', "aria-pressed") == "true" and bean["op"] == "1" and bean["anim"] == "bean-drop" and bean["sym"] and 0.3 < bean["w"] < 0.8,
-          f"tap a called card: a pinto bean drops onto it ({bean})")
+    check(await pg.get_attribute(f'.lot-cell[data-i="{ci}"]', "aria-pressed") == "true" and bean["op"] == "1" and bean["anim"] == "bean-drop" and bean["sym"] and 0.7 < bean["w"] < 1.15,
+          f"tap a called card: a big pinto bean drops onto it and covers it ({bean})")
     check((await st(pg))["plinks"] == p0 + 1, "…with a little 'tock' sound")
     await pg.click(f'.lot-cell[data-i="{ci}"]'); await pg.wait_for_timeout(300)
     check(await pg.get_attribute(f'.lot-cell[data-i="{ci}"]', "aria-pressed") == "false" and not (await st(pg))["marks"] and await pg.evaluate(f"getComputedStyle(document.querySelector('.lot-cell[data-i=\"{ci}\"] .frijol')).opacity") == "0", "tap it again: the bean comes off")
@@ -216,7 +230,7 @@ async def webkit(p):
     await pg.screenshot(path=os.path.join(OUT, "loteria-win.png"))
     await pg.click("#lot-new"); await pg.click("#lot-play"); await pg.wait_for_timeout(300); await pg.click("#lot-play"); await pg.click("#lot-new")
     stored = json.loads(await pg.evaluate("localStorage.getItem('chisme-juegos')"))
-    check(stored["streak"] == 0 and stored["best"] == 1, "🔀 New board mid-game ends the streak; the best streak stays")
+    check(stored["streak"] == 0 and stored["best"] == 1, "Nueva tabla mid-game ends the streak; the best streak stays")
     await pg.click("#lot-play"); await pg.wait_for_timeout(300)
     check((await st(pg))["running"] and (await fs(pg))["on"], "▶ Start again: calling, full screen")
     await pg.click(".gfs-x"); await pg.wait_for_timeout(400)
@@ -396,11 +410,11 @@ async def fullscreen_shots(p):
     # a sample of the original art: 24 of the 54 cards in a grid
     await pg.evaluate("""() => { const L = ChismeLoteriaCards, d = document.createElement('div'); d.id = 'art-sheet';
       d.style.cssText = 'position:fixed;inset:0;z-index:9000;background:#0d0f1a;padding:8px;box-sizing:border-box;display:grid;grid-template-columns:repeat(4,1fr);gap:6px;align-content:start;overflow:hidden';
-      d.innerHTML = '<p style="grid-column:1/-1;margin:2px 0 4px;color:#fff;font-weight:900;text-align:center">Our own Lotería art · 24 of 54 cards</p>' + L.CARDS.filter((c, i) => i % 9 < 4 || i % 9 === 8).slice(0, 24).map(c => `<span class="lcard" style="--lc:${c.tint}"><span class="lc-n">${c.id}</span><span class="lc-art">${c.svg}</span><span class="lc-name${c.name.length >= 12 ? ' long' : ''}">${c.name}</span></span>`).join('');
+      d.innerHTML = '<p style="grid-column:1/-1;margin:2px 0 4px;color:#fff;font-weight:900;text-align:center">Our own vintage Lotería art · 16 of 54 cards</p>' + L.CARDS.filter((c, i) => i % 3 === 0 || i === 25 || i === 37).slice(0, 16).map(c => `<span class="lcard"><img class="lc-img" src="${c.img}" alt="${c.name}"></span>`).join('');
       document.body.appendChild(d); }""")
-    await pg.wait_for_timeout(300)
-    sheet = await pg.evaluate("(() => { const d = document.querySelector('#art-sheet'), l = [...d.querySelectorAll('.lcard')]; return { n: l.length, fits: l[l.length - 1].getBoundingClientRect().bottom <= innerHeight }; })()")
-    check(sheet["n"] == 24 and sheet["fits"], f"a grid of 24 cards' original art fits one 390×844 screen ({sheet})")
+    await until(pg, "[...document.querySelectorAll('#art-sheet img')].every(i => i.complete && i.naturalWidth)", 8); await pg.wait_for_timeout(200)
+    sheet = await pg.evaluate("(() => { const d = document.querySelector('#art-sheet'), l = [...d.querySelectorAll('.lcard')]; return { n: l.length, fits: l[l.length - 1].getBoundingClientRect().bottom <= innerHeight + 1, alts: l.map(e => e.querySelector('img').alt).filter(a => a === 'El Chocolate' || a === 'El Apache') }; })()")
+    check(sheet["n"] == 16 and sheet["fits"] and len(sheet["alts"]) == 2, f"a grid of 16 cards' original vintage art fits one 390×844 screen, incl. #26 El Chocolate and #38 (huaraches) ({sheet})")
     await pg.screenshot(path=os.path.join(OUT, "loteria-cards.png"))
     await pg.evaluate("document.querySelector('#art-sheet').remove()")
     await pg.click(".gfs-x"); await pg.wait_for_timeout(300)
