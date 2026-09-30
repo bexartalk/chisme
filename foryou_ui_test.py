@@ -336,6 +336,9 @@ async def sound(p):
     await pg.wait_for_function("() => window.__chisme && window.__chisme.foodReady && !document.querySelector('#foryou-card').hidden", timeout=90000)
     await pg.tap("#fy-start"); await pg.wait_for_function("document.querySelector('#feed').open", timeout=5000); await pg.wait_for_timeout(5000)
     w1 = await pg.evaluate(SND)
+    for _ in range(30):   # headless WebKit sometimes takes a while to load the YouTube player; wait for it to settle (playing, with or without sound)
+        if w1["st"] == 1: break
+        await pg.wait_for_timeout(500); w1 = await pg.evaluate(SND)
     check(w1["wanted"] and w1["btn"] in ("🔊 Sound on", "🔇 Muted") and (w1["btn"] == "🔊 Sound on") == (not w1["held"]), f"WebKit iPhone: sound wanted by default; the button tells the truth ({w1['btn']}, held by the browser: {w1['held']}, state {w1['st']})")
     if w1["held"]:
         check("Tap anywhere for sound" in w1["hint"] and w1["st"] == 1, f"WebKit iPhone refused sound without a tap on the player: it plays muted with the 'Tap anywhere for sound' hint (state {w1['st']})")
