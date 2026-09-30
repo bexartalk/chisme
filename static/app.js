@@ -1,7 +1,7 @@
 /* Chisme — frontend (location-aware) */
 // Build of this file. Must equal the number in sw.js VERSION ("chisme-v22"); the page compares it
 // with the build the HTML was served for and reloads once if an old cached app.js got mixed in.
-window.CHISME_APP_BUILD = "28";
+window.CHISME_APP_BUILD = "29";
 (() => {
   "use strict";
   const WEATHER_MS = 10 * 60 * 1000;
@@ -624,6 +624,32 @@ window.CHISME_APP_BUILD = "28";
   $("#r-next").onclick = () => { setPlaying(false); showFrame(idx + 1); };
   $("#r-slider").oninput = (e) => { setPlaying(false); showFrame(+e.target.value); };
 
+  // ---------- news order: when nothing's new, each visit shows the stories in a different order (static/newsorder.js).
+  // What you've seen/opened stays on this phone; Settings → Reset my feed and Forget me clear it.
+  const NO = window.ChismeNewsOrder;
+  let nsState = NO ? NO.load() : null, nsTimer = null;
+  if (NO) { if (NO.isNewVisit(nsState)) NO.beginVisit(nsState); else nsState.active = Date.now(); NO.save(nsState); }
+  const nsSaveSoon = () => { if (!NO) return; clearTimeout(nsTimer); nsTimer = setTimeout(() => { nsState.active = Date.now(); NO.save(nsState); }, 800); };
+  function newsVisit() { if (NO) { NO.beginVisit(nsState); NO.save(nsState); } }
+  function newsForget() { if (NO) { nsState = NO.reset(); NO.beginVisit(nsState); NO.save(nsState); } }
+  const ordered = (list) => (NO && nsState ? NO.order(list || [], nsState) : list || []);
+  setInterval(() => { if (NO && document.visibilityState === "visible") { nsState.active = Date.now(); NO.save(nsState); } }, 60000);
+  document.addEventListener("visibilitychange", () => {
+    if (!NO) return;
+    if (document.visibilityState === "hidden") { nsState.active = Date.now(); NO.save(nsState); return; }
+    if (NO.isNewVisit(nsState)) { newsVisit(); if (lastNewsData && !newsHold) renderNews(lastNewsData, lastNewsSaved); }   // back after 10+ min
+  });
+  const seenIO = NO && "IntersectionObserver" in window ? new IntersectionObserver((ents) => {
+    let ch = false;
+    for (const e of ents) if (e.isIntersecting) { NO.markSeen(nsState, e.target.dataset.sid); seenIO.unobserve(e.target); ch = true; }
+    if (ch) nsSaveSoon();
+  }, { threshold: 0.6 }) : null;
+  function trackNews(lists) {
+    if (!NO) return;
+    NO.markRendered(nsState, lists.flat()); nsSaveSoon();
+    if (seenIO) { seenIO.disconnect(); for (const a of document.querySelectorAll("#view-news .story[data-sid]")) seenIO.observe(a); }
+  }
+
   // ---------- news
   function story(it, showTags) {
     const d = it.published ? new Date(it.published * 1000) : null;
@@ -641,7 +667,7 @@ window.CHISME_APP_BUILD = "28";
       kids.push(img);
     }
     kids.push(digDeeper(it));
-    return el("article", { class: "story" + (showTags && it.tier === "near" ? " near" : "") }, ...kids);
+    return el("article", { class: "story" + (showTags && it.tier === "near" ? " near" : ""), "data-sid": NO ? NO.idOf(it.link) : null }, ...kids);
   }
 
   // Links at the end of each story: the original article, the same story from other outlets we
@@ -759,15 +785,17 @@ window.CHISME_APP_BUILD = "28";
       const p = n.place || {};
       const names = (p.nearby || []).slice(0, 5).map((x) => x.name);
       $("#near-hint").textContent = "Closest first: " + [names.length ? names.join(", ") : null, p.city, p.county].filter(Boolean).join(" → ") + ".";
-      $("#near-list").replaceChildren(...(n.near.length ? withArt(n.near.map((i) => story(i, true)))
+      const nearO = ordered(n.near), moreO = ordered(n.more), otherO = ordered(n.metro_other || n.san_antonio || []);
+      $("#near-list").replaceChildren(...(n.near.length ? withArt(nearO.map((i) => story(i, true)))
         : [el("p", { class: "loading", text: `No stories naming ${placeName()} in the latest feeds yet — check back in a bit.` })]));
-      $("#city-list").replaceChildren(...(n.more.length ? withArt(n.more.map((i) => story(i, false)))
+      $("#city-list").replaceChildren(...(n.more.length ? withArt(moreO.map((i) => story(i, false)))
         : [el("p", { class: "loading", text: "No other local stories right now. The newsrooms must be on a coffee break. ☕" })]));
       const other = n.metro_other || n.san_antonio || [];   // the metro's outlets, for suburbs outside its core
       $("#sa-sec").hidden = !other.length;
       $("#sa-title").textContent = `${(n.metro && n.metro.name) || "San Antonio"} headlines`;
-      $("#sa-list").replaceChildren(...withArt(other.map((i) => story(i, false))));
+      $("#sa-list").replaceChildren(...withArt(otherO.map((i) => story(i, false))));
       saveArtCursor();
+      trackNews([nearO, moreO, otherO]);
       $("#news-updated").textContent = stampFor(saved, n);
       $("#feeds").replaceChildren(...(n.feeds || []).map((f) => el("li", { class: f.ok ? "" : "bad",
         text: (f.ok ? `${f.name}: ${f.count} items` : `${f.name}: unavailable (${f.error})`) + (f.query ? ` — search: ${f.query}` : "") })));
@@ -1184,6 +1212,8 @@ window.CHISME_APP_BUILD = "28";
     if (u.origin === location.origin || !/^https?:$/.test(u.protocol)) return;
     e.preventDefault();
     const m = metaFromLink(a);
+    const sEl = a.closest(".story[data-sid]");
+    if (sEl && NO) { NO.markOpened(nsState, sEl.dataset.sid); nsSaveSoon(); }   // opened: it'll make room at the top next visit
     if (!m.map) tiaLearn(m, linkKind(a));   // what you read teaches la Tía (kept on this phone)
     if (m.map || MAPISH.test(u.host + u.pathname + u.search.slice(0, 1))) openMapSheet(m, a); else openReader(m, a);
   });
@@ -2039,6 +2069,7 @@ window.CHISME_APP_BUILD = "28";
   $("#set-gps").onclick = () => requestGPS(true);
   $("#set-refresh").onclick = () => { refreshNow(); $("#set-refresh-note").textContent = "Updating…"; };
   $("#set-fy-reset").onclick = () => {
+    newsForget();   // also forgets which stories you've seen/opened (News order)
     if (!FY) return;
     fyProfile = FY.reset(); renderForYouCard();
     $("#set-fy-note").textContent = "Done: your For You feed forgot everything and starts fresh.";
@@ -2205,6 +2236,7 @@ window.CHISME_APP_BUILD = "28";
   // Manual refresh (pull down at the top, "Retry now", or Settings → Refresh now)
   function refreshNow() {
     newsManual = true;   // you asked: show the new stories right away
+    newsVisit();         // ...and a fresh order if nothing's new
     for (const s of Object.values(secs)) s.tries = 0;
     Sync.failed.clear();
     refreshAll();
@@ -2475,6 +2507,7 @@ window.CHISME_APP_BUILD = "28";
     if (Date.now() - forgetArm > 5000) { forgetArm = Date.now(); b.textContent = "Tap again to forget everything"; $("#set-forget-note").textContent = ""; return; }
     forgetArm = 0;
     for (const k of [TIA_CHAT, TIA_PROF]) localStorage.removeItem(k);
+    newsForget();
     if (window.ChismeForYou) window.ChismeForYou.reset();
     b.textContent = "Forget me";
     $("#set-forget-note").textContent = "Done. Tía forgot your chats and your interests, and the For You feed starts fresh.";
