@@ -8,7 +8,8 @@ from playwright.async_api import async_playwright
 URL = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8211/"
 OUT = Path(__file__).parent / "screenshots"
 NAV_JS = """() => { const r = document.querySelector('#tabs').getBoundingClientRect();
-  const hits = [60, 150, 240, 330].map(x => document.elementFromPoint(x, r.top + r.height / 2)?.closest('.tab')?.textContent.trim() || null);
+  // v40: the tabs are 2 rows of 3 on phones, so probe each tab's own center
+  const hits = [...document.querySelectorAll('#tabs .tab')].map(t => { const b = t.getBoundingClientRect(); return document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2)?.closest('.tab')?.textContent.trim() || null; });
   const hdr = document.querySelector('.topbar').getBoundingClientRect();
   return { view: window.__chisme.view, scrollY: Math.round(scrollY), maxScroll: document.documentElement.scrollHeight - innerHeight,
            navTop: Math.round(r.top), navBottom: Math.round(r.bottom), position: getComputedStyle(document.querySelector('#tabs')).position,

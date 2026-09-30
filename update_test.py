@@ -62,7 +62,7 @@ async def main():
             await page.wait_for_timeout(250)
         await page.wait_for_timeout(600)
         rep["2_sticky"] = await page.evaluate("""() => { const r = document.querySelector('#tabs').getBoundingClientRect();
-            const hit = document.elementFromPoint(150, r.top + r.height / 2);
+            const t0 = document.querySelector('#tabs .tab').getBoundingClientRect(), hit = document.elementFromPoint(t0.left + t0.width / 2, t0.top + t0.height / 2);   // v40: 2 rows of tabs on phones
             return { scrollY: Math.round(scrollY), tabsTop: Math.round(r.top), tabsH: Math.round(r.height), tabHit: !!(hit && hit.closest('.tab')),
                      headerOnScreen: document.querySelector('.topbar').getBoundingClientRect().bottom > 0, view: window.__chisme.view }; }""")
         await page.screenshot(path=str(OUT / "update-sticky-nav.png"))
