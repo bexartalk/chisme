@@ -42,6 +42,8 @@ h2{margin:0;font-size:1.55rem;font-weight:900;color:var(--ink);letter-spacing:-.
 .stamp{font-size:.8rem;color:var(--muted);font-weight:600}
 .credit,.hint{font-size:.8rem;color:var(--muted);margin:10px 0 0}
 .hint{margin:0 0 10px}
+/* v42: Check Your People's location line ("Closest first: …") at the bottom of the section: small, subtle, a hairline above */
+.hint.near-hint{margin:12px 0 0;padding-top:8px;border-top:1px solid var(--line);font-size:.68rem;line-height:1.35;opacity:.85}
 .loading{font-size:1rem;color:var(--muted)}
 .error{color:var(--accent);font-weight:800}
 

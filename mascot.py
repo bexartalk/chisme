@@ -4,7 +4,7 @@ POST /api/mascot/chat  {messages:[{role:"user"|"tia", text}], context:{stories, 
   -> {reply, cites:[source ids], sources:[the cited sources], mode:"ai"|"scripted"|"safety", provider, retry_after?}
 
 - v39: she knows the whole app. The server hands chat() its own current feeds for the phone's location (`kb`: every
-  news story from every source and section incl. Near You, ESPN sports with live/final scores, schedules and
+  news story from every source and section incl. Check Your People, ESPN sports with live/final scores, schedules and
   standings for the nearest pro teams (Spurs first), NWS weather + alerts, events and food), merged with the items
   the phone sends. Everything is numbered S1..Sn; citations to ids that weren't provided are dropped.
 - Smart answers without AI (`smart()`): intent handling with fuzzy keyword/entity matching over the feed items.
@@ -255,13 +255,13 @@ def build_sources(ctx: dict, kb: dict | None = None, tz=None) -> list[dict]:
         out.append(it)
         return it
 
-    # news: every story from every source and section (Near You first), then what the phone showed
+    # news: every story from every source and section (Check Your People first), then what the phone showed
     n = kb.get("news") or {}
-    for sec, items in (("Near You", n.get("near")), ("More local", n.get("more")), ("Around the metro", n.get("metro_other")),
+    for sec, items in (("Check Your People", n.get("near")), ("More local", n.get("more")), ("Around the metro", n.get("metro_other")),
                        ("San Antonio", n.get("san_antonio"))):
         for it in (items or [])[:120]:
             add("news", it.get("title"), " · ".join(filter(None, [_s(it.get("source"), 80), sec, _ago(it.get("published"), now), _s(it.get("summary"), 260)])),
-                it.get("link"), it.get("source"), _t=it.get("published"), _near=sec == "Near You", _kw=" ".join(it.get("local_terms") or []))
+                it.get("link"), it.get("source"), _t=it.get("published"), _near=sec == "Check Your People", _kw=" ".join(it.get("local_terms") or []))
     for it in (ctx.get("stories") or [])[:40]:
         add("news", it.get("title"), " · ".join(filter(None, [_s(it.get("source"), 80), _s(it.get("when"), 40), _s(it.get("summary"), 300)])),
             it.get("url"), it.get("source"), _t=it.get("published"), _near=bool(it.get("near")))

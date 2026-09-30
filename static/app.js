@@ -1,7 +1,7 @@
 /* Chisme — frontend (location-aware) */
 // Build of this file. Must equal the number in sw.js VERSION ("chisme-v22"); the page compares it
 // with the build the HTML was served for and reloads once if an old cached app.js got mixed in.
-window.CHISME_APP_BUILD = "41";
+window.CHISME_APP_BUILD = "42";
 (() => {
   "use strict";
   const WEATHER_MS = 10 * 60 * 1000;
@@ -670,7 +670,7 @@ window.CHISME_APP_BUILD = "41";
   const MID_KEY = "chisme-donate-mid-x";
   let midTab = null, midCard = null, midLaunch = { opens: 0, line: null };
   const midGone = () => { try { return sessionStorage.getItem(MID_KEY) === "1"; } catch (e) { return false; } };
-  // Where it goes → [node, "after" | "before"]. In a list (News' Near You, Sports, Events) it's after about the 5th item,
+  // Where it goes → [node, "after" | "before"]. In a list (News' Check Your People, Sports, Events) it's after about the 5th item,
   // but never next to a serious story: it moves to the nearest slot where the item before and after are both light,
   // or if there's none, to the end of the tab, just above the bottom donate card. (v34; ChismeDonate.serious / slot)
   let midWhere = null;

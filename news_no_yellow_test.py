@@ -74,7 +74,7 @@ async def run_theme(b, dev, theme, shots):
     await pg.evaluate("document.getElementById('news-pill').hidden = false")
     await scan(pg, "#view-news, #news-pill, .topbar, #tabs", "News, header, tabs, New chisme pill")
     near = await pg.evaluate("(() => { const s = getComputedStyle(document.querySelector('#near-list .story.near')); return [s.backgroundColor, s.borderLeftColor]; })()")
-    check(near[1] == "rgb(0, 201, 205)", f"Near You stories: a subtle turquoise edge ({near})")
+    check(near[1] == "rgb(0, 201, 205)", f"Check Your People stories: a subtle turquoise edge ({near})")
     await pg.evaluate("document.getElementById('news-pill').hidden = true")
     await pg.evaluate("(() => { const o = document.getElementById('offline-banner'); o.textContent = \"You're offline. Showing the chisme saved on this phone.\"; o.hidden = false; })()")
     await scan(pg, "#offline-banner", "offline banner")

@@ -152,10 +152,11 @@
           <div class="push-ask-row"><button type="button" id="push-ask-yes" class="primary">Turn on alerts 🔔</button><button type="button" id="push-ask-no">Not now</button></div>
         </aside>
 
-        <section id="near" class="card">
-          <div class="sec-head"><h2>Near You</h2><span class="stamp" id="news-updated"></span></div>
-          <p class="hint" id="near-hint">Stories ranked by how close the places they mention are to you.</p>
+        <section id="near" class="card" aria-labelledby="near-title">
+          <div class="sec-head"><h2 id="near-title">Check Your People</h2><span class="stamp" id="news-updated"></span></div>
           <div id="near-list" class="news-list"><p class="loading">Gathering the chisme…</p></div>
+          <!-- v42: the location line sits at the bottom of the section, after its last story (small and subtle) -->
+          <p class="hint near-hint" id="near-hint">Stories ranked by how close the places they mention are to you.</p>
         </section>
 
         <section id="city" class="card">

@@ -175,7 +175,7 @@ async def main():
         await pg.reload(); await ready(pg)
         dm = await pg.evaluate("__chisme.donateMid"); m = await pg.evaluate(MIDINFO)
         w = dm["where"] or {}; nb = await pg.evaluate(NEIGH)
-        check(dm["opens"] == 5 and m["n"] == 1 and m["view"] == "news", f"open 5: one card in News (today's real stories: {w.get('serious')} of {w.get('n')} in Near You look serious)")
+        check(dm["opens"] == 5 and m["n"] == 1 and m["view"] == "news", f"open 5: one card in News (today's real stories: {w.get('serious')} of {w.get('n')} in Check Your People look serious)")
         if w.get("k"):
             check(m["list"] == "near-list" and m["storiesBefore"] == w["k"] and nb["serious"] == [False, False], f"…after story {w['k']}, both neighbors light: {nb['before']!r} / {nb['after']!r}")
         else:
@@ -218,7 +218,7 @@ async def main():
         for i, t in enumerate(tiles): grid.paste(t, (10 + (i % 2) * (w + 10), 10 + (i // 2) * (h + 10)))
         grid.save(os.path.join(OUT, "donate-lines.png"))
         await ctx.close()
-        print("\n== never next to a serious story (controlled Near You titles)")
+        print("\n== never next to a serious story (controlled Check Your People titles)")
         for heavy_at, all_heavy, want, what in [((), False, 5, "all light → after the 5th story"),
                                                 ((4,), False, 6, "5th story serious → moves to after the 6th (6th & 7th light)"),
                                                 ((4, 5), False, 7, "5th & 6th serious → the nearest light pair: after the 7th"),

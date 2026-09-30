@@ -101,7 +101,7 @@ async def smart_kb(c, mascot):
     src = mascot.build_sources({}, KB())
     kinds = {k: sum(1 for x in src if x["kind"] == k) for k in ("news", "weather", "event", "sports", "food")}
     check(kinds["news"] == 4 and kinds["weather"] >= 3 and kinds["event"] == 2 and kinds["sports"] >= 5 and kinds["food"] == 1,
-          f"knowledge: every news section (Near You, more, metro), weather now/forecast/alert, events, games + standings + Spurs news, food ({kinds})")
+          f"knowledge: every news section (Check Your People, more, metro), weather now/forecast/alert, events, games + standings + Spurs news, food ({kinds})")
     r = await ask("Spurs score")
     check(r["mode"] == "scripted" and "LIVE right now: Lakers 88, Spurs 91 (Q4 2:31)" in r["reply"] and "Next up: Rockets at Spurs" in r["reply"] and "10-4" in r["reply"],
           f"'Spurs score' → the live score + the next game + the record ({r['reply'][:120]!r})")

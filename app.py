@@ -64,7 +64,7 @@ def gnews(fid: str, name: str, query: str, kind: str = "gnews") -> dict:
 
 
 # San Antonio publisher feeds (verified 2026-09-29). Always fetched; when the user is not in
-# San Antonio they only count for "Near You" if they name the user's places.
+# San Antonio they only count for "Check Your People" if they name the user's places.
 SA_FEEDS = [
     {"id": "ksat", "name": "KSAT 12", "kind": "direct",
      "url": "https://www.ksat.com/arc/outboundfeeds/rss/category/news/local/?outputType=xml"},
@@ -2403,7 +2403,7 @@ TIA_KB_WAIT = float(os.environ.get("MASCOT_KB_WAIT", "12"))
 
 async def tia_knowledge(body: dict) -> dict:
     """v39: everything the app knows right now for the phone's location, from the same caches the tabs use
-    (news from every source/section incl. Near You, weather + alerts, events, food, ESPN sports). A feed that's
+    (news from every source/section incl. Check Your People, weather + alerts, events, food, ESPN sports). A feed that's
     slow keeps building in the background (shielded) and is simply left out of this answer."""
     loc = body.get("loc") if isinstance(body.get("loc"), dict) else {}
     try:

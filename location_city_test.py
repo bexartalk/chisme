@@ -69,7 +69,7 @@ async def main():
             check(want_tz in stamp, f"times use {city}'s zone: '{stamp}'")
             check(r["cityTitle"] == f"More {city} news" and r["saHidden"], f"News: '{r['cityTitle']}', no 'San Antonio headlines' section")
             check(not any(SA_OUTLETS.search(f) for f in r["feeds"]), f"no San Antonio outlets fetched ({', '.join(r['feeds'][:6])} …)")
-            # screenshot: header skyline + greeting + the first Near You stories (from that city's outlets)
+            # screenshot: header skyline + greeting + the first Check Your People stories (from that city's outlets)
             await pg.wait_for_function("() => document.querySelector('#sync').hidden || document.querySelector('#sync').dataset.state === 'done'", timeout=60000)
             await pg.wait_for_timeout(2500)
             await pg.set_viewport_size({"width": 390, "height": 1500}); await pg.wait_for_timeout(600)

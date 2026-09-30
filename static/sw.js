@@ -1,7 +1,7 @@
 /* Chisme service worker: caches the app shell and the last-loaded news/weather
    so the app opens instantly (and shows the last saved data) even when the server is asleep
    or there's no connection. */
-const VERSION = "chisme-v41";
+const VERSION = "chisme-v42";
 const BUILD = VERSION.replace("chisme-v", "");          // index.html asks for app.js?v=<BUILD>
 const SHELL_CACHE = `${VERSION}-shell`;
 const DATA_CACHE = `${VERSION}-data`;
