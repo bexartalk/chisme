@@ -802,6 +802,13 @@ html.feed-open,html.feed-open body{overflow:hidden}
 .donate-btn:hover{background:#00e236}
 .donate-btn:active{transform:translateY(3px);box-shadow:0 1px 0 #000}
 .donate-btn:focus-visible{outline:4px solid var(--focus);outline-offset:3px}
+/* v38: the donate buttons sit in one row that wraps (Cash App, Buy Me a Coffee; room for a future Venmo button) */
+.donate-btns{display:flex;flex-wrap:wrap;justify-content:center;gap:10px 12px}
+.donate-btns .donate-btn{flex:1 1 230px;max-width:340px}
+.donate-btn.bmc{background:var(--orange);color:#000;border-color:#000}
+.donate-btn.bmc:hover{background:#ff9a33}
+[data-theme="dark"] .donate-btn.bmc{border-color:var(--orange);box-shadow:0 4px 0 #9a4e00}
+[data-theme="dark"] .donate-btn.bmc:active{box-shadow:0 1px 0 #9a4e00}
 .donate-tag{margin:8px 0 0;font-weight:800;font-size:.95rem;letter-spacing:.02em;color:var(--muted)}
 .set-donate{text-align:left}
 .set-donate .donate-text{font-size:.95rem;margin-bottom:10px}

@@ -1,7 +1,7 @@
 /* Chisme — frontend (location-aware) */
 // Build of this file. Must equal the number in sw.js VERSION ("chisme-v22"); the page compares it
 // with the build the HTML was served for and reloads once if an old cached app.js got mixed in.
-window.CHISME_APP_BUILD = "37";
+window.CHISME_APP_BUILD = "38";
 (() => {
   "use strict";
   const WEATHER_MS = 10 * 60 * 1000;
@@ -699,7 +699,7 @@ window.CHISME_APP_BUILD = "37";
       midCard = el("aside", { class: "card donate donate-mid", id: "donate-mid", "aria-labelledby": "donate-mid-t" });
       midCard.innerHTML = `<button type="button" class="donate-x" aria-label="Dismiss this for now">✕</button>
         <p class="donate-text" id="donate-mid-t"></p>
-        <a class="donate-btn" href="https://cash.app/$Slurmkaos" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">💸</span> Donate on Cash App<span class="sr-only"> (opens Cash App)</span></a>
+        <div class="donate-btns"><a class="donate-btn cashapp" href="https://cash.app/$Slurmkaos" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">💸</span> Donate on Cash App<span class="sr-only"> (opens Cash App)</span></a><a class="donate-btn bmc" href="https://buymeacoffee.com/Chismoso" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">☕</span> Buy Me a Coffee<span class="sr-only"> (opens Buy Me a Coffee)</span></a><!-- room for one more: <a class="donate-btn venmo"> (add venmo.com to DIRECT_HOSTS in app.js) --></div>
         <p class="donate-tag">$Slurmkaos</p>`;
       midCard.querySelector(".donate-text").textContent = midLaunch.line;
       midCard.querySelector(".donate-x").onclick = () => {
@@ -762,7 +762,9 @@ window.CHISME_APP_BUILD = "37";
   // fetched, and a Google News search for the topic. Every URL comes from the feeds/server.
   // Every outside link stays inside Chisme: a tap opens the in-app reader (framed where the site allows it,
   // else a headline card) or the map sheet, with the headline/source/summary we already have. Long-press and
-  // ⌘/Ctrl-click still get the real URL. The only link that leaves on purpose is the Cash App donate button.
+  // ⌘/Ctrl-click still get the real URL. The only links that leave on purpose are the donate buttons (Cash App and
+  // Buy Me a Coffee; later a Venmo button: add venmo.com here).
+  const DIRECT_HOSTS = new Set(["cash.app", "buymeacoffee.com"]);
   const linkMeta = new WeakMap();
   const ext = (href, text, cls, meta) => {
     const a = el("a", { href, class: cls, text: text == null ? null : String(text).replace(/\s*↗\s*$/, ""), "aria-haspopup": "dialog" });
@@ -1299,6 +1301,7 @@ window.CHISME_APP_BUILD = "37";
     const a = e.target.closest && e.target.closest("a[href]");
     if (!a || a.matches(".donate-btn, .orig-link")) return;
     let u; try { u = new URL(a.href); } catch { return; }
+    if (DIRECT_HOSTS.has(u.hostname.replace(/^www\./, ""))) return;   // donate links leave on purpose
     if (u.origin === location.origin || !/^https?:$/.test(u.protocol)) return;
     e.preventDefault();
     const m = metaFromLink(a);

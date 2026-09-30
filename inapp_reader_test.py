@@ -86,7 +86,8 @@ async def main():
         donate = [l for l in uniq.values() if "donate-btn" in l["cls"]]
         print(f"  {len(uniq)} distinct outside links on the page")
         check(not blank, f"no outside link opens a new tab/browser except the donate button ({[b['href'][:60] for b in blank[:3]]})")
-        check(donate and all(d["target"] == "_blank" and d["href"].startswith("https://cash.app/") for d in donate), "Cash App donate button still opens Cash App")
+        check(donate and all(d["target"] == "_blank" and d["href"].startswith(("https://cash.app/", "https://buymeacoffee.com/")) for d in donate)
+              and {d["href"] for d in donate} >= {"https://cash.app/$Slurmkaos", "https://buymeacoffee.com/Chismoso"}, "the donate buttons (Cash App, Buy Me a Coffee) still open their sites")
 
         # the global handler: only the donate button (and the sheets' "Open original") are left alone
         res = await pg.evaluate("""() => { const out = {}; const rec = (e) => { const a = e.target.closest('a'); if (a) { out[a.className || a.href] = e.defaultPrevented; e.preventDefault(); } };

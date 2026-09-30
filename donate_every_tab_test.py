@@ -115,8 +115,43 @@ async def main():
             await pg.evaluate(f"document.querySelector('#view-{v} > .donate:last-child').scrollIntoView({{ block: 'end' }}); window.scrollBy(0, 40)"); await pg.wait_for_timeout(500)
             tiles.append(Image.open(io.BytesIO(await pg.screenshot())))
         cards = await pg.evaluate("[...document.querySelectorAll('.donate:not(.donate-mid)')].map(d => d.closest('.view') ? d.closest('.view').dataset.view : '?')")
-        sett = await pg.evaluate("document.querySelectorAll('dialog .donate-btn').length")
+        sett = await pg.evaluate("document.querySelectorAll('dialog .donate-btns').length")
         check(sorted(cards) == sorted(TABS) and sett == 1, f"exactly one per tab ({cards}); Settings still has just its own one ({sett})")
+        print("\n== ☕ Buy Me a Coffee next to Cash App in every donate card")
+        BTNS = """() => [...document.querySelectorAll('.donate:not(#donate-mid), #set-donate')].map((c) => { const bs = [...c.querySelectorAll('.donate-btns > a.donate-btn')];
+          return { id: c.id, btns: bs.map((a) => [a.className.replace('donate-btn', '').trim(), a.getAttribute('href'), a.target, a.rel, a.textContent.replace(a.querySelector('.sr-only')?.textContent || '', '').trim()]),
+            bg: bs[1] && getComputedStyle(bs[1]).backgroundColor, fg: bs[1] && getComputedStyle(bs[1]).color, h: bs[1] && Math.round(bs[1].getBoundingClientRect().height || 0) }; })"""
+        cards = await pg.evaluate(BTNS)
+        ids = sorted(c["id"] for c in cards)
+        want = [["cashapp", "https://cash.app/$Slurmkaos", "_blank", "noopener noreferrer", "💸 Donate on Cash App"], ["bmc", "https://buymeacoffee.com/Chismoso", "_blank", "noopener noreferrer", "☕ Buy Me a Coffee"]]
+        check(len(cards) == 7 and all(c["btns"] == want for c in cards), f"every donate card (6 tabs + Settings: {ids}) has 💸 Cash App then ☕ Buy Me a Coffee → buymeacoffee.com/Chismoso")
+        check(all(c["bg"] == "rgb(255, 130, 0)" and c["fg"] == "rgb(0, 0, 0)" for c in cards), f"BMC button: Fiesta orange with black text, not BMC yellow ({cards[0]['bg']} / {cards[0]['fg']})")
+        # the in-app reader leaves both alone (they open outside Chisme); a story link is still caught
+        res = await pg.evaluate("""() => { const out = {}; const rec = (e) => { out[e.target.closest('a').getAttribute('href')] = e.defaultPrevented; e.preventDefault(); };
+          document.addEventListener('click', rec); for (const h of ['https://cash.app/$Slurmkaos', 'https://buymeacoffee.com/Chismoso', 'https://www.buymeacoffee.com/Chismoso']) {
+            const a = document.createElement('a'); a.href = h; a.textContent = 'x'; document.body.append(a); a.click(); a.remove(); }
+          document.querySelector('#donate-news .donate-btn.bmc').click(); document.querySelector('#near-list .story h3 a').click();
+          document.removeEventListener('click', rec); return out; }""")
+        story = [k for k in res if k not in ("https://cash.app/$Slurmkaos", "https://buymeacoffee.com/Chismoso", "https://www.buymeacoffee.com/Chismoso")]
+        check(res.get("https://buymeacoffee.com/Chismoso") is False and res.get("https://www.buymeacoffee.com/Chismoso") is False and res.get("https://cash.app/$Slurmkaos") is False,
+              f"in-app reader exceptions: Cash App and Buy Me a Coffee links open outside Chisme ({ {k: v for k, v in res.items() if k not in story} })")
+        check(story and res[story[0]] is True, "…while a story link still opens in the in-app reader")
+        await pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d => d.close())"); await pg.wait_for_timeout(300)
+        # donate-bmc.png: the News donate card, light | dark, + the Settings one
+        await pg.evaluate("__chisme.goView('news', { instant: true })"); await pg.wait_for_timeout(500)
+        tl = Image.open(io.BytesIO(await pg.locator("#donate-news").screenshot()))
+        await pg.click("#settings-btn"); await pg.wait_for_timeout(500)
+        await pg.evaluate("document.querySelector('#set-donate').scrollIntoView({ block: 'center' })"); await pg.wait_for_timeout(300)
+        ts = Image.open(io.BytesIO(await pg.locator("#set-donate").screenshot()))
+        await pg.keyboard.press("Escape"); await pg.wait_for_timeout(300)
+        await pg.evaluate("localStorage.setItem('chisme-theme', 'dark'); document.documentElement.dataset.theme = 'dark'"); await pg.wait_for_timeout(300)
+        td = Image.open(io.BytesIO(await pg.locator("#donate-news").screenshot()))
+        dk = await pg.evaluate("(() => { const b = getComputedStyle(document.querySelector('#donate-news .donate-btn.bmc')); return [b.backgroundColor, b.borderTopColor]; })()")
+        check(dk == ["rgb(255, 130, 0)", "rgb(255, 130, 0)"], f"dark mode: the BMC button keeps its orange ({dk})")
+        await pg.evaluate("localStorage.setItem('chisme-theme', 'light'); document.documentElement.dataset.theme = 'light'")
+        w = max(tl.size[0] + td.size[0] + 30, ts.size[0] + 20); h = max(tl.size[1], td.size[1]) + ts.size[1] + 30
+        grid = Image.new("RGB", (w, h), "#888"); grid.paste(tl, (10, 10)); grid.paste(td, (tl.size[0] + 20, 10)); grid.paste(ts, (10, max(tl.size[1], td.size[1]) + 20))
+        grid.save(os.path.join(OUT, "donate-bmc.png"))
         # stitch: 3 × 2 grid, labeled
         W, H = tiles[0].size; s = 0.34; tw, th = int(W * s), int(H * s)
         try: FONT = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 28)
@@ -147,6 +182,7 @@ async def main():
             check(nb["next"] == "donate-news", f"…no light-light slot today, so it's at the end, just above the bottom donate card ({nb['next']})")
         spot0 = (m["list"], m["storiesBefore"], nb["next"])
         check(m["text"] == dm["line"] and dm["line"] in LINES and m["href"] == "https://cash.app/$Slurmkaos" and m["x"], f"a line from the set, the Cash App button and a ✕ ({m['text']!r})")
+        check(await pg.evaluate("[...document.querySelectorAll('#donate-mid .donate-btns > a')].map(a => a.getAttribute('href')).join(' ')") == "https://cash.app/$Slurmkaos https://buymeacoffee.com/Chismoso", "…and ☕ Buy Me a Coffee next to it")
         check(not m["dialog"] and not m["fixed"] and not await pg.evaluate("[...document.querySelectorAll('dialog')].some(d => d.open)"), "inline in the list: not a pop-up or modal")
         lines = [dm["line"]]; tiles = [Image.open(io.BytesIO(await pg.locator("#donate-mid").screenshot()))]
         await pg.evaluate("() => { const c = document.getElementById('donate-mid'); window.scrollTo(0, c.getBoundingClientRect().top + scrollY - 330); }"); await pg.wait_for_timeout(600); await pg.wait_for_timeout(4500)
