@@ -92,7 +92,7 @@
     let tabla, deck, called, marks, timer = null, running = false, over = false, started = false;
     el.innerHTML = `
       <div class="lot-top">
-        <img class="lot-tia" src="/static/mascot/avatar-128.webp" width="64" height="64" alt="Tía Chismosa">
+        <img class="lot-tia" src="/static/mascot/avatar-128.webp?art=2" width="64" height="64" alt="Tía Chismosa">
         <div class="lot-bubble" id="lot-bubble" aria-live="polite"><div id="lot-card" class="lot-card"></div><p id="lot-line" class="lot-line">¡Siéntate, mija! Tap <b>Empezar</b> and I'll start calling cards.</p></div>
       </div>
       <p class="lot-count" id="lot-count"></p>

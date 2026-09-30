@@ -1,7 +1,7 @@
 /* Chisme service worker: caches the app shell and the last-loaded news/weather
    so the app opens instantly (and shows the last saved data) even when the server is asleep
    or there's no connection. */
-const VERSION = "chisme-v34";
+const VERSION = "chisme-v35";
 const BUILD = VERSION.replace("chisme-v", "");          // index.html asks for app.js?v=<BUILD>
 const SHELL_CACHE = `${VERSION}-shell`;
 const DATA_CACHE = `${VERSION}-data`;
@@ -30,7 +30,8 @@ const ART = ["/static/art/art.json", ...Array.from({ length: 13 }, (_, i) => `/s
 // Freely licensed Commons photos on the Sports tab (~290 KB).
 ART.push(...["spurs-arena", "spurs-bluehour", "missions-wolff", "missions-game", "missions-2026"].map((n) => `/static/sports/${n}.webp`));
 // Tía Chismosa's avatar + chat header (~85 KB), so her button shows offline too.
-ART.push(...["avatar-64", "avatar-128", "avatar-192", "header-480", "header-960"].map((n) => `/static/mascot/${n}.webp`));
+// ?art=N changes whenever tools/make_mascot_assets.py rebuilds her (same query in index.html, app.js, juegos.js)
+ART.push(...["avatar-64", "avatar-128", "avatar-192", "header-480", "header-960"].map((n) => `/static/mascot/${n}.webp?art=2`));
 // Only cache real Chisme responses (the server marks them), never a hosting "waking up" page.
 const ours = (resp) => resp && resp.ok && resp.headers.get("X-Chisme") === "1";
 

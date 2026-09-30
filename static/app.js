@@ -1,7 +1,7 @@
 /* Chisme — frontend (location-aware) */
 // Build of this file. Must equal the number in sw.js VERSION ("chisme-v22"); the page compares it
 // with the build the HTML was served for and reloads once if an old cached app.js got mixed in.
-window.CHISME_APP_BUILD = "34";
+window.CHISME_APP_BUILD = "35";
 (() => {
   "use strict";
   const WEATHER_MS = 10 * 60 * 1000;
@@ -2414,7 +2414,7 @@ window.CHISME_APP_BUILD = "34";
   // Her art is /static/mascot/* (tools/make_mascot_assets.py builds it from one picture, so it can be swapped).
   // Chat history and what she learns about your interests live ONLY on this phone (localStorage); the server
   // gets the current conversation + the app's current feed items for each message and keeps nothing.
-  const TIA = { name: "Tía Chismosa", avatar: (px) => `/static/mascot/avatar-${px}.webp` };
+  const TIA = { name: "Tía Chismosa", avatar: (px) => `/static/mascot/avatar-${px}.webp?art=2` };
   const TIA_CHAT = "chisme-tia-chat", TIA_PROF = "chisme-tia-profile", TIA_MAX = 40;
   const tiaDlg = $("#tia"), tiaLog = $("#tia-log"), tiaForm = $("#tia-form"), tiaIn = $("#tia-in");
   let tiaCfg = null, tiaBusy = false, tiaOpener = null;

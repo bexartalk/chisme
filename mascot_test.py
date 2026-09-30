@@ -126,7 +126,7 @@ async def ui():
             return { w: r.width, right: innerWidth - r.right, bottom: innerHeight - r.bottom, loaded: i.complete && i.naturalWidth > 0, cur: i.currentSrc, dpr: devicePixelRatio,
                      label: b.textContent.trim(), pos: getComputedStyle(b).position }; }""")
         check(fab["pos"] == "fixed" and 56 <= fab["w"] <= 64 and fab["right"] < 30 and fab["bottom"] < 60 and fab["loaded"], f"floating avatar button bottom-right ({fab})")
-        check(fab["cur"].endswith(f"avatar-{64 * round(fab['dpr'])}.webp"), f"sharp WebP avatar for this screen ({fab['dpr']}x → {fab['cur'].rsplit('/', 1)[-1]})")
+        check(fab["cur"].split("?")[0].endswith(f"avatar-{64 * round(fab['dpr'])}.webp") and "art=2" in fab["cur"], f"sharp WebP avatar for this screen, the rebuilt art ({fab['dpr']}x → {fab['cur'].rsplit('/', 1)[-1]})")
         check("Tía Chismosa" in fab["label"], "button has an accessible name")
         await pg.screenshot(path=os.path.join(OUT, "mascot-button.png"))
         # interests: tap a story (reader opens), which la Tía learns from
