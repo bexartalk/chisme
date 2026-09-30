@@ -12,53 +12,54 @@
   };
   // [name, art (emoji or SVG key), Tía's call line]
   const CARDS = [
-    ["El Cafecito", "☕", "Pa' que aguantes el chisme de la mañana."],
-    ["La Comadre", "👩🏽", "La que sabe todo antes que el periódico."],
-    ["Los Tubos", "svg:tubos", "Con los tubos puestos y ya en la tienda."],
-    ["El Teléfono", "☎️", "Ring, ring… ¿ya supiste?"],
-    ["La Vecina", "🪟", "Detrás de la cortina, siempre pendiente."],
-    ["El Chisme", "🤫", "Te lo cuento, pero no digas que yo te dije."],
-    ["La Chancla", "🩴", "Vuela sin avisar, y nunca falla."],
-    ["El Pan Dulce", "svg:concha", "Una concha con cafecito, y a platicar."],
-    ["La Novela", "📺", "Se desmayó… ¡y era su gemela!"],
-    ["La Raspa", "🍧", "Con chamoy y chilito, pa'l calor."],
-    ["El Mariachi", "🎺", "Llegó cantando y sin invitación."],
-    ["La Fiesta", "🎉", "Todos invitados, menos el ex."],
-    ["El Taco", "🌮", "Uno nunca es suficiente."],
-    ["La Abuela", "👵🏽", "¿Ya comiste, mijo? Te sirvo otro plato."],
-    ["El Tamal", "🫔", "Envuelto como secreto de familia."],
-    ["La Piñata", "🪅", "Dale, dale, dale, no pierdas el tino."],
-    ["La Tortilla", "🫓", "Calientita y recién salida del comal."],
-    ["El Compadre", "🧔🏽", "Prometió ayudar con la mudanza… y no llegó."],
-    ["El Gato Chismoso", "🐈‍⬛", "Lo ve todo desde la barda."],
-    ["La Troca", "🛻", "Con bocinas que se oyen en otro barrio."],
-    ["La Cumbia", "💃🏽", "Suena la cumbia y nadie se queda sentado."],
-    ["El Aguacate", "🥑", "Más caro que la renta."],
-    ["La Pulga", "🛍️", "Todo a dos por cinco, mija."],
-    ["El Chile", "🌶️", "Pica, pero con cariño."],
-    ["La Quinceañera", "👑", "Seis meses ensayando el vals."],
-    ["El Tío", "🤠", "Con sus historias de hace treinta años."],
-    ["El Radio", "📻", "La estación de siempre, a todo volumen."],
-    ["La Nieve", "🍦", "De la troquita que toca la musiquita."],
-    ["El Menudo", "🍲", "El remedio de los domingos."],
-    ["El Grupo", "💬", "Doscientos mensajes y nadie sabe nada."],
-    ["La Selfie", "🤳🏽", "Otra, que salí con los ojos cerrados."],
-    ["El Carnal", "🤜🏽", "Siempre hace el paro."],
-    ["La Maleta", "🧳", "Lista pa' irse al rancho el fin de semana."],
-    ["El Mercado", "🧺", "Donde se sabe todo primero."],
-    ["La Veladora", "🕯️", "Pa' que todo salga bien."],
-    ["El Elote", "🌽", "Con mayonesa, queso y chile."],
-    ["La Bocina", "🔊", "Ahora sí se enteró toda la cuadra."],
-    ["El Pozole", "🥣", "Pa' la fiesta del quince de septiembre."],
-    ["La Tiendita", "🏪", "Fiado hasta el viernes, ¿sí?"],
-    ["La Chismosa", "🗣️", "¡Esa soy yo, mija!"],
+    ["The Coffee", "☕", "To get you through the morning chisme."],
+    ["The Best Friend", "👩🏽", "She knows everything before the newspaper does."],
+    ["The Rollers", "svg:tubos", "Rollers still in, and already at the store."],
+    ["The Phone", "☎️", "Ring, ring… did you hear?"],
+    ["The Neighbor", "🪟", "Behind the curtain, always watching."],
+    ["The Gossip", "🤫", "I'll tell you, but you didn't hear it from me."],
+    ["The Flip-Flop", "🩴", "It flies without warning, and it never misses."],
+    ["The Sweet Bread", "svg:concha", "A sweet roll with coffee, and let's talk."],
+    ["The Soap Opera", "📺", "She fainted… and it was her twin!"],
+    ["The Snow Cone", "🍧", "With a little chili on top, for the heat."],
+    ["The Mariachi", "🎺", "Showed up singing, and nobody invited him."],
+    ["The Party", "🎉", "Everybody's invited, except the ex."],
+    ["The Taco", "🌮", "One is never enough."],
+    ["The Grandma", "👵🏽", "Did you eat yet? Let me fix you another plate."],
+    ["The Tamale", "🫔", "Wrapped up tight, like a family secret."],
+    ["The Piñata", "🪅", "Swing, swing, swing, and don't lose your aim."],
+    ["The Tortilla", "🫓", "Warm and fresh off the griddle."],
+    ["The Buddy", "🧔🏽", "Promised to help you move… and never showed up."],
+    ["The Nosy Cat", "🐈‍⬛", "Sees everything from the top of the fence."],
+    ["The Pickup Truck", "🛻", "Speakers you can hear three blocks away."],
+    ["The Dance", "💃🏽", "The music starts, and nobody stays sitting down."],
+    ["The Avocado", "🥑", "Pricier than the rent."],
+    ["The Flea Market", "🛍️", "Everything's two for five, honey."],
+    ["The Chili Pepper", "🌶️", "It stings, but with love."],
+    ["The Sweet Fifteen", "👑", "Six months of rehearsing the waltz."],
+    ["The Uncle", "🤠", "With his stories from thirty years ago."],
+    ["The Radio", "📻", "Same station as always, at full blast."],
+    ["The Ice Cream", "🍦", "From the little truck with the little song."],
+    ["The Sunday Soup", "🍲", "The cure for every Sunday morning."],
+    ["The Group Chat", "💬", "Two hundred messages and nobody knows anything."],
+    ["The Selfie", "🤳🏽", "One more, my eyes were closed."],
+    ["The Brother", "🤜🏽", "Always has your back."],
+    ["The Suitcase", "🧳", "Packed for the ranch this weekend."],
+    ["The Market", "🧺", "Where everybody hears everything first."],
+    ["The Candle", "🕯️", "So everything turns out all right."],
+    ["The Street Corn", "🌽", "With mayo, cheese and chili."],
+    ["The Speaker", "🔊", "Now the whole block knows."],
+    ["The Stew", "🥣", "For the big September party."],
+    ["The Corner Store", "🏪", "Put it on my tab till Friday, okay?"],
+    ["The Gossip Queen", "🗣️", "That's me, honey!"],
   ].map(([name, art, call], i) => ({ id: i + 1, name, art, call, color: FIESTA[i % FIESTA.length] }));
-  const BRAG = ["¡Lotería! Te dije que hoy era tu día, mija.", "¡Eso! Ni la vecina lo vio venir.", "¡Lotería! Ya mero te hago mi comadre oficial.",
-    "¡Ganaste! Esto lo cuento en el grupo ahorita mismo.", "¡Qué suerte! Pásame tu secreto, ¿eh?"];
-  const TEASE_EARLY = "Ay, mija, esa carta todavía no ha salido. Aquí no se hace trampa.";
-  const TEASE_NOPE = "Todavía no, corazón. Te falta poquito, sigue jugando.";
+  // v39: everything in English except the word "Lotería" (said with a Spanish voice; see say())
+  const BRAG = ["¡Lotería! I told you today was your day, honey.", "That's it! Not even the neighbor saw that coming.", "¡Lotería! I'm making you my official best friend.",
+    "You won! I'm telling the group chat right now.", "What luck! Share your secret with me, okay?"];
+  const TEASE_EARLY = "Oh honey, that card hasn't been called yet. No cheating at this table.";
+  const TEASE_NOPE = "Not yet, sweetheart. You're almost there, keep playing.";
   const SPEEDS = { slow: 7000, normal: 4500, fast: 2800 };
-  const SPEED_LABEL = { slow: "🐢 Lenta", normal: "🚶 Normal", fast: "🐇 Rápida" };
+  const SPEED_LABEL = { slow: "🐢 Slow", normal: "🚶 Normal", fast: "🐇 Fast" };
 
   // ---- pure game logic (tested in Node) ----
   function shuffle(a, rand = Math.random) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
@@ -92,39 +93,49 @@
     let tabla, deck, called, marks, timer = null, running = false, over = false, started = false;
     el.innerHTML = `
       <div class="lot-top">
-        <img class="lot-tia" src="/static/mascot/avatar-128.webp?art=2" width="64" height="64" alt="Tía Chismosa">
-        <div class="lot-bubble" id="lot-bubble" aria-live="polite"><div id="lot-card" class="lot-card"></div><p id="lot-line" class="lot-line">¡Siéntate, mija! Tap <b>Empezar</b> and I'll start calling cards.</p></div>
+        <img class="lot-tia" src="/static/mascot/avatar-128.webp?art=3" width="64" height="64" alt="Tía Chismosa">
+        <div class="lot-bubble" id="lot-bubble" aria-live="polite"><div id="lot-card" class="lot-card"></div><p id="lot-line" class="lot-line">Pull up a chair, honey! Tap <b>Start</b> and I'll start calling cards.</p></div>
       </div>
       <p class="lot-count" id="lot-count"></p>
       <div class="lot-controls" role="group" aria-label="Game controls">
-        <button type="button" id="lot-play" class="lot-btn lot-main">▶ Empezar</button>
+        <button type="button" id="lot-play" class="lot-btn lot-main">▶ Start</button>
         <button type="button" id="lot-speed" class="lot-btn" aria-label="Calling speed"></button>
-        <button type="button" id="lot-new" class="lot-btn">🔀 Nueva tabla</button>
+        <button type="button" id="lot-new" class="lot-btn">🔀 New board</button>
         <button type="button" id="lot-voice" class="lot-btn" aria-pressed="false"></button>
       </div>
-      <div id="lot-tabla" class="lot-tabla" role="grid" aria-label="Your tabla: tap a card when it's called to put a ficha on it"></div>
+      <div id="lot-tabla" class="lot-tabla" role="grid" aria-label="Your board: tap a card when it's called to put a marker on it"></div>
       <button type="button" id="lot-claim" class="lot-claim">¡Lotería!</button>
-      <p class="lot-rules">Win with a row, a column, a diagonal or the 4 corners, then tap <b>¡Lotería!</b> A game you don't win (the deck runs out, or you deal a new tabla mid-game) resets your streak.</p>
+      <p class="lot-rules">Win with a row, a column, a diagonal or the 4 corners, then tap <b>¡Lotería!</b> A game you don't win (the deck runs out, or you deal a new board mid-game) resets your streak.</p>
       <p class="lot-stats" id="lot-stats"></p>
       <div class="lot-hist-wrap"><p class="lot-hist-h">Already called</p><div id="lot-hist" class="lot-hist"></div></div>`;
     const $ = (s) => el.querySelector(s);
     const hasVoice = "speechSynthesis" in window && typeof SpeechSynthesisUtterance === "function";
-    let esVoice = null;
-    const pickVoice = () => { if (!hasVoice) return; const vs = speechSynthesis.getVoices(); esVoice = vs.find((v) => /^es[-_]MX/i.test(v.lang)) || vs.find((v) => /^es[-_]US/i.test(v.lang)) || vs.find((v) => /^es/i.test(v.lang)) || null; };
+    // v39: Tía calls in English; only the word "Lotería" is said with a Spanish voice
+    let enVoice = null, esVoice = null;
+    const pickVoice = () => { if (!hasVoice) return; const vs = speechSynthesis.getVoices();
+      enVoice = vs.find((v) => /^en[-_]US/i.test(v.lang)) || vs.find((v) => /^en/i.test(v.lang)) || null;
+      esVoice = vs.find((v) => /^es[-_]MX/i.test(v.lang)) || vs.find((v) => /^es[-_]US/i.test(v.lang)) || vs.find((v) => /^es/i.test(v.lang)) || null; };
     if (hasVoice) { pickVoice(); speechSynthesis.addEventListener && speechSynthesis.addEventListener("voiceschanged", pickVoice); }
     function say(text) {
       if (!hasVoice || st.muted) return;
-      try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = esVoice ? esVoice.lang : "es-MX"; if (esVoice) u.voice = esVoice; u.rate = st.speed === "fast" ? 1.15 : 1; speechSynthesis.speak(u); } catch (e) {}
+      try {
+        speechSynthesis.cancel();
+        for (const [t, lang] of voicePartsOf(text)) {
+          const u = new SpeechSynthesisUtterance(t), v = lang === "es" ? esVoice : enVoice;
+          u.lang = v ? v.lang : lang === "es" ? "es-MX" : "en-US"; if (v) u.voice = v; u.rate = st.speed === "fast" ? 1.15 : 1;
+          speechSynthesis.speak(u);
+        }
+      } catch (e) {}
     }
     const hush = () => { if (hasVoice) try { speechSynthesis.cancel(); } catch (e) {} };
     function stats() { $("#lot-stats").innerHTML = `🏆 Wins <b>${st.wins}</b> · 🔥 Streak <b>${st.streak}</b> · ⭐ Best streak <b>${st.best}</b>`; }
     function controls() {
-      $("#lot-play").textContent = over ? "▶ Otra vez" : running ? "⏸ Pausa" : started ? "▶ Seguir" : "▶ Empezar";
+      $("#lot-play").textContent = over ? "▶ Play again" : running ? "⏸ Pause" : started ? "▶ Resume" : "▶ Start";
       $("#lot-play").setAttribute("aria-pressed", running ? "true" : "false");
       $("#lot-speed").textContent = SPEED_LABEL[st.speed];
       const v = $("#lot-voice");
       v.hidden = !hasVoice;
-      v.textContent = st.muted ? "🔇 Voz" : "🔊 Voz"; v.setAttribute("aria-pressed", st.muted ? "false" : "true"); v.setAttribute("aria-label", st.muted ? "Tía's voice is off" : "Tía's voice is on");
+      v.textContent = st.muted ? "🔇 Voice" : "🔊 Voice"; v.setAttribute("aria-pressed", st.muted ? "false" : "true"); v.setAttribute("aria-label", st.muted ? "Tía's voice is off" : "Tía's voice is on");
       $("#lot-count").textContent = started ? `${called.size} of ${CARDS.length} cards called` : `${CARDS.length} cards in the deck`;
     }
     function drawTabla() {
@@ -140,10 +151,10 @@
       if (!first && started && !over && called.size) { st.streak = 0; st.played++; save(st); }
       stop(); tabla = newTabla(); deck = newDeck(); called = new Set(); marks = new Set(); over = false; started = false;
       el.classList.remove("won"); drawTabla(); history(); stats(); controls();
-      if (!first) speak("Tabla nueva, suerte nueva. Tap Empezar when you're ready.", null);
+      if (!first) speak("New board, new luck. Tap Start when you're ready.", null);
     }
     function callNext() {
-      if (!deck.length) { over = true; stop(); st.streak = 0; st.played++; save(st); stats(); controls(); speak("¡Se acabó la baraja! Nadie ganó esta vez… la próxima es tuya.", null); say("Se acabó la baraja."); return; }
+      if (!deck.length) { over = true; stop(); st.streak = 0; st.played++; save(st); stats(); controls(); speak("The deck ran out! Nobody won this time… the next one's yours.", null); say("The deck ran out."); return; }
       const c = byId(deck.shift()); called.add(c.id);
       speak(c.call, c); say(`${c.name}. ${c.call}`); history(); controls();
     }
@@ -158,14 +169,14 @@
       document.body.appendChild(box); setTimeout(() => box.remove(), 3600);
     }
     function claim() {
-      if (!started || over) { speak("Primero hay que jugar, mija. Tap Empezar.", null); return; }
+      if (!started || over) { speak("You have to play first, honey. Tap Start.", null); return; }
       const r = check(tabla, marks, called);
       if (r.win) {
         over = true; stop(); st.wins++; st.streak++; st.played++; st.best = Math.max(st.best, st.streak); save(st);
         for (const i of r.line.cells) el.querySelector(`.lot-cell[data-i="${i}"]`).classList.add("win");
         el.classList.add("won");
         const brag = BRAG[(st.wins - 1) % BRAG.length];
-        speak(`${brag} (${r.line.kind === "corners" ? "las 4 esquinas" : r.line.kind === "row" ? "una fila" : r.line.kind === "column" ? "una columna" : "una diagonal"})`, null);
+        speak(`${brag} (${r.line.kind === "corners" ? "the 4 corners" : r.line.kind === "row" ? "a row" : r.line.kind === "column" ? "a column" : "a diagonal"})`, null);
         say(brag); stats(); controls(); confetti();
         return;
       }
@@ -213,7 +224,9 @@
     return { open, pause() { if (active && active.pause) active.pause(); }, get game() { return active; }, get id() { return activeId; } };
   }
 
-  const api = { KEY, CARDS, GAMES, LINES, FIESTA, shuffle, newTabla, newDeck, check, load, save, reset, mountTab };
+  // "¡Lotería! I told you…" → [["Lotería", "es"], ["I told you…", "en"]]
+  const voicePartsOf = (text) => String(text).split(/(¡?Lotería!?)/).map((t) => t.trim()).filter(Boolean).map((t) => (/^¡?Lotería!?$/.test(t) ? ["Lotería", "es"] : [t, "en"]));
+  const api = { KEY, CARDS, GAMES, voicePartsOf, LINES, FIESTA, shuffle, newTabla, newDeck, check, load, save, reset, mountTab };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.ChismeJuegos = api;
 })(typeof window !== "undefined" ? window : this);

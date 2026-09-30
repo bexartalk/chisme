@@ -2349,9 +2349,33 @@ async def api_mascot_config():
     return {"name": tia.NAME, "ai": bool(p), "provider": p.name if p else None, "per_hour": MASCOT_LIMIT.limit}
 
 
+TIA_KB_WAIT = float(os.environ.get("MASCOT_KB_WAIT", "12"))
+
+
+async def tia_knowledge(body: dict) -> dict:
+    """v39: everything the app knows right now for the phone's location, from the same caches the tabs use
+    (news from every source/section incl. Near You, weather + alerts, events, food, ESPN sports). A feed that's
+    slow keeps building in the background (shielded) and is simply left out of this answer."""
+    loc = body.get("loc") if isinstance(body.get("loc"), dict) else {}
+    try:
+        la, lo = _coords(float(loc["lat"]), float(loc["lon"])) if loc.get("lat") is not None and loc.get("lon") is not None else _coords(None, None)
+    except (ValueError, TypeError, KeyError):
+        la, lo = _coords(None, None)
+    names = ("news", "weather", "events", "food", "sports")
+
+    async def one(fn):
+        try:
+            r = await asyncio.wait_for(asyncio.shield(asyncio.ensure_future(fn(lat=la, lon=lo))), TIA_KB_WAIT)
+            return r if isinstance(r, dict) else None
+        except Exception:
+            return None
+    got = await asyncio.gather(*(one(f) for f in (api_news, api_weather, api_events, api_food, api_sports)))
+    return {k: v for k, v in zip(names, got) if v}
+
+
 @app.post("/api/mascot/chat")
 async def api_mascot_chat(request: Request):
-    """Tía Chismosa. Grounded only in the feed items the phone sends; nothing is stored. See mascot.py."""
+    """Tía Chismosa. Grounded only in the app's current feeds (server-side) + what the phone shows; nothing is stored. See mascot.py."""
     raw = await request.body()
     if len(raw) > 96_000:
         return JSONResponse({"error": "message too big"}, status_code=413)
@@ -2367,7 +2391,7 @@ async def api_mascot_chat(request: Request):
                                       "minutes to refill my cafecito and I'm all yours.",
                              "cites": [], "mode": "limited", "retry_after": wait, "sources": []}, status_code=429)
     try:
-        return await tia.chat(client(), body)
+        return await tia.chat(client(), body, await tia_knowledge(body))
     except Exception as ex:
         return _err(ex)
 

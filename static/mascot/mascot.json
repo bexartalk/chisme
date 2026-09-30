@@ -1,14 +1,14 @@
 {
-  "source": "tia-chismosa-v2.jpg",
+  "source": "tia-chismosa-v3.jpg",
   "face": [
-    665,
-    215,
-    370
+    650,
+    235,
+    380
   ],
   "name": "Tía Chismosa",
   "header": [
     0,
-    20,
+    60,
     1280
   ]
 }

@@ -3,8 +3,8 @@
    double jump) over traffic cones and past generic, faceless uniformed agents and their SUVs. Nobody gets hurt: if
    he's caught it's a random big pixel "¡Ay no!" / "¡Fuera!" / "¡Vámonos, amigo!", then back to the last checkpoint. Agents are slapstick (they trip over
    cones, get dizzy), with no logos, badges or weapons. Five levels, each ending at a San Antonio-style spot:
-   Home Dehole (a parody big-box hardware store) → La Taquería → La Tiendita → La Plaza → Casa de Mamá (the family party).
-   Power-ups: ☕ cafecito (speed boost) and 🩴 chancla (shield: the next agent just gets confused). Chiptune beeps
+   Home Dehole (a parody big-box hardware store) → The Taco Shop → The Corner Store → The Plaza → Mom's House (the family party).
+   Power-ups: ☕ coffee (speed boost) and 🩴 flip-flop (shield: the next agent just gets confused). Chiptune beeps
    (WebAudio square waves, mutable). Score + best score in localStorage "chisme-juegos-ice". Reduce motion: no
    parallax, no screen shake/flashes, no confetti, and a slightly gentler speed. */
 (function (root) {
@@ -13,11 +13,11 @@
   const W = 192, H = 108, OFFY = 36, GROUND = 124, END = 2400, CHECKS = [0, 800, 1600], HERO_X = 46;   // world y 36–144 is on screen
   const GRAV = 720, JUMP = -250, JUMP2 = -215;
   const LEVELS = [
-    { name: "Home Dehole", sign: "HOME DEHOLE", speed: 78, sky: ["#8fd8ff", "#d6f3ff"], agents: 0.42, suv: 0.12, hint: "The big-box parking lot. ¡Vámonos!" },
-    { name: "La Taquería", sign: "TAQUERIA", speed: 86, sky: ["#6cc6f0", "#ffd6e6"], agents: 0.48, suv: 0.15, hint: "Tacos de trompo are waiting." },
-    { name: "La Tiendita", sign: "LA TIENDITA", speed: 92, sky: ["#ffb36b", "#ffc9dc"], agents: 0.52, suv: 0.18, hint: "Pick up tortillas for Mamá." },
-    { name: "La Plaza", sign: "LA PLAZA", speed: 98, sky: ["#ff7aa8", "#ffb08a"], agents: 0.55, suv: 0.2, hint: "Past the church and the plaza." },
-    { name: "Casa de Mamá", sign: "CASA DE MAMA", speed: 104, sky: ["#1b1f4a", "#5a3a7a"], agents: 0.58, suv: 0.22, hint: "Almost home. The party's starting!" },
+    { name: "Home Dehole", sign: "HOME DEHOLE", speed: 78, sky: ["#8fd8ff", "#d6f3ff"], agents: 0.42, suv: 0.12, hint: "The big-box parking lot. Let's go!" },
+    { name: "The Taco Shop", sign: "TACO SHOP", speed: 86, sky: ["#6cc6f0", "#ffd6e6"], agents: 0.48, suv: 0.15, hint: "Hot tacos are waiting." },
+    { name: "The Corner Store", sign: "CORNER STORE", speed: 92, sky: ["#ffb36b", "#ffc9dc"], agents: 0.52, suv: 0.18, hint: "Pick up tortillas for Mom." },
+    { name: "The Plaza", sign: "THE PLAZA", speed: 98, sky: ["#ff7aa8", "#ffb08a"], agents: 0.55, suv: 0.2, hint: "Past the church and the plaza." },
+    { name: "Mom's House", sign: "MOM'S HOUSE", speed: 104, sky: ["#1b1f4a", "#5a3a7a"], agents: 0.58, suv: 0.22, hint: "Almost home. The party's starting!" },
   ];
   const C = { k: "#111111", h: "#d9a877", H: "#a8743f", b: "#ff3d8b", s: "#b0754a", S: "#8f5a36", e: "#1b1b1b", m: "#6e2f22", w: "#00b8b0", c: "#007f7a",
     j: "#2d4a8a", J: "#223a6e", o: "#6b3b1f", n: "#2b3346", g: "#5b6270", v: "#1f2a3d", l: "#c9d0d8", t: "#9c8f80", a: "#3d4658", y: "#d98a4a", p: "#ff3d8b", r: "#ff8a00", W: "#ffffff" };
@@ -129,7 +129,7 @@
         <button type="button" id="ice-restart" class="lot-btn">↺ Restart level</button>
         <button type="button" id="ice-sound" class="lot-btn" aria-pressed="true"></button>
       </div>
-      <p class="lot-rules">Tap the game (or Space / ↑) to jump; tap again in the air for a double jump. ☕ Cafecito = speed boost · 🩴 Chancla = shield (the next agent just gets confused). Cones slow you down. Get caught and it's back to the last 🚩 checkpoint. Nobody gets hurt.</p>
+      <p class="lot-rules">Tap the game (or Space / ↑) to jump; tap again in the air for a double jump. ☕ Coffee = speed boost · 🩴 Flip-flop = shield (the next agent just gets confused). Cones slow you down. Get caught and it's back to the last 🚩 checkpoint. Nobody gets hurt.</p>
       <p class="lot-stats" id="ice-stats"></p>`;
     const cv = el.querySelector("#ice-cv"), g = cv.getContext("2d"), ov = el.querySelector("#ice-ov");
     g.imageSmoothingEnabled = false;
@@ -152,7 +152,7 @@
       check: () => { beep(784, 0.07); beep(1047, 0.1, null, "square", 0.04, 0.07); },
     };
     // ---- game state
-    const CAUGHT = ["¡Ay no!", "¡Fuera!", "¡Vámonos, amigo!"];   // one at random, in big pixel text
+    const CAUGHT = ["¡Ay no!", "¡Fuera!", "¡Vámonos, amigo!"];   // one at random, in big pixel text (v39: kept in Spanish on purpose; everything else is English)
     let caughtMsg = CAUGHT[0];
     let level = 1, ents = [], hero, camX = 0, score = 0, ckScore = 0, ck = 0, mode = "title", t = 0, raf = null, last = 0, shake = 0, parts = [], msgT = 0, msg = "";
     function spawn(atCheck) {
@@ -185,13 +185,13 @@
       if (level === 5) {
         mode = "win"; st.wins++; st.levelMax = 5; save(st); stats();
         if (!reduced()) for (let i = 0; i < 90; i++) parts.push({ x: Math.random() * W, y: -Math.random() * H, vy: 20 + Math.random() * 40, c: ["#00b8b0", "#ff3d8b", "#ff8a00", "#c9d0d8", "#c9d0d8"][i % 5] });
-        overlay(`<p class="ice-big">¡Bienvenido a casa, mijo!</p>`, "win");
-        el.querySelector("#ice-note").innerHTML = `🎉 He made it to Mamá's house, and the whole family's celebrating. ¡Qué fiesta! <span class="ice-score">Final score <b>${score}</b> · Best <b>${st.best}</b></span> <button type="button" class="lot-btn lot-main" data-act="again">▶ Play again</button>`;
+        overlay(`<p class="ice-big">Welcome home, kid!</p>`, "win");
+        el.querySelector("#ice-note").innerHTML = `🎉 He made it to Mom's house, and the whole family's celebrating. What a party! <span class="ice-score">Final score <b>${score}</b> · Best <b>${st.best}</b></span> <button type="button" class="lot-btn lot-main" data-act="again">▶ Play again</button>`;
         return;
       }
       st.levelMax = Math.max(st.levelMax, level + 1); save(st); stats();
       mode = "clear";
-      overlay(`<p class="ice-big">¡Llegaste a ${L.name}!</p><p>+500 · Score <b>${score}</b></p><button type="button" class="lot-btn lot-main" data-act="next">▶ Level ${level + 1}: ${LEVELS[level].name}</button>`, "clear");
+      overlay(`<p class="ice-big">You made it to ${L.name}!</p><p>+500 · Score <b>${score}</b></p><button type="button" class="lot-btn lot-main" data-act="next">▶ Level ${level + 1}: ${LEVELS[level].name}</button>`, "clear");
       el.querySelector("#ice-note").textContent = `Next up: ${LEVELS[level].name}. ${LEVELS[level].hint}`;
     }
     function update(dt) {
@@ -213,7 +213,7 @@
             if (cone) { e.st = "tripped"; e.tt = 2.2; cone.down = true; } }
           else if (e.tt === 0) e.st = "walk";
         }
-        if (e.t === "flag" && !e.done && h.x >= e.x) { e.done = true; ck = CHECKS.indexOf(e.x); ckScore = score; SFX.check(); msg = "¡Checkpoint!"; msgT = 1.2; }
+        if (e.t === "flag" && !e.done && h.x >= e.x) { e.done = true; ck = CHECKS.indexOf(e.x); ckScore = score; SFX.check(); msg = "Checkpoint!"; msgT = 1.2; }
         if ((e.t === "suv" || e.t === "crate") && h.x + h.w - 2 > e.x && h.x + 2 < e.x + e.w) {
           if (h.vy >= 0 && prevBottom <= e.y + 3 && h.y + h.h >= e.y) { h.y = e.y - h.h; h.vy = 0; h.ground = true; h.jumps = 2; }   // landed on the roof
           else if (h.y + h.h > e.y + 3 && h.x + h.w - 2 < e.x + 8) {
@@ -224,12 +224,12 @@
         }
         if (!hit(h, e)) continue;
         if (e.t === "coin") { e.gone = true; score += 10; SFX.coin(); }
-        else if (e.t === "cup") { e.gone = true; h.boost = 5; score += 50; SFX.power(); msg = "¡Cafecito! Speed boost"; msgT = 1.5; }
-        else if (e.t === "chancla") { e.gone = true; h.shield = 1; score += 50; SFX.power(); msg = "¡La chancla! Shield on"; msgT = 1.5; }
+        else if (e.t === "cup") { e.gone = true; h.boost = 5; score += 50; SFX.power(); msg = "Coffee! Speed boost"; msgT = 1.5; }
+        else if (e.t === "chancla") { e.gone = true; h.shield = 1; score += 50; SFX.power(); msg = "Flip-flop! Shield on"; msgT = 1.5; }
         else if (e.t === "cone" && !e.down) { e.down = true; h.stumble = 0.6; SFX.cone(); }
         else if (e.t === "agent" && e.st === "walk" && hit(h, e, 3)) {
           if (h.inv > 0) continue;
-          if (h.shield > 0) { h.shield = 0; h.inv = 1.2; e.st = "dizzy"; e.tt = 2.5; SFX.shield(); msg = "¿Qué pasó? ¡Se mareó!"; msgT = 1.3; score += 100; }
+          if (h.shield > 0) { h.shield = 0; h.inv = 1.2; e.st = "dizzy"; e.tt = 2.5; SFX.shield(); msg = "Huh? He's dizzy!"; msgT = 1.3; score += 100; }
           else { caught(); return; }
         }
       }
@@ -302,7 +302,7 @@
       if (level === 4) {   // a plaza church facade: bell tower + arch
         g.fillStyle = "#dfe4ea"; g.fillRect(x + 40, top - 18, 30, 18); g.fillStyle = "#111"; g.fillRect(x + 50, top - 14, 10, 8); g.fillStyle = "#dfe4ea"; g.fillRect(x + 52, top - 24, 6, 6); g.fillStyle = "#111"; g.fillRect(x + 54, top - 28, 2, 4);
         g.fillStyle = "#6b3b1f"; g.fillRect(x + 44, GROUND - 30, 22, 30); g.fillStyle = "#111"; g.fillRect(x + 54, GROUND - 30, 2, 30);
-      } else if (level === 5) {   // Mamá's house: pitched roof, porch, papel picado, the family party
+      } else if (level === 5) {   // Mom's house: pitched roof, porch, papel picado, the family party
         g.fillStyle = "#b03a2e"; for (let i = 0; i < 16; i++) g.fillRect(x - 6 + i * 3, top - i * 1.2, bw + 12 - i * 6, 2);
         g.fillStyle = "#7ff0f2"; g.fillRect(x + 14, top + 16, 16, 12); g.fillRect(x + 80, top + 16, 16, 12);
         g.fillStyle = "#6b3b1f"; g.fillRect(x + 48, GROUND - 32, 16, 32);
@@ -315,7 +315,7 @@
       const sign = L.sign, sw = tw(sign) + 8;
       g.fillStyle = "#111"; g.fillRect(x + (bw - sw) / 2, top + 4, sw, 11); text(sign, x + (bw - sw) / 2 + 4, top + 7, "#3ee8eb", 1, null);
     }
-    function family(x) {   // the party at Mamá's: generic pixel family members, arms up
+    function family(x) {   // the party at Mom's: generic pixel family members, arms up
       const kin = [["#ff3d8b", "#8f5a36", 14], ["#00b8b0", "#b0754a", 12], ["#ff8a00", "#6e4428", 10], ["#ff8fbf", "#b0754a", 16], ["#c9d0d8", "#8f5a36", 13]];
       kin.forEach(([shirt, skin, hgt], i) => { const fx = x + i * 13, fy = GROUND - hgt, bob = (!reduced() && mode === "win") ? Math.round(Math.sin(t * 8 + i) ) : 0;
         g.fillStyle = skin; g.fillRect(fx + 1, fy - 5 + bob, 5, 5); g.fillStyle = "#111"; g.fillRect(fx + 1, fy - 6 + bob, 5, 2);
@@ -386,7 +386,7 @@
     function title() {
       level = st.levelMax > 1 ? st.levelMax : 1; spawn(0); mode = "title"; draw();
       const cont = st.levelMax > 1 ? `<button type="button" class="lot-btn" data-act="cont">▶ Keep going: level ${st.levelMax}</button>` : "";
-      el.querySelector("#ice-note").textContent = "Run home to Mamá's across 5 San Antonio stops: jump the cones, skip past the agents, grab a cafecito.";
+      el.querySelector("#ice-note").textContent = "Run home to Mom's across 5 San Antonio stops: jump the cones, skip past the agents, grab a coffee.";
       overlay(`<p class="ice-big">Ice Ice Bebé</p><p class="ice-btns"><button type="button" class="lot-btn lot-main" data-act="start">▶ Start at level 1</button>${cont}</p>${st.best ? `<p class="ice-score">Best score <b>${st.best}</b></p>` : ""}`, "title");
     }
     function loop() {
@@ -422,14 +422,14 @@
     return {
       pause, resume, jump,
       destroy() { cancelAnimationFrame(raf); document.removeEventListener("keydown", onKey); document.removeEventListener("keyup", onKeyUp); },
-      get state() { return { caughtMsg, mode, level, x: hero.x, y: hero.y, ground: hero.ground, score, ck, best: st.best, muted: st.muted, boost: hero.boost, shield: hero.shield, levelMax: st.levelMax, parallax: !reduced(), overlay: ov.textContent.trim() }; },
+      get state() { return { caughtMsg, msg, mode, level, x: hero.x, y: hero.y, ground: hero.ground, score, ck, best: st.best, muted: st.muted, boost: hero.boost, shield: hero.shield, levelMax: st.levelMax, parallax: !reduced(), overlay: ov.textContent.trim() }; },
       // test hooks: jump to a spot in a level (as if you'd run there)
       warp(n, x) { if (n !== level || mode === "title" || mode === "win" || mode === "clear") startLevel(n, true); hero.x = x; camX = x - HERO_X; for (const e of ents) if (e.t === "flag" && e.x <= x) { e.done = true; ck = CHECKS.indexOf(e.x); } ents = ents.filter((e) => !["agent", "cone", "suv", "crate"].includes(e.t) || e.x > x + 30 || e.x < x - 40); },
       ents: () => ents.map((e) => ({ t: e.t, x: e.x, st: e.st })),
     };
   }
 
-  const game = { id: "icebebe", name: "Ice Ice Bebé", emoji: "🤠", blurb: "8-bit runner: get home to Mamá's in 5 levels.", mount };
+  const game = { id: "icebebe", name: "Ice Ice Bebé", emoji: "🤠", blurb: "8-bit runner: get home to Mom's in 5 levels.", mount };
   const api = { KEY, LEVELS, END, CHECKS, buildLevel, load, save, reset, game };
   if (typeof module === "object" && module.exports) module.exports = api;
   else { root.ChismeIceBebe = api; if (root.ChismeJuegos) root.ChismeJuegos.GAMES.push(game); }

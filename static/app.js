@@ -1,7 +1,7 @@
 /* Chisme — frontend (location-aware) */
 // Build of this file. Must equal the number in sw.js VERSION ("chisme-v22"); the page compares it
 // with the build the HTML was served for and reloads once if an old cached app.js got mixed in.
-window.CHISME_APP_BUILD = "38";
+window.CHISME_APP_BUILD = "39";
 (() => {
   "use strict";
   const WEATHER_MS = 10 * 60 * 1000;
@@ -181,8 +181,13 @@ window.CHISME_APP_BUILD = "38";
   let loc = (() => { try { const s = JSON.parse(localStorage.getItem(LOC_KEY)); if (s && isFinite(s.lat) && isFinite(s.lon)) return s; } catch {} return { ...DEFAULT_LOC }; })();
   const q = () => `lat=${(+loc.lat).toFixed(3)}&lon=${(+loc.lon).toFixed(3)}`;
   const placeName = () => loc.label || "your area";
-  const shortPlace = () => (loc.source === "default" ? loc.place && loc.place.city
-    : loc.place && (loc.place.neighborhood || loc.place.city)) || placeName();
+  // v39: greetings and chatty lines (Tía, the Events/concert intros, loading quips) name only the city, e.g.
+  // "San Antonio", never a neighborhood like "Port San Antonio (Kelly), San Antonio". Settings/alerts keep the full label.
+  const greetCity = () => {
+    const p = loc.place || {}, c = loc.source === "default" ? "San Antonio" : p.city || (metroOf() && metroOf().city) || p.county || "";
+    return String(c).replace(/\s*\([^)]*\)/g, "").split(",")[0].trim() || "your area";
+  };
+  const shortPlace = () => greetCity();
   function saveLoc() { localStorage.setItem(LOC_KEY, JSON.stringify(loc)); }
   // The home screen asks about location only on first launch. Once a place is set (or the
   // user says "Not now"), location lives only in Settings.
@@ -513,7 +518,7 @@ window.CHISME_APP_BUILD = "38";
   const stampFor = (saved, n) => saved && n.generated ? "Saved copy from " + timeT(new Date(n.generated * 1000)) : "Updated " + timeT(new Date());
   section("weather", {
     url: () => `/api/weather?${q()}`,
-    loading: () => $("#current").replaceChildren(el("p", { class: "loading", text: `Checking the sky over ${placeName()}…` })),
+    loading: () => $("#current").replaceChildren(el("p", { class: "loading", text: `Checking the sky over ${greetCity()}…` })),
     fail: (e) => {
       $("#wx-updated").textContent = "";
       $("#current").replaceChildren(el("p", { class: "error", text: "¡Ay! Couldn't reach the weather service (" + e.message + "). We'll keep trying." }));
@@ -834,7 +839,7 @@ window.CHISME_APP_BUILD = "38";
   let artWait = null;
   section("news", {
     url: () => `/api/news?${q()}`,
-    loading: () => $("#near-list").replaceChildren(el("p", { class: "loading", text: `Gathering the chisme near ${placeName()}…` })),
+    loading: () => $("#near-list").replaceChildren(el("p", { class: "loading", text: `Gathering the chisme near ${greetCity()}…` })),
     fail: (e) => $("#near-list").replaceChildren(el("p", { class: "error", text: "¡Ay, no! Couldn't reach the news (" + e.message + "). We'll keep trying." })),
     apply: (n, { saved }) => {
       if (!ART.length && !artWait) { artWait = artReady.then(() => { artWait = null; if (lastNewsData) renderNews(lastNewsData, lastNewsSaved); }); }
@@ -2452,10 +2457,10 @@ window.CHISME_APP_BUILD = "38";
   // Her art is /static/mascot/* (tools/make_mascot_assets.py builds it from one picture, so it can be swapped).
   // Chat history and what she learns about your interests live ONLY on this phone (localStorage); the server
   // gets the current conversation + the app's current feed items for each message and keeps nothing.
-  const TIA = { name: "Tía Chismosa", avatar: (px) => `/static/mascot/avatar-${px}.webp?art=2` };
+  const TIA = { name: "Tía Chismosa", avatar: (px) => `/static/mascot/avatar-${px}.webp?art=3` };
   const TIA_CHAT = "chisme-tia-chat", TIA_PROF = "chisme-tia-profile", TIA_MAX = 40;
   const tiaDlg = $("#tia"), tiaLog = $("#tia-log"), tiaForm = $("#tia-form"), tiaIn = $("#tia-in");
-  let tiaCfg = null, tiaBusy = false, tiaOpener = null;
+  let tiaBusy = false, tiaOpener = null;
   const TIA_STOP = new Set(("that this with from have what when where your their they there about after over into more than will says said just been were also " +
     "news video watch live update today tonight week year new san antonio texas".split(" ")));
   const tiaWords = (t) => ((t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").match(/[a-z0-9']{4,}/g) || []).filter((w) => !TIA_STOP.has(w));
@@ -2481,7 +2486,7 @@ window.CHISME_APP_BUILD = "38";
     const w = lastWeather;
     if (w && w.current) {
       const c = w.current, f0 = (w.forecast || [])[0], tf = c.temp_c != null ? Math.round(c.temp_c * 9 / 5 + 32) : null;
-      out.weather = { place: placeName(), now: [c.text, tf != null ? tf + "°F" : null].filter(Boolean).join(", "),
+      out.weather = { place: greetCity(), now: [c.text, tf != null ? tf + "°F" : null].filter(Boolean).join(", "),
         today: f0 ? `${f0.name}: ${f0.shortForecast}, ${f0.isDaytime ? "high" : "low"} ${f0.temperature}°${f0.temperatureUnit}` : "",
         alerts: (w.alerts || []).map((a) => a.event).filter(Boolean).slice(0, 3).join(", ") };
     }
@@ -2532,6 +2537,7 @@ window.CHISME_APP_BUILD = "38";
   function citeChip(c) {
     const b = el("button", { type: "button", class: "tia-cite" }, el("span", { class: "ct" }, el("span", { "aria-hidden": "true", text: (TIA_EMO[c.kind] || "🔗") + " " }),
       el("b", { text: c.source || c.kind }), " " + (c.title || "")));
+    if (c.sub) b.append(el("small", { class: "cs", text: c.sub }));   // v39: when · venue · price, or a game's status
     b.setAttribute("aria-label", `Open ${c.kind === "weather" ? "the weather" : "“" + c.title + "” from " + (c.source || "the app")} in Chisme`);
     b.onclick = () => {
       if (c.kind === "weather" || !c.url) { tiaDlg.close(); goView(c.kind === "weather" ? "weather" : c.kind === "event" ? "events" : c.kind === "sports" ? "sports" : c.kind === "food" ? "antojos" : "news"); return; }
@@ -2563,7 +2569,7 @@ window.CHISME_APP_BUILD = "38";
     const items = tiaItems(), top = chismeDelDia(items), hr = new Date().getHours();
     const wx = items.weather && items.weather.now ? ` It's ${items.weather.now} in ${items.weather.place}${items.weather.alerts ? ", and fíjate: " + items.weather.alerts : ""}.` : "";
     const text = top.length
-      ? `${tiaGreet(hr)}, mija! ☕ Tía Chismosa here, your holographic comadre.${wx}\nYour chisme del día, picked for you:`
+      ? `${tiaGreet(hr)}, mija! ☕ Tía Chismosa here, your comadre.${wx}\nYour chisme del día, picked for you:`
       : `${tiaGreet(hr)}, mija! ☕ Tía Chismosa here. The feeds are still loading, so ask me in a minute and I'll have the chisme.`;
     h.push({ role: "tia", text, cites: top.map(citeOf), daily: today, t: Date.now() });
     tiaSave(h);
@@ -2581,33 +2587,29 @@ window.CHISME_APP_BUILD = "38";
     try {
       const r = await fetch("/api/mascot/chat", { method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: h.slice(-12).map((m) => ({ role: m.role, text: m.text })), hour: new Date().getHours(),
+          // v39: the server adds everything it has for this spot (all news sections, sports, weather, events, food)
+          loc: { lat: +(+loc.lat).toFixed(3), lon: +(+loc.lon).toFixed(3) }, tz: (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return null; } })(),
           context: { stories: items.stories, weather: items.weather, events: items.events, sports: items.sports.map((s) => ({ ...s, raw: undefined })), food: items.food.map((f) => ({ ...f, raw: undefined })) } }) });
       const j = await r.json();
       const src = new Map((j.sources || []).map((s) => [s.id, s]));
-      const cites = (j.cites || []).map((id) => src.get(id)).filter(Boolean).map((s) => s.kind === "weather" ? { kind: "weather", title: s.title, source: "NWS" }
-        : byUrl.has(s.url) ? citeOf(byUrl.get(s.url)) : { kind: s.kind, url: s.url, title: s.title, source: s.source });
-      let text = j.reply || "";
-      if (j.mode === "scripted")   // scripted lists repeat the titles the citation buttons already show; keep weather lines (they carry the numbers)
-        text = text.split("\n").filter((l) => { const m = /^• .*\[(S\d{1,2})\]\s*$/.exec(l); return !m || (src.get(m[1]) || {}).kind === "weather"; }).join("\n");
-      reply = { role: "tia", text: text.replace(/\s*\[S\d{1,2}\]/g, "").trim(), cites, mode: j.mode, t: Date.now() };
+      let wx = 0;   // one weather chip is enough (they all open the Weather tab)
+      const cites = (j.cites || []).map((id) => src.get(id)).filter(Boolean).filter((s) => s.kind !== "weather" || !wx++)
+        .map((s) => s.kind === "weather" ? { kind: "weather", title: s.title.startsWith("⚠️") ? s.title : "Weather: " + (s.title.split(" in ").pop() || "forecast"), source: "NWS" }
+          : { ...(byUrl.has(s.url) ? citeOf(byUrl.get(s.url)) : { kind: s.kind, url: s.url, title: s.title, source: s.source }), sub: s.sub || null });
+      reply = { role: "tia", text: (j.reply || "").replace(/\s*\[S\d{1,3}\]/g, "").trim(), cites, mode: j.mode, t: Date.now() };
     } catch {
       const top = chismeDelDia(items);
       reply = { role: "tia", mode: "offline", t: Date.now(), cites: top.map(citeOf),
-        text: navigator.onLine ? "Ay, my holo-signal is fuzzy right now. Try me again in a minute. Meanwhile, here's what's in the app:" : "You're offline, mija. I'll be back when you are. Here's what I saved:" };
+        text: navigator.onLine ? "Ay, my signal is fuzzy right now. Try me again in a minute. Meanwhile, here's what's in the app:" : "You're offline, mija. I'll be back when you are. Here's what I saved:" };
     }
     typing.remove();
     const h2 = tiaLoad(); h2.push(reply); tiaSave(h2); tiaRender();
     tiaBusy = false; $("#tia-send").disabled = false;
   }
-  async function tiaMode() {
-    try { tiaCfg = await fetch("/api/mascot/config").then((r) => r.json()); } catch { tiaCfg = null; }
-    $("#tia-mode").textContent = tiaCfg && tiaCfg.ai ? "✨ AI · only uses what's in the app · can make mistakes" : "📜 Scripted mode · straight from the app's feeds";
-  }
   function openTia() {
     tiaOpener = document.activeElement;
     tiaDaily(); tiaRender();
     if (!tiaDlg.open) tiaDlg.showModal();
-    tiaMode();
   }
   $("#tia-btn").onclick = openTia;
   $("#tia-close").onclick = () => tiaDlg.close();
