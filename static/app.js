@@ -1,7 +1,7 @@
 /* Chisme — frontend (location-aware) */
 // Build of this file. Must equal the number in sw.js VERSION ("chisme-v22"); the page compares it
 // with the build the HTML was served for and reloads once if an old cached app.js got mixed in.
-window.CHISME_APP_BUILD = "33";
+window.CHISME_APP_BUILD = "34";
 (() => {
   "use strict";
   const WEATHER_MS = 10 * 60 * 1000;
@@ -630,21 +630,36 @@ window.CHISME_APP_BUILD = "33";
   const MID_KEY = "chisme-donate-mid-x";
   let midTab = null, midCard = null, midLaunch = { opens: 0, line: null };
   const midGone = () => { try { return sessionStorage.getItem(MID_KEY) === "1"; } catch (e) { return false; } };
-  const midAfter = (items) => (items.length < 2 ? null : items[Math.min(5, Math.ceil(items.length / 2)) - 1]);   // ~5th, or the middle of a short list
+  // Where it goes → [node, "after" | "before"]. In a list (News' Near You, Sports, Events) it's after about the 5th item,
+  // but never next to a serious story: it moves to the nearest slot where the item before and after are both light,
+  // or if there's none, to the end of the tab, just above the bottom donate card. (v34; ChismeDonate.serious / slot)
+  let midWhere = null;
+  const itemText = (n) => { const h = n.querySelector("h3, h4, .title"), s = n.querySelector(".sum"); return h ? h.textContent + " " + (s ? s.textContent : "") : n.textContent; };
+  function midInList(tab, items) {
+    if (items.length < 2) return null;   // still loading
+    const D = window.ChismeDonate, flags = items.map((n) => !!D && D.serious(itemText(n), n.querySelector(".src")?.textContent));
+    const k = D ? D.slot(flags) : Math.min(5, Math.ceil(items.length / 2));
+    const bottom = [...$("#view-" + tab).children].filter((n) => n.matches("aside.donate") && n !== midCard).pop();
+    midWhere = { tab, k, n: items.length, serious: flags.filter(Boolean).length };
+    if (k) return [items[k - 1], "after"];
+    return bottom ? [bottom, "before"] : [items[items.length - 1], "after"];
+  }
   function midSpot(tab) {
     const kids = (box, sel) => box ? [...box.children].filter((n) => n !== midCard && n.matches(sel)) : [];
-    if (tab === "news") return midAfter(kids($("#near-list"), ".story"));
-    if (tab === "sports") return midAfter(kids($("#sports-body"), ":not(.loading):not(.error)"));
-    if (tab === "events") return midAfter(kids($("#events-list"), ":not(.ev-day):not(.loading):not(.error)"));
-    if (tab === "weather") return $("#radar-sec");      // between the radar and the 7-day forecast
-    if (tab === "antojos") return $("#food-block");     // after the videos, before the food news desk
-    if (tab === "juegos") return $("#juegos");          // between the list of games and the game
+    const at = (n) => (n ? [n, "after"] : null);
+    if (tab === "news") return midInList(tab, kids($("#near-list"), ".story"));
+    if (tab === "sports") return midInList(tab, kids($("#sports-body"), ":not(.loading):not(.error)"));
+    if (tab === "events") return midInList(tab, kids($("#events-list"), ":not(.ev-day):not(.loading):not(.error)"));
+    if (tab === "weather") return at($("#radar-sec"));      // between the radar and the 7-day forecast
+    if (tab === "antojos") return at($("#food-block"));     // after the videos, before the food news desk
+    if (tab === "juegos") return at($("#juegos"));          // between the list of games and the game
     return null;
   }
   function placeMid() {
     if (!midTab || midGone()) return;
-    const after = midSpot(midTab);
-    if (!after || !after.parentNode) return;
+    const spot = midSpot(midTab);
+    if (!spot || !spot[0].parentNode) return;
+    const [ref, how] = spot;
     if (!midCard) {
       midCard = el("aside", { class: "card donate donate-mid", id: "donate-mid", "aria-labelledby": "donate-mid-t" });
       midCard.innerHTML = `<button type="button" class="donate-x" aria-label="Dismiss this for now">✕</button>
@@ -659,7 +674,7 @@ window.CHISME_APP_BUILD = "33";
         if (f) f.focus({ preventScroll: true });
       };
     }
-    if (after.nextSibling !== midCard) after.after(midCard);
+    if ((how === "after" ? ref.nextSibling : ref.previousSibling) !== midCard) ref[how](midCard);
   }
 
   // ---------- news order: when nothing's new, each visit shows the stories in a different order (static/newsorder.js).
@@ -2603,7 +2618,7 @@ window.CHISME_APP_BUILD = "33";
     get ready() { return secs.weather.shownUrl === secs.weather.url() && secs.news.shownUrl === secs.news.url(); },
     get fresh() { return rendered.weather === q() && rendered.news === q(); },
     get newsReady() { return secs.news.shownUrl === secs.news.url(); }, get sportsReady() { return secs.sports.shownUrl === secs.sports.url(); }, get eventsReady() { return secs.events.shownUrl === secs.events.url(); }, get foodReady() { return !!foodData; },
-    get sync() { return { busy: [...Sync.busy], failed: [...Sync.failed.keys()], lastOk: Sync.lastOk }; }, refreshNow, get evCat() { return evCat; }, get view() { return VIEWS[cur]; }, get donateMid() { const c = document.getElementById("donate-mid"); return { opens: midLaunch.opens, line: midLaunch.line, tab: midTab, placed: !!(c && c.isConnected), dismissed: midGone() }; }, goView, get juegos() { return juegosOpen(); }, get forYou() { return { profile: FY && FY.load(), feed: feedList.map((r) => ({ url: r.item.url, title: r.item.title, creator: r.item.creator, crew: r.crew, place: r.place, why: r.why.text, explore: r.explore })), cur: feedCur, open: feed.open, cover: fyList.slice(0, 3).map((r) => r.item.url), coverCrews: fyList.slice(0, 3).map((r) => r.crew) }; }, openFeed, closeFeed,
+    get sync() { return { busy: [...Sync.busy], failed: [...Sync.failed.keys()], lastOk: Sync.lastOk }; }, refreshNow, get evCat() { return evCat; }, get view() { return VIEWS[cur]; }, get donateMid() { const c = document.getElementById("donate-mid"); return { opens: midLaunch.opens, line: midLaunch.line, tab: midTab, where: midWhere, placed: !!(c && c.isConnected), dismissed: midGone() }; }, goView, get juegos() { return juegosOpen(); }, get forYou() { return { profile: FY && FY.load(), feed: feedList.map((r) => ({ url: r.item.url, title: r.item.title, creator: r.item.creator, crew: r.crew, place: r.place, why: r.why.text, explore: r.explore })), cur: feedCur, open: feed.open, cover: fyList.slice(0, 3).map((r) => r.item.url), coverCrews: fyList.slice(0, 3).map((r) => r.crew) }; }, openFeed, closeFeed,
     get sportsReady() { return !!rendered.sports; }, get spLg() { return spLg; } };
   window.__chismeBooted = true;
 })();

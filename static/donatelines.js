@@ -30,6 +30,23 @@
     "Keep the chisme flowing like the River Walk 🌊",
   ];
   const shouldShow = (opens) => opens > 0 && opens % EVERY === 0;
+  // v34: the card is jokey, so it never sits next to a serious story. serious(text, source) → true for crime, death,
+  // crashes, fires, missing people … (English + a little Spanish), urgent/breaking titles and NWS warnings.
+  const SERIOUS = /\b(di(e|es|ed)|dead(ly)?|deaths?|kill(s|ed|er|ers|ing)?|crash(es|ed)?|shoot(s|er|ers|ing|ings)?|shot|gunfire|stab(s|bed|bing|bings)?|murder(s|ed|er)?|homicides?|manslaughter|missing|abuse[ds]?|fires?|blaze|burned|firefighters?|victims?|fatal(ly|ity|ities)?|arrest(s|ed)?|charged|suspects?|person of interest|assault(s|ed)?|injur(y|ies|ed)|wreck(s|ed)?|overdoses?|drown(s|ed|ing)?|kidnap(ped|ping)?|rape|sexual|sentenced|convicted|trial|amber alert|lockdown|evacuat\w*|muer(e|en|to|ta|tos|te)|asesinad[oa]s?|balacera|desaparecid[oa]s?|accidente fatal)\b/i;
+  const NWS = /national weather service|\bnws\b|weather\.gov|weather (impact )?alert|\b(tornado|flood|flash flood|severe thunderstorm|winter storm|ice storm|heat|excessive heat|freeze|hard freeze|hurricane|tropical storm|red flag|high wind|wind|fire weather|dense fog)\s+(warning|watch|advisory|emergency)\b/i;
+  function serious(text, source) {
+    text = String(text || ""); const nw = root.ChismeNewsOrder;
+    return SERIOUS.test(text) || NWS.test(text + " " + (source || "")) || !!(nw && nw.urgent({ title: text }));
+  }
+  // slot(flags): flags[i] = item i is serious. The card goes after item k (1-based), between item k and item k+1 —
+  // about the 5th (the middle of a short list), or else the nearest slot where both neighbors are light (a later slot
+  // wins a tie). → k, or 0 when there's no such slot (then it goes at the end, just above the bottom donate card).
+  function slot(flags) {
+    const n = flags.length; if (n < 2) return 0;
+    const k0 = Math.min(5, Math.ceil(n / 2)), ok = (k) => k >= 1 && k < n && !flags[k - 1] && !flags[k];
+    for (let d = 0; d < n; d++) for (const k of d ? [k0 + d, k0 - d] : [k0]) if (ok(k)) return k;
+    return 0;
+  }
   // a random line that isn't one of the last NO_REPEAT shown; returns [index, newRecent]
   function pick(recent, rand) {
     recent = (recent || []).filter((i) => Number.isInteger(i) && i >= 0 && i < LINES.length).slice(-NO_REPEAT);
@@ -48,7 +65,7 @@
     try { store.setItem(RECENT, JSON.stringify(recent)); } catch (e) {}
     return { opens, line: LINES[i], index: i };
   }
-  const api = { OPENS, RECENT, EVERY, NO_REPEAT, LINES, shouldShow, pick, launch };
+  const api = { OPENS, RECENT, EVERY, NO_REPEAT, LINES, shouldShow, pick, launch, serious, slot };
   root.ChismeDonate = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);

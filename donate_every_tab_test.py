@@ -2,9 +2,11 @@
 open (5, 10, 15 …) in the middle of the tab Chisme opened on (about the 5th item), each time with a different line
 from static/donatelines.js (never one of the last 5). Not a pop-up, never added on tab switches, stays put when that
 list re-renders, ✕ hides it for the session. Node (the line picker) + WebKit, iPhone 13.
+v34: never next to a serious story (crime, death, crashes, fires, missing, urgent, NWS): the nearest slot with two light
+neighbors, else the end of the tab just above the bottom donate card.
 Screenshots: donate-every-tab.png (the bottom of all 6 tabs), donate-midfeed.png (News, mid-list card),
 donate-lines.png (4 opens, 4 different lines)."""
-import asyncio, io, json, os, subprocess
+import asyncio, io, json, os, re, subprocess
 from PIL import Image, ImageDraw, ImageFont
 from playwright.async_api import async_playwright
 
@@ -25,6 +27,17 @@ out.repeat = hist.some((i, k) => hist.slice(Math.max(0, k - 5), k).includes(i));
 out.used = new Set(hist).size; out.recentLen = recent.length;
 const mem = {}, store = { getItem: (k) => (k in mem ? mem[k] : null), setItem: (k, v) => { mem[k] = String(v); } };
 out.launches = [...Array(20)].map(() => D.launch(store)).map((x) => [x.opens, x.line]);
+require(process.argv[1].replace("donatelines.js", "newsorder.js"));
+const heavy = ["Man dies after crash on Loop 410", "Shooting leaves one dead on the East Side", "Stabbing near the plaza", "Police: murder suspect arrested",
+  "Missing teen found safe", "Abuse case goes to trial", "House fire displaces family", "Victim identified", "Fatal wreck on I-35",
+  "Man charged in theft", "Death of a local legend", "Two killed in collision", "BREAKING: road closed downtown", "Tornado Warning issued for Bexar County",
+  "Flash flood warning until 6 PM", "Muere motociclista en la 281"];
+const light = ["New conchas at the panadería", "Fiesta medals drop Friday", "Spurs win at home", "Enjoy free fall events downtown",
+  "Former chef opens new omakase", "Cafecito spot opens on Broadway", "Library adds Sunday hours", "Weather: sunny and warm this weekend"];
+out.heavy = heavy.filter((t) => !D.serious(t)); out.light = light.filter((t) => D.serious(t));
+out.nws = D.serious("Heat advisory in effect", "") && D.serious("Hot weekend ahead", "National Weather Service");
+const f = (s) => [...s].map((c) => c === "x");
+out.slots = [D.slot(f("........")), D.slot(f("....x...")), D.slot(f("...xx...")), D.slot(f("x.x.x.x.x.x")), D.slot(f("xxxxxx")), D.slot(f(".")), D.slot(f("..x"))];
 console.log(JSON.stringify(out));
 """
 def unit():
@@ -37,6 +50,11 @@ def unit():
     check(not o["repeat"] and o["used"] == o["n"] and o["recentLen"] == 5, f"600 picks: never one of the last 5 lines, all {o['used']} lines get used")
     shown = [l for n, l in o["launches"] if l]
     check([n for n, l in o["launches"] if l] == [5, 10, 15, 20] and len(set(shown)) == 4, "launch(): counts opens, a line on 5/10/15/20, all different")
+    check(not o["heavy"], f"serious(): dies, crash, shooting, stabbing, murder, missing, abuse, fire, victim, fatal, arrested, charged, death, killed, BREAKING, NWS warnings… ({o['heavy']})")
+    check(not o["light"], f"serious(): light stories stay light ({o['light']})")
+    check(o["nws"], "serious(): NWS advisories and National Weather Service items")
+    # slot k = between item k and k+1; default ~5th (middle of a short list); nearest light-light slot; 0 = no slot → the end
+    check(o["slots"] == [4, 3, 6, 0, 0, 0, 1], f"slot(): nearest slot with two light neighbors, else the end ({o['slots']})")
     return json.loads(subprocess.run(["node", "-e", "console.log(JSON.stringify(require(process.argv[1]).LINES))", os.path.join(HERE, "static", "donatelines.js")], capture_output=True, text=True).stdout)
 LINES = []
 TABS = ["news", "sports", "weather", "antojos", "juegos", "events"]
@@ -53,6 +71,27 @@ MIDINFO = """() => { const c = document.getElementById('donate-mid'); if (!c) re
   return { n: document.querySelectorAll('#donate-mid, .donate-mid').length, view: c.closest('.view').dataset.view, list: list.id, before: prev.filter(n => n.matches('.story, .ev, :not(.ev-day)')).length,
     storiesBefore: prev.filter(n => n.matches('.story')).length, text: c.querySelector('.donate-text').textContent, href: a.href, x: x && x.getAttribute('aria-label'),
     dialog: !!c.closest('dialog'), fixed: getComputedStyle(c).position === 'fixed' }; }"""
+
+# the card's neighbors: the nearest story before and after it in its list, and what follows it
+NEIGH = """() => { const c = document.getElementById('donate-mid'); if (!c) return null; const k = [...c.parentElement.children];
+  const i = k.indexOf(c), st = (n) => n && n.matches('.story, .ev') ? n : null;
+  const before = k.slice(0, i).reverse().find(st), after = k.slice(i + 1).find(st), t = (n) => n ? n.querySelector('h3').textContent : null;
+  return { before: t(before), after: t(after), next: c.nextElementSibling && c.nextElementSibling.id, list: c.parentElement.id,
+    serious: [before, after].map((n) => !!n && ChismeDonate.serious(n.querySelector('h3').textContent + ' ' + ((n.querySelector('.sum') || {}).textContent || ''), (n.querySelector('.src') || {}).textContent)) }; }"""
+LIGHT = ["New mural brightens a Southtown alley", "Panadería on Nogalitos adds pumpkin conchas", "Library adds Sunday hours downtown",
+         "Fiesta medal makers show off this year's designs", "Cafecito spot opens on Broadway", "Spurs host fan night at the plaza",
+         "Community garden harvest party this weekend", "Mariachi students win state competition", "Food truck park adds live music",
+         "River Walk lights get a fall refresh"]
+def near_titles(heavy_at=(), all_heavy=False):
+    def fn(j):
+        for i, it in enumerate(j.get("near") or []):
+            it["title"] = ("Man arrested after downtown shooting" if (all_heavy or i in heavy_at) else LIGHT[i % len(LIGHT)] + f" ({i + 1})")
+            it["summary"] = ""
+    return fn
+async def news_route(ctx, fn):
+    async def h(route):
+        r = await route.fetch(); j = await r.json(); fn(j); await route.fulfill(response=r, json=j)
+    await ctx.route(re.compile(r"/api/news\\?"), h)
 
 async def ready(pg, sel="#near-list .story"):
     await pg.wait_for_function(f"window.__chisme && __chisme.ready && document.querySelector('{sel}')", timeout=120000); await pg.wait_for_timeout(1500)
@@ -100,7 +139,13 @@ async def main():
         check(seen == [(1, 0), (2, 0), (3, 0), (4, 0)], f"opens 1–4: no card ({seen})")
         await pg.reload(); await ready(pg)
         dm = await pg.evaluate("__chisme.donateMid"); m = await pg.evaluate(MIDINFO)
-        check(dm["opens"] == 5 and m["n"] == 1 and m["view"] == "news" and m["list"] == "near-list" and m["storiesBefore"] == 5, f"open 5: one card in Near You, after the 5th story ({m.get('storiesBefore')})")
+        w = dm["where"] or {}; nb = await pg.evaluate(NEIGH)
+        check(dm["opens"] == 5 and m["n"] == 1 and m["view"] == "news", f"open 5: one card in News (today's real stories: {w.get('serious')} of {w.get('n')} in Near You look serious)")
+        if w.get("k"):
+            check(m["list"] == "near-list" and m["storiesBefore"] == w["k"] and nb["serious"] == [False, False], f"…after story {w['k']}, both neighbors light: {nb['before']!r} / {nb['after']!r}")
+        else:
+            check(nb["next"] == "donate-news", f"…no light-light slot today, so it's at the end, just above the bottom donate card ({nb['next']})")
+        spot0 = (m["list"], m["storiesBefore"], nb["next"])
         check(m["text"] == dm["line"] and dm["line"] in LINES and m["href"] == "https://cash.app/$Slurmkaos" and m["x"], f"a line from the set, the Cash App button and a ✕ ({m['text']!r})")
         check(not m["dialog"] and not m["fixed"] and not await pg.evaluate("[...document.querySelectorAll('dialog')].some(d => d.open)"), "inline in the list: not a pop-up or modal")
         lines = [dm["line"]]; tiles = [Image.open(io.BytesIO(await pg.locator("#donate-mid").screenshot()))]
@@ -112,7 +157,10 @@ async def main():
         check(m2["n"] == 1 and m2["view"] == "news", "switching through every tab doesn't add another")
         await pg.evaluate("__chisme.refreshNow()"); await pg.wait_for_timeout(6000)
         m3 = await pg.evaluate(MIDINFO)
-        check(m3["n"] == 1 and m3["storiesBefore"] == 5 and m3["text"] == lines[0], "the News list re-renders: still one card, same line, still after the 5th story")
+        nb3 = await pg.evaluate(NEIGH)
+        w3 = (await pg.evaluate("__chisme.donateMid"))["where"] or {}
+        light3 = (m3["list"] == "near-list" and m3["storiesBefore"] == w3.get("k") and nb3["serious"] == [False, False]) or (not w3.get("k") and nb3["next"] == "donate-news")
+        check(m3["n"] == 1 and m3["text"] == lines[0] and light3, f"pull-to-refresh re-orders News: still one card, same line, and it re-checks its neighbors (now after story {w3.get('k')}: {nb3['before']!r} / {nb3['after']!r})")
         await pg.evaluate("document.getElementById('donate-mid').scrollIntoView({ block: 'center' })")
         await pg.click("#donate-mid .donate-x"); await pg.wait_for_timeout(300)
         check((await pg.evaluate(MIDINFO))["n"] == 0 and (await pg.evaluate("__chisme.donateMid"))["dismissed"], "✕ dismisses it")
@@ -134,6 +182,29 @@ async def main():
         for i, t in enumerate(tiles): grid.paste(t, (10 + (i % 2) * (w + 10), 10 + (i // 2) * (h + 10)))
         grid.save(os.path.join(OUT, "donate-lines.png"))
         await ctx.close()
+        print("\n== never next to a serious story (controlled Near You titles)")
+        for heavy_at, all_heavy, want, what in [((), False, 5, "all light → after the 5th story"),
+                                                ((4,), False, 6, "5th story serious → moves to after the 6th (6th & 7th light)"),
+                                                ((4, 5), False, 7, "5th & 6th serious → the nearest light pair: after the 7th"),
+                                                ((3, 4, 5, 6), False, 8, "4th–7th serious → after the 2nd and after the 8th are equally near; the tie goes later: the 8th"),
+                                                ((), True, 0, "every story serious → the end, just above the bottom donate card")]:
+            c2 = await b.new_context(**dev, service_workers="block"); await c2.add_init_script(INIT); await c2.add_init_script(OPENS_INIT)
+            await news_route(c2, near_titles(heavy_at, all_heavy))
+            p2 = await c2.new_page(); p2.on("pageerror", lambda e: errs.append(str(e)[:160]))
+            await p2.goto(BASE + "/?t_opens=4"); await ready(p2)
+            m = await p2.evaluate(MIDINFO); nb = await p2.evaluate(NEIGH); dm = await p2.evaluate("__chisme.donateMid")
+            if want:
+                ok = m["n"] == 1 and m["list"] == "near-list" and m["storiesBefore"] == want and nb["serious"] == [False, False]
+            else:
+                ok = m["n"] == 1 and nb["next"] == "donate-news" and dm["where"]["k"] == 0 and nb["list"] == "view-news"
+            check(ok, f"{what} ({m.get('storiesBefore')} stories before; {nb['before']!r} / {nb['after']!r}; next: {nb['next']})")
+            if heavy_at == (4,):
+                await p2.evaluate("() => { const c = document.getElementById('donate-mid'); window.scrollTo(0, c.getBoundingClientRect().top + scrollY - 330); }")
+            if all_heavy:
+                await p2.evaluate("__chisme.refreshNow()"); await p2.wait_for_timeout(5000)
+                check((await p2.evaluate(NEIGH))["next"] == "donate-news" and (await p2.evaluate(MIDINFO))["n"] == 1, "…and stays there when News re-renders")
+            await c2.close()
+
         # a 5th open that starts on Events → the card goes in the Events list
         ctx = await b.new_context(**dev); await ctx.add_init_script(INIT); await ctx.add_init_script(OPENS_INIT); await ctx.add_init_script("localStorage.setItem('chisme-default-tab', 'events')")
         pg = await ctx.new_page(); pg.on("pageerror", lambda e: errs.append(str(e)[:160]))
