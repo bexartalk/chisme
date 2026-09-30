@@ -211,12 +211,23 @@
     [54, "La Rana", "Al ver a la verde rana, qué susto le dio a mi hermana."],
   ];
   const TINTS = ["#d6f6f3", "#ffe0ec", "#ffd9c7", "#e6e9ec"];   // light turquoise, pink, peach, silver behind the art
+  // v43: each card is also a finished picture in the vintage lithograph style (tools/make_loteria_cards.py renders these
+  // drawings with a painted scene, textures, the number and the name banner): static/loteria/cards/01.webp … 54.webp
   const CARDS = DECK.map(([id, name, verse]) => ({ id, name, verse, tint: TINTS[(id - 1) % TINTS.length],
+    img: `/static/loteria/cards/${String(id).padStart(2, "0")}.webp`,
     svg: `<svg class="lc-svg" viewBox="0 0 100 100" aria-hidden="true" focusable="false">${ART[id]}</svg>` }));
+  // v43: "Pick your tabla": a few ready-made tablas (16 cards, row by row) plus a random mix
+  const PRESETS = [
+    { id: "clasica", name: "La Clásica", cards: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16] },
+    { id: "campo", name: "Del Campo", cards: [1, 19, 20, 24, 10, 39, 41, 49, 30, 33, 40, 45, 50, 51, 52, 54] },
+    { id: "fiesta", name: "La Fiesta", cards: [17, 18, 29, 32, 53, 43, 8, 9, 25, 26, 28, 11, 15, 44, 36, 16] },
+    { id: "cielo", name: "Cielo y Mar", cards: [23, 35, 46, 37, 5, 6, 19, 30, 48, 50, 51, 54, 20, 7, 47, 27] },
+    { id: "gente", name: "La Gente", cards: [3, 4, 12, 14, 2, 25, 32, 34, 38, 6, 21, 22, 13, 42, 47, 31] },
+  ];
   // what she says out loud for a card (the verse, then the name, like a real cantor) and the other calls
   const callText = (c) => `${c.verse} ¡${c.name}!`;
   const LINES_ES = { intro: "¡Se va y se corre con…!", loteria: "¡Lotería!", over: "¡Se acabaron las cartas!" };
-  const api = { CARDS, DECK, callText, LINES_ES, TINTS };
+  const api = { CARDS, DECK, PRESETS, callText, LINES_ES, TINTS };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.ChismeLoteriaCards = api;
 })(typeof window !== "undefined" ? window : this);
