@@ -1,7 +1,7 @@
 /* Chisme — frontend (location-aware) */
 // Build of this file. Must equal the number in sw.js VERSION ("chisme-v22"); the page compares it
 // with the build the HTML was served for and reloads once if an old cached app.js got mixed in.
-window.CHISME_APP_BUILD = "27";
+window.CHISME_APP_BUILD = "28";
 (() => {
   "use strict";
   const WEATHER_MS = 10 * 60 * 1000;
@@ -1184,6 +1184,7 @@ window.CHISME_APP_BUILD = "27";
     if (u.origin === location.origin || !/^https?:$/.test(u.protocol)) return;
     e.preventDefault();
     const m = metaFromLink(a);
+    if (!m.map) tiaLearn(m, linkKind(a));   // what you read teaches la Tía (kept on this phone)
     if (m.map || MAPISH.test(u.host + u.pathname + u.search.slice(0, 1))) openMapSheet(m, a); else openReader(m, a);
   });
   function openReader(m, opener) {
@@ -2300,6 +2301,185 @@ window.CHISME_APP_BUILD = "27";
   $("#ios-hint-close").onclick = () => { $("#ios-hint").hidden = true; localStorage.setItem(HINT_KEY, "1"); };
 
   // expose for testing
+  // ---------- Tía Chismosa: the chat mascot (floating button → chat sheet).
+  // Her art is /static/mascot/* (tools/make_mascot_assets.py builds it from one picture, so it can be swapped).
+  // Chat history and what she learns about your interests live ONLY on this phone (localStorage); the server
+  // gets the current conversation + the app's current feed items for each message and keeps nothing.
+  const TIA = { name: "Tía Chismosa", avatar: (px) => `/static/mascot/avatar-${px}.webp` };
+  const TIA_CHAT = "chisme-tia-chat", TIA_PROF = "chisme-tia-profile", TIA_MAX = 40;
+  const tiaDlg = $("#tia"), tiaLog = $("#tia-log"), tiaForm = $("#tia-form"), tiaIn = $("#tia-in");
+  let tiaCfg = null, tiaBusy = false, tiaOpener = null;
+  const TIA_STOP = new Set(("that this with from have what when where your their they there about after over into more than will says said just been were also " +
+    "news video watch live update today tonight week year new san antonio texas".split(" ")));
+  const tiaWords = (t) => ((t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").match(/[a-z0-9']{4,}/g) || []).filter((w) => !TIA_STOP.has(w));
+  function tiaProfile() {
+    try { const p = JSON.parse(localStorage.getItem(TIA_PROF)); if (p && p.t) return p; } catch {}
+    return { t: {}, k: {}, at: Date.now() };
+  }
+  function tiaLearn(m, kind) {   // a tap on a story / game / event: remember its words (fading over ~2 weeks), not the link
+    const p = tiaProfile(), now = Date.now(), f = Math.pow(0.5, (now - (p.at || now)) / (14 * 864e5));
+    for (const k of Object.keys(p.t)) { p.t[k] *= f; if (p.t[k] < 0.05) delete p.t[k]; }
+    for (const k of Object.keys(p.k)) p.k[k] *= f;
+    for (const w of new Set(tiaWords(m.title))) p.t[w] = (p.t[w] || 0) + 1;
+    p.k[kind] = (p.k[kind] || 0) + 1; p.at = now;
+    p.t = Object.fromEntries(Object.entries(p.t).sort((a, b) => b[1] - a[1]).slice(0, 150));
+    try { localStorage.setItem(TIA_PROF, JSON.stringify(p)); } catch {}
+  }
+  const linkKind = (a) => a.closest("#view-sports") ? "sports" : a.closest("#view-events") ? "event" : a.closest("#view-antojos, #feed") ? "food" : "news";
+  // everything the app is showing right now, as plain items (the server numbers them S1..Sn and cites them)
+  function tiaItems() {
+    const n = lastNewsData || {}, out = { stories: [], events: [], sports: [], food: [], weather: null };
+    for (const i of [...(n.near || []), ...(n.more || [])].slice(0, 15))
+      out.stories.push({ kind: "news", url: i.link, title: i.title, source: i.source, published: i.published || null, when: i.published ? ago(new Date(i.published * 1000)) : "", summary: i.summary || "", image: i.image || null, near: i.tier === "near" });
+    const w = lastWeather;
+    if (w && w.current) {
+      const c = w.current, f0 = (w.forecast || [])[0], tf = c.temp_c != null ? Math.round(c.temp_c * 9 / 5 + 32) : null;
+      out.weather = { place: placeName(), now: [c.text, tf != null ? tf + "°F" : null].filter(Boolean).join(", "),
+        today: f0 ? `${f0.name}: ${f0.shortForecast}, ${f0.isDaytime ? "high" : "low"} ${f0.temperature}°${f0.temperatureUnit}` : "",
+        alerts: (w.alerts || []).map((a) => a.event).filter(Boolean).slice(0, 3).join(", ") };
+    }
+    for (const e of ((evData && evData.events) || []).slice(0, 8))
+      out.events.push({ kind: "event", url: e.url, title: e.title, source: e.source, when: whenText(e), venue: e.venue || "", summary: e.summary || "", image: e.image || null,
+        price: e.price ? (e.price.free ? "free" : e.price.text || "") : "", lat: e.approx ? null : e.lat, lon: e.approx ? null : e.lon, address: e.address || null });
+    const sp = spData;
+    if (sp) {
+      const games = [...((sp.nba && sp.nba.games) || []), ...((sp.nfl && sp.nfl.games) || []), ...((sp.mlb && sp.mlb.games) || [])].filter((g) => g.texas).slice(0, 5);
+      for (const g of games) {
+        const a = g.away || {}, h = g.home || {};
+        out.sports.push({ kind: "sports", url: g.link || null, title: `${a.name} at ${h.name}`, source: "ESPN",
+          line: g.state === "pre" ? g.detail : `${a.short} ${a.score}, ${h.short} ${h.score} (${g.state === "in" ? "live, " + (g.detail || "") : g.detail || "final"})`, game: true });
+      }
+      for (const lg of ["nba", "nfl", "mlb"]) for (const i of ((sp[lg] && sp[lg].news) || []).slice(0, 2))
+        out.sports.push({ kind: "sports", url: i.link, title: i.title, source: i.source || "ESPN", published: i.published || null, summary: i.summary || "", line: i.summary || "" });
+    }
+    for (const i of ((foodData && foodData.items) || []).slice(0, 8))
+      out.food.push({ kind: "food", url: i.url, title: i.title, source: i.kind === "creator" ? i.creator : i.outlet, published: i.published || null, summary: i.summary || "",
+        place: i.place && i.place.name || "", video: !!i.video, raw: i });
+    return out;
+  }
+  // "Chisme del día": today's top 3 for you, ranked on the phone from your taps (and the For You food profile)
+  function chismeDelDia(items) {
+    const p = tiaProfile(), now = Date.now(), FY = window.ChismeForYou, fyp = FY ? FY.load() : null;
+    const kTot = Object.values(p.k).reduce((a, b) => a + b, 0) || 1;
+    const score = (it) => {
+      const age = it.published ? Math.max(0, now / 1000 - it.published) / 3600 : 24;
+      let s = Math.pow(0.5, age / 18) + (it.near ? 0.4 : 0) + 0.8 * ((p.k[it.kind] || 0) / kTot);
+      for (const w of new Set(tiaWords(it.title))) s += Math.min(1.2, 0.35 * (p.t[w] || 0));
+      if (it.kind === "food" && fyp && it.raw) s += 0.25 * Math.max(-2, Math.min(4, FY.scoreOf(fyp, it.raw, now)));
+      if (it.kind === "event") s += 0.3;
+      return s;
+    };
+    const pool = [...items.stories, ...items.sports.filter((s) => !s.game), ...items.events.slice(0, 5), ...items.food].filter((i) => i.url && i.title);
+    const ranked = pool.map((it) => ({ it, s: score(it) })).sort((a, b) => b.s - a.s), out = [], per = {};
+    for (const { it } of ranked) {
+      if (out.length >= 3) break;
+      if ((per[it.kind] || 0) >= 2 || out.some((o) => o.title === it.title)) continue;
+      per[it.kind] = (per[it.kind] || 0) + 1; out.push(it);
+    }
+    return out;
+  }
+  const tiaGreet = (h) => h >= 5 && h < 12 ? "Buenos días" : h >= 12 && h < 18 ? "Buenas tardes" : "Buenas noches";
+  const TIA_EMO = { news: "📰", sports: "🏀", event: "🎉", food: "🌮", weather: "🌤️" };
+  function tiaLoad() { try { const h = JSON.parse(localStorage.getItem(TIA_CHAT)); return Array.isArray(h) ? h : []; } catch { return []; } }
+  function tiaSave(h) { try { localStorage.setItem(TIA_CHAT, JSON.stringify(h.slice(-TIA_MAX))); } catch {} }
+  function citeChip(c) {
+    const b = el("button", { type: "button", class: "tia-cite" }, el("span", { class: "ct" }, el("span", { "aria-hidden": "true", text: (TIA_EMO[c.kind] || "🔗") + " " }),
+      el("b", { text: c.source || c.kind }), " " + (c.title || "")));
+    b.setAttribute("aria-label", `Open ${c.kind === "weather" ? "the weather" : "“" + c.title + "” from " + (c.source || "the app")} in Chisme`);
+    b.onclick = () => {
+      if (c.kind === "weather" || !c.url) { tiaDlg.close(); goView(c.kind === "weather" ? "weather" : c.kind === "event" ? "events" : c.kind === "sports" ? "sports" : c.kind === "food" ? "antojos" : "news"); return; }
+      tiaLearn(c, c.kind);
+      if (c.kind === "food" && c.video && c.raw) openPlayer(c.raw, b); else openReader({ ...c }, b);
+    };
+    return b;
+  }
+  function tiaBubble(m) {
+    const who = m.role === "tia";
+    const body = el("div", { class: "tia-text" });
+    for (const [k, line] of (m.text || "").split("\n").entries()) { if (k) body.append(el("br")); body.append(line); }
+    return el("li", { class: "tia-msg " + (who ? "from-tia" : "from-me") + (m.mode === "safety" ? " safety" : "") },
+      who ? el("img", { class: "tia-mini", src: TIA.avatar(64), srcset: `${TIA.avatar(64)} 1x, ${TIA.avatar(128)} 2x, ${TIA.avatar(192)} 3x`, alt: "", width: 28, height: 28 }) : null,
+      el("div", { class: "tia-bub" }, el("span", { class: "sr-only", text: who ? TIA.name + ": " : "You: " }), body,
+        m.cites && m.cites.length ? el("div", { class: "tia-cites" }, ...m.cites.map(citeChip)) : null));
+  }
+  function tiaRender() {
+    const h = tiaLoad();
+    tiaLog.replaceChildren(...h.map(tiaBubble));
+    requestAnimationFrame(() => { tiaLog.scrollTop = tiaLog.scrollHeight; });
+  }
+  const citeOf = (it) => ({ kind: it.kind, url: it.url, title: it.title, source: it.source, published: it.published || null, summary: it.summary || null,
+    image: it.image || null, when: it.when || null, lat: it.lat ?? null, lon: it.lon ?? null, venue: it.venue || null, address: it.address || null,
+    video: !!it.video, raw: it.kind === "food" && it.video ? it.raw : undefined });
+  function tiaDaily() {   // once a day, the first time you open her: a greeting + chisme del día (no AI call needed)
+    const today = dayKey(new Date()), h = tiaLoad();
+    if (h.some((m) => m.daily === today)) return;
+    const items = tiaItems(), top = chismeDelDia(items), hr = new Date().getHours();
+    const wx = items.weather && items.weather.now ? ` It's ${items.weather.now} in ${items.weather.place}${items.weather.alerts ? ", and fíjate: " + items.weather.alerts : ""}.` : "";
+    const text = top.length
+      ? `${tiaGreet(hr)}, mija! ☕ Tía Chismosa here, your holographic comadre.${wx}\nYour chisme del día, picked for you:`
+      : `${tiaGreet(hr)}, mija! ☕ Tía Chismosa here. The feeds are still loading, so ask me in a minute and I'll have the chisme.`;
+    h.push({ role: "tia", text, cites: top.map(citeOf), daily: today, t: Date.now() });
+    tiaSave(h);
+  }
+  async function tiaSend(text) {
+    text = (text || "").trim().slice(0, 500);
+    if (!text || tiaBusy) return;
+    const h = tiaLoad(); h.push({ role: "user", text, t: Date.now() }); tiaSave(h); tiaRender();
+    tiaBusy = true; $("#tia-send").disabled = true;
+    const typing = el("li", { class: "tia-msg from-tia typing", role: "status" }, el("div", { class: "tia-bub" }, el("span", { class: "dots", "aria-hidden": "true" }, el("i"), el("i"), el("i")), el("span", { class: "sr-only", text: TIA.name + " is typing" })));
+    tiaLog.append(typing); tiaLog.scrollTop = tiaLog.scrollHeight;
+    const items = tiaItems(), byUrl = new Map();
+    for (const list of [items.stories, items.events, items.sports, items.food]) for (const it of list) if (it.url) byUrl.set(it.url, it);
+    let reply;
+    try {
+      const r = await fetch("/api/mascot/chat", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: h.slice(-12).map((m) => ({ role: m.role, text: m.text })), hour: new Date().getHours(),
+          context: { stories: items.stories, weather: items.weather, events: items.events, sports: items.sports.map((s) => ({ ...s, raw: undefined })), food: items.food.map((f) => ({ ...f, raw: undefined })) } }) });
+      const j = await r.json();
+      const src = new Map((j.sources || []).map((s) => [s.id, s]));
+      const cites = (j.cites || []).map((id) => src.get(id)).filter(Boolean).map((s) => s.kind === "weather" ? { kind: "weather", title: s.title, source: "NWS" }
+        : byUrl.has(s.url) ? citeOf(byUrl.get(s.url)) : { kind: s.kind, url: s.url, title: s.title, source: s.source });
+      let text = j.reply || "";
+      if (j.mode === "scripted")   // scripted lists repeat the titles the citation buttons already show; keep weather lines (they carry the numbers)
+        text = text.split("\n").filter((l) => { const m = /^• .*\[(S\d{1,2})\]\s*$/.exec(l); return !m || (src.get(m[1]) || {}).kind === "weather"; }).join("\n");
+      reply = { role: "tia", text: text.replace(/\s*\[S\d{1,2}\]/g, "").trim(), cites, mode: j.mode, t: Date.now() };
+    } catch {
+      const top = chismeDelDia(items);
+      reply = { role: "tia", mode: "offline", t: Date.now(), cites: top.map(citeOf),
+        text: navigator.onLine ? "Ay, my holo-signal is fuzzy right now. Try me again in a minute. Meanwhile, here's what's in the app:" : "You're offline, mija. I'll be back when you are. Here's what I saved:" };
+    }
+    typing.remove();
+    const h2 = tiaLoad(); h2.push(reply); tiaSave(h2); tiaRender();
+    tiaBusy = false; $("#tia-send").disabled = false;
+  }
+  async function tiaMode() {
+    try { tiaCfg = await fetch("/api/mascot/config").then((r) => r.json()); } catch { tiaCfg = null; }
+    $("#tia-mode").textContent = tiaCfg && tiaCfg.ai ? "✨ AI · only uses what's in the app · can make mistakes" : "📜 Scripted mode · straight from the app's feeds";
+  }
+  function openTia() {
+    tiaOpener = document.activeElement;
+    tiaDaily(); tiaRender();
+    if (!tiaDlg.open) tiaDlg.showModal();
+    tiaMode();
+  }
+  $("#tia-btn").onclick = openTia;
+  $("#tia-close").onclick = () => tiaDlg.close();
+  tiaDlg.addEventListener("click", (e) => { if (e.target === tiaDlg) tiaDlg.close(); });
+  tiaDlg.addEventListener("close", () => { if (tiaOpener && tiaOpener.isConnected) tiaOpener.focus({ preventScroll: true }); });
+  tiaForm.addEventListener("submit", (e) => { e.preventDefault(); const t = tiaIn.value; tiaIn.value = ""; tiaSend(t); });
+  for (const b of document.querySelectorAll("#tia-quick button")) b.onclick = () => tiaSend(b.dataset.q);
+  // Settings → Forget me: two taps (no pop-up), then everything she knows about you is gone from this phone
+  let forgetArm = 0;
+  $("#set-forget").onclick = () => {
+    const b = $("#set-forget");
+    if (Date.now() - forgetArm > 5000) { forgetArm = Date.now(); b.textContent = "Tap again to forget everything"; $("#set-forget-note").textContent = ""; return; }
+    forgetArm = 0;
+    for (const k of [TIA_CHAT, TIA_PROF]) localStorage.removeItem(k);
+    if (window.ChismeForYou) window.ChismeForYou.reset();
+    b.textContent = "Forget me";
+    $("#set-forget-note").textContent = "Done. Tía forgot your chats and your interests, and the For You feed starts fresh.";
+    if (tiaDlg.open) tiaRender();
+  };
   window.__chisme = { get newsPill() { return { held: !!newsHold, n: newsHoldN, shown: !$("#news-pill").hidden }; }, checkNews: () => { loadNews(); lastNews = Date.now(); }, openFromAlert, get pushPrefs() { return pushPrefs(); },
     get frames() { return frames; }, get map() { return map; }, get loc() { return loc; },
     // ready = showing this location's news + weather (fresh or the saved copy); fresh = straight from the server

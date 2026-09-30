@@ -35,6 +35,7 @@ It uses large, bold, high-contrast text, and it's an **installable phone app (PW
   Map links (event maps, "Map & directions", food **Directions**) open an in-app OpenStreetMap **map sheet** with a
   pin and a small **Open in Maps ↗** (Apple Maps directions). The only primary button that leaves the app is **Donate on
   Cash App**. Long-press or ⌘/Ctrl-click still gives you the real link.
+* **Tía Chismosa (v28):** a chat mascot, a holographic tía chismosa (floating avatar, bottom right). She greets you by the time of day, gives you a daily chisme del día top 3 ranked on the phone from your interests, and chats about the app's current stories, weather, events, sports and food, grounded only in those feeds with citations that open in the in-app reader. Uses Gemini's free tier if `GEMINI_API_KEY` is set, and scripted lines otherwise. See **Tía Chismosa** below.
 * **Donate:** a small card at the very bottom of News and of ¿Cuál dieta?, and a **Support Chisme** row in Settings: "The tea ain’t free! Help a chismoso out — donate now!", a Cash App-green **💸 Donate on Cash App** button (black text, 10.7:1 contrast; works in dark mode) and **$Slurmkaos** under it. It links to `https://cash.app/$Slurmkaos` in a new tab: the one link that deliberately leaves the app. Never between stories, no popups.
 * **Saved spots (Food):** every food review and video card has a 🔖 **Save** toggle. Saved items live on the phone in `localStorage` (`chisme-food-saved`: title, link, thumbnail URL, source, date and restaurant name/address when known), so they survive feed refreshes and show up offline. The **Latest · 🔖 Saved spots (n)** chips at the top of the Food section switch to the saved list, where you can reopen the video, **Remove** it (with Undo), and **Add/Edit place**. When a restaurant name or address is known, a **Directions** button opens Apple Maps (`maps.apple.com/?daddr=…`). The server guesses the place from creator video titles (a street address like "4445 Walzem Road San Antonio, TX 78218", or "… at Alzer's Roastery" / "… - Picnikins"). Guesses are labelled "(from the title)" and can be edited. Offline, thumbnails come from the browser cache when it still has them; otherwise the usual "offline" placeholder shows. Test: `food_saved_test.py`.
 * **Personality:** a time-of-day greeting at the top of News: "¡Buenos días, chismosos!" (5 AM–noon), "¡Buenas tardes, chismosos!" (noon–6 PM), "¡Buenas noches, chismosos!" (6 PM–5 AM), in the place's time zone, with "Pull up a chair, grab the tea, here’s the latest chisme." under it and, until your first swipe, a short hint ("Swipe 👈 for more · pull to refresh · tap the bubble for settings.", ≤ 2 lines even at 320 px). It's plural for everyone: the old chismoso/chismosa switch (home card and Settings) is gone in v24, and its saved `chisme-greeting-word` key is ignored and cleared. Test: `greeting_test.py`. Also weather blurbs ("Rain's in the chisme today — bring the paraguas"), and playful loading, empty and error states. When NWS alerts are active, the weather blurb turns serious. **News headlines and summaries are shown exactly as the publisher wrote them**, with no jokes or rewording next to them.
@@ -357,6 +358,44 @@ docker build -t chisme . && docker run -p 8080:8080 -e APP_USER_AGENT="Chisme/1.
 ```
 
 **Vercel:** can run FastAPI as a Python serverless function, but each cold function starts with an empty cache, so Render or Fly is a better fit.
+
+### Tía Chismosa (the chat mascot, v28)
+
+A floating avatar (bottom right) opens a chat sheet with **Tía Chismosa**, a sassy, warm, holographic AI tía with
+rollers, a cafecito and a glowing phone.
+* **She greets you by the time of day** and, once a day, gives you a **chisme del día**: the top 3 stories, events,
+  sports or food items for you. It's ranked **on the phone** from what you tap (news, sports, events) plus your For You
+  food profile. Each item is a button that opens in the in-app reader.
+* **She chats about what's in the app right now:** stories, weather, events, sports and food. Every message sends
+  the conversation plus the app's current feed items to `POST /api/mascot/chat`. The server numbers the items (S1…Sn)
+  and tells the model to use **only** those and cite them; citations to anything that wasn't sent are dropped, and each
+  citation opens in the in-app reader. She never invents or rewrites news. Serious news stays plain and respectful;
+  the banter is for light stuff.
+* **Safety:** a pre-filter answers self-harm with the 988 Lifeline, refuses violence, weapons, drugs and hacking, and
+  declines medical, legal and money advice without calling the model. The model's own safety filters stay on. Replies
+  are capped at `MASCOT_MAX_TOKENS` (350) and 1,200 characters.
+* **Limits:** 30 messages per phone per hour (`MASCOT_PER_HOUR`), plus a server-wide daily budget (`MASCOT_DAILY_CAP`,
+  450). Past either one, or whenever the AI is down or out of free quota, she answers with **scripted lines** built
+  from the same feeds.
+* **Privacy:** chat history (the last 40 messages) and her interest profile stay in the phone's localStorage. The
+  server keeps nothing. **Settings → Tía Chismosa → Forget me** (tap twice) erases the chats, her interests and the
+  For You profile.
+* **No key, no problem:** without `GEMINI_API_KEY` she runs in scripted mode (the sheet says so).
+* **Providers are swappable:** `MASCOT_PROVIDER=gemini|openai|anthropic` with `GEMINI_API_KEY`, `OPENAI_API_KEY` or
+  `ANTHROPIC_API_KEY`, and optionally `MASCOT_MODEL`. The default is `gemini-3.5-flash-lite`, whose free tier allows
+  about 500 requests a day; the plain Flash models allow only about 20 a day.
+* **Her art:** `static/mascot/` (a round 64/128/192 px WebP avatar and a 480/960 px header) is built from one
+  picture: `./venv/bin/python tools/make_mascot_assets.py path/to/art.png --face CX,CY,SIZE`. The face box is in
+  source pixels and is saved in `static/mascot/mascot.json`. To swap her look, run it with a new picture.
+
+**Turn on her AI (free, about 5 minutes):**
+1. Go to **aistudio.google.com** and sign in with a Google account.
+2. Click **Get API key → Create API key**. Let it create a new project if it offers to. Copy the key (it starts with `AIza`).
+   Don't turn on billing: the free tier is enough.
+3. In the Render dashboard, open the `chisme` service → **Environment** → **Add Environment Variable**, set
+   `GEMINI_API_KEY` to the key, then **Save changes**. Render redeploys.
+4. Open Chisme and tap the Tía. The line under her header changes from "📜 Scripted mode" to "✨ AI".
+Keep the key private: never commit it or paste it into chats. If it leaks, delete it in AI Studio and make a new one.
 
 ### Alerts setup (free: Upstash Redis + a GitHub Actions timer)
 

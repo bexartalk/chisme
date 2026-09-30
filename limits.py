@@ -1,4 +1,5 @@
 """Tiny in-memory per-IP rate limiter (one process on Render's free plan, so memory is enough)."""
+import os
 import time
 from collections import deque
 
@@ -6,8 +7,17 @@ from fastapi import Request
 
 
 def client_ip(request: Request) -> str:
-    fwd = request.headers.get("x-forwarded-for", "")   # Render's proxy puts the phone's IP first
-    return (fwd.split(",")[0].strip() if fwd else "") or (request.client.host if request.client else "?")
+    """The phone's IP. Render sits behind Cloudflare, which sets CF-Connecting-IP / True-Client-IP (and overwrites any
+    the client sends); X-Forwarded-For is only appended to there, so it's trusted only off Render (local runs, tests)."""
+    if os.environ.get("RENDER"):
+        v = request.headers.get("cf-connecting-ip") or request.headers.get("true-client-ip")
+        if v:
+            return v.strip()
+    else:
+        fwd = request.headers.get("x-forwarded-for", "")
+        if fwd:
+            return fwd.split(",")[0].strip()
+    return request.client.host if request.client else "?"
 
 
 class RateLimit:

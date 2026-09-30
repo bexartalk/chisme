@@ -22,3 +22,6 @@ services:
         sync: false
       - key: UPSTASH_REDIS_REST_TOKEN
         sync: false
+      # Tía Chismosa's AI (see README → "Tía Chismosa"). Without it she uses scripted lines.
+      - key: GEMINI_API_KEY
+        sync: false

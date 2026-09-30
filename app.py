@@ -34,6 +34,7 @@ from fastapi import FastAPI, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+import mascot as tia
 import reader as rdr
 from limits import RateLimit, client_ip
 
@@ -2337,6 +2338,38 @@ async def api_reader(request: Request, url: str = Query(..., min_length=8, max_l
     if info.get("why") not in ("busy", "unreachable"):
         _cache["frame:" + host] = (time.time(), bool(info.get("frame")))
     return info
+
+
+MASCOT_LIMIT = RateLimit(int(os.environ.get("MASCOT_PER_HOUR", "30")), 3600)   # messages per phone (IP) per hour
+
+
+@app.get("/api/mascot/config")
+async def api_mascot_config():
+    p = tia.provider()
+    return {"name": tia.NAME, "ai": bool(p), "provider": p.name if p else None, "per_hour": MASCOT_LIMIT.limit}
+
+
+@app.post("/api/mascot/chat")
+async def api_mascot_chat(request: Request):
+    """Tía Chismosa. Grounded only in the feed items the phone sends; nothing is stored. See mascot.py."""
+    raw = await request.body()
+    if len(raw) > 96_000:
+        return JSONResponse({"error": "message too big"}, status_code=413)
+    try:
+        body = json.loads(raw or b"{}")
+        if not isinstance(body, dict):
+            raise ValueError
+    except ValueError:
+        return JSONResponse({"error": "bad request"}, status_code=400)
+    ok, wait = MASCOT_LIMIT.check(client_ip(request))
+    if not ok:
+        return JSONResponse({"reply": f"Ay, mija, that's a lot of chisme for one hour! Give me about {max(1, round(wait / 60))} "
+                                      "minutes to refill my cafecito and I'm all yours.",
+                             "cites": [], "mode": "limited", "retry_after": wait, "sources": []}, status_code=429)
+    try:
+        return await tia.chat(client(), body)
+    except Exception as ex:
+        return _err(ex)
 
 
 @app.get("/api/radar")

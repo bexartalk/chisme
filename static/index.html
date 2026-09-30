@@ -322,6 +322,33 @@
     <div id="feed-toast" class="feed-toast" role="status" aria-live="polite"></div>
   </dialog>
 
+  <button type="button" id="tia-btn" class="tia-fab" aria-haspopup="dialog" aria-controls="tia">
+    <img src="/static/mascot/avatar-64.webp" srcset="/static/mascot/avatar-64.webp 1x, /static/mascot/avatar-128.webp 2x, /static/mascot/avatar-192.webp 3x" width="60" height="60" alt="">
+    <span class="sr-only">Chat with Tía Chismosa</span>
+  </button>
+  <dialog id="tia" class="settings player tia-sheet" aria-labelledby="tia-title">
+    <div class="tia-head">
+      <picture><img class="tia-hero" src="/static/mascot/header-480.webp" srcset="/static/mascot/header-480.webp 480w, /static/mascot/header-960.webp 960w" sizes="(max-width:560px) 100vw, 560px" width="480" height="240" alt=""></picture>
+      <span class="grab" aria-hidden="true"></span>
+      <div class="tia-name"><h2 id="tia-title">Tía Chismosa</h2><p>your holographic comadre · an AI</p></div>
+      <button type="button" id="tia-close" aria-label="Close chat">Close</button>
+    </div>
+    <p id="tia-mode" class="tia-mode" role="note"></p>
+    <ol id="tia-log" class="tia-log" aria-live="polite" aria-label="Chat with Tía Chismosa"></ol>
+    <div id="tia-quick" class="tia-quick" role="group" aria-label="Ask about">
+      <button type="button" data-q="What's the chisme today?">📰 Chisme</button>
+      <button type="button" data-q="How's the weather?">🌤️ Weather</button>
+      <button type="button" data-q="Any events this weekend?">🎉 Events</button>
+      <button type="button" data-q="How are our teams doing?">🏀 Sports</button>
+      <button type="button" data-q="Where should I eat?">🌮 Food</button>
+    </div>
+    <form id="tia-form" class="tia-form" autocomplete="off">
+      <label for="tia-in" class="sr-only">Message Tía Chismosa</label>
+      <input id="tia-in" type="text" maxlength="500" placeholder="Ask la Tía…" enterkeyhint="send">
+      <button type="submit" id="tia-send" class="primary">Send</button>
+    </form>
+    <p class="tia-foot">She only talks about what's in Chisme right now. Chats stay on this phone (Settings → Forget me).</p>
+  </dialog>
   <dialog id="player" class="settings player" aria-labelledby="player-title">
     <div class="set-head player-head">
       <span class="grab" aria-hidden="true"></span>
@@ -421,6 +448,12 @@
         <p class="set-note">¿Cuál dieta?'s For You feed learns from what you watch, save and skip. That's kept only on this phone and never sent anywhere.</p>
         <button type="button" id="set-fy-reset">Reset my feed</button>
         <p class="set-note" id="set-fy-note" aria-live="polite"></p>
+      </fieldset>
+      <fieldset class="set-group" id="set-tia">
+        <legend>Tía Chismosa</legend>
+        <p class="set-note">Your chats with la Tía and the interests she learns from what you tap are kept only on this phone. Each message you send goes to Chisme's server with the stories the app is showing, is answered, and isn't stored.</p>
+        <button type="button" id="set-forget">Forget me</button>
+        <p class="set-note" id="set-forget-note" aria-live="polite"></p>
       </fieldset>
       <fieldset class="set-group set-donate" id="set-donate">
         <legend>Support Chisme</legend>
