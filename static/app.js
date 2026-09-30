@@ -1,7 +1,7 @@
 /* Chisme — frontend (location-aware) */
 // Build of this file. Must equal the number in sw.js VERSION ("chisme-v22"); the page compares it
 // with the build the HTML was served for and reloads once if an old cached app.js got mixed in.
-window.CHISME_APP_BUILD = "36";
+window.CHISME_APP_BUILD = "37";
 (() => {
   "use strict";
   const WEATHER_MS = 10 * 60 * 1000;
@@ -569,10 +569,45 @@ window.CHISME_APP_BUILD = "36";
     youMarker.setLatLng([loc.lat, loc.lon]);
     map.setView([loc.lat, loc.lon], zoom || map.getZoom());
   }
+  // v37: no yellow in the app. RainViewer only serves its "Universal Blue" scheme (moderate rain = yellow), so each
+  // tile is drawn to a canvas and yellow/amber (hue 36–70°) is shifted to orange (22–36°), keeping lightness; the
+  // legend in index.html uses the same colors. If a tile can't be read (no CORS), it's shown as it came.
+  function radarColor(r, g, b) {
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+    if (d < 40) return null;
+    let h = mx === r ? 60 * (((g - b) / d) % 6) : mx === g ? 60 * ((b - r) / d + 2) : 60 * ((r - g) / d + 4);
+    if (h < 0) h += 360;
+    if (h < 36 || h > 70) return null;
+    const nh = 22 + (h - 36) / 34 * 14, l = (mx + mn) / 510, sat = d / 255 / (1 - Math.abs(2 * l - 1) || 1);
+    const c = (1 - Math.abs(2 * l - 1)) * sat, x = c * (1 - Math.abs((nh / 60) % 2 - 1)), m = l - c / 2;   // nh < 60: (c, x, 0)
+    return [Math.round((c + m) * 255), Math.round((x + m) * 255), Math.round(m * 255)];
+  }
+  const RadarTiles = !window.L ? null : L.TileLayer.extend({
+    createTile(coords, done) {
+      const cv = document.createElement("canvas"), img = new Image();
+      cv.width = cv.height = 256; img.crossOrigin = "anonymous"; img.decoding = "async";
+      img.onload = () => {
+        const g = cv.getContext("2d"); g.drawImage(img, 0, 0, 256, 256);
+        try {
+          const id = g.getImageData(0, 0, 256, 256), px = id.data;
+          for (let i = 0; i < px.length; i += 4) {
+            if (!px[i + 3]) continue;
+            const o = radarColor(px[i], px[i + 1], px[i + 2]);
+            if (o) { px[i] = o[0]; px[i + 1] = o[1]; px[i + 2] = o[2]; }
+          }
+          g.putImageData(id, 0, 0);
+        } catch (e) { /* tainted canvas: keep the original colors */ }
+        done(null, cv);
+      };
+      img.onerror = (e) => done(e, cv);
+      img.src = this.getTileUrl(coords);
+      return cv;
+    },
+  });
   function radarLayer(frame) {
     if (!layers[frame.path]) {
       // RainViewer's free tiles only go to zoom 7; Leaflet upsamples beyond that.
-      layers[frame.path] = L.tileLayer(radarHost + frame.path + "/256/{z}/{x}/{y}/2/1_1.png", {
+      layers[frame.path] = new (RadarTiles || L.TileLayer)(radarHost + frame.path + "/256/{z}/{x}/{y}/2/1_1.png", {
         tileSize: 256, opacity: 0, maxNativeZoom: 7, maxZoom: 12, zIndex: 10, className: "radar-tiles" });
     }
     return layers[frame.path];
@@ -2618,7 +2653,7 @@ window.CHISME_APP_BUILD = "36";
     get ready() { return secs.weather.shownUrl === secs.weather.url() && secs.news.shownUrl === secs.news.url(); },
     get fresh() { return rendered.weather === q() && rendered.news === q(); },
     get newsReady() { return secs.news.shownUrl === secs.news.url(); }, get sportsReady() { return secs.sports.shownUrl === secs.sports.url(); }, get eventsReady() { return secs.events.shownUrl === secs.events.url(); }, get foodReady() { return !!foodData; },
-    get sync() { return { busy: [...Sync.busy], failed: [...Sync.failed.keys()], lastOk: Sync.lastOk }; }, refreshNow, get evCat() { return evCat; }, get view() { return VIEWS[cur]; }, get donateMid() { const c = document.getElementById("donate-mid"); return { opens: midLaunch.opens, line: midLaunch.line, tab: midTab, where: midWhere, placed: !!(c && c.isConnected), dismissed: midGone() }; }, goView, get juegos() { return juegosOpen(); }, get forYou() { return { profile: FY && FY.load(), feed: feedList.map((r) => ({ url: r.item.url, title: r.item.title, creator: r.item.creator, crew: r.crew, place: r.place, why: r.why.text, explore: r.explore })), cur: feedCur, open: feed.open, cover: fyList.slice(0, 3).map((r) => r.item.url), coverCrews: fyList.slice(0, 3).map((r) => r.crew) }; }, openFeed, closeFeed,
+    get sync() { return { busy: [...Sync.busy], failed: [...Sync.failed.keys()], lastOk: Sync.lastOk }; }, refreshNow, get evCat() { return evCat; }, get view() { return VIEWS[cur]; }, radarColor: (r, g, b) => radarColor(r, g, b), get donateMid() { const c = document.getElementById("donate-mid"); return { opens: midLaunch.opens, line: midLaunch.line, tab: midTab, where: midWhere, placed: !!(c && c.isConnected), dismissed: midGone() }; }, goView, get juegos() { return juegosOpen(); }, get forYou() { return { profile: FY && FY.load(), feed: feedList.map((r) => ({ url: r.item.url, title: r.item.title, creator: r.item.creator, crew: r.crew, place: r.place, why: r.why.text, explore: r.explore })), cur: feedCur, open: feed.open, cover: fyList.slice(0, 3).map((r) => r.item.url), coverCrews: fyList.slice(0, 3).map((r) => r.crew) }; }, openFeed, closeFeed,
     get sportsReady() { return !!rendered.sports; }, get spLg() { return spLg; } };
   window.__chismeBooted = true;
 })();

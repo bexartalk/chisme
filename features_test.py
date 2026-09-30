@@ -59,7 +59,7 @@ with sync_playwright() as p:
         dotBg: cs && cs.backgroundColor, dotBorder: cs && cs.borderTopColor + ' ' + cs.borderTopWidth, halo: hs && hs.animationName,
         legend: !!document.querySelector('.radar-legend .bar'), time: document.querySelector('#radar-time').textContent,
         basemapTiles: document.querySelectorAll('.basemap img.leaflet-tile-loaded').length,
-        radarTiles: document.querySelectorAll('.radar-tiles img.leaflet-tile').length }; }""")
+        radarTiles: document.querySelectorAll('.radar-tiles .leaflet-tile').length }; }""")
     check(r["inWeather"], "radar lives in the Weather section")
     check(not r["youAreHere"] and r["tooltips"] == 0 and r["redMarkers"] == 0, "no 'You are here' label or red marker")
     check(r["dotBg"] == "rgb(10, 132, 255)" and r["dotBorder"].startswith("rgb(255, 255, 255) 3px"), f"blue dot with white ring ({r['dotBg']}, {r['dotBorder']})")

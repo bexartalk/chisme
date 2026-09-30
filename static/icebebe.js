@@ -14,13 +14,13 @@
   const GRAV = 720, JUMP = -250, JUMP2 = -215;
   const LEVELS = [
     { name: "Home Dehole", sign: "HOME DEHOLE", speed: 78, sky: ["#8fd8ff", "#d6f3ff"], agents: 0.42, suv: 0.12, hint: "The big-box parking lot. ¡Vámonos!" },
-    { name: "La Taquería", sign: "TAQUERIA", speed: 86, sky: ["#6cc6f0", "#fff0c2"], agents: 0.48, suv: 0.15, hint: "Tacos de trompo are waiting." },
-    { name: "La Tiendita", sign: "LA TIENDITA", speed: 92, sky: ["#ffb36b", "#ffe2b8"], agents: 0.52, suv: 0.18, hint: "Pick up tortillas for Mamá." },
-    { name: "La Plaza", sign: "LA PLAZA", speed: 98, sky: ["#ff7aa8", "#ffc98a"], agents: 0.55, suv: 0.2, hint: "Past the church and the plaza." },
+    { name: "La Taquería", sign: "TAQUERIA", speed: 86, sky: ["#6cc6f0", "#ffd6e6"], agents: 0.48, suv: 0.15, hint: "Tacos de trompo are waiting." },
+    { name: "La Tiendita", sign: "LA TIENDITA", speed: 92, sky: ["#ffb36b", "#ffc9dc"], agents: 0.52, suv: 0.18, hint: "Pick up tortillas for Mamá." },
+    { name: "La Plaza", sign: "LA PLAZA", speed: 98, sky: ["#ff7aa8", "#ffb08a"], agents: 0.55, suv: 0.2, hint: "Past the church and the plaza." },
     { name: "Casa de Mamá", sign: "CASA DE MAMA", speed: 104, sky: ["#1b1f4a", "#5a3a7a"], agents: 0.58, suv: 0.22, hint: "Almost home. The party's starting!" },
   ];
-  const C = { k: "#111111", h: "#e8c170", H: "#b8903f", b: "#ff3d8b", s: "#b0754a", S: "#8f5a36", e: "#1b1b1b", m: "#6e2f22", w: "#00b8b0", c: "#007f7a",
-    j: "#2d4a8a", J: "#223a6e", o: "#6b3b1f", n: "#2b3346", g: "#5b6270", v: "#1f2a3d", l: "#c9d0d8", t: "#b9a27a", a: "#3d4658", y: "#ffd23f", p: "#ff3d8b", r: "#ff8a00", W: "#ffffff" };
+  const C = { k: "#111111", h: "#d9a877", H: "#a8743f", b: "#ff3d8b", s: "#b0754a", S: "#8f5a36", e: "#1b1b1b", m: "#6e2f22", w: "#00b8b0", c: "#007f7a",
+    j: "#2d4a8a", J: "#223a6e", o: "#6b3b1f", n: "#2b3346", g: "#5b6270", v: "#1f2a3d", l: "#c9d0d8", t: "#9c8f80", a: "#3d4658", y: "#d98a4a", p: "#ff3d8b", r: "#ff8a00", W: "#ffffff" };
   // sprites: one char per pixel ('.' = clear), palette above. The hero faces right.
   const HERO_TOP = [
     "....hhhh....",
@@ -184,7 +184,7 @@
       SFX.clear();
       if (level === 5) {
         mode = "win"; st.wins++; st.levelMax = 5; save(st); stats();
-        if (!reduced()) for (let i = 0; i < 90; i++) parts.push({ x: Math.random() * W, y: -Math.random() * H, vy: 20 + Math.random() * 40, c: ["#00b8b0", "#ff3d8b", "#ff8a00", "#ffd23f", "#c9d0d8"][i % 5] });
+        if (!reduced()) for (let i = 0; i < 90; i++) parts.push({ x: Math.random() * W, y: -Math.random() * H, vy: 20 + Math.random() * 40, c: ["#00b8b0", "#ff3d8b", "#ff8a00", "#c9d0d8", "#c9d0d8"][i % 5] });
         overlay(`<p class="ice-big">¡Bienvenido a casa, mijo!</p>`, "win");
         el.querySelector("#ice-note").innerHTML = `🎉 He made it to Mamá's house, and the whole family's celebrating. ¡Qué fiesta! <span class="ice-score">Final score <b>${score}</b> · Best <b>${st.best}</b></span> <button type="button" class="lot-btn lot-main" data-act="again">▶ Play again</button>`;
         return;
@@ -259,25 +259,25 @@
       const L = LEVELS[level - 1], gr = g.createLinearGradient(0, OFFY, 0, GROUND);
       gr.addColorStop(0, L.sky[0]); gr.addColorStop(1, L.sky[1]); g.fillStyle = gr; g.fillRect(0, 0, W, GROUND);
       const par = reduced() ? 0 : 1;
-      if (level === 5) { g.fillStyle = "#fff"; for (let i = 0; i < 30; i++) g.fillRect((i * 53 + 7) % W, OFFY + (i * 29) % 50, 1, 1); g.fillStyle = "#f5f0d0"; g.fillRect(160, 48, 10, 10); g.fillStyle = L.sky[0]; g.fillRect(164, 46, 8, 9); }
+      if (level === 5) { g.fillStyle = "#fff"; for (let i = 0; i < 30; i++) g.fillRect((i * 53 + 7) % W, OFFY + (i * 29) % 50, 1, 1); g.fillStyle = "#e6ecf2"; g.fillRect(160, 48, 10, 10); g.fillStyle = L.sky[0]; g.fillRect(164, 46, 8, 9); }
       // far skyline: a generic observation tower, a mission-style dome, rooftops
-      const off = -((camX * 0.15 * par) % 320);
+      const off = -Math.round((camX * 0.15 * par) % 320);   // whole pixels: no blended (off-palette) edges
       g.fillStyle = level === 5 ? "#2a2550" : "#9bb7c9";
       for (let k = -1; k < 3; k++) { const b = off + k * 320;
         g.fillRect(b + 20, 70, 26, 54); g.fillRect(b + 50, 84, 30, 40); g.fillRect(b + 120, 78, 22, 46); g.fillRect(b + 200, 88, 40, 36);
         g.fillRect(b + 95, 38, 4, 86); g.fillRect(b + 89, 32, 16, 8); g.fillRect(b + 93, 28, 8, 4);   // the tower
         g.fillRect(b + 160, 96, 30, 28); g.fillRect(b + 166, 88, 18, 8); g.fillRect(b + 172, 82, 6, 6);   // a mission-style dome
         g.fillRect(b + 260, 92, 34, 32); }
-      const off2 = -((camX * 0.4 * par) % 160);
+      const off2 = -Math.round((camX * 0.4 * par) % 160);
       g.fillStyle = level === 5 ? "#3b2f63" : "#6fa36a";
       for (let k = -1; k < 4; k++) { const b = off2 + k * 160; g.fillRect(b + 10, 108, 30, 16); g.fillRect(b + 18, 100, 14, 8); g.fillRect(b + 90, 104, 40, 20); }
       // papel picado string lights on the last level
-      if (level >= 4) { const cols = ["#ff3d8b", "#00b8b0", "#ff8a00", "#ffd23f"]; for (let i = 0; i < 16; i++) { g.fillStyle = cols[i % 4]; g.fillRect(((i * 17 - camX * 0.6 * par) % (W + 20) + W + 20) % (W + 20) - 10, 50 + (i % 2), 6, 5); } }
+      if (level >= 4) { const cols = ["#ff3d8b", "#00b8b0", "#ff8a00", "#c9d0d8"]; for (let i = 0; i < 16; i++) { g.fillStyle = cols[i % 4]; g.fillRect(Math.round(((i * 17 - camX * 0.6 * par) % (W + 20) + W + 20) % (W + 20) - 10), 50 + (i % 2), 6, 5); } }
     }
     function ground() {
       g.fillStyle = "#3a3a42"; g.fillRect(0, GROUND, W, H + OFFY - GROUND);
       g.fillStyle = "#c9d0d8"; g.fillRect(0, GROUND, W, 2);
-      g.fillStyle = "#f5d33b"; for (let x = -((camX) % 24); x < W; x += 24) g.fillRect(Math.round(x), GROUND + 9, 12, 2);
+      g.fillStyle = "#e8edf2"; for (let x = -((camX) % 24); x < W; x += 24) g.fillRect(Math.round(x), GROUND + 9, 12, 2);
     }
     const destW = () => (level === 1 ? 170 : 110);
     const destX = () => END - HERO_X + Math.round((W - destW()) / 2);   // centered on screen when he arrives
@@ -285,8 +285,8 @@
       const L = LEVELS[level - 1], x = Math.round(destX() - camX); if (x > W + 10) return;
       if (level === 1) {   // Home Dehole: a parody big-box store. Beige block, wide orange banner, white pixel letters. No logo.
         const bw1 = 170, top1 = 50;
-        g.fillStyle = "#e3d3b0"; g.fillRect(x, top1, bw1, GROUND - top1);
-        g.fillStyle = "#c9b68e"; g.fillRect(x, top1, bw1, 4); for (let i = 0; i < bw1; i += 14) g.fillRect(x + i, top1 + 4, 1, GROUND - top1 - 4);
+        g.fillStyle = "#e0d2c0"; g.fillRect(x, top1, bw1, GROUND - top1);
+        g.fillStyle = "#bfae98"; g.fillRect(x, top1, bw1, 4); for (let i = 0; i < bw1; i += 14) g.fillRect(x + i, top1 + 4, 1, GROUND - top1 - 4);
         g.fillStyle = "#ff7a00"; g.fillRect(x + 16, top1 + 8, 138, 17); g.fillStyle = "#c95f00"; g.fillRect(x + 16, top1 + 23, 138, 2);
         text("HOME DEHOLE", x + 16 + Math.round((138 - tw("HOME DEHOLE", 2)) / 2), top1 + 12, "#ffffff", 2, null);
         g.fillStyle = "#8a929c"; g.fillRect(x + 56, GROUND - 34, 58, 34); g.fillStyle = "#bfe6f5"; g.fillRect(x + 59, GROUND - 31, 25, 31); g.fillRect(x + 86, GROUND - 31, 25, 31);
@@ -296,27 +296,27 @@
         return;
       }
       const bw = 110, top = level === 4 ? 62 : 58;
-      const wall = ["#ff8a00", "#00b8b0", "#ff3d8b", "#e9dcc3", "#ff3d8b"][level - 1];
+      const wall = ["#ff8a00", "#00b8b0", "#ff3d8b", "#dfe4ea", "#ff3d8b"][level - 1];
       g.fillStyle = wall; g.fillRect(x, top, bw, GROUND - top);
       g.fillStyle = "#111"; g.fillRect(x, top, bw, 2);
       if (level === 4) {   // a plaza church facade: bell tower + arch
-        g.fillStyle = "#e9dcc3"; g.fillRect(x + 40, top - 18, 30, 18); g.fillStyle = "#111"; g.fillRect(x + 50, top - 14, 10, 8); g.fillStyle = "#e9dcc3"; g.fillRect(x + 52, top - 24, 6, 6); g.fillStyle = "#111"; g.fillRect(x + 54, top - 28, 2, 4);
+        g.fillStyle = "#dfe4ea"; g.fillRect(x + 40, top - 18, 30, 18); g.fillStyle = "#111"; g.fillRect(x + 50, top - 14, 10, 8); g.fillStyle = "#dfe4ea"; g.fillRect(x + 52, top - 24, 6, 6); g.fillStyle = "#111"; g.fillRect(x + 54, top - 28, 2, 4);
         g.fillStyle = "#6b3b1f"; g.fillRect(x + 44, GROUND - 30, 22, 30); g.fillStyle = "#111"; g.fillRect(x + 54, GROUND - 30, 2, 30);
       } else if (level === 5) {   // Mamá's house: pitched roof, porch, papel picado, the family party
         g.fillStyle = "#b03a2e"; for (let i = 0; i < 16; i++) g.fillRect(x - 6 + i * 3, top - i * 1.2, bw + 12 - i * 6, 2);
-        g.fillStyle = "#ffd23f"; g.fillRect(x + 14, top + 16, 16, 12); g.fillRect(x + 80, top + 16, 16, 12);
+        g.fillStyle = "#7ff0f2"; g.fillRect(x + 14, top + 16, 16, 12); g.fillRect(x + 80, top + 16, 16, 12);
         g.fillStyle = "#6b3b1f"; g.fillRect(x + 48, GROUND - 32, 16, 32);
-        const cols = ["#ff3d8b", "#00b8b0", "#ff8a00", "#ffd23f", "#c9d0d8"]; for (let i = 0; i < 18; i++) { g.fillStyle = cols[i % 5]; g.fillRect(x - 30 + i * 9, top - 4 + (i % 2), 6, 6); }
+        const cols = ["#ff3d8b", "#00b8b0", "#ff8a00", "#ffffff", "#c9d0d8"]; for (let i = 0; i < 18; i++) { g.fillStyle = cols[i % 5]; g.fillRect(x - 30 + i * 9, top - 4 + (i % 2), 6, 6); }
       } else {
         g.fillStyle = "#111"; g.fillRect(x + 10, GROUND - 34, 30, 34); g.fillStyle = "#9fd8ff"; g.fillRect(x + 12, GROUND - 32, 26, 20);
         g.fillStyle = "#9fd8ff"; g.fillRect(x + 56, top + 20, 40, 20);
         if (level === 2) { g.fillStyle = "#fff"; for (let i = 0; i < 6; i++) g.fillRect(x + 50 + i * 8, top + 8, 4, 8); }   // an awning
       }
       const sign = L.sign, sw = tw(sign) + 8;
-      g.fillStyle = "#111"; g.fillRect(x + (bw - sw) / 2, top + 4, sw, 11); text(sign, x + (bw - sw) / 2 + 4, top + 7, "#ffd23f", 1, null);
+      g.fillStyle = "#111"; g.fillRect(x + (bw - sw) / 2, top + 4, sw, 11); text(sign, x + (bw - sw) / 2 + 4, top + 7, "#3ee8eb", 1, null);
     }
     function family(x) {   // the party at Mamá's: generic pixel family members, arms up
-      const kin = [["#ff3d8b", "#8f5a36", 14], ["#00b8b0", "#b0754a", 12], ["#ff8a00", "#6e4428", 10], ["#ffd23f", "#b0754a", 16], ["#c9d0d8", "#8f5a36", 13]];
+      const kin = [["#ff3d8b", "#8f5a36", 14], ["#00b8b0", "#b0754a", 12], ["#ff8a00", "#6e4428", 10], ["#ff8fbf", "#b0754a", 16], ["#c9d0d8", "#8f5a36", 13]];
       kin.forEach(([shirt, skin, hgt], i) => { const fx = x + i * 13, fy = GROUND - hgt, bob = (!reduced() && mode === "win") ? Math.round(Math.sin(t * 8 + i) ) : 0;
         g.fillStyle = skin; g.fillRect(fx + 1, fy - 5 + bob, 5, 5); g.fillStyle = "#111"; g.fillRect(fx + 1, fy - 6 + bob, 5, 2);
         g.fillStyle = shirt; g.fillRect(fx, fy + bob, 7, hgt - 5); g.fillStyle = skin; g.fillRect(fx - 1, fy - 3 + bob, 1, 4); g.fillRect(fx + 7, fy - 3 + bob, 1, 4);
@@ -339,14 +339,14 @@
       } else if (e.t === "agent") {
         const flip = e.vx > 0;
         if (e.st === "tripped") {   // flat on the ground, legs in the air: slapstick, gets back up
-          g.fillStyle = "#1f2a3d"; g.fillRect(x - 3, GROUND - 5, 12, 5); g.fillStyle = "#5b6270"; g.fillRect(x - 7, GROUND - 5, 4, 4); g.fillStyle = "#b9a27a"; g.fillRect(x + 9, GROUND - 9, 3, 6);
+          g.fillStyle = "#1f2a3d"; g.fillRect(x - 3, GROUND - 5, 12, 5); g.fillStyle = "#5b6270"; g.fillRect(x - 7, GROUND - 5, 4, 4); g.fillStyle = "#9c8f80"; g.fillRect(x + 9, GROUND - 9, 3, 6);
           g.fillStyle = "#2b3346"; g.fillRect(x - 10, GROUND - 3 - (Math.floor(t * 6) % 2), 5, 2);   // the cap rolled off
-          text("!?", x - 2, GROUND - 16, "#ffd23f");
+          text("!?", x - 2, GROUND - 16, "#ff3d8b");
         } else {
           const legs = Math.floor(t * 6) % 2 && e.st === "walk" ? AGENT.slice(0, 11).concat(AGENT_LEGS2) : AGENT;
           const wob = e.st === "dizzy" && !reduced() ? Math.round(Math.sin(t * 14)) : 0;
           spr(legs, x + wob, e.y, flip);
-          if (e.st === "dizzy") { text("?", x + 2, e.y - 8 + (reduced() ? 0 : Math.round(Math.sin(t * 6))), "#ffd23f"); g.fillStyle = "#ffd23f"; g.fillRect(x - 2 + (reduced() ? 0 : Math.round(Math.sin(t * 9) * 5)) + 5, e.y - 2, 2, 2); }
+          if (e.st === "dizzy") { text("?", x + 2, e.y - 8 + (reduced() ? 0 : Math.round(Math.sin(t * 6))), "#ff3d8b"); g.fillStyle = "#ff3d8b"; g.fillRect(x - 2 + (reduced() ? 0 : Math.round(Math.sin(t * 9) * 5)) + 5, e.y - 2, 2, 2); }
         }
       }
     }
@@ -362,13 +362,13 @@
       g.fillStyle = "rgba(0,0,0,.55)"; g.fillRect(0, 0, W, 10);
       text(`LV${level} ${LEVELS[level - 1].sign}`, 3, 3, "#fff", 1, null);
       const sc = `${score}`, bs = `HI ${Math.max(st.best, score)}`;
-      text(sc, W - tw(sc) - 3, 3, "#ffd23f", 1, null); text(bs, W - tw(sc) - tw(bs) - 10, 3, "#c9d0d8", 1, null);
+      text(sc, W - tw(sc) - 3, 3, "#3ee8eb", 1, null); text(bs, W - tw(sc) - tw(bs) - 10, 3, "#c9d0d8", 1, null);
       // progress to the destination
       const px = Math.min(1, Math.max(0, hero.x / END)); g.fillStyle = "#555"; g.fillRect(3, 12, 60, 2); g.fillStyle = "#00b8b0"; g.fillRect(3, 12, Math.round(60 * px), 2);
       for (const c of CHECKS.slice(1)) { g.fillStyle = "#ff3d8b"; g.fillRect(3 + Math.round(60 * c / END), 11, 1, 4); }
-      if (hero.boost > 0) { spr(CUP, 68, 11, false, Object.assign({}, C, { o: "#6b3b1f" })); g.fillStyle = "#ffd23f"; g.fillRect(78, 14, Math.round(hero.boost * 4), 2); }
+      if (hero.boost > 0) { spr(CUP, 68, 11, false, Object.assign({}, C, { o: "#6b3b1f" })); g.fillStyle = "#ff8a00"; g.fillRect(78, 14, Math.round(hero.boost * 4), 2); }
       if (hero.shield > 0) spr(CHANCLA, 100, 12);
-      if (msgT > 0) { const w = tw(msg); g.fillStyle = "rgba(0,0,0,.6)"; g.fillRect((W - w) / 2 - 4, 28, w + 8, 11); text(msg, (W - w) / 2, 31, "#ffd23f", 1, null); }
+      if (msgT > 0) { const w = tw(msg); g.fillStyle = "rgba(0,0,0,.6)"; g.fillRect((W - w) / 2 - 4, 28, w + 8, 11); text(msg, (W - w) / 2, 31, "#3ee8eb", 1, null); }
     }
     function draw() {
       g.save();
@@ -381,7 +381,7 @@
       if (mode === "win") for (const p of parts) { g.fillStyle = p.c; g.fillRect(Math.round(p.x), Math.round(p.y), 2, 2); }
       hud();
       if (mode === "caught") { const sc = tw(caughtMsg, 3) > W - 12 ? 2 : 3, w = tw(caughtMsg, sc); g.fillStyle = "rgba(0,0,0,.55)"; g.fillRect((W - w) / 2 - 6, 34, w + 12, 5 * sc + 12);
-        text(caughtMsg, Math.round((W - w) / 2), 40, "#ffd23f", sc, "#b03a2e"); }
+        text(caughtMsg, Math.round((W - w) / 2), 40, "#ff3d8b", sc, "#111111"); }
     }
     function title() {
       level = st.levelMax > 1 ? st.levelMax : 1; spawn(0); mode = "title"; draw();
