@@ -195,7 +195,7 @@ window.CHISME_APP_BUILD = "41";
   const hadSavedPlace = loc.source === "gps" || loc.source === "manual";
   if (hadSavedPlace && !localStorage.getItem(SETUP_KEY)) localStorage.setItem(SETUP_KEY, "1");
   const firstRun = () => !localStorage.getItem(SETUP_KEY);
-  const finishSetup = () => { localStorage.setItem(SETUP_KEY, "1"); };
+  const finishSetup = () => { localStorage.setItem(SETUP_KEY, "1"); document.dispatchEvent(new Event("chisme-setup-done")); };   // v41: the Home Screen tutorial waits for this
   // Where are we? The server tells us the metro (San Antonio, Houston, Austin, Dallas–Fort Worth, Miami, or none).
   const metroOf = () => (loc.place && loc.place.metro) || null;
   const inSA = () => loc.source === "default" || (metroOf() ? metroOf().id === "sa" : kmBetween(loc, DEFAULT_LOC) < 60);
@@ -2574,10 +2574,53 @@ window.CHISME_APP_BUILD = "41";
   $("#install-card-btn").onclick = doInstall;
   $("#install-card-close").onclick = () => { $("#install-card").hidden = true; localStorage.setItem(INSTALL_KEY, "1"); };
   window.addEventListener("appinstalled", () => { hideInstall(); deferredPrompt = null; });
-  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
-  const HINT_KEY = "chisme-ios-hint-dismissed";
-  if (isIOS && !standalone && !localStorage.getItem(HINT_KEY)) $("#ios-hint").hidden = false;
-  $("#ios-hint-close").onclick = () => { $("#ios-hint").hidden = true; localStorage.setItem(HINT_KEY, "1"); };
+  // ---------- v41: the "Add to Home Screen" tutorial. iPhone / iPad Safari only (not the installed app, not Chrome/Firefox/
+  // Edge on iOS or in-app browsers; Android gets the install button above instead). The first open shows it once the one-time
+  // location card is answered; "Maybe later" brings it back 3 opens later; it shows by itself at most twice. Settings reopens it.
+  const UA = navigator.userAgent;
+  const isIPad = /iPad/.test(UA) || (/Macintosh/.test(UA) && navigator.maxTouchPoints > 1);
+  const isIOS = /iphone|ipod/i.test(UA) || isIPad;
+  const isIOSSafari = isIOS && /Safari\//.test(UA) && !/CriOS|FxiOS|EdgiOS|OPiOS|OPT\/|GSA\/|YaBrowser|DuckDuckGo|Brave|FBAN|FBAV|FB_IAB|Instagram|Line\/|Twitter|Snapchat|TikTok|musical_ly|Pinterest|LinkedInApp|WhatsApp/i.test(UA);
+  const HINT_KEY = "chisme-ios-hint-dismissed", A2HS_KEY = "chisme-a2hs";   // HINT_KEY: the old one-line hint (dismissed = seen)
+  const a2Load = () => { try { return Object.assign({ opens: 0, shows: 0, next: 0, done: false }, JSON.parse(localStorage.getItem(A2HS_KEY) || "{}")); } catch { return { opens: 0, shows: 0, next: 0, done: false }; } };
+  const a2Save = (v) => { try { localStorage.setItem(A2HS_KEY, JSON.stringify(v)); } catch {} };
+  let a2 = a2Load(), a2Auto = false, a2Opener = null;
+  if (localStorage.getItem(HINT_KEY)) a2.done = true;
+  const a2Sheet = $("#a2hs");
+  function a2Open(auto) {
+    a2Auto = !!auto; a2Opener = document.activeElement;
+    a2Sheet.classList.toggle("ipad", isIPad);
+    $("#a2hs-where").textContent = isIPad ? "at the top right of Safari" : "at the bottom of Safari";
+    a2Sheet.hidden = false; document.documentElement.classList.add("a2hs-open");
+    $("#a2hs-title").focus({ preventScroll: true });
+    if (auto) { a2.shows++; a2Save(a2); }
+  }
+  function a2Close(later) {
+    if (a2Sheet.hidden) return;
+    a2Sheet.hidden = true; document.documentElement.classList.remove("a2hs-open");
+    if (!later || (a2Auto && a2.shows >= 2)) a2.done = true;   // "Got it", or the second time it showed by itself
+    else if (a2Auto) a2.next = a2.opens + 3;                    // "Maybe later": again 3 opens from now
+    a2Save(a2); a2Auto = false;
+    if (a2Opener && a2Opener.isConnected && a2Opener !== document.body) a2Opener.focus({ preventScroll: true });
+  }
+  $("#a2hs-ok").onclick = () => a2Close(false);
+  $("#a2hs-later").onclick = () => a2Close(true);
+  a2Sheet.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.preventDefault(); a2Close(true); } });
+  $("#set-a2hs").onclick = () => { $("#settings").close(); a2Open(false); };
+  if (standalone) { $("#set-a2hs").hidden = true; $("#set-a2hs-note").textContent = "You're already using Chisme from your Home Screen. ¡Eso!"; }
+  const a2Due = () => a2.shows === 0 || (a2.shows === 1 && a2.opens >= a2.next);
+  function a2Try(delay) {   // show it once nothing else is on screen (the location card, a dialog, the feed, a full-screen game)
+    setTimeout(() => {
+      if (a2.done || !a2Sheet.hidden || !a2Due()) return;
+      const busy = firstRun() || !$("#loc-panel").hidden || document.querySelector("dialog[open]") || document.documentElement.classList.contains("game-fs") || document.visibilityState !== "visible";
+      if (busy) { if (!firstRun()) a2Try(2500); return; }   // (first run: chisme-setup-done calls again)
+      a2Open(true);
+    }, delay);
+  }
+  if (isIOSSafari && !standalone && !a2.done) {
+    a2.opens++; a2Save(a2);
+    if (a2Due()) { if (firstRun()) document.addEventListener("chisme-setup-done", () => a2Try(1200), { once: true }); else a2Try(1500); }
+  }
 
   // expose for testing
   // ---------- Tía Chismosa: the chat mascot (floating button → chat sheet).
@@ -2785,7 +2828,7 @@ window.CHISME_APP_BUILD = "41";
     get ready() { return secs.weather.shownUrl === secs.weather.url() && secs.news.shownUrl === secs.news.url(); },
     get fresh() { return rendered.weather === q() && rendered.news === q(); },
     get newsReady() { return secs.news.shownUrl === secs.news.url(); }, get sportsReady() { return secs.sports.shownUrl === secs.sports.url(); }, get eventsReady() { return secs.events.shownUrl === secs.events.url(); }, get foodReady() { return !!foodData; },
-    get sync() { return { busy: [...Sync.busy], failed: [...Sync.failed.keys()], lastOk: Sync.lastOk }; }, refreshNow, get evCat() { return evCat; }, get view() { return VIEWS[cur]; }, radarColor: (r, g, b) => radarColor(r, g, b), get donateMid() { const c = document.getElementById("donate-mid"); return { opens: midLaunch.opens, line: midLaunch.line, tab: midTab, where: midWhere, placed: !!(c && c.isConnected), dismissed: midGone() }; }, goView, get juegos() { return juegosOpen(); }, get forYou() { return { profile: FY && FY.load(), feed: feedList.map((r) => ({ url: r.item.url, title: r.item.title, creator: r.item.creator, crew: r.crew, place: r.place, why: r.why.text, explore: r.explore, recipe: !!r.item.recipe })), cur: feedCur, open: feed.open, sound: { wanted: soundWanted, muted: feedMuted, unlocks: feedUnlocks, held: feed.classList.contains("sound-held") }, cover: fyList.slice(0, 3).map((r) => r.item.url), coverCrews: fyList.slice(0, 3).map((r) => r.crew) }; }, openFeed, closeFeed,
+    get sync() { return { busy: [...Sync.busy], failed: [...Sync.failed.keys()], lastOk: Sync.lastOk }; }, refreshNow, get evCat() { return evCat; }, get view() { return VIEWS[cur]; }, radarColor: (r, g, b) => radarColor(r, g, b), get a2hs() { return { ...a2, open: !a2Sheet.hidden, ipad: isIPad, safari: isIOSSafari, standalone }; }, get donateMid() { const c = document.getElementById("donate-mid"); return { opens: midLaunch.opens, line: midLaunch.line, tab: midTab, where: midWhere, placed: !!(c && c.isConnected), dismissed: midGone() }; }, goView, get juegos() { return juegosOpen(); }, get forYou() { return { profile: FY && FY.load(), feed: feedList.map((r) => ({ url: r.item.url, title: r.item.title, creator: r.item.creator, crew: r.crew, place: r.place, why: r.why.text, explore: r.explore, recipe: !!r.item.recipe })), cur: feedCur, open: feed.open, sound: { wanted: soundWanted, muted: feedMuted, unlocks: feedUnlocks, held: feed.classList.contains("sound-held") }, cover: fyList.slice(0, 3).map((r) => r.item.url), coverCrews: fyList.slice(0, 3).map((r) => r.crew) }; }, openFeed, closeFeed,
     get sportsReady() { return !!rendered.sports; }, get spLg() { return spLg; } };
   window.__chismeBooted = true;
 })();

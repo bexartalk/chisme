@@ -118,12 +118,22 @@
     </div>
   </div>
 
-  <div id="ios-hint" class="ios-hint wrap" hidden>
-    <div class="ios-hint-inner">
-      <img src="/static/icons/icon-192.png" alt="" width="56" height="56">
-      <p><b>Put Chisme on your iPhone:</b> tap the <b>Share</b> button <span class="share-ico" aria-hidden="true">⬆︎</span> at the bottom of Safari, then <b>“Add to Home Screen.”</b></p>
-      <button type="button" id="ios-hint-close" aria-label="Dismiss">✕</button>
+  <!-- v41: "Add to Home Screen" tutorial (iPhone / iPad Safari only, never in the installed app; app.js a2hs) -->
+  <div id="a2hs" class="a2hs" role="dialog" aria-modal="false" aria-labelledby="a2hs-title" aria-describedby="a2hs-sub" hidden>
+    <div class="a2hs-sheet">
+      <div class="a2hs-head">
+        <img src="/static/icons/icon-192.png" alt="" width="52" height="52">
+        <div><h2 id="a2hs-title" tabindex="-1">Put Chisme on your Home Screen</h2>
+        <p id="a2hs-sub">Three taps and the chisme is always one tap away: full screen, even offline. ¡Ándale!</p></div>
+      </div>
+      <ol class="a2hs-steps">
+        <li><span class="a2hs-n">1</span><span class="a2hs-badge share"><svg class="a2hs-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 10H6.5A1.5 1.5 0 0 0 5 11.5v8A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5v-8a1.5 1.5 0 0 0-1.5-1.5H16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M12 14V3M8.5 6.5 12 3l3.5 3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span>Tap the <b>Share</b> button <span id="a2hs-where">at the bottom of Safari</span>.<small>No Share button? Tap <b>•••</b> first.</small></span></li>
+        <li><span class="a2hs-n">2</span><span class="a2hs-badge plus"><svg class="a2hs-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 8v8M8 12h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><span>Scroll down and tap <b>Add to Home Screen</b>.</span></li>
+        <li><span class="a2hs-n">3</span><span class="a2hs-badge add">Add</span><span>Tap <b>Add</b>. ¡Listo! La Tía moves in next to your other apps.</span></li>
+      </ol>
+      <div class="a2hs-btns"><button type="button" id="a2hs-later" class="a2hs-later">Maybe later</button><button type="button" id="a2hs-ok" class="a2hs-ok">Got it</button></div>
     </div>
+    <div class="a2hs-arrow" aria-hidden="true"><svg viewBox="0 0 40 48"><path d="M20 4v34M8 28l12 14 12-14" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 4v34M8 28l12 14 12-14" fill="none" stroke="#ff3d8b" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
   </div>
 
   <div id="alert-strip" class="alert-strip wrap" hidden></div>
@@ -495,6 +505,11 @@
         <p class="donate-text" id="set-donate-t">The tea ain’t free! Help a chismoso out — donate now!</p>
         <div class="donate-btns"><a class="donate-btn cashapp" href="https://cash.app/$Slurmkaos" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">💸</span> Donate on Cash App<span class="sr-only"> (opens Cash App)</span></a><a class="donate-btn bmc" href="https://buymeacoffee.com/Chismoso" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">☕</span> Buy Me a Coffee<span class="sr-only"> (opens Buy Me a Coffee)</span></a><!-- room for one more: <a class="donate-btn venmo"> (add venmo.com to DIRECT_HOSTS in app.js) --></div>
         <p class="donate-tag">$Slurmkaos</p>
+      </fieldset>
+      <fieldset class="set-group" id="set-home">
+        <legend>Home Screen</legend>
+        <button type="button" id="set-a2hs"><span aria-hidden="true">📲</span> How to add Chisme to your Home Screen</button>
+        <p class="set-note" id="set-a2hs-note">Opens full screen like an app, works offline, and on iPhone it's where alerts work.</p>
       </fieldset>
       <fieldset class="set-group">
         <legend>Data</legend>

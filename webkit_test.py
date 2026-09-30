@@ -94,7 +94,9 @@ async def main():
         await pg.goto(URL); await ready(pg)
         await pg.wait_for_function("() => window.__chisme.loc.source === 'gps'", timeout=30000)
         check(await pg.is_hidden("#loc-panel"), "granted permission: no card, location set automatically")
-        if await pg.is_visible("#ios-hint-close"): await pg.click("#ios-hint-close")   # Safari tab, not standalone
+        try:   # v41: a Safari tab (not standalone) gets the Add to Home Screen tutorial once setup is done (a2hs_test covers it)
+            await pg.wait_for_selector("#a2hs:not([hidden])", timeout=5000); await pg.click("#a2hs-ok")
+        except Exception: pass
         await pg.evaluate("document.activeElement && document.activeElement.blur()")
         for v in ("sports", "weather"):
             r = await view_ok(pg, v)
