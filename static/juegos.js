@@ -85,6 +85,21 @@
   }
 
   // ---- Lotería Chismosa UI ----
+  // v41: the marker is a pinto bean (frijolito): a kidney shape, pale pinkish-tan with reddish-brown mottling, the little hilum
+  // on its inner curve and a soft shadow. Drawn once (<symbol>) and reused on every card.
+  const BEAN_DEFS = `<svg class="bean-defs" width="0" height="0" aria-hidden="true" focusable="false"><defs>
+    <radialGradient id="bean-body" cx="42%" cy="34%" r="72%"><stop offset="0" stop-color="#f4dcd0"/><stop offset=".5" stop-color="#ddb39c"/><stop offset=".85" stop-color="#b98068"/><stop offset="1" stop-color="#8f5a47"/></radialGradient>
+    <radialGradient id="bean-shine" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fff" stop-opacity=".7"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+    <radialGradient id="bean-shade" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#000" stop-opacity=".38"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+    <clipPath id="bean-clip"><path d="M5 22C5 13 15 9.5 30 10.5C44 11.5 55 14 55 22.5C55 30 47 34 39 33.5C35 33.2 32.5 30.8 29.5 30.8C26.5 30.8 23.5 33.5 17 33.5C9.5 33.5 5 28.5 5 22z"/></clipPath>
+    <symbol id="bean" viewBox="0 0 60 44"><ellipse cx="31" cy="36" rx="26" ry="4.5" fill="url(#bean-shade)"/>
+      <path d="M5 22C5 13 15 9.5 30 10.5C44 11.5 55 14 55 22.5C55 30 47 34 39 33.5C35 33.2 32.5 30.8 29.5 30.8C26.5 30.8 23.5 33.5 17 33.5C9.5 33.5 5 28.5 5 22z" fill="url(#bean-body)"/>
+      <g clip-path="url(#bean-clip)"><ellipse cx="22.2" cy="15.0" rx="5.0" ry="1.0" transform="rotate(2 22.2 15.0)" fill="#a5563a" opacity=".8"/><ellipse cx="10.6" cy="22.1" rx="2.4" ry="1.6" transform="rotate(-22 10.6 22.1)" fill="#8e3f24" opacity=".8"/><ellipse cx="26.7" cy="28.5" rx="2.7" ry="1.2" transform="rotate(6 26.7 28.5)" fill="#8e3f24" opacity=".8"/><ellipse cx="33.8" cy="13.0" rx="3.2" ry="1.7" transform="rotate(-18 33.8 13.0)" fill="#94452a" opacity=".55"/><ellipse cx="31.8" cy="23.4" rx="4.6" ry="1.9" transform="rotate(-20 31.8 23.4)" fill="#7a3420" opacity=".7"/><ellipse cx="12.3" cy="26.2" rx="4.6" ry="1.8" transform="rotate(-0 12.3 26.2)" fill="#94452a" opacity=".7"/><ellipse cx="28.5" cy="30.5" rx="3.8" ry="1.3" transform="rotate(-16 28.5 30.5)" fill="#7a3420" opacity=".55"/><ellipse cx="33.3" cy="22.5" rx="6.0" ry="2.0" transform="rotate(-11 33.3 22.5)" fill="#8e3f24" opacity=".55"/><ellipse cx="30.5" cy="15.3" rx="3.7" ry="2.3" transform="rotate(-4 30.5 15.3)" fill="#8e3f24" opacity=".8"/><ellipse cx="33.2" cy="29.5" rx="3.5" ry="1.9" transform="rotate(5 33.2 29.5)" fill="#94452a" opacity=".55"/><ellipse cx="45.0" cy="30.9" rx="4.2" ry="1.9" transform="rotate(-22 45.0 30.9)" fill="#a5563a" opacity=".8"/><ellipse cx="33.4" cy="25.6" rx="4.1" ry="2.0" transform="rotate(19 33.4 25.6)" fill="#a5563a" opacity=".55"/><ellipse cx="49.4" cy="19.1" rx="4.8" ry="1.6" transform="rotate(-14 49.4 19.1)" fill="#a5563a" opacity=".55"/><ellipse cx="40.5" cy="20.0" rx="6.1" ry="1.6" transform="rotate(-17 40.5 20.0)" fill="#94452a" opacity=".8"/><ellipse cx="20.2" cy="14.7" rx="4.1" ry="1.7" transform="rotate(10 20.2 14.7)" fill="#a5563a" opacity=".8"/><ellipse cx="46.9" cy="31.2" rx="2.8" ry="1.2" transform="rotate(-13 46.9 31.2)" fill="#7a3420" opacity=".55"/><ellipse cx="29.3" cy="23.8" rx="3.3" ry="0.9" transform="rotate(-4 29.3 23.8)" fill="#a5563a" opacity=".8"/><ellipse cx="32.9" cy="31.1" rx="5.2" ry="1.7" transform="rotate(6 32.9 31.1)" fill="#8e3f24" opacity=".7"/><ellipse cx="47.6" cy="27.6" rx="6.0" ry="2.1" transform="rotate(-5 47.6 27.6)" fill="#94452a" opacity=".7"/><ellipse cx="12.6" cy="24.7" rx="2.5" ry="1.0" transform="rotate(-15 12.6 24.7)" fill="#7a3420" opacity=".55"/><ellipse cx="23.0" cy="13.1" rx="2.2" ry="1.1" transform="rotate(-20 23.0 13.1)" fill="#a5563a" opacity=".8"/><ellipse cx="9.1" cy="29.5" rx="4.8" ry="1.1" transform="rotate(-12 9.1 29.5)" fill="#a5563a" opacity=".8"/><ellipse cx="24.0" cy="14.5" rx="5.9" ry="2.4" transform="rotate(-2 24.0 14.5)" fill="#94452a" opacity=".7"/><ellipse cx="11.8" cy="14.0" rx="3.7" ry="1.3" transform="rotate(16 11.8 14.0)" fill="#7a3420" opacity=".8"/><ellipse cx="9.0" cy="31.0" rx="4.5" ry="1.1" transform="rotate(2 9.0 31.0)" fill="#8e3f24" opacity=".8"/><ellipse cx="21.1" cy="24.9" rx="2.6" ry="2.2" transform="rotate(1 21.1 24.9)" fill="#7a3420" opacity=".7"/><circle cx="42.0" cy="22.7" r="1.0" fill="#6e2e1b" opacity=".6"/><circle cx="22.5" cy="16.5" r="1.0" fill="#6e2e1b" opacity=".6"/><circle cx="51.3" cy="29.1" r="1.0" fill="#6e2e1b" opacity=".6"/><circle cx="44.0" cy="26.8" r="0.6" fill="#6e2e1b" opacity=".6"/><circle cx="30.8" cy="19.1" r="0.5" fill="#6e2e1b" opacity=".6"/><circle cx="9.2" cy="17.6" r="0.7" fill="#6e2e1b" opacity=".6"/><circle cx="38.5" cy="31.1" r="0.8" fill="#6e2e1b" opacity=".6"/><circle cx="49.2" cy="31.8" r="1.1" fill="#6e2e1b" opacity=".6"/><circle cx="24.0" cy="16.4" r="0.6" fill="#6e2e1b" opacity=".6"/><circle cx="16.7" cy="16.1" r="0.9" fill="#6e2e1b" opacity=".6"/><circle cx="47.6" cy="28.8" r="0.8" fill="#6e2e1b" opacity=".6"/><circle cx="36.7" cy="28.0" r="0.6" fill="#6e2e1b" opacity=".6"/><circle cx="37.1" cy="30.2" r="1.0" fill="#6e2e1b" opacity=".6"/><circle cx="41.0" cy="21.6" r="0.6" fill="#6e2e1b" opacity=".6"/><circle cx="42.7" cy="18.7" r="1.0" fill="#6e2e1b" opacity=".6"/><circle cx="50.8" cy="19.9" r="0.7" fill="#6e2e1b" opacity=".6"/><circle cx="49.7" cy="26.5" r="0.6" fill="#6e2e1b" opacity=".6"/><circle cx="13.6" cy="15.0" r="1.0" fill="#6e2e1b" opacity=".6"/>
+        <path d="M5 22C5 13 15 9.5 30 10.5C44 11.5 55 14 55 22.5C55 30 47 34 39 33.5C35 33.2 32.5 30.8 29.5 30.8C26.5 30.8 23.5 33.5 17 33.5C9.5 33.5 5 28.5 5 22z" fill="none" stroke="#6b3524" stroke-width="3" opacity=".25"/></g>
+      <ellipse cx="29.5" cy="29.6" rx="3.6" ry="1.1" fill="#f2eeec"/><ellipse cx="29.5" cy="29.9" rx="3.6" ry=".5" fill="#8f5a47" opacity=".6"/>
+      <ellipse cx="24" cy="15" rx="13" ry="3.4" fill="url(#bean-shine)" transform="rotate(-5 24 15)"/>
+      <path d="M5 22C5 13 15 9.5 30 10.5C44 11.5 55 14 55 22.5C55 30 47 34 39 33.5C35 33.2 32.5 30.8 29.5 30.8C26.5 30.8 23.5 33.5 17 33.5C9.5 33.5 5 28.5 5 22z" fill="none" stroke="#5a2a18" stroke-width=".7" opacity=".7"/></symbol></defs></svg>`;
+  const BEAN = '<svg viewBox="0 0 60 44" focusable="false"><use href="#bean"/></svg>';
   const byId = (id) => CARDS[id - 1];
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const cardHTML = (c, cls = "") => `<span class="lcard ${cls}" style="--lc:${c.tint}"><span class="lc-n">${c.id}</span><span class="lc-art">${c.svg}</span><span class="lc-name${c.name.length >= 12 ? " long" : ""}" lang="es">${esc(c.name)}</span></span>`;
@@ -93,21 +108,20 @@
     const reduced = () => (ctx && ctx.reducedMotion ? ctx.reducedMotion() : matchMedia("(prefers-reduced-motion: reduce)").matches);
     const st = load();
     let tabla, deck, called, marks, timer = null, running = false, over = false, started = false;
-    el.innerHTML = `
+    el.innerHTML = `${BEAN_DEFS}
       <div class="lot-top">
         <img class="lot-tia" src="/static/mascot/avatar-128.webp?art=3" width="64" height="64" alt="Tía Chismosa">
-        <div class="lot-bubble" id="lot-bubble" aria-live="polite"><div id="lot-card" class="lot-card"></div><p id="lot-line" class="lot-line">Pull up a chair, honey! Tap <b>Start</b> and I'll start calling cards.</p></div>
+        <div class="lot-bubble" id="lot-bubble" aria-live="polite"><div id="lot-card" class="lot-card"></div><div class="lot-say"><p id="lot-line" class="lot-line">Pull up a chair, honey! Tap <b>Start</b> and I'll start calling cards.</p><p class="lot-count" id="lot-count"></p></div></div>
       </div>
-      <p class="lot-count" id="lot-count"></p>
       <div class="lot-controls" role="group" aria-label="Game controls">
         <button type="button" id="lot-play" class="lot-btn lot-main">▶ Start</button>
         <button type="button" id="lot-speed" class="lot-btn" aria-label="Calling speed"></button>
-        <button type="button" id="lot-new" class="lot-btn">🔀 New board</button>
+        <button type="button" id="lot-new" class="lot-btn" aria-label="New board">🔀 New<span class="lb-x"> board</span></button>
         <button type="button" id="lot-voice" class="lot-btn" aria-pressed="false"></button>
       </div>
-      <div class="lot-fit"><div id="lot-tabla" class="lot-tabla" role="grid" aria-label="Your board: tap a card when it's called to put a marker on it"></div></div>
+      <div class="lot-fit"><div id="lot-tabla" class="lot-tabla" role="grid" aria-label="Your board: when Tía calls one of your cards, tap it to drop a bean on it"></div></div>
       <button type="button" id="lot-claim" class="lot-claim">¡Lotería!</button>
-      <p class="lot-rules">Win with a row, a column, a diagonal or the 4 corners, then tap <b>¡Lotería!</b> A game you don't win (the deck runs out, or you deal a new board mid-game) resets your streak.</p>
+      <p class="lot-rules">When Tía calls a card that's on your board, tap it to drop a bean on it (tap again to take it off). Win with a row, a column, a diagonal or the 4 corners, then tap <b>¡Lotería!</b> A game you don't win (the deck runs out, or you deal a new board mid-game) resets your streak.</p>
       <p class="lot-stats" id="lot-stats"></p>
       <div class="lot-hist-wrap"><p class="lot-hist-h">Already called</p><div id="lot-hist" class="lot-hist"></div></div>`;
     const $ = (s) => el.querySelector(s);
@@ -162,12 +176,15 @@
       $("#lot-play").setAttribute("aria-pressed", running ? "true" : "false");
       $("#lot-speed").textContent = SPEED_LABEL[st.speed];
       const v = $("#lot-voice");
-      v.textContent = st.muted ? "🔇 Voice" : "🔊 Voice"; v.setAttribute("aria-pressed", st.muted ? "false" : "true"); v.setAttribute("aria-label", st.muted ? "Tía's voice is off" : "Tía's voice is on");
+      v.innerHTML = st.muted ? '🔇<span class="lb-x"> Sound</span>' : '🔊<span class="lb-x"> Sound</span>'; v.setAttribute("aria-pressed", st.muted ? "false" : "true");
+      v.setAttribute("aria-label", st.muted ? "Sound is off (Tía's voice and the beans)" : "Sound is on (Tía's voice and the beans)");
       $("#lot-count").textContent = started ? `${called.size} of ${CARDS.length} cards called` : `${CARDS.length} cards in the deck`;
     }
-    function drawTabla() {
-      $("#lot-tabla").innerHTML = tabla.map((id, i) => { const c = byId(id), m = marks.has(i);
-        return `<button type="button" class="lot-cell${m ? " marked" : ""}" data-i="${i}" aria-pressed="${m}" aria-label="${esc(c.name)}${m ? ", marked" : ""}">${cardHTML(c)}<span class="ficha" aria-hidden="true"></span></button>`; }).join("");
+    const cellLabel = (i) => byId(tabla[i]).name + (marks.has(i) ? ", bean on it" : called.has(tabla[i]) ? ", called: tap to put a bean on it" : "");
+    function drawTabla() {   // each cell's bean lands a little differently (turned, nudged, sometimes flipped), like a real one
+      $("#lot-tabla").innerHTML = tabla.map((id, i) => { const c = byId(id), m = marks.has(i), r = Math.round(Math.random() * 70 - 35), dx = Math.round(Math.random() * 12 - 6), dy = Math.round(Math.random() * 10 - 5);
+        return `<button type="button" class="lot-cell${m ? " marked" : ""}" data-i="${i}" aria-pressed="${m}" aria-label="${esc(cellLabel(i))}">${cardHTML(c)}`
+          + `<span class="frijol" aria-hidden="true" style="--r:${r}deg;--dx:${dx}%;--dy:${dy}%;--fx:${Math.random() < 0.5 ? -1 : 1}">${BEAN}</span></button>`; }).join("");
     }
     function history() { $("#lot-hist").innerHTML = [...called].reverse().slice(0, 12).map((id) => cardHTML(byId(id), "mini")).join(""); }
     function speak(line, card, lang) {   // what's on screen: the called card + its verse (Spanish), or Tía's English asides
@@ -216,12 +233,36 @@
       }
       speak(r.early.length ? TEASE_EARLY : TEASE_NOPE, null);
     }
+    // v41: a bean only goes on a card Tía already called; an uncalled card just gives a little shake. Tap again: the bean comes off.
     $("#lot-tabla").addEventListener("click", (e) => {
       const b = e.target.closest(".lot-cell"); if (!b || over) return;
-      const i = +b.dataset.i; marks.has(i) ? marks.delete(i) : marks.add(i);
-      const m = marks.has(i); b.classList.toggle("marked", m); b.setAttribute("aria-pressed", m);
-      b.setAttribute("aria-label", byId(tabla[i]).name + (m ? ", marked" : ""));
+      const i = +b.dataset.i;
+      if (!marks.has(i) && !called.has(tabla[i])) {
+        b.classList.remove("nope"); void b.offsetWidth; b.classList.add("nope"); setTimeout(() => b.classList.remove("nope"), 450);
+        return;
+      }
+      if (marks.has(i)) { marks.delete(i); plink(false); } else { marks.add(i); plink(true); }
+      const m = marks.has(i); b.classList.toggle("marked", m); b.setAttribute("aria-pressed", m); b.setAttribute("aria-label", cellLabel(i));
     });
+    // the bean's little "tock" on the card (made on the phone with Web Audio; off with 🔇 Sound)
+    let actx = null;
+    function plink(on) {
+      if (st.muted) return;
+      try {
+        const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+        actx = actx || new AC(); if (actx.state === "suspended") actx.resume();
+        const t = actx.currentTime + (on && !reduced() ? 0.2 : 0), o = actx.createOscillator(), g = actx.createGain();   // lands at the end of the drop
+        o.type = "triangle"; o.frequency.setValueAtTime(on ? 420 : 300, t); o.frequency.exponentialRampToValueAtTime(on ? 150 : 520, t + 0.07);
+        g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(on ? 0.5 : 0.25, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.1);
+        o.connect(g).connect(actx.destination); o.start(t); o.stop(t + 0.12);
+        const n = actx.createBufferSource(), buf = actx.createBuffer(1, Math.floor(actx.sampleRate * 0.03), actx.sampleRate), d = buf.getChannelData(0);
+        for (let k = 0; k < d.length; k++) d[k] = (Math.random() * 2 - 1) * Math.pow(1 - k / d.length, 3);
+        const f = actx.createBiquadFilter(), ng = actx.createGain(); f.type = "bandpass"; f.frequency.value = on ? 2200 : 3200; f.Q.value = 1.2; ng.gain.value = on ? 0.35 : 0.18;
+        n.buffer = buf; n.connect(f).connect(ng).connect(actx.destination); n.start(t);
+        plinks++;
+      } catch (e) {}
+    }
+    let plinks = 0;
     $("#lot-play").onclick = () => (running ? pause() : start());
     $("#lot-speed").onclick = () => { st.speed = st.speed === "normal" ? "fast" : st.speed === "fast" ? "slow" : "normal"; save(st); controls(); if (running) schedule(); };
     $("#lot-new").onclick = () => deal(false);
@@ -231,9 +272,9 @@
     return {
       pause,
       fs, exitFullscreen: (quiet) => fs.exit(quiet),
-      destroy() { fs.exit(true); stop(); hush(); if (au) au.removeAttribute("src"); if (hasVoice && speechSynthesis.removeEventListener) speechSynthesis.removeEventListener("voiceschanged", pickVoice); },
+      destroy() { fs.exit(true); stop(); hush(); if (au) au.removeAttribute("src"); if (actx) try { actx.close(); } catch (e) {} if (hasVoice && speechSynthesis.removeEventListener) speechSynthesis.removeEventListener("voiceschanged", pickVoice); },
       reload() { Object.assign(st, load()); stats(); controls(); },
-      get state() { return { tabla: tabla.slice(), called: [...called], marks: [...marks], running, over, started, stats: { wins: st.wins, streak: st.streak, best: st.best }, muted: st.muted, speed: st.speed, fullscreen: fs.on,
+      get state() { return { tabla: tabla.slice(), called: [...called], marks: [...marks], running, over, started, stats: { wins: st.wins, streak: st.streak, best: st.best }, muted: st.muted, speed: st.speed, fullscreen: fs.on, plinks,
         voice: { last: voice.last, clips: voice.clips, fallbacks: voice.fallbacks, bad: [...bad], talking: talking(), src: au ? au.currentSrc || au.src : "" } }; },
       callNext, claim,
     };

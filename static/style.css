@@ -944,7 +944,9 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
 .lot-tia{width:64px;height:64px;border-radius:50%;border:3px solid var(--pink);flex:none;background:#000}
 .lot-bubble{flex:1;min-width:0;position:relative;background:#000;color:#fff;border-radius:16px;padding:.55em .7em;display:flex;gap:.6em;align-items:center;min-height:88px}
 .lot-bubble::before{content:"";position:absolute;left:-8px;top:22px;border:8px solid transparent;border-right-color:#000;border-left:0}
+.lot-say{flex:1;min-width:0}
 .lot-line{margin:0;font-weight:700;line-height:1.3}
+.lot-bubble .lot-count{margin:.3em 0 0;font-size:.8em;font-weight:700;opacity:.8}
 .lot-card:empty{display:none}
 .lot-count{margin:.5em 0 .3em;font-size:.9em;font-weight:700}
 .lot-controls,.ice-controls{display:flex;flex-wrap:wrap;gap:6px;margin:.4em 0 .7em}
@@ -966,10 +968,20 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
 .lcard.mini{width:44px;flex:none;border-width:1.5px;padding:2px}
 .lcard.mini .lc-name{padding:1px 0}
 .lcard.mini .lc-n{top:2px;left:2px;border-width:1px;padding:0 2px}
-/* the ficha: a bean-colored token */
-.ficha{position:absolute;left:50%;top:44%;width:44%;aspect-ratio:1.25;transform:translate(-50%,-50%) scale(0);border-radius:50% 46% 52% 48%;
-  background:radial-gradient(circle at 35% 30%,#d9a066,#8a4f22 60%,#5a3012);box-shadow:0 2px 0 rgba(0,0,0,.45);transition:transform .15s ease-out;pointer-events:none}
-.lot-cell.marked .ficha{transform:translate(-50%,-50%) scale(1)}
+/* v41: the marker is a pinto bean (juegos.js BEAN). It drops onto the card with a bounce; an uncalled card only shakes. */
+.bean-defs{position:absolute;width:0;height:0;overflow:hidden}
+.frijol{position:absolute;left:50%;top:44%;width:52%;aspect-ratio:60/44;pointer-events:none;opacity:0;
+  transform:translate(calc(-50% + var(--dx,0%)),calc(-50% + var(--dy,0%))) rotate(var(--r,0deg)) scale(.6);transition:opacity .16s ease-in,transform .16s ease-in}
+.frijol svg{display:block;width:100%;height:100%;transform:scaleX(var(--fx,1));filter:drop-shadow(0 1px 0 rgba(0,0,0,.35))}
+.lot-cell.marked .frijol{opacity:1;transform:translate(calc(-50% + var(--dx,0%)),calc(-50% + var(--dy,0%))) rotate(var(--r,0deg)) scale(1);animation:bean-drop .46s cubic-bezier(.3,.7,.4,1) both}
+@keyframes bean-drop{
+  0%{opacity:0;transform:translate(calc(-50% + var(--dx,0%)),calc(-190% + var(--dy,0%))) rotate(calc(var(--r,0deg) - 50deg)) scale(1.55)}
+  45%{opacity:1;transform:translate(calc(-50% + var(--dx,0%)),calc(-50% + var(--dy,0%))) rotate(var(--r,0deg)) scale(.92)}
+  68%{transform:translate(calc(-50% + var(--dx,0%)),calc(-66% + var(--dy,0%))) rotate(calc(var(--r,0deg) + 6deg)) scale(1.03)}
+  84%{transform:translate(calc(-50% + var(--dx,0%)),calc(-50% + var(--dy,0%))) rotate(var(--r,0deg)) scale(.98)}
+  100%{opacity:1;transform:translate(calc(-50% + var(--dx,0%)),calc(-50% + var(--dy,0%))) rotate(var(--r,0deg)) scale(1)}}
+.lot-cell.nope{animation:card-nope .4s ease-in-out}
+@keyframes card-nope{0%,100%{transform:translateX(0)}20%{transform:translateX(-4px) rotate(-1.5deg)}45%{transform:translateX(4px) rotate(1.5deg)}70%{transform:translateX(-2px)}85%{transform:translateX(2px)}}
 .lot-cell.win .lcard{border-color:var(--turq);box-shadow:inset 0 0 0 2px #fff,inset 0 0 0 4px #111,0 0 0 3px var(--turq),0 0 0 5px var(--pink)}
 .lot-claim{display:block;width:100%;margin:.7em 0 .4em;min-height:56px;border:3px solid #000;border-radius:16px;background:var(--pink);color:#fff;font:inherit;font-size:1.35em;font-weight:900;
   text-shadow:0 2px 0 rgba(0,0,0,.35);box-shadow:inset 0 -6px 0 rgba(0,0,0,.25)}
@@ -982,8 +994,9 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
 .lot-confetti{position:fixed;inset:0;pointer-events:none;z-index:5000;overflow:hidden}
 .lot-confetti i{position:absolute;top:-12px;width:8px;height:12px;border-radius:2px;animation:conf-fall linear forwards}
 @keyframes conf-fall{to{top:105%;transform:translateX(30px) rotate(540deg)}}
-.reduce-motion .lot-confetti,.reduce-motion .ficha{transition:none}
-@media (prefers-reduced-motion:reduce){ .lot-confetti{display:none} .ficha{transition:none} }
+.reduce-motion .lot-confetti,.reduce-motion .frijol{transition:none}
+.reduce-motion .lot-cell.marked .frijol,.reduce-motion .lot-cell.nope{animation:none}
+@media (prefers-reduced-motion:reduce){ .lot-confetti{display:none} .frijol{transition:none} .lot-cell.marked .frijol,.lot-cell.nope{animation:none} }
 .reduce-motion .lot-confetti{display:none}
 /* Ice Ice Bebé */
 .ice-wrap{position:relative;border:3px solid #000;border-radius:12px;overflow:hidden;background:#000}
@@ -1041,20 +1054,29 @@ html.game-fs .track{transform:none!important;will-change:auto}   /* a transforme
 .gfs .ice-lbl{display:none}
 .ice-ov.win button{pointer-events:auto}
 .ice-win-score{font-weight:800;background:rgba(0,0,0,.6);border-radius:8px;padding:.1em .5em}
-/* Lotería Chismosa, full screen: Tía + the called card on top, the board as big as the screen allows, then ¡Lotería! and the controls */
-.game-stage.gfs:has(.lot-fit){padding-left:max(10px,env(safe-area-inset-left,0px));padding-right:max(10px,env(safe-area-inset-right,0px));padding-bottom:max(8px,env(safe-area-inset-bottom,0px))}
-.gfs .lot-top{flex:none;order:1}
-.gfs .lot-tia{width:52px;height:52px}
-.gfs .lot-bubble{min-height:76px;padding:.45em .6em}
-.gfs .lot-line{font-size:.95rem}
-.gfs .lcard.big{width:60px}
-.gfs .lot-count{flex:none;order:2;margin:.35em 0 .25em;text-align:center;color:#c9d0d8}
-.gfs .lot-fit{order:3;flex:1 1 0;min-height:0;container-type:size;display:flex;align-items:center;justify-content:center}
-.gfs .lot-tabla{width:min(100%,calc((100cqh - 33px) / 1.4 + 33px));box-sizing:border-box;margin:0 auto}
-.gfs .lot-claim{order:4;flex:none;margin:.45em 0 .35em;min-height:54px}
-.gfs .lot-controls{order:5;flex:none;flex-wrap:wrap;justify-content:center;margin:0;gap:6px}
-.gfs .lot-controls .lot-btn{flex:1 1 auto;min-width:0;padding:.2em .35em;font-size:clamp(.72rem,3.3vw,.92rem);white-space:nowrap;background:#1b1f2e;color:#fff;border-color:#3a4058}
-.gfs .lot-controls .lot-main{background:var(--turq);color:#000;border-color:#000}
+/* Lotería Chismosa, full screen (v41): a slim row with Tía + the called card (small) + its verse, then the 4×4 board as big as the
+   screen allows (full width; the cards stretch taller when there's height to spare), then ¡Lotería! and one row of controls.
+   Fits 390×844 and 320×640 with no scrolling. */
+.game-stage.gfs:has(.lot-fit){padding-left:max(8px,env(safe-area-inset-left,0px));padding-right:max(8px,env(safe-area-inset-right,0px));padding-bottom:max(6px,env(safe-area-inset-bottom,0px))}
+.gfs:has(.lot-fit) .gfs-bar{min-height:50px;padding:3px 2px}
+.gfs .lot-top{flex:none;order:1;gap:.4em;align-items:center}
+.gfs .lot-tia{width:40px;height:40px;border-width:2px}
+.gfs .lot-bubble{min-height:0;padding:.3em .5em;gap:.5em;border-radius:12px}
+.gfs .lot-bubble::before{top:50%;margin-top:-7px;border-width:7px;left:-7px}
+.gfs .lot-line{font-size:clamp(.78rem,3.6vw,.92rem);line-height:1.2}
+.gfs .lot-bubble .lot-count{font-size:.72rem;margin-top:.15em;color:#c9d0d8;opacity:1}
+.gfs .lcard.big{width:clamp(40px,11.5vw,50px)}
+.gfs .lot-fit{order:2;flex:1 1 0;min-height:0;margin:6px 0;container-type:size;display:flex;align-items:center;justify-content:center}
+.gfs .lot-tabla{box-sizing:border-box;margin:0 auto;padding:5px;gap:4px;border-width:2px;grid-template-rows:repeat(4,minmax(0,1fr));
+  width:min(100cqw,calc((100cqh - 26px) * 3 / 3.6 + 26px));height:min(100cqh,calc((100cqw - 26px) * 5.2 / 3 + 26px))}
+.gfs .lot-cell{min-height:0;display:flex}
+.gfs .lot-cell .lcard{aspect-ratio:auto;width:100%;height:100%}
+.gfs .lot-claim{order:3;flex:none;margin:0 0 6px;min-height:50px;font-size:1.3em}
+.gfs .lot-controls{order:4;flex:none;flex-wrap:nowrap;justify-content:center;margin:0;gap:6px}
+.gfs .lot-controls .lot-btn{flex:1 1 auto;min-width:0;min-height:44px;padding:.2em .3em;font-size:clamp(.72rem,3.4vw,.92rem);white-space:nowrap;background:#1b1f2e;color:#fff;border-color:#3a4058}
+.gfs .lot-controls .lot-main{flex-grow:1.6;background:var(--turq);color:#000;border-color:#000}
+.gfs .lot-controls #lot-voice{flex:0 0 48px}
+.gfs .lb-x{display:none}
 .gfs .lot-hist-wrap{display:none}
 /* level cleared: the message sits up in the sky so the destination (Home Dehole's sign, the shop, Mom's house) stays in view */
 .ice-ov.clear{justify-content:flex-start;padding-top:max(3.6em,11%);background:linear-gradient(rgba(0,0,0,.62),rgba(0,0,0,.35) 32%,rgba(0,0,0,0) 48%)}
