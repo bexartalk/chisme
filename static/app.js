@@ -2575,8 +2575,9 @@ window.CHISME_APP_BUILD = "41";
   $("#install-card-close").onclick = () => { $("#install-card").hidden = true; localStorage.setItem(INSTALL_KEY, "1"); };
   window.addEventListener("appinstalled", () => { hideInstall(); deferredPrompt = null; });
   // ---------- v41: the "Add to Home Screen" tutorial. iPhone / iPad Safari only (not the installed app, not Chrome/Firefox/
-  // Edge on iOS or in-app browsers; Android gets the install button above instead). The first open shows it once the one-time
-  // location card is answered; "Maybe later" brings it back 3 opens later; it shows by itself at most twice. Settings reopens it.
+  // Edge on iOS or in-app browsers; Android gets the install button above instead). It shows once the one-time
+  // location card is answered, starting with the 3rd open; "Maybe later" brings it back 3 opens later; it shows by itself at
+  // most twice. Settings reopens it.
   const UA = navigator.userAgent;
   const isIPad = /iPad/.test(UA) || (/Macintosh/.test(UA) && navigator.maxTouchPoints > 1);
   const isIOS = /iphone|ipod/i.test(UA) || isIPad;
@@ -2608,7 +2609,8 @@ window.CHISME_APP_BUILD = "41";
   a2Sheet.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.preventDefault(); a2Close(true); } });
   $("#set-a2hs").onclick = () => { $("#settings").close(); a2Open(false); };
   if (standalone) { $("#set-a2hs").hidden = true; $("#set-a2hs-note").textContent = "You're already using Chisme from your Home Screen. ¡Eso!"; }
-  const a2Due = () => a2.shows === 0 || (a2.shows === 1 && a2.opens >= a2.next);
+  const A2HS_FIRST = 3;   // not on the first visits: the 3rd Safari open, so people get to like the app first
+  const a2Due = () => (a2.shows === 0 && a2.opens >= A2HS_FIRST) || (a2.shows === 1 && a2.opens >= a2.next);
   function a2Try(delay) {   // show it once nothing else is on screen (the location card, a dialog, the feed, a full-screen game)
     setTimeout(() => {
       if (a2.done || !a2Sheet.hidden || !a2Due()) return;

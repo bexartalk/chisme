@@ -1,7 +1,7 @@
 """v41: the "Add to Home Screen" tutorial (iPhone / iPad Safari).
 
-WebKit (iPhone 13 at 390×844, Safari): first open → the one-time location card comes first; the tutorial shows only after it's
-answered: a bottom sheet with 3 steps (Share ⬆️ → Add to Home Screen → Add), small icons, an arrow pointing down toward Safari's
+WebKit (iPhone 13 at 390×844, Safari): not on the first or second open (time to like the app first); on the 3rd open, and only
+once the one-time location card is answered: a bottom sheet with 3 steps (Share ⬆️ → Add to Home Screen → Add), small icons, an arrow pointing down toward Safari's
 toolbar (bottom center), Got it / Maybe later, Fiesta colors (no yellow). "Maybe later" → back after 3 more opens, and it shows
 by itself at most twice. "Got it" → never again. Never in the installed app (navigator.standalone), Chrome/Firefox on iOS,
 Android Chrome, or desktop. iPad: the arrow points to the top right. Settings → "How to add Chisme to your Home Screen" reopens it.
@@ -38,12 +38,16 @@ async def iphone(p):
     pg.on("pageerror", lambda e: errs.append(str(e)[:160]))
     await pg.goto(BASE + "/"); await ready(pg); await pg.wait_for_timeout(2500)
     loc = await pg.evaluate("!document.querySelector('#loc-panel').hidden")
-    check(loc and not await is_open(pg), f"first open: the one-time location card is up, and the tutorial waits (location card {loc})")
-    await pg.click("#loc-close"); await pg.wait_for_timeout(600)
-    check(not await is_open(pg), "…not in the same instant the location card closes")
-    await pg.wait_for_timeout(1400)
+    check(loc and not await is_open(pg), f"first open: the one-time location card is up, no tutorial (location card {loc})")
+    await pg.click("#loc-close"); await pg.wait_for_timeout(2500)
+    check(not await is_open(pg) and (await pg.evaluate("__chisme.a2hs"))["opens"] == 1, "first open, location answered: still no tutorial (not on the first visit)")
+    second = await reopen(pg, 2500)
+    check(not second, "second open: no tutorial")
+    await pg.reload(); await ready(pg); await pg.wait_for_timeout(600)
+    check(not await is_open(pg), "third open: not in the first instant…")
+    await pg.wait_for_timeout(1700)
     s = await pg.evaluate(SHEET)
-    check(s["open"] and s["state"]["shows"] == 1 and s["state"]["safari"] and not s["state"]["standalone"], f"after the location card is answered: the tutorial slides up ({s['state']})")
+    check(s["open"] and s["state"]["opens"] == 3 and s["state"]["shows"] == 1 and s["state"]["safari"] and not s["state"]["standalone"], f"…then on the 3rd Safari open the tutorial slides up ({s['state']})")
     check(len(s["steps"]) == 3 and "Share" in s["steps"][0] and "bottom of Safari" in s["steps"][0] and "Add to Home Screen" in s["steps"][1] and "Add" in s["steps"][2] and s["icons"] == 3,
           f"3 short steps with small icons: {s['steps']}")
     check(s["btns"] == ["Maybe later", "Got it"] and s["title"] == "Put Chisme on your Home Screen" and len(s["sub"]) < 110, f"'Got it' + 'Maybe later', a short witty line ({s['sub']!r})")
@@ -76,33 +80,33 @@ async def iphone(p):
     # Got it on the first show → never again; the old one-line hint dismissed = already seen
     ctx = await b.new_context(**dev); await ctx.add_init_script("localStorage.setItem('chisme-location-setup','1')"); pg = await ctx.new_page()
     await pg.goto(BASE + "/"); await ready(pg); await pg.wait_for_timeout(2300)
-    first = await is_open(pg)
+    first = [await is_open(pg), await reopen(pg), await reopen(pg)]
     await pg.click("#a2hs-ok")
     seen = [await reopen(pg, 1800) for _ in range(4)]
-    check(first and seen == [False] * 4, f"location already set: it shows on the first open; 'Got it' → never again ({first}, then {seen})")
+    check(first == [False, False, True] and seen == [False] * 4, f"location already set: opens 1-2 nothing, the 3rd shows it; 'Got it' → never again ({first}, then {seen})")
     await ctx.close()
-    ctx = await b.new_context(**dev); await ctx.add_init_script("localStorage.setItem('chisme-location-setup','1'); localStorage.setItem('chisme-ios-hint-dismissed','1')"); pg = await ctx.new_page()
+    ctx = await b.new_context(**dev); await ctx.add_init_script("localStorage.setItem('chisme-location-setup','1'); localStorage.setItem('chisme-ios-hint-dismissed','1'); if (!localStorage.getItem('chisme-a2hs')) localStorage.setItem('chisme-a2hs', JSON.stringify({ opens: 2 }))"); pg = await ctx.new_page()
     await pg.goto(BASE + "/"); await ready(pg); await pg.wait_for_timeout(2300)
     check(not await is_open(pg), "someone who dismissed the old one-line install hint doesn't get it again")
     await ctx.close()
     # the installed Home Screen app: never
-    ctx = await b.new_context(**dev); await ctx.add_init_script("localStorage.setItem('chisme-location-setup','1'); Object.defineProperty(navigator, 'standalone', { get: () => true });"); pg = await ctx.new_page()
+    ctx = await b.new_context(**dev); await ctx.add_init_script("localStorage.setItem('chisme-location-setup','1'); if (!localStorage.getItem('chisme-a2hs')) localStorage.setItem('chisme-a2hs', JSON.stringify({ opens: 5 })); Object.defineProperty(navigator, 'standalone', { get: () => true });"); pg = await ctx.new_page()
     await pg.goto(BASE + "/"); await ready(pg); await pg.wait_for_timeout(2300)
     st = await pg.evaluate("__chisme.a2hs")
     await pg.click("#settings-btn"); await pg.wait_for_timeout(300)
     note = await pg.evaluate("({ btn: document.querySelector('#set-a2hs').hidden, note: document.querySelector('#set-a2hs-note').textContent })")
-    check(not await is_open(pg) and st["standalone"] and st["opens"] == 0 and note["btn"] and "already" in note["note"], f"in the installed Home Screen app: never (and Settings says it's already installed) ({note})")
+    check(not await is_open(pg) and st["standalone"] and st["opens"] == 5 and note["btn"] and "already" in note["note"], f"in the installed Home Screen app: never (and Settings says it's already installed) ({note})")
     await ctx.close()
     # Chrome / Firefox on iPhone: not Safari → never
     for name, ua in (("Chrome on iPhone", re.sub(r"Version/[\d.]+", "CriOS/129.0.6668.46", dev["user_agent"])), ("Firefox on iPhone", re.sub(r"Version/[\d.]+", "FxiOS/131.0", dev["user_agent"])), ("Instagram's in-app browser", dev["user_agent"] + " Instagram 350.0.0")):
         d2 = dict(dev); d2["user_agent"] = ua
-        ctx = await b.new_context(**d2); await ctx.add_init_script("localStorage.setItem('chisme-location-setup','1')"); pg = await ctx.new_page()
+        ctx = await b.new_context(**d2); await ctx.add_init_script("localStorage.setItem('chisme-location-setup','1'); if (!localStorage.getItem('chisme-a2hs')) localStorage.setItem('chisme-a2hs', JSON.stringify({ opens: 2 }))"); pg = await ctx.new_page()   # (its 3rd open: Safari would show it now)
         await pg.goto(BASE + "/"); await ready(pg); await pg.wait_for_timeout(2300)
         check(("CriOS" in ua or "FxiOS" in ua or "Instagram" in ua) and not await is_open(pg) and not (await pg.evaluate("__chisme.a2hs"))["safari"], f"{name}: never")
         await ctx.close()
     # iPad Safari: the Share button is at the top right
     dev = dict(p.devices["iPad Pro 11"]); dev.pop("default_browser_type", None); dev["device_scale_factor"] = 1
-    ctx = await b.new_context(**dev); await ctx.add_init_script("localStorage.setItem('chisme-location-setup','1')"); pg = await ctx.new_page()
+    ctx = await b.new_context(**dev); await ctx.add_init_script("localStorage.setItem('chisme-location-setup','1'); if (!localStorage.getItem('chisme-a2hs')) localStorage.setItem('chisme-a2hs', JSON.stringify({ opens: 2 }))"); pg = await ctx.new_page()   # its 3rd open
     await pg.goto(BASE + "/"); await ready(pg); await pg.wait_for_timeout(2300)
     s = await pg.evaluate(SHEET)
     check(s["open"] and s["state"]["ipad"] and "top right of Safari" in s["steps"][0] and s["arrow"][1] < 70 and s["arrow"][2] > s["iw"] - 80 and s["arrowRot"] != "none",
@@ -114,7 +118,7 @@ async def others(p):
     print("\n== Android Chrome / desktop: never")
     b = await p.chromium.launch()
     for name, kw in (("Android Chrome (Pixel 7)", {k: v for k, v in p.devices["Pixel 7"].items() if k != "default_browser_type"}), ("desktop Chrome", {"viewport": {"width": 1280, "height": 800}})):
-        ctx = await b.new_context(**kw); await ctx.add_init_script("localStorage.setItem('chisme-location-setup','1')"); pg = await ctx.new_page()
+        ctx = await b.new_context(**kw); await ctx.add_init_script("localStorage.setItem('chisme-location-setup','1'); if (!localStorage.getItem('chisme-a2hs')) localStorage.setItem('chisme-a2hs', JSON.stringify({ opens: 2 }))"); pg = await ctx.new_page()
         await pg.goto(BASE + "/"); await ready(pg); await pg.wait_for_timeout(2300)
         check(not await is_open(pg) and not (await pg.evaluate("__chisme.a2hs"))["safari"], f"{name}: no Safari tutorial (Android uses the browser's own install button)")
         await ctx.close()

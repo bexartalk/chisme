@@ -118,7 +118,7 @@ async def run_theme(b, dev, theme, shots):
     await pg.evaluate("__chisme.goView('juegos', { instant: true })"); await until(pg, "__chisme.juegos && __chisme.juegos.id === 'loteria'", 10)
     if await pg.evaluate("__chisme.juegos.id") != "loteria": await pg.click('.game-pick[data-game="loteria"]')
     await pg.click("#lot-play"); await pg.wait_for_timeout(200); await pg.click("#lot-play")
-    for _ in range(45):
+    for _ in range(60):   # v41: 54 cards
         s = await pg.evaluate(G + ".state")
         if all(c in s["called"] for c in s["tabla"][:4]): break
         await pg.evaluate(G + ".callNext()")

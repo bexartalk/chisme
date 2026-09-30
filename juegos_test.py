@@ -345,7 +345,7 @@ async def webkit(p):
     check(len(sp) >= 1 and sp[0]["lang"] == "es-MX" and sp[0]["text"] == "¡Se va y se corre con…!" and s["voice"]["fallbacks"] >= 1,
           f"a clip that fails to load falls back to the phone's es-MX voice ({sp[:2]}, {s['voice']})")
     check(await until(pg, f"__spoken.some(u => u.text === {json.dumps(want)} && u.lang === 'es-MX')", 3), f"…for the card's verse + name too ({want!r})")
-    for _ in range(45):
+    for _ in range(60):
         s = await st(pg)
         if all(c in s["called"] for c in s["tabla"][:4]): break
         await pg.evaluate(G + ".callNext()")
