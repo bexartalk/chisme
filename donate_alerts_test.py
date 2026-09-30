@@ -254,7 +254,7 @@ async def chromium_part(p):
     # 7. tapping it: the SW posts the link to the open app → the story opens in the in-app reader
     await pg.evaluate("navigator.serviceWorker.dispatchEvent(new MessageEvent('message', { data: { chismeOpen: %r } }))" % data["url"])
     await pg.wait_for_function("document.querySelector('#player').open", timeout=5000)
-    r = await pg.evaluate("({ t: document.querySelector('#player-title').textContent, kind: document.querySelector('#player-kind').textContent, open: document.querySelector('#player-actions .fs-open')?.href, view: __chisme.view })")
+    r = await pg.evaluate("({ t: document.querySelector('#player-title').textContent, kind: document.querySelector('#player-kind').textContent, open: document.querySelector('#player-orig .orig-link')?.href, view: __chisme.view })")
     check(r["t"] == "Test headline" and r["view"] == "news" and r["open"] == "https://example.com/s1", f"notification tap (app open): '{r['t']}' opens in Chisme's reader on News")
     await pg.keyboard.press("Escape")
     # ...and with the app closed: the link it opens

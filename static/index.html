@@ -267,7 +267,7 @@
             <button type="button" id="r-prev" aria-label="Previous frame">◀</button>
             <button type="button" id="r-next" aria-label="Next frame">▶</button>
           </div>
-          <p class="credit">Radar: <a href="https://www.rainviewer.com/" target="_blank" rel="noopener">RainViewer</a> (10-minute frames, Universal Blue colors; the free tiles stop at zoom 7, so close-ups look soft). Map © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors.</p>
+          <p class="credit">Radar: <a href="https://www.rainviewer.com/">RainViewer</a> (10-minute frames, Universal Blue colors; the free tiles stop at zoom 7, so close-ups look soft). Map © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors.</p>
         </section>
 
         <section id="forecast-sec" class="card">
@@ -336,6 +336,21 @@
       <p id="player-sum" class="player-sum" hidden></p>
       <div id="player-actions" class="player-act"></div>
       <p id="player-note" class="hint player-note" hidden></p>
+      <p id="player-orig" class="player-orig" hidden></p>
+    </div>
+  </dialog>
+  <dialog id="mapsheet" class="settings player mapsheet" aria-labelledby="ms-title">
+    <div class="set-head player-head">
+      <span class="grab" aria-hidden="true"></span>
+      <p class="player-kind">🗺 Map</p>
+      <button type="button" id="ms-close" aria-label="Close map">Close</button>
+    </div>
+    <div class="player-body">
+      <div id="ms-map" class="ms-map" role="img" aria-label="Map with a pin on the place"></div>
+      <h2 id="ms-title" class="player-title"></h2>
+      <p id="ms-addr" class="fr-by"></p>
+      <p id="ms-status" class="hint" role="status"></p>
+      <p id="ms-orig" class="player-orig"></p>
     </div>
   </dialog>
   <dialog id="settings" class="settings" aria-labelledby="settings-title">

@@ -34,6 +34,9 @@ from fastapi import FastAPI, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+import reader as rdr
+from limits import RateLimit, client_ip
+
 import push
 
 # ---------------------------------------------------------------- config
@@ -1749,16 +1752,9 @@ async def _frameable(url: str) -> bool:
         r = await client().get(url, follow_redirects=True)
     except Exception:
         return False
-    if r.status_code >= 400 or not str(r.url).startswith("https://"):
+    if r.status_code >= 400:
         return False
-    xfo = (r.headers.get("x-frame-options") or "").lower()
-    if "deny" in xfo or "sameorigin" in xfo:
-        return False
-    for csp in r.headers.get_list("content-security-policy"):
-        m = re.search(r"frame-ancestors([^;]*)", csp, re.I)
-        if m and "*" not in m.group(1).split():
-            return False
-    return True
+    return rdr.frame_verdict(r.headers, str(r.url))[0]
 
 
 def food_sources_for(metro: dict | None, place: dict) -> list[dict]:
@@ -2309,6 +2305,38 @@ async def api_geocode(q: str = Query(..., min_length=2, max_length=120)):
         return {"results": await cached(key, GEOCODE_TTL, lambda: geocode(q))}
     except Exception as ex:
         return _err(ex)
+
+
+READER_LIMIT = RateLimit(90, 600)   # link checks per phone per 10 minutes (each result is cached anyway)
+READER_TTL, FRAME_TTL = 6 * 3600, 12 * 3600
+
+
+@app.get("/api/reader")
+async def api_reader(request: Request, url: str = Query(..., min_length=8, max_length=2000)):
+    """In-app reader: may this page be framed inside Chisme, plus its headline card (title, site's own short
+    description, image, date). Never the article text. Framing is decided from the page's X-Frame-Options /
+    CSP frame-ancestors headers; results are cached per URL (6 h) and the verdict per host (12 h)."""
+    try:
+        u = rdr._check_url(url)
+    except rdr.Blocked as ex:
+        return JSONResponse({"error": str(ex)}, status_code=400)
+    host = (u.hostname or "").lower()
+    hit = _cache.get("reader:" + url)
+    if not (hit and time.time() - hit[0] < READER_TTL):
+        ok, wait = READER_LIMIT.check(client_ip(request))
+        if not ok:
+            fv = _cache.get("frame:" + host)
+            return {"url": url, "final_url": url, "host": host.removeprefix("www."), "frame": bool(fv and fv[1]),
+                    "why": "busy", "limited": True, "retry_after": wait}
+    try:
+        info = await cached("reader:" + url, READER_TTL, lambda: rdr.inspect(client(), url))
+    except rdr.Blocked as ex:
+        return JSONResponse({"error": str(ex)}, status_code=400)
+    except Exception:
+        return {"url": url, "final_url": url, "host": host.removeprefix("www."), "frame": False, "why": "unreachable"}
+    if info.get("why") not in ("busy", "unreachable"):
+        _cache["frame:" + host] = (time.time(), bool(info.get("frame")))
+    return info
 
 
 @app.get("/api/radar")

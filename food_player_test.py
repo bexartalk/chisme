@@ -91,11 +91,11 @@ async def wk(p):
         framed["on"] = True
         await pg.locator("#food-desk .desk h4 a").nth(i).tap()
         await pg.wait_for_function("document.querySelector('#player').open", timeout=5000)
-        r = await pg.evaluate("""() => { const f = document.querySelector('#player-media iframe'), o = document.querySelector('#player-actions .fs-open');
+        r = await pg.evaluate("""() => { const f = document.querySelector('#player-media iframe'), o = document.querySelector('#player-orig .orig-link');
             return { kind: document.querySelector('#player-kind').textContent, frame: f ? f.getAttribute('sandbox') : null, open: o && [o.textContent, o.target],
                      note: document.querySelector('#player-note').textContent }; }""")
-        ok = r["kind"].endswith("Article") and r["open"] and r["open"][0].startswith("Open article") and (r["frame"] is None or "allow-top-navigation" not in r["frame"])
-        check(ok, f"desk item {i + 1} opens the reader ({'framed, sandboxed' if r['frame'] else 'headline + labeled Open article link'}: {r['note'][:70]})")
+        ok = r["kind"].endswith("Article") and r["open"] and r["open"][0].startswith("Open original") and r["open"][1] == "_blank" and (r["frame"] is None or "allow-top-navigation" not in r["frame"])
+        check(ok, f"desk item {i + 1} opens the reader ({'framed, sandboxed' if r['frame'] else 'headline card + small Open original link'}: {r['note'][:70]})")
         if r["frame"]: await pg.wait_for_timeout(4000); await pg.screenshot(path="/tmp/wk/reader-framed.png")
         elif not os.path.exists("/tmp/wk/reader.png") or i == 0: await pg.wait_for_timeout(800); await pg.screenshot(path="/tmp/wk/reader.png")
         await pg.tap("#player-close"); await pg.wait_for_timeout(600)

@@ -1,7 +1,7 @@
 /* Chisme — frontend (location-aware) */
 // Build of this file. Must equal the number in sw.js VERSION ("chisme-v22"); the page compares it
 // with the build the HTML was served for and reloads once if an old cached app.js got mixed in.
-window.CHISME_APP_BUILD = "26";
+window.CHISME_APP_BUILD = "27";
 (() => {
   "use strict";
   const WEATHER_MS = 10 * 60 * 1000;
@@ -563,7 +563,7 @@ window.CHISME_APP_BUILD = "26";
       html: '<span class="me-halo"></span><span class="me-dot"></span>' });
     youMarker = L.marker([loc.lat, loc.lon], { icon: dot, keyboard: false, interactive: false, zIndexOffset: 1000, alt: "Your location" }).addTo(map);
     map.attributionControl.setPrefix(false);
-    map.attributionControl.addAttribution('Radar &copy; <a href="https://www.rainviewer.com/" target="_blank" rel="noopener">RainViewer</a>');
+    map.attributionControl.addAttribution('Radar &copy; <a href="https://www.rainviewer.com/">RainViewer</a>');
   }
   function recenter(zoom) {
     youMarker.setLatLng([loc.lat, loc.lon]);
@@ -628,7 +628,7 @@ window.CHISME_APP_BUILD = "26";
   function story(it, showTags) {
     const d = it.published ? new Date(it.published * 1000) : null;
     const body = el("div", { class: "body" },
-      el("h3", {}, el("a", { href: it.link, target: "_blank", rel: "noopener", text: it.title })),
+      el("h3", {}, ext(it.link, it.title, null, storyMeta(it))),
       el("div", { class: "meta" }, el("span", { class: "src", text: it.source }), d ? " · " + ago(d) + " · " + dateTimeT(d) : ""),
       it.summary ? el("p", { class: "sum", text: it.summary }) : null);
     if (showTags && it.local_terms?.length) {
@@ -646,19 +646,30 @@ window.CHISME_APP_BUILD = "26";
 
   // Links at the end of each story: the original article, the same story from other outlets we
   // fetched, and a Google News search for the topic. Every URL comes from the feeds/server.
-  const ext = (href, text, cls) => el("a", { href, target: "_blank", rel: "noopener", class: cls, text });
+  // Every outside link stays inside Chisme: a tap opens the in-app reader (framed where the site allows it,
+  // else a headline card) or the map sheet, with the headline/source/summary we already have. Long-press and
+  // ⌘/Ctrl-click still get the real URL. The only link that leaves on purpose is the Cash App donate button.
+  const linkMeta = new WeakMap();
+  const ext = (href, text, cls, meta) => {
+    const a = el("a", { href, class: cls, text: text == null ? null : String(text).replace(/\s*↗\s*$/, ""), "aria-haspopup": "dialog" });
+    if (meta) linkMeta.set(a, meta);
+    return a;
+  };
+  const storyMeta = (it) => ({ title: it.title, source: it.source, published: it.published || null, summary: it.summary || null, image: it.image || null });
   function digDeeper(it) {
     const viaGoogle = /^https:\/\/news\.google\.com\//.test(it.link);
-    const read = ext(it.link, `Read full story · ${it.source} ↗`, "btnlink primary");
-    if (viaGoogle) read.title = "Opens the original article through Google News";
-    const more = it.search_url ? ext(it.search_url, "🔎 More coverage ↗", "btnlink") : null;
+    const read = ext(it.link, `Read full story · ${it.source}`, "btnlink primary", storyMeta(it));
+    if (viaGoogle) read.title = "Opens the story inside Chisme (the link goes through Google News)";
+    const more = it.search_url ? ext(it.search_url, "🔎 More coverage", "btnlink", { title: "More coverage: " + it.title, source: "Google News search",
+      summary: "Other outlets' reporting on this story, from a Google News search." }) : null;
     if (more) more.setAttribute("aria-label", "More coverage: search Google News for this story");
     const row = el("div", { class: "dig-row" }, read, more);
     const box = el("div", { class: "dig" });
     if (it.related && it.related.length) {
       box.append(el("p", { class: "related-h", text: "Also reported by" }),
         el("ul", { class: "related" }, ...it.related.map((r) => el("li", {},
-          el("a", { href: r.link, target: "_blank", rel: "noopener" }, el("span", { class: "rsrc", text: r.source + ": " }), r.title + " ↗")))));
+          (() => { const a = ext(r.link, null, null, { title: r.title, source: r.source, published: r.published || null, summary: r.summary || null });
+            a.append(el("span", { class: "rsrc", text: r.source + ": " }), r.title); return a; })()))));
     }
     box.append(row);
     return box;
@@ -670,7 +681,8 @@ window.CHISME_APP_BUILD = "26";
   function artCard(a) {
     const img = el("img", { src: a.src, alt: a.alt, width: a.w, height: a.h, loading: "lazy", decoding: "async", draggable: "false" });
     img.onerror = () => fig.remove();
-    const lic = a.license_url ? ext(a.license_url, a.license) : el("span", { text: a.license });
+    const artMeta = { title: `${a.subject} · ${a.city}`, source: "Wikimedia Commons", summary: `Photo: ${a.author} · ${a.license}`, image: a.src };
+    const lic = a.license_url ? ext(a.license_url, a.license, null, { title: a.license, source: "License", summary: `The license for this photo by ${a.author}.` }) : el("span", { text: a.license });
     const fig = el("figure", { class: "art" + (a.mural ? " mural" : ""), "data-art": String(a.n) },
       el("div", { class: "art-frame" }, img),
       el("figcaption", {},
@@ -678,7 +690,7 @@ window.CHISME_APP_BUILD = "26";
         el("p", { class: "art-cap", text: `${a.subject} · ${a.city}` }),
         a.artist ? el("p", { class: "art-artist", text: a.artist }) : null,
         el("p", { class: "art-credit" }, "Photo: ", el("b", { text: a.author }), " · ", lic, " · ",
-          ext(a.source_url, "Source: Wikimedia Commons ↗"))));
+          ext(a.source_url, "Source: Wikimedia Commons", null, artMeta))));
     return fig;
   }
   // One photo after every 4 stories (only between stories), rotating through the set; the next
@@ -796,7 +808,8 @@ window.CHISME_APP_BUILD = "26";
     const img = el("img", { src: `https://tile.openstreetmap.org/${t.z}/${t.x}/${t.y}.png`, alt: "", loading: "lazy", width: 256, height: 256 });
     img.style.left = left + "px"; img.style.top = top + "px";
     const pin = el("span", { class: "pin" }); pin.style.left = (t.px + left) + "px"; pin.style.top = (t.py + top) + "px";
-    const a = el("a", { class: "minimap", href, target: "_blank", rel: "noopener", "aria-label": `Map: ${e.venue || "event location"} (opens OpenStreetMap)` }, img, pin);
+    const a = el("a", { class: "minimap", href, "aria-haspopup": "dialog", "aria-label": `Map: ${e.venue || "event location"} (opens the map)` }, img, pin);
+    linkMeta.set(a, evMapMeta(e));
     img.onerror = () => a.remove();
     return a;
   }
@@ -810,7 +823,7 @@ window.CHISME_APP_BUILD = "26";
     const p = e.price;
     if (p && p.free) return el("span", { class: "price free", text: p.text && !/^free$/i.test(p.text) ? "FREE · " + p.text : "FREE" });
     if (p && p.text) return el("span", { class: "price paid", text: /^[\d.]+$/.test(p.text) ? "Admission: " + p.text : p.text });
-    return ext(e.url, "Check price ↗", "price check");
+    return ext(e.url, "Check price", "price check", evMeta(e));
   }
   function outlook(e) {
     const w = e.weather || {};
@@ -821,6 +834,9 @@ window.CHISME_APP_BUILD = "26";
     return el("div", { class: "ev-wx na", text: w.reason === "beyond" ? "🔮 Forecast not available yet — the National Weather Service forecasts 7 days out."
       : "Forecast unavailable for this spot right now." });
   }
+  const evMeta = (e) => ({ title: e.title, source: e.source, when: whenText(e), summary: e.summary || null, image: e.image || null,
+    lat: e.approx ? null : e.lat, lon: e.approx ? null : e.lon, venue: e.venue || null, address: e.address || null });
+  const evMapMeta = (e) => ({ map: true, name: e.venue || e.title, address: e.address || null, lat: e.approx ? null : e.lat, lon: e.approx ? null : e.lon, city: cityName() });
   function eventCard(e) {
     const hasGeo = e.lat != null && e.lon != null && !e.approx;
     const osm = hasGeo ? `https://www.openstreetmap.org/?mlat=${e.lat.toFixed(5)}&mlon=${e.lon.toFixed(5)}#map=17/${e.lat.toFixed(5)}/${e.lon.toFixed(5)}` : null;
@@ -839,18 +855,18 @@ window.CHISME_APP_BUILD = "26";
       e.km != null && !e.approx ? el("div", { text: `${(e.km * 0.621371).toFixed(1)} mi from you` }) : null,
       !e.venue && !e.address ? el("div", { text: "Location on the event page" }) : null);
     const venue = el("div", { class: "ev-line ev-venue" }, el("span", { text: "📍", "aria-hidden": "true" }), venueTxt, hasGeo && navigator.onLine ? miniMap(e, osm) : null);
-    const also = (e.also || []).map((a, k) => [k ? ", " : " · also on ", ext(a.url, a.source)]).flat();
+    const also = (e.also || []).map((a, k) => [k ? ", " : " · also on ", ext(a.url, a.source, null, { ...evMeta(e), source: a.source })]).flat();
     return el("article", { class: "ev" }, media,
       el("div", { class: "ev-body" },
-        el("h3", {}, ext(e.url, e.title)),
+        el("h3", {}, ext(e.url, e.title, null, evMeta(e))),
         el("div", { class: "ev-line" }, el("span", { text: "🗓", "aria-hidden": "true" }), el("span", { text: whenText(e) })),
         venue,
         el("div", { class: "ev-line" }, el("span", { text: "🎟", "aria-hidden": "true" }), priceBadge(e)),
         outlook(e),
         e.summary ? el("p", { class: "ev-sum", text: e.summary }) : null,
-        el("div", { class: "ev-links" }, ext(e.url, `Event page (${e.source}) ↗`, "primary"),
-          gmaps ? ext(gmaps, "🗺 Map & directions ↗") : null,
-          e.website && e.website !== e.url ? ext(e.website, "Organizer site ↗") : null),
+        el("div", { class: "ev-links" }, ext(e.url, `Event page (${e.source})`, "primary", evMeta(e)),
+          gmaps ? ext(gmaps, "🗺 Map & directions", null, evMapMeta(e)) : null,
+          e.website && e.website !== e.url ? ext(e.website, "Organizer site", null, { ...evMeta(e), source: hostOf(e.website) + " (organizer)" }) : null),
         el("p", { class: "ev-src" }, "Listed on " + e.source, ...also)));
   }
   // ---------- event categories + food reviews
@@ -922,6 +938,7 @@ window.CHISME_APP_BUILD = "26";
     summary: it.summary || null, frame: !!it.frame, savedAt: Date.now(),
     city: it.elsewhere ? "San Antonio, TX" : [cityName(), loc.place && loc.place.state].filter(Boolean).join(", "),   // for Directions by name
   });
+  const mapMeta = (p, city) => ({ map: true, name: p.name || null, address: p.address || null, city: city || "San Antonio, TX", lat: p.lat ?? null, lon: p.lon ?? null });
   const mapsUrl = (p, city) => "https://maps.apple.com/?daddr=" + encodeURIComponent(p.address || `${p.name}, ${city || "San Antonio, TX"}`) + "&dirflg=d";
   const bmIcon = () => {
     const NS = "http://www.w3.org/2000/svg", svg = document.createElementNS(NS, "svg"), path = document.createElementNS(NS, "path");
@@ -1018,8 +1035,8 @@ window.CHISME_APP_BUILD = "26";
     const rm = el("button", { type: "button", class: "fs-rm", text: "Remove" });
     rm.setAttribute("aria-label", "Remove " + s.title);
     rm.onclick = () => removeSaved(s);
-    const dir = p ? ext(mapsUrl(p, s.city), "Directions ↗", "fs-dir") : null;
-    if (dir) dir.setAttribute("aria-label", `Directions to ${p.name || p.address} in Apple Maps`);
+    const dir = p ? ext(mapsUrl(p, s.city), "Directions", "fs-dir", mapMeta(p, s.city)) : null;
+    if (dir) dir.setAttribute("aria-label", `Map and directions to ${p.name || p.address}`);
     row.append(el("div", { class: "fs-act" }, openLink(s.url, s.video ? "▶ Watch" : "Read", "fs-open", open), dir, edit, rm));
     return tapCard(row, open);
   }
@@ -1085,9 +1102,23 @@ window.CHISME_APP_BUILD = "26";
       box.replaceChildren(el("iframe", { src: `https://www.youtube-nocookie.com/embed/${id}?playsinline=1&rel=0&modestbranding=1&autoplay=1`,
         title: "YouTube video: " + it.title, allow: "autoplay; encrypted-media; picture-in-picture; fullscreen", allowfullscreen: "",
         referrerpolicy: "strict-origin-when-cross-origin" }));
+    } else if (it.checking) {   // asking the server whether this site can be shown inside Chisme
+      box.className = "player-media article checking";
+      box.replaceChildren(el("div", { class: "reader-wait", role: "status" }, el("span", { class: "spin", "aria-hidden": "true" }), "Opening inside Chisme…"));
     } else if (it.frame) {   // sandboxed: the page can't navigate Chisme away
-      box.replaceChildren(el("iframe", { src: it.url, title: "Article: " + it.title, referrerpolicy: "strict-origin-when-cross-origin",
+      box.replaceChildren(el("iframe", { src: it.frameUrl || it.url, title: (it.reader ? "Page: " : "Article: ") + it.title, referrerpolicy: "strict-origin-when-cross-origin",
         sandbox: "allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-forms" }));
+    } else if (it.reader) {   // the site doesn't allow framing: a headline card (image, and a map when there's a place)
+      const kids = [];
+      if (it.image) { const img = el("img", { src: it.image, alt: "", referrerpolicy: "no-referrer", class: "player-img" }); img.onerror = () => img.remove(); kids.push(img); }
+      else kids.push(el("div", { class: "reader-ph", "aria-hidden": "true", text: it.kind === "game" ? "🏟" : it.kind === "profile" ? "👤" : "📰" }));
+      if (it.lat != null && it.lon != null) {   // events: where it is, on a small map (tap for the map sheet)
+        const mm = miniMap({ lat: it.lat, lon: it.lon, venue: it.venue, address: it.address, title: it.title },
+          `https://www.openstreetmap.org/?mlat=${it.lat.toFixed(5)}&mlon=${it.lon.toFixed(5)}#map=17/${it.lat.toFixed(5)}/${it.lon.toFixed(5)}`);
+        mm.classList.add("reader-map"); kids.push(mm);
+      }
+      box.className = "player-media article card" + (kids.length > 1 ? " with-map" : "");
+      box.replaceChildren(...kids);
     } else if (it.image) {
       const img = el("img", { src: it.image, alt: "", referrerpolicy: "no-referrer", class: "player-img" });
       img.onerror = () => img.remove();
@@ -1098,23 +1129,30 @@ window.CHISME_APP_BUILD = "26";
     const it = playerItem, v = vidOf(it), vid = !!v;
     const saved = savedSpots.find((s) => s.url === it.url);
     const p = saved ? saved.place : it.place ? cleanPlace({ ...it.place, guessed: it.place.guessed !== false }) : null;
-    $("#player-kind").textContent = vid ? "▶ Video" : "📰 Article";
+    $("#player-kind").textContent = vid ? "▶ Video" : it.kind === "game" ? "🏟 Game" : it.kind === "profile" ? "👤 Profile" : it.reader && it.frame ? "🔗 " + hostOf(it.frameUrl || it.url) : "📰 Article";
     $("#player-close").setAttribute("aria-label", vid ? "Close video" : "Close article");
     $("#player-title").textContent = it.title;
-    $("#player-by").replaceChildren(el("b", { text: it.source || "" }), it.published ? " · " + shortDate(it.published) : "");
+    $("#player-by").replaceChildren(el("b", { text: it.source || hostOf(it.url) }), it.site && it.source && !it.source.includes(it.site) ? " · " + it.site : "",
+      it.when ? " · " + it.when : it.published ? " · " + shortDate(it.published) : "");
     $("#player-place").hidden = !p; $("#player-place").replaceChildren(...(p ? placeLine(p) : []));
-    const sum = !vid && it.summary;
+    const sum = !vid && it.summary && !(it.reader && it.frame) && it.summary;
     $("#player-sum").hidden = !sum; $("#player-sum").textContent = sum || "";
     const acts = it.noSave ? [] : [saveButton(saved || it.raw || it)];
-    if (p) { const d = ext(mapsUrl(p, saved ? saved.city : it.elsewhere ? "San Antonio, TX" : [cityName(), loc.place && loc.place.state].filter(Boolean).join(", ")), "Directions ↗", "fs-dir"); d.setAttribute("aria-label", `Directions to ${p.name || p.address} in Apple Maps`); acts.push(d); }
+    if (p) { const city = saved ? saved.city : it.elsewhere ? "San Antonio, TX" : [cityName(), loc.place && loc.place.state].filter(Boolean).join(", ");
+      const d = ext(mapsUrl(p, city), "Directions", "fs-dir", mapMeta(p, city)); d.setAttribute("aria-label", `Map and directions to ${p.name || p.address}`); acts.push(d); }
+    const orig = $("#player-orig");
+    orig.hidden = vid;
     if (!vid) {
       const host = hostOf(it.url), gn = host === "news.google.com";
-      acts.unshift(ext(it.url, "Open article ↗", "fs-open"));
-      $("#player-note").hidden = false;
       const site = it.source ? it.source.split(" · ")[0] : host;
-      $("#player-note").textContent = it.frame ? `Showing ${host} inside Chisme. “Open article” opens it in your browser.`
-        : gn ? `This story's link goes through Google News, which can't open inside other apps, so “Open article” opens ${site} in your browser.`
-        : `${site} doesn't allow its stories inside other apps, so “Open article” opens it in your browser.`;
+      $("#player-note").hidden = !!it.checking;
+      $("#player-note").textContent = it.frame ? `Showing ${hostOf(it.frameUrl || it.url)} inside Chisme. It's ${site}'s page, credited to them.`
+        : !navigator.onLine ? `From ${site}. The full page needs a connection.`
+        : gn ? `From ${site}, via Google News (it can't be shown inside other apps). Chisme shows the headline and the feed's summary, never the article itself.`
+        : `From ${site}. Their site doesn't allow being shown inside other apps, so Chisme shows the headline and the site's own summary, never the article itself.`;
+      const o = el("a", { href: it.url, class: "fs-open orig-link", target: "_blank", rel: "noopener", text: `Open original on ${hostOf(it.frameUrl || it.url) || site} ↗` });
+      o.setAttribute("aria-label", `Open the original on ${hostOf(it.frameUrl || it.url) || site} (leaves Chisme)`);
+      orig.replaceChildren(o);
     } else if (v.tt) {
       $("#player-note").hidden = false;
       $("#player-note").textContent = "Playing in TikTok's official player. Chisme only shows TikToks picked for this list.";
@@ -1130,6 +1168,87 @@ window.CHISME_APP_BUILD = "26";
     if (!player.open) player.showModal();
     player.scrollTop = 0; player.style.transform = "";
   }
+  // ---------- every outside link opens here (see ext()): the reader for pages, the map sheet for places
+  const readerInfo = new Map();   // url -> /api/reader answer, for this session (the server caches too)
+  const MAPISH = /^(maps\.apple\.com|(www\.)?google\.[a-z.]+\/maps|maps\.google\.|(www\.)?openstreetmap\.org\/(\?|$|#))/;
+  function metaFromLink(a) {
+    const m = linkMeta.get(a) || {};
+    const txt = (a.textContent || "").replace(/[↗▶🔎🗺]/gu, "").replace(/\s+/g, " ").trim();
+    return { url: a.href, ...m, title: m.title || a.getAttribute("data-title") || txt || hostOf(a.href), fromLink: !m.title };
+  }
+  document.addEventListener("click", (e) => {
+    if (e.defaultPrevented || e.button > 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    const a = e.target.closest && e.target.closest("a[href]");
+    if (!a || a.matches(".donate-btn, .orig-link")) return;
+    let u; try { u = new URL(a.href); } catch { return; }
+    if (u.origin === location.origin || !/^https?:$/.test(u.protocol)) return;
+    e.preventDefault();
+    const m = metaFromLink(a);
+    if (m.map || MAPISH.test(u.host + u.pathname + u.search.slice(0, 1))) openMapSheet(m, a); else openReader(m, a);
+  });
+  function openReader(m, opener) {
+    const url = m.url;
+    const it = { url, title: m.title, source: m.source || hostOf(url), published: m.published || null, when: m.when || null, summary: m.summary || null,
+      image: m.image || null, kind: m.kind || null, reader: true, frame: false, checking: navigator.onLine && !readerInfo.has(url),
+      lat: m.lat ?? null, lon: m.lon ?? null, venue: m.venue || null, address: m.address || null };
+    openPlayer(it, opener, { noSave: true });
+    const done = (j) => {
+      if (!playerItem || playerItem.url !== url) return;
+      Object.assign(playerItem, { frame: !!j.frame, checking: false, frameUrl: j.final_url || url, site: j.site || null,
+        title: m.fromLink && j.title ? j.title : playerItem.title, summary: playerItem.summary || j.description || null,
+        image: playerItem.image || j.image || null, published: playerItem.published || j.published || null });
+      renderPlayer();
+    };
+    if (!navigator.onLine) return;
+    if (readerInfo.has(url)) return done(readerInfo.get(url));
+    fetch("/api/reader?url=" + encodeURIComponent(url)).then((r) => r.json()).then((j) => { if (!j.limited) readerInfo.set(url, j); done(j); })
+      .catch(() => done({ frame: false }));
+  }
+  // Map sheet: an OpenStreetMap map with a pin, inside Chisme; "Open in Maps" (Apple Maps directions) is the small link below.
+  const mapDlg = $("#mapsheet");
+  let sheetMap = null, sheetPin = null, mapOpener = null;
+  function mapQuery(m) {   // name/address from the meta, else from the link itself (Apple ?daddr=, Google ?query=)
+    if (m.address || m.name) return [m.address || m.name, m.address ? null : m.city].filter(Boolean).join(", ");
+    try { const u = new URL(m.url); return u.searchParams.get("daddr") || u.searchParams.get("query") || u.searchParams.get("q") || ""; } catch { return ""; }
+  }
+  async function openMapSheet(m, opener) {
+    mapOpener = opener || document.activeElement;
+    const q = mapQuery(m), name = m.name || q.split(",")[0] || "Map";
+    $("#ms-title").textContent = name;
+    $("#ms-addr").textContent = m.address && m.address !== name ? m.address : q && q !== name ? q : "";
+    $("#ms-status").textContent = "";
+    const apple = "https://maps.apple.com/?daddr=" + encodeURIComponent(m.lat != null ? `${m.lat},${m.lon}` : q) + "&dirflg=d";
+    const o = el("a", { href: /maps\.apple\.com/.test(m.url || "") ? m.url : apple, class: "orig-link", target: "_blank", rel: "noopener", text: "Open in Maps ↗" });
+    o.setAttribute("aria-label", `Directions to ${name} in Apple Maps (leaves Chisme)`);
+    $("#ms-orig").replaceChildren(o);
+    if (!mapDlg.open) mapDlg.showModal();
+    if (!sheetMap) {
+      sheetMap = L.map("ms-map", { zoomControl: false, scrollWheelZoom: false, attributionControl: true }).setView([loc.lat, loc.lon], 13);
+      L.control.zoom({ position: "topright" }).addTo(sheetMap);
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' }).addTo(sheetMap);
+      sheetMap.attributionControl.setPrefix(false);
+    }
+    setTimeout(() => sheetMap.invalidateSize(), 60);
+    let lat = m.lat, lon = m.lon;
+    if ((lat == null || lon == null) && q) {
+      $("#ms-status").textContent = navigator.onLine ? "Finding it on the map…" : "The map needs a connection.";
+      try {
+        const j = await fetch("/api/geocode?q=" + encodeURIComponent(q.slice(0, 120))).then((r) => r.json());
+        const r = (j.results || [])[0]; if (r) { lat = r.lat; lon = r.lon; }
+      } catch {}
+    }
+    if (!mapDlg.open) return;
+    if (lat == null || lon == null) { $("#ms-status").textContent = navigator.onLine ? "Couldn't find that address on the map. “Open in Maps” can still search for it." : "The map needs a connection."; return; }
+    $("#ms-status").textContent = "";
+    if (sheetPin) sheetPin.remove();
+    sheetPin = L.marker([lat, lon], { keyboard: false, alt: name, icon: L.divIcon({ className: "ms-pin", iconSize: [26, 26], iconAnchor: [13, 26], html: "<span></span>" }) }).addTo(sheetMap);
+    sheetMap.setView([lat, lon], 16);
+    setTimeout(() => sheetMap.invalidateSize(), 250);
+  }
+  mapDlg.addEventListener("click", (e) => { if (e.target === mapDlg) mapDlg.close(); });
+  $("#ms-close").onclick = () => mapDlg.close();
+  mapDlg.addEventListener("close", () => { if (mapOpener && mapOpener.isConnected) mapOpener.focus({ preventScroll: true }); });
   player.addEventListener("close", () => {
     $("#player-media").replaceChildren();   // stops the video
     player.style.transform = ""; player.classList.remove("dragging"); playerItem = null;
@@ -1301,9 +1420,10 @@ window.CHISME_APP_BUILD = "26";
     const rail = el("div", { class: "vf-rail" });
     const sv = saveButton(saved || it); rail.append(sv);
     if (p) {
-      const d = ext(mapsUrl(p, saved ? saved.city : it.elsewhere ? "San Antonio, TX" : [cityName(), loc.place && loc.place.state].filter(Boolean).join(", ")), "", "vf-dir");
+      const city = saved ? saved.city : it.elsewhere ? "San Antonio, TX" : [cityName(), loc.place && loc.place.state].filter(Boolean).join(", ");
+      const d = ext(mapsUrl(p, city), "", "vf-dir", mapMeta(p, city));
       d.replaceChildren(el("span", { class: "ic", "aria-hidden": "true", text: "📍" }), "Directions");
-      d.setAttribute("aria-label", `Directions to ${p.name || p.address} in Apple Maps`);
+      d.setAttribute("aria-label", `Map and directions to ${p.name || p.address}`);
       rail.append(d);
     }
     const ni = el("button", { type: "button", class: "vf-ni" }, el("span", { class: "ic", "aria-hidden": "true", text: "🙅" }), "Not for me");
@@ -1444,10 +1564,12 @@ window.CHISME_APP_BUILD = "26";
     $("#food-crew").hidden = !list.length;
     $("#food-crew-list").replaceChildren(...list.map((c) => {
       const links = [];
-      if (c.youtube) links.push(ext(c.youtube, "▶ YouTube ↗", "crew-link"));
-      if (c.tiktok) links.push(ext("https://www.tiktok.com/@" + c.tiktok, "TikTok ↗", "crew-link"));
-      if (c.instagram) links.push(ext("https://www.instagram.com/" + c.instagram + "/", (c.youtube || c.tiktok ? "Instagram ↗" : "See their posts on Instagram ↗"), "crew-link" + (c.youtube || c.tiktok ? "" : " primary")));
-      for (const l of links) l.setAttribute("aria-label", `${l.textContent.replace(/[▶↗]/g, "").trim()}: ${c.name} (opens the app or site)`);
+      const cm = (net, h) => ({ title: `${c.name} on ${net}`, source: net + (h ? " · @" + h : ""), kind: "profile",
+        summary: [c.person, c.uses, sa ? null : c.city].filter(Boolean).join(" · ") || null });
+      if (c.youtube) links.push(ext(c.youtube, "▶ YouTube", "crew-link", cm("YouTube")));
+      if (c.tiktok) links.push(ext("https://www.tiktok.com/@" + c.tiktok, "TikTok", "crew-link", cm("TikTok", c.tiktok)));
+      if (c.instagram) links.push(ext("https://www.instagram.com/" + c.instagram + "/", (c.youtube || c.tiktok ? "Instagram" : "See their posts on Instagram"), "crew-link" + (c.youtube || c.tiktok ? "" : " primary"), cm("Instagram", c.instagram)));
+      for (const l of links) l.setAttribute("aria-label", `${l.textContent.replace(/[▶↗]/g, "").trim()}: ${c.name} (opens in Chisme)`);
       const handle = c.instagram || c.tiktok;
       return el("li", { class: "crew" },
         el("p", { class: "crew-name" }, el("b", { text: c.name }), handle ? el("span", { class: "crew-h", text: " @" + handle }) : ""),
@@ -1580,23 +1702,25 @@ window.CHISME_APP_BUILD = "26";
       g.note ? el("p", { class: "gnote", text: g.note }) : null,
       row(g.away, g.home, false), row(g.home, g.away, true),
       el("p", { class: "gstat" }, status, g.tv && g.state !== "post" ? el("span", { class: "tv", text: " · " + g.tv }) : null),
-      g.link ? ext(g.link, g.league === "milb" || g.league === "mlb" ? "Gameday ↗" : "Gamecast ↗", "glink") : null);
+      g.link ? ext(g.link, g.league === "milb" || g.league === "mlb" ? "Gameday" : "Gamecast", "glink",
+        { title: `${a.name || "TBD"} at ${h.name || "TBD"}`, source: g.league === "milb" || g.league === "mlb" ? "MLB Gameday" : "ESPN Gamecast", summary: label, kind: "game" }) : null);
     return card;
   }
   const scoreStrip = (games, label) => games.length
     ? el("div", { class: "scores", role: "group", "aria-label": label + ", scroll sideways" }, ...games.map((g) => gameCard(g)))
     : null;
   const vidLink = (href, text, meta) => ytId(href)   // Sports YouTube clips play in the in-app player (no Save: not a food spot)
-    ? openLink(href, text, null, (a) => openPlayer({ url: href, video: true, ...meta }, a, { noSave: true })) : ext(href, text);
+    ? openLink(href, text, null, (a) => openPlayer({ url: href, video: true, ...meta }, a, { noSave: true })) : ext(href, text, null, meta);
   function spNews(it) {
     const d = it.published ? new Date(it.published * 1000) : null;
     const kids = [el("div", { class: "sn-body" },
-      el("h4", {}, vidLink(it.link, it.title, { title: it.title, source: it.source, published: it.published })),
+      el("h4", {}, vidLink(it.link, it.title, storyMeta(it))),
       el("p", { class: "sn-meta" }, el("b", { text: it.source }), d ? " · " + ago(d) : "", it.video ? el("span", { class: "vtag", text: " ▶ Video" }) : null),
       it.summary ? el("p", { class: "sn-sum", text: it.summary }) : null)];
     if (it.image && it.source === "ESPN" && navigator.onLine) {   // only ESPN's own story thumbnails
-      const a = el("a", { class: "sn-thumb", href: it.link, target: "_blank", rel: "noopener", tabindex: "-1", "aria-hidden": "true" },
+      const a = el("a", { class: "sn-thumb", href: it.link, tabindex: "-1", "aria-hidden": "true" },
         el("img", { src: it.image, alt: "", loading: "lazy", referrerpolicy: "no-referrer" }));
+      linkMeta.set(a, storyMeta(it));
       a.firstChild.onerror = () => a.remove();
       kids.push(a);
     }
@@ -1606,7 +1730,7 @@ window.CHISME_APP_BUILD = "26";
   const h3 = (t, id) => el("h3", { class: "sp-h", id, text: t });
   const linkList = (items, cls, max) => el("ul", { class: "sp-links " + (cls || "") }, ...items.slice(0, max || 8).map((i) => {
     const d = i.published ? new Date(i.published * 1000) : null;
-    return el("li", {}, vidLink(i.link, (i.video ? "▶ " : "") + i.title, { title: i.title, source: i.source, published: i.published }), el("span", { class: "sn-meta", text: (d ? " · " + ago(d) : "") }));
+    return el("li", {}, vidLink(i.link, (i.video ? "▶ " : "") + i.title, storyMeta(i)), el("span", { class: "sn-meta", text: (d ? " · " + ago(d) : "") }));
   }));
   function standingsTable(st, caption, cols) {
     const t = el("table", { class: "standings" }, el("caption", { text: caption }),
@@ -1658,7 +1782,7 @@ window.CHISME_APP_BUILD = "26";
     const fans = sp.fans || {};
     const trend = el("div", { class: "trend" });
     if (sp.reddit.length) trend.append(el("p", { class: "trend-h", text: `🔥 Top on ${fans.reddit || "r/NBASpurs"} this week` }), linkList(sp.reddit, "reddit", 6));
-    else if (isSA) trend.append(el("p", { class: "hint" }, "Reddit isn't answering our server right now — ", ext("https://www.reddit.com/r/NBASpurs/top/?t=week", "see the top r/NBASpurs posts ↗"), "."));
+    else if (isSA) trend.append(el("p", { class: "hint" }, "Reddit isn't answering our server right now — ", ext("https://www.reddit.com/r/NBASpurs/top/?t=week", "see the top r/NBASpurs posts", null, { title: "Top r/NBASpurs posts this week", source: "Reddit" }), "."));
     if (sp.videos.length) trend.append(el("p", { class: "trend-h", text: `▶ New from the ${nm} on YouTube` }), linkList(sp.videos.map((v) => ({ ...v, video: true })), "yt", 6));
     if (sp.blog.length) trend.append(el("p", { class: "trend-h", text: `📝 ${fans.blog || "Pounding The Rock (SB Nation)"}` }), linkList(sp.blog, "blog", 5));
     if (trend.children.length) { out.push(h3(isSA ? "Trending in Spurs Nation" : `Trending with ${nm} fans`)); out.push(trend); }
@@ -2028,9 +2152,8 @@ window.CHISME_APP_BUILD = "26";
       goView("news", { instant: true });
       const all = lastNewsData ? [...(lastNewsData.near || []), ...(lastNewsData.more || []), ...(lastNewsData.metro_other || lastNewsData.san_antonio || [])] : [];
       const hit = all.find((i) => i.link === link);
-      const it = hit ? { kind: "outlet", url: hit.link, title: hit.title, source: hit.source, published: hit.published, summary: hit.summary, image: hit.image, frame: false }
-        : { kind: "outlet", url: link, title: u.searchParams.get("t") || "New chisme", source: u.searchParams.get("s") || "", published: +u.searchParams.get("p") || null, frame: false };
-      openPlayer(it, null, { noSave: true });
+      openReader(hit ? { url: hit.link, ...storyMeta(hit) }
+        : { url: link, title: u.searchParams.get("t") || "New chisme", source: u.searchParams.get("s") || "", published: +u.searchParams.get("p") || null }, null);
     } else if (HASH_VIEW[u.hash]) {
       const hv = HASH_VIEW[u.hash]; goView(hv[0], { scrollTo: hv[1] });
     }

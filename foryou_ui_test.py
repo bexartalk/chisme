@@ -56,7 +56,7 @@ async def wk(p):
     check(lay["chips"] == ["latest", "saved"] and lay["deskLast"], "Latest + Saved spots chips kept; food desk still at the bottom")
     crew = await pg.evaluate("[...document.querySelectorAll('#food-crew-list .crew')].map(c => ({ name: c.querySelector('b').textContent, uses: c.querySelector('.crew-uses').textContent, links: [...c.querySelectorAll('a')].map(a => a.href + ' ' + a.target) }))")
     saf = next((c for c in crew if c["name"] == "S.A. Foodie"), None)
-    check(len(crew) >= 9 and saf and saf["uses"] == "Instagram only" and saf["links"] == ["https://www.instagram.com/s.a.foodie/ _blank"], f"creator cards: {len(crew)}, S.A. Foodie is an Instagram-only link card ({saf})")
+    check(len(crew) >= 9 and saf and saf["uses"] == "Instagram only" and saf["links"] == ["https://www.instagram.com/s.a.foodie/ "], f"creator cards: {len(crew)}, S.A. Foodie is an Instagram-only link card, opening in Chisme ({saf})")
     await pg.evaluate("window.scrollTo(0, document.querySelector('#antojos').getBoundingClientRect().top + scrollY - document.querySelector('#tabs').offsetHeight - 10)")
     await pg.wait_for_timeout(900)
     await pg.screenshot(path=os.path.join(OUT, "dieta-foryou-banner.png"))

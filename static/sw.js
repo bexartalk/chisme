@@ -1,7 +1,7 @@
 /* Chisme service worker: caches the app shell and the last-loaded news/weather
    so the app opens instantly (and shows the last saved data) even when the server is asleep
    or there's no connection. */
-const VERSION = "chisme-v26";
+const VERSION = "chisme-v27";
 const BUILD = VERSION.replace("chisme-v", "");          // index.html asks for app.js?v=<BUILD>
 const SHELL_CACHE = `${VERSION}-shell`;
 const DATA_CACHE = `${VERSION}-data`;
@@ -72,7 +72,7 @@ async function apiNetworkFirst(request) {
   const cache = await caches.open(DATA_CACHE);
   const url = new URL(request.url);
   const latestKey = url.origin + url.pathname;
-  const cacheable = !url.pathname.startsWith("/api/geocode");
+  const cacheable = !url.pathname.startsWith("/api/geocode") && !url.pathname.startsWith("/api/reader");
   try {
     const resp = await fetch(request);
     if (ours(resp) && cacheable && /json/.test(resp.headers.get("content-type") || "")) {

@@ -827,3 +827,24 @@ html.feed-open,html.feed-open body{overflow:hidden}
 .set-alerts .switch{margin:10px 0 0}
 .set-alerts #set-push{min-height:48px}
 .set-alerts #set-push-test{margin-top:10px}
+/* ---------- in-app reader (v27): every outside link opens inside Chisme; "Open original" is small, secondary, last */
+.player-orig{margin:16px 0 0;padding-top:10px;border-top:1px solid var(--line);font-size:.85rem;text-align:center}
+.player-orig[hidden],#player-orig[hidden]{display:none}
+.player-orig a{display:inline-block;padding:10px 6px;color:var(--muted);font-weight:700;text-decoration:underline;text-underline-offset:3px}
+.player-media.checking{background:#e5fbfb}
+.reader-wait{display:flex;align-items:center;justify-content:center;gap:10px;min-height:170px;font-weight:800;color:#0a3b3c}
+.reader-wait .spin{width:22px;height:22px;border-radius:50%;border:3px solid var(--turq);border-top-color:var(--pink);animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.reader-wait .spin{animation:none}}
+.player-media.card{display:grid;grid-template-columns:1fr;background:#e5fbfb}
+.player-media.card.with-map{grid-template-columns:1fr auto;align-items:stretch}
+.player-media.card .player-img{max-height:34dvh;height:100%}
+.reader-ph{display:grid;place-items:center;min-height:120px;font-size:3rem;background:repeating-linear-gradient(135deg,var(--turq) 0 22px,#3fd8db 22px 44px)}
+.reader-map.minimap{width:132px;height:auto;min-height:120px;border-radius:0;border:0;border-left:3px solid #000}
+.mapsheet .ms-map{height:min(52dvh,460px);margin:0 -16px 12px;background:#dfe7ee}
+.ms-pin span{display:block;width:26px;height:26px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:var(--pink);border:3px solid #000;box-shadow:0 2px 6px rgba(0,0,0,.35)}
+#ms-status:empty{display:none}
+[data-theme="dark"] .player-media.checking,[data-theme="dark"] .player-media.card{background:#0f2a2b}
+[data-theme="dark"] .reader-wait{color:#bff4f5}
+[data-theme="dark"] .player-orig a{color:#c9d6d8}
+[data-theme="dark"] .mapsheet .ms-map{background:#1b2528}
