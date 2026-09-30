@@ -354,7 +354,8 @@ its own timer. What it does instead:
 * **Subscriptions are stored in Upstash Redis** (free tier, no card) through its REST API. Without Upstash they go to a
   file in `/tmp`, which Render wipes every time the service sleeps; the app re-registers when it's opened, but phones
   that aren't opened would stop getting alerts. So set up Upstash.
-* **`.github/workflows/push-tick.yml` runs every 10 minutes** and calls `POST /api/push/tick` with a secret. That wakes
+* **A GitHub Actions workflow runs every 10 minutes** (the file is `tools/push-tick.yml`; it has to be copied to
+  `.github/workflows/push-tick.yml`, see step 5) and calls `POST /api/push/tick` with a secret. That wakes
   the server, which checks each subscriber's area (news + NWS alerts), sends what's new, and goes back to sleep later.
 
 Steps (one time):
@@ -368,8 +369,11 @@ Steps (one time):
 4. **Tell GitHub.** The repo on github.com → **Settings → Secrets and variables → Actions → New repository secret**:
    name `PUSH_TICK_SECRET`, value = the same secret as on Render. (Optional: a repository *variable* `CHISME_URL` if the
    app isn't at `https://chisme.onrender.com`.)
-5. **Check the timer.** The repo's **Actions** tab → allow workflows if asked → **push-tick** → **Run workflow**. The
-   log should end with something like `{"ok":true,"subs":0,…}`.
+5. **Add the timer.** GitHub only lets a login with the `workflow` permission add workflow files, so this one is
+   added by hand: on github.com open the repo → **Add file → Create new file** → name it
+   `.github/workflows/push-tick.yml` → paste everything from `tools/push-tick.yml` → **Commit changes**. Then the
+   **Actions** tab → allow workflows if asked → **push-tick** → **Run workflow**. The log should end with something like
+   `{"ok":true,"subs":0,…}`.
 6. **Turn it on on your phone.** iPhone: open the site in Safari → Share → **Add to Home Screen** → open Chisme from
    the Home Screen → Settings → **Alerts → Turn on alerts 🔔** → Allow → **Send a test**. Android/desktop: the same from
    the browser.
@@ -379,7 +383,7 @@ run when GitHub is busy), so alerts can lag by that much. GitHub turns off sched
 activity for 60 days (re-enable it in the Actions tab). Each tick keeps the free server awake, so with alerts on it's
 awake almost all the time: that's about 730 of Render's 750 free instance hours a month, fine for one free service
 (and the app opens faster), but if you run other free services on the same Render account, change the cron in
-`push-tick.yml` to `*/20` or `*/30`. Upstash's free tier easily covers family and friends (each tick reads the list
+`.github/workflows/push-tick.yml` to `*/20` or `*/30`. Upstash's free tier easily covers family and friends (each tick reads the list
 once and writes only changed subscribers). iPhone alerts need iOS 16.4+ and the Home Screen app.
 
 ## Limitations
