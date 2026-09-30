@@ -33,6 +33,8 @@ ART.push(...["spurs-arena", "spurs-bluehour", "missions-wolff", "missions-game",
 // Tía Chismosa's avatar + chat header (~85 KB), so her button shows offline too.
 // ?art=N changes whenever tools/make_mascot_assets.py rebuilds her (same query in index.html, app.js, juegos.js)
 ART.push(...["avatar-64", "avatar-128", "avatar-192", "header-480", "header-960"].map((n) => `/static/mascot/${n}.webp?art=3`));
+// v41: Lotería Chismosa's recorded Spanish calls (57 short mp3s, ~1.3 MB; tools/make_loteria_audio.py), best-effort too.
+ART.push(...[...Array.from({ length: 54 }, (_, i) => String(i + 1).padStart(2, "0")), "intro", "loteria", "over"].map((k) => `/static/loteria/audio/${k}.mp3`));
 // Only cache real Chisme responses (the server marks them), never a hosting "waking up" page.
 const ours = (resp) => resp && resp.ok && resp.headers.get("X-Chisme") === "1";
 
@@ -119,12 +121,23 @@ async function staticCacheFirst(request) {
   const u = new URL(request.url);
   // Exact match (query included): app.js?v=22 never gets an older build's copy.
   const hit = await cache.match(request);
-  if (hit && (SHELL.includes(u.pathname + u.search) || ART.includes(u.pathname))) return hit;
+  if (hit && (SHELL.includes(u.pathname + u.search) || ART.includes(u.pathname))) return ranged(request, hit);
   const net = fetch(request, { cache: "no-cache" }).then((resp) => {
-    if (ours(resp)) cache.put(request, resp.clone());
+    if (ours(resp) && resp.status === 200) cache.put(request, resp.clone()).catch(() => {});   // never a partial (206) copy
     return resp;
   }).catch(() => null);
-  return hit || (await net) || Response.error();
+  return (hit && ranged(request, hit)) || (await net) || Response.error();
+}
+// Safari plays <audio> with Range requests and wants a 206 back, so a cached mp3 is answered with the bytes it asked for.
+async function ranged(request, resp) {
+  const range = request.headers.get("Range"), m = range && /^bytes=(\d*)-(\d*)$/.exec(range.trim());
+  if (!m) return resp;
+  const buf = await resp.clone().arrayBuffer(), size = buf.byteLength;
+  let start = m[1] === "" ? Math.max(0, size - Number(m[2])) : Number(m[1]), end = m[1] !== "" && m[2] !== "" ? Math.min(Number(m[2]), size - 1) : size - 1;
+  if (start >= size || start > end) return new Response(null, { status: 416, headers: { "Content-Range": `bytes */${size}` } });
+  const headers = new Headers(resp.headers);
+  headers.set("Content-Range", `bytes ${start}-${end}/${size}`); headers.set("Content-Length", String(end - start + 1)); headers.set("Accept-Ranges", "bytes");
+  return new Response(buf.slice(start, end + 1), { status: 206, statusText: "Partial Content", headers });
 }
 
 async function tellVersion(client) {

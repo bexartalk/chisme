@@ -115,29 +115,53 @@
       badge: '<span class="gfs-lot-emo" aria-hidden="true">🎴</span><span class="gfs-lot-t" aria-hidden="true">Lotería <b>Chismosa</b></span>',
       onExit: () => { pause(); hush(); speak(started && !over ? "Game paused. Tap Resume when you're back, honey." : "Pull up a chair, honey! Tap Start and I'll start calling cards.", null); },
       onLeave: () => { pause(); } });
+    // v41: Tía's voice is recorded ahead of time with a natural neural voice (Piper es_MX, tools/make_loteria_audio.py): one short
+    // mp3 per card (the verse, then the name) plus the intro, ¡Lotería! and the end of the deck, cached offline by the service
+    // worker. They play on ONE reused <audio>: the first clip starts inside the Start tap, which unlocks it on iPhone for the
+    // rest of the game. A clip that can't load or play falls back to the phone's own Spanish voice (speechSynthesis).
+    const AUDIO = "/static/loteria/audio/", bad = new Set(), voice = { last: null, clips: 0, fallbacks: 0 };
     const hasVoice = "speechSynthesis" in window && typeof SpeechSynthesisUtterance === "function";
-    // v41: every call is Spanish, in a Mexican-Spanish voice when the phone has one
-    let esVoice = null;
+    let esVoice = null, au = null, queue = [], cur = null;
     const pickVoice = () => { if (!hasVoice) return; const vs = speechSynthesis.getVoices();
       esVoice = vs.find((v) => /^es[-_]MX/i.test(v.lang)) || vs.find((v) => /^es[-_]US/i.test(v.lang)) || vs.find((v) => /^es/i.test(v.lang)) || null; };
     if (hasVoice) { pickVoice(); speechSynthesis.addEventListener && speechSynthesis.addEventListener("voiceschanged", pickVoice); }
-    function say(text) {
-      if (!hasVoice || st.muted) return;
-      try {
-        speechSynthesis.cancel();
-        const u = new SpeechSynthesisUtterance(text);
-        u.lang = esVoice ? esVoice.lang : "es-MX"; if (esVoice) u.voice = esVoice; u.rate = st.speed === "fast" ? 1.1 : 0.95;
-        speechSynthesis.speak(u);
-      } catch (e) {}
+    const clipOf = (c) => ({ key: String(c.id).padStart(2, "0"), text: callText(c) });
+    function audioEl() {
+      if (au || typeof Audio !== "function") return au;
+      au = new Audio(); au.preload = "auto"; au.setAttribute("playsinline", "");
+      au.addEventListener("ended", () => { cur = null; nextClip(); });
+      au.addEventListener("error", () => { if (cur && !cur.fell) { bad.add(cur.key); fallback(cur); } });   // the file didn't load
+      return au;
     }
-    const hush = () => { if (hasVoice) try { speechSynthesis.cancel(); } catch (e) {} };
+    function say(items) { hush(); if (st.muted) return; queue = items.slice(); nextClip(); }
+    function nextClip() {
+      const it = queue.shift(); cur = it || null;
+      if (!it) return;
+      const a = audioEl();
+      if (!a || bad.has(it.key)) { fallback(it); return; }
+      voice.last = it.key; voice.clips++;
+      let p;
+      try { a.src = AUDIO + it.key + ".mp3"; a.playbackRate = st.speed === "fast" ? 1.1 : 1; p = a.play(); } catch (e) { fallback(it); return; }
+      if (p && p.catch) p.catch((e) => { if (cur === it && !it.fell && !(e && e.name === "AbortError")) fallback(it); });   // blocked or unplayable
+    }
+    function fallback(it) {   // the phone's own Spanish voice for this one line, then on with the queue
+      it.fell = true; voice.fallbacks++;
+      if (!hasVoice || st.muted) { cur = null; nextClip(); return; }
+      try {
+        const u = new SpeechSynthesisUtterance(it.text);
+        u.lang = esVoice ? esVoice.lang : "es-MX"; if (esVoice) u.voice = esVoice; u.rate = st.speed === "fast" ? 1.1 : 0.95;
+        u.onend = u.onerror = () => { if (cur === it) { cur = null; nextClip(); } };
+        speechSynthesis.cancel(); speechSynthesis.speak(u);
+      } catch (e) { cur = null; }
+    }
+    const talking = () => !!cur || queue.length > 0 || (!!au && !au.paused && !au.ended);
+    const hush = () => { queue = []; cur = null; if (au) try { au.pause(); } catch (e) {} if (hasVoice) try { speechSynthesis.cancel(); } catch (e) {} };
     function stats() { $("#lot-stats").innerHTML = `🏆 Wins <b>${st.wins}</b> · 🔥 Streak <b>${st.streak}</b> · ⭐ Best streak <b>${st.best}</b>`; }
     function controls() {
       $("#lot-play").textContent = over ? "▶ Play again" : running ? "⏸ Pause" : started ? "▶ Resume" : "▶ Start";
       $("#lot-play").setAttribute("aria-pressed", running ? "true" : "false");
       $("#lot-speed").textContent = SPEED_LABEL[st.speed];
       const v = $("#lot-voice");
-      v.hidden = !hasVoice;
       v.textContent = st.muted ? "🔇 Voice" : "🔊 Voice"; v.setAttribute("aria-pressed", st.muted ? "false" : "true"); v.setAttribute("aria-label", st.muted ? "Tía's voice is off" : "Tía's voice is on");
       $("#lot-count").textContent = started ? `${called.size} of ${CARDS.length} cards called` : `${CARDS.length} cards in the deck`;
     }
@@ -157,11 +181,18 @@
       if (!first) speak("New board, new luck. Tap Start when you're ready.", null);
     }
     function callNext() {
-      if (!deck.length) { over = true; stop(); st.streak = 0; st.played++; save(st); stats(); controls(); speak("The deck ran out! Nobody won this time… the next one's yours.", null); say(LINES_ES.over); return; }
+      if (!deck.length) { over = true; stop(); st.streak = 0; st.played++; save(st); stats(); controls(); speak("The deck ran out! Nobody won this time… the next one's yours.", null); say([{ key: "over", text: LINES_ES.over }]); return; }
       const first = !called.size, c = byId(deck.shift()); called.add(c.id);
-      speak(c.verse, c, "es"); say((first ? LINES_ES.intro + " " : "") + callText(c)); history(); controls();
+      speak(c.verse, c, "es"); say(first ? [{ key: "intro", text: LINES_ES.intro }, clipOf(c)] : [clipOf(c)]); history(); controls();
     }
-    function tick() { callNext(); if (running) timer = setTimeout(tick, SPEEDS[st.speed]); }
+    function tick() { callNext(); if (running) schedule(); }
+    // the next card comes after the chosen pace, and never while she's still saying the last one (then a short breath)
+    function schedule() {
+      clearTimeout(timer); const t0 = Date.now(), ms = SPEEDS[st.speed];
+      const wait = () => { if (!running) return; if (talking() && Date.now() - t0 < ms + 9000) { timer = setTimeout(wait, 150); return; }
+        timer = setTimeout(() => { if (running) tick(); }, Date.now() - t0 > ms + 100 ? 700 : 0); };
+      timer = setTimeout(wait, ms);
+    }
     function start() { if (over) { deal(true); } fs.enter(); started = true; running = true; controls(); clearTimeout(timer); tick(); }
     function stop() { running = false; clearTimeout(timer); timer = null; if (tabla) controls(); }
     function pause() { if (running) { stop(); hush(); } }
@@ -180,7 +211,7 @@
         el.classList.add("won");
         const brag = BRAG[(st.wins - 1) % BRAG.length];
         speak(`${brag} (${r.line.kind === "corners" ? "the 4 corners" : r.line.kind === "row" ? "a row" : r.line.kind === "column" ? "a column" : "a diagonal"})`, null);
-        say(LINES_ES.loteria); stats(); controls(); confetti();
+        say([{ key: "loteria", text: LINES_ES.loteria }]); stats(); controls(); confetti();
         return;
       }
       speak(r.early.length ? TEASE_EARLY : TEASE_NOPE, null);
@@ -192,7 +223,7 @@
       b.setAttribute("aria-label", byId(tabla[i]).name + (m ? ", marked" : ""));
     });
     $("#lot-play").onclick = () => (running ? pause() : start());
-    $("#lot-speed").onclick = () => { st.speed = st.speed === "normal" ? "fast" : st.speed === "fast" ? "slow" : "normal"; save(st); controls(); if (running) { clearTimeout(timer); timer = setTimeout(tick, SPEEDS[st.speed]); } };
+    $("#lot-speed").onclick = () => { st.speed = st.speed === "normal" ? "fast" : st.speed === "fast" ? "slow" : "normal"; save(st); controls(); if (running) schedule(); };
     $("#lot-new").onclick = () => deal(false);
     $("#lot-voice").onclick = () => { st.muted = !st.muted; save(st); if (st.muted) hush(); controls(); };
     $("#lot-claim").onclick = claim;
@@ -200,9 +231,10 @@
     return {
       pause,
       fs, exitFullscreen: (quiet) => fs.exit(quiet),
-      destroy() { fs.exit(true); stop(); hush(); if (hasVoice && speechSynthesis.removeEventListener) speechSynthesis.removeEventListener("voiceschanged", pickVoice); },
+      destroy() { fs.exit(true); stop(); hush(); if (au) au.removeAttribute("src"); if (hasVoice && speechSynthesis.removeEventListener) speechSynthesis.removeEventListener("voiceschanged", pickVoice); },
       reload() { Object.assign(st, load()); stats(); controls(); },
-      get state() { return { tabla: tabla.slice(), called: [...called], marks: [...marks], running, over, started, stats: { wins: st.wins, streak: st.streak, best: st.best }, muted: st.muted, speed: st.speed, fullscreen: fs.on }; },
+      get state() { return { tabla: tabla.slice(), called: [...called], marks: [...marks], running, over, started, stats: { wins: st.wins, streak: st.streak, best: st.best }, muted: st.muted, speed: st.speed, fullscreen: fs.on,
+        voice: { last: voice.last, clips: voice.clips, fallbacks: voice.fallbacks, bad: [...bad], talking: talking(), src: au ? au.currentSrc || au.src : "" } }; },
       callNext, claim,
     };
   }
