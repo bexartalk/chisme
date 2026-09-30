@@ -41,7 +41,7 @@
       <button type="button" class="tab" data-view="sports" aria-controls="view-sports"><span aria-hidden="true">🏀</span> Sports</button>
       <button type="button" class="tab" data-view="weather" aria-controls="view-weather"><span aria-hidden="true">🌤️</span> Weather</button>
       <button type="button" class="tab" data-view="antojos" aria-controls="view-antojos"><span aria-hidden="true">🌮</span> <b class="tl">¿Cuál dieta?</b></button>
-      <button type="button" class="tab" data-view="juegos" aria-controls="view-juegos"><span aria-hidden="true">🎲</span> Juegos</button>
+      <button type="button" class="tab" data-view="juegos" aria-controls="view-juegos"><span aria-hidden="true">🎲</span> Juegitos</button>
       <button type="button" class="tab" data-view="events" aria-controls="view-events"><span aria-hidden="true">🎉</span> Events</button>
     </div>
   </nav>
@@ -241,8 +241,8 @@
       <section id="view-antojos" class="view" aria-label="¿Cuál dieta?" data-view="antojos" inert>
         <section id="antojos" class="card">
           <div class="sec-head"><h2 id="antojos-title"><span aria-hidden="true">🌮</span> ¿Cuál dieta?</h2><span class="stamp" id="food-updated"></span></div>
-          <div id="foryou-card" class="foryou-card" hidden>
-            <p class="fy-kicker"><span aria-hidden="true">✨</span> For You</p>
+          <div id="foryou-card" class="foryou-card" role="region" aria-labelledby="fy-kicker" hidden>
+            <p class="fy-kicker" id="fy-kicker"><span aria-hidden="true">✨</span> More Pansa, Better the Chansa</p>
             <h3 class="fy-title" id="fy-title"><span aria-hidden="true">🌮</span> Tu feed de antojos</h3>
             <p class="fy-sub" id="fy-sub">It learns what you crave. Swipe up for the next bite; every save and skip makes it smarter, right on your phone.</p>
             <div class="fy-cover" id="fy-cover" aria-hidden="true" hidden></div>
@@ -291,10 +291,10 @@
         </aside>
       </section>
 
-      <!-- ============ JUEGOS (static/juegos.js + static/icebebe.js; all offline, nothing leaves the phone) ============ -->
-      <section id="view-juegos" class="view" aria-label="Juegos" data-view="juegos" inert>
+      <!-- ============ JUEGITOS (the "juegos" view; static/juegos.js + static/icebebe.js; all offline, nothing leaves the phone) ============ -->
+      <section id="view-juegos" class="view" aria-label="Juegitos" data-view="juegos" inert>
         <section id="juegos" class="card">
-          <div class="sec-head"><h2>🎲 Juegos</h2></div>
+          <div class="sec-head"><h2>🎲 Juegitos</h2></div>
           <p class="blurb">For when the chisme's slow. These games work offline, and your scores stay on this phone.</p>
           <div id="games-list" class="games-list" role="group" aria-label="Pick a game"></div>
         </section>
@@ -342,10 +342,10 @@
     </div>
   </main>
 
-  <dialog id="feed" class="feed" aria-label="For You: food videos, one at a time">
+  <dialog id="feed" class="feed" aria-label="More Pansa, Better the Chansa: food videos, one at a time">
     <div class="feed-top">
       <button type="button" id="feed-close" class="feed-btn" aria-label="Back to ¿Cuál dieta?"><span aria-hidden="true">‹</span> Back</button>
-      <p class="feed-label"><b>For You</b> <span id="feed-pos"></span></p>
+      <p class="feed-label"><b>More Pansa, Better the Chansa</b> <span id="feed-pos"></span></p>
       <button type="button" id="feed-sound" class="feed-btn" aria-pressed="false" aria-label="Sound"><span aria-hidden="true">🔇</span> Muted</button>
     </div>
     <div id="feed-scroll" class="feed-scroll" tabindex="-1"></div>
@@ -455,7 +455,7 @@
           <label><input type="radio" name="deftab" value="sports"><span><i class="emo" aria-hidden="true">🏀</i> Sports</span></label>
           <label><input type="radio" name="deftab" value="weather"><span><i class="emo" aria-hidden="true">🌤️</i> Weather</span></label>
           <label><input type="radio" name="deftab" value="antojos"><span><i class="emo" aria-hidden="true">🌮</i> ¿Cuál dieta?</span></label>
-          <label><input type="radio" name="deftab" value="juegos"><span><i class="emo" aria-hidden="true">🎲</i> Juegos</span></label>
+          <label><input type="radio" name="deftab" value="juegos"><span><i class="emo" aria-hidden="true">🎲</i> Juegitos</span></label>
           <label><input type="radio" name="deftab" value="events"><span><i class="emo" aria-hidden="true">🎉</i> Events</span></label>
         </div>
       </fieldset>
@@ -475,8 +475,8 @@
         <p class="set-note" id="set-motion-note">Turns off swipe animations, the pulsing location dot and radar autoplay.</p>
       </fieldset>
       <fieldset class="set-group">
-        <legend>For You feed</legend>
-        <p class="set-note">¿Cuál dieta?'s For You feed learns from what you watch, save and skip, and News remembers which stories you've seen or opened so it can show them in a different order. That's kept only on this phone and never sent anywhere; this resets both.</p>
+        <legend>More Pansa, Better the Chansa feed</legend>
+        <p class="set-note">¿Cuál dieta?'s More Pansa, Better the Chansa feed learns from what you watch, save and skip, and News remembers which stories you've seen or opened so it can show them in a different order. That's kept only on this phone and never sent anywhere; this resets both.</p>
         <button type="button" id="set-fy-reset">Reset my feed</button>
         <p class="set-note" id="set-fy-note" aria-live="polite"></p>
       </fieldset>

@@ -3,7 +3,7 @@ highlights or backgrounds, text, borders, glows, focus rings, pills or toasts. T
 orange on neutral backgrounds) replaces them. Weather severity can be orange or red, not yellow; the radar legend and
 the RainViewer tiles (recolored on a canvas) go blue → orange → red → pink.
 
-Covers every tab (News, Sports, Weather, ¿Cuál dieta?, Juegos, Events), Settings, the Tía chat sheet (her picture
+Covers every tab (News, Sports, Weather, ¿Cuál dieta?, Juegitos, Events), Settings, the Tía chat sheet (her picture
 itself is excluded), the "Updated" status pill in every state, the "New chisme" pill, the offline banner, the focus
 ring, the radar legend and tiles, Lotería (a win, with its winning-row highlight) and Ice Ice Bebé (DOM overlays + canvas
 pixels on the title, level 1, caught, level clear, levels 2–4 and the win). WebKit, iPhone 13, against the local server.
@@ -130,7 +130,9 @@ async def run_theme(b, dev, theme, shots):
     await scan(pg, "#view-juegos", "Lotería win (cards, ¡Lotería! button, bubble)")
     await pg.evaluate("() => window.scrollTo(0, document.querySelector('.lot-top').getBoundingClientRect().top + scrollY - 70)"); await pg.wait_for_timeout(2600)
     shots["loteria"].append(await shot(pg))
-    # --- Ice Ice Bebé: overlays (DOM) + canvas pixels in every state
+    await scan(pg, ".gfs-bar", "Lotería full screen: ✕ + title badge")
+    await pg.click(".gfs-x"); await pg.wait_for_timeout(300)   # v40: out of full screen, back to the Juegitos list
+    # --- Ice Ice Bebé: overlays (DOM) + canvas pixels in every state (full screen while playing)
     await pg.click('.game-pick[data-game="icebebe"]'); await pg.wait_for_timeout(600)
     await pg.evaluate("document.querySelector('#game-stage').scrollIntoView({ block: 'start' })"); await pg.wait_for_timeout(300)
     async def ice(label):
@@ -140,6 +142,7 @@ async def run_theme(b, dev, theme, shots):
     await ice("title")
     await pg.click('#ice-ov [data-act="start"]'); await pg.wait_for_timeout(900)
     await pg.evaluate(G + ".warp(1, 300)"); await pg.wait_for_timeout(300); await ice("level 1 (HUD, road, agents)")
+    c = await pg.evaluate(CANVAS, ".gfs-ice-cv"); check(c and c["n"] == 0, f"Ice Ice Bebé full-screen pixel badge: no yellow pixels ({c})")
     await until(pg, G + ".state.mode === 'caught'", 20); await pg.wait_for_timeout(150); await ice("caught (big pixel text)")
     shots["icebebe"].append(await shot(pg))
     await until(pg, G + ".state.mode === 'run'", 3)

@@ -41,7 +41,7 @@ with sync_playwright() as p:
 
     # ---- nav: News, Sports, Weather, Events (no Radar tab); A−/A+ not on the home screen
     tabs = page.eval_on_selector_all(".tab", "ts => ts.map(t => t.textContent.trim())")
-    check([t.split()[-1] for t in tabs] == ["News", "Sports", "Weather", "dieta?", "Juegos", "Events"], f"nav tabs {tabs}")
+    check([t.split()[-1] for t in tabs] == ["News", "Sports", "Weather", "dieta?", "Juegitos", "Events"], f"nav tabs {tabs}")
     check(not page.is_visible("#font-up"), "A−/A+ are no longer on the home screen")
     check(page.eval_on_selector("#tabs", "e => getComputedStyle(e).position") == "fixed", "nav is position:fixed")
 

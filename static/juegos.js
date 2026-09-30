@@ -1,6 +1,7 @@
 /* Chisme · 🎲 Juegos: a list of small games that run entirely on the phone (offline, no outside requests).
    Add a game by pushing { id, name, emoji, blurb, mount(el, ctx) } onto GAMES; the tab lists them and mounts one.
-   Game 1: Lotería Chismosa, an original chisme-style lotería (our own 40 cards and art, not the traditional deck). */
+   Game 1: Lotería Chismosa, an original chisme-style lotería (our own 40 cards and art, not the traditional deck).
+   v40: the tab is called 🎲 Juegitos (the view id stays "juegos"); games play full screen in portrait (fullscreen() below). */
 (function (root) {
   "use strict";
   const KEY = "chisme-juegos";
@@ -81,6 +82,52 @@
   function save(s) { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) {} }
   const reset = () => { try { localStorage.removeItem(KEY); } catch (e) {} };
 
+  // ---- v40: full-screen portrait play (shared by every game) ----
+  // A fixed overlay over the whole screen (100dvh + the safe areas), the tab bar, footer and Tía's button hidden, a small
+  // title badge at the top center and a ✕ at the top right that stops the game and goes back to the Juegitos list.
+  // The overlay alone works on iPhone Safari and the home-screen app; the Fullscreen API is only a bonus where a phone
+  // has it (Android), and it's never required.
+  function fullscreen(stageEl, opts) {
+    let on = false;
+    const bar = document.createElement("div");
+    bar.className = "gfs-bar";
+    bar.innerHTML = `<span class="gfs-side" aria-hidden="true"></span><div class="gfs-badge ${opts.badgeClass || ""}">${opts.badge || esc(opts.title)}<span class="sr-only">${esc(opts.title)}</span></div>`
+      + `<button type="button" class="gfs-x" aria-label="Exit ${esc(opts.title)} and go back to Juegitos"><span aria-hidden="true">✕</span></button>`;
+    bar.querySelector(".gfs-x").addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); exit(); });
+    const onKey = (e) => { if (on && e.key === "Escape" && !document.querySelector("dialog[open]")) { e.preventDefault(); exit(); } };
+    const onResize = () => { if (on && opts.onResize) opts.onResize(); };
+    function enter() {
+      if (on || !stageEl.isConnected) return;
+      on = true;
+      stageEl.prepend(bar);
+      stageEl.classList.add("gfs", "no-swipe"); stageEl.setAttribute("aria-label", opts.title + ", full screen");
+      document.documentElement.classList.add("game-fs");
+      document.addEventListener("keydown", onKey); window.addEventListener("resize", onResize);
+      try {   // optional: real browser full screen where it exists (not iPhone); harmless if it's refused
+        const d = document.documentElement;
+        if (opts.native !== false && d.requestFullscreen && !document.fullscreenElement && matchMedia("(pointer: coarse)").matches
+          && !matchMedia("(display-mode: standalone)").matches)
+          d.requestFullscreen({ navigationUI: "hide" }).then(() => { try { screen.orientation.lock("portrait").catch(() => {}); } catch (e) {} }).catch(() => {});
+      } catch (e) {}
+      if (opts.onEnter) opts.onEnter();
+    }
+    // quiet = leaving because the tab changed or the game was swapped (no scrolling, no onExit)
+    function exit(quiet) {
+      if (!on) return;
+      on = false;
+      bar.remove();
+      stageEl.classList.remove("gfs", "no-swipe"); stageEl.setAttribute("aria-label", "Game");
+      document.documentElement.classList.remove("game-fs");
+      document.removeEventListener("keydown", onKey); window.removeEventListener("resize", onResize);
+      try { if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {}); } catch (e) {}
+      if (quiet === true) { if (opts.onLeave) opts.onLeave(); return; }
+      if (opts.onExit) opts.onExit();
+      const list = document.querySelector("#juegos");   // back to the list of games
+      if (list) { const top = parseFloat(getComputedStyle(document.body).paddingTop) || 70; window.scrollTo(0, Math.max(0, list.getBoundingClientRect().top + window.scrollY - top - 8)); }
+    }
+    return { enter, exit, get on() { return on; } };
+  }
+
   // ---- Lotería Chismosa UI ----
   const byId = (id) => CARDS[id - 1];
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -103,12 +150,16 @@
         <button type="button" id="lot-new" class="lot-btn">🔀 New board</button>
         <button type="button" id="lot-voice" class="lot-btn" aria-pressed="false"></button>
       </div>
-      <div id="lot-tabla" class="lot-tabla" role="grid" aria-label="Your board: tap a card when it's called to put a marker on it"></div>
+      <div class="lot-fit"><div id="lot-tabla" class="lot-tabla" role="grid" aria-label="Your board: tap a card when it's called to put a marker on it"></div></div>
       <button type="button" id="lot-claim" class="lot-claim">¡Lotería!</button>
       <p class="lot-rules">Win with a row, a column, a diagonal or the 4 corners, then tap <b>¡Lotería!</b> A game you don't win (the deck runs out, or you deal a new board mid-game) resets your streak.</p>
       <p class="lot-stats" id="lot-stats"></p>
       <div class="lot-hist-wrap"><p class="lot-hist-h">Already called</p><div id="lot-hist" class="lot-hist"></div></div>`;
     const $ = (s) => el.querySelector(s);
+    const fs = fullscreen(el, { title: "Lotería Chismosa", badgeClass: "gfs-lot",
+      badge: '<span class="gfs-lot-emo" aria-hidden="true">🎴</span><span class="gfs-lot-t" aria-hidden="true">Lotería <b>Chismosa</b></span>',
+      onExit: () => { pause(); hush(); speak(started && !over ? "Game paused. Tap Resume when you're back, honey." : "Pull up a chair, honey! Tap Start and I'll start calling cards.", null); },
+      onLeave: () => { pause(); } });
     const hasVoice = "speechSynthesis" in window && typeof SpeechSynthesisUtterance === "function";
     // v39: Tía calls in English; only the word "Lotería" is said with a Spanish voice
     let enVoice = null, esVoice = null;
@@ -159,7 +210,7 @@
       speak(c.call, c); say(`${c.name}. ${c.call}`); history(); controls();
     }
     function tick() { callNext(); if (running) timer = setTimeout(tick, SPEEDS[st.speed]); }
-    function start() { if (over) { deal(true); } started = true; running = true; controls(); clearTimeout(timer); tick(); }
+    function start() { if (over) { deal(true); } fs.enter(); started = true; running = true; controls(); clearTimeout(timer); tick(); }
     function stop() { running = false; clearTimeout(timer); timer = null; if (tabla) controls(); }
     function pause() { if (running) { stop(); hush(); } }
     function confetti() {
@@ -196,9 +247,10 @@
     deal(true);
     return {
       pause,
-      destroy() { stop(); hush(); if (hasVoice && speechSynthesis.removeEventListener) speechSynthesis.removeEventListener("voiceschanged", pickVoice); },
+      fs, exitFullscreen: (quiet) => fs.exit(quiet),
+      destroy() { fs.exit(true); stop(); hush(); if (hasVoice && speechSynthesis.removeEventListener) speechSynthesis.removeEventListener("voiceschanged", pickVoice); },
       reload() { Object.assign(st, load()); stats(); controls(); },
-      get state() { return { tabla: tabla.slice(), called: [...called], marks: [...marks], running, over, started, stats: { wins: st.wins, streak: st.streak, best: st.best }, muted: st.muted, speed: st.speed }; },
+      get state() { return { tabla: tabla.slice(), called: [...called], marks: [...marks], running, over, started, stats: { wins: st.wins, streak: st.streak, best: st.best }, muted: st.muted, speed: st.speed, fullscreen: fs.on }; },
       callNext, claim,
     };
   }
@@ -211,6 +263,7 @@
     const open = (id) => {
       const g = GAMES.find((x) => x.id === id) || GAMES[0];
       if (activeId === g.id) return active;
+      if (active && active.exitFullscreen) active.exitFullscreen(true);
       if (active && active.pause) active.pause();
       if (active && active.destroy) active.destroy();   // drop the old game's timers and key listeners
       stageEl.innerHTML = ""; activeId = g.id; active = g.mount(stageEl, ctx);
@@ -221,12 +274,14 @@
       + `<p class="game-more">More games coming soon.</p>`;
     listEl.addEventListener("click", (e) => { const b = e.target.closest(".game-pick"); if (b) open(b.dataset.game); });
     open(GAMES[0].id);
-    return { open, pause() { if (active && active.pause) active.pause(); }, get game() { return active; }, get id() { return activeId; } };
+    return { open, pause() { if (active && active.pause) active.pause(); },
+      leave() { if (active && active.exitFullscreen) active.exitFullscreen(true); if (active && active.pause) active.pause(); },   // another tab opened
+      get game() { return active; }, get id() { return activeId; } };
   }
 
   // "¡Lotería! I told you…" → [["Lotería", "es"], ["I told you…", "en"]]
   const voicePartsOf = (text) => String(text).split(/(¡?Lotería!?)/).map((t) => t.trim()).filter(Boolean).map((t) => (/^¡?Lotería!?$/.test(t) ? ["Lotería", "es"] : [t, "en"]));
-  const api = { KEY, CARDS, GAMES, voicePartsOf, LINES, FIESTA, shuffle, newTabla, newDeck, check, load, save, reset, mountTab };
+  const api = { KEY, CARDS, GAMES, voicePartsOf, LINES, FIESTA, shuffle, newTabla, newDeck, check, load, save, reset, mountTab, fullscreen };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.ChismeJuegos = api;
 })(typeof window !== "undefined" ? window : this);

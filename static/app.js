@@ -1540,7 +1540,7 @@ window.CHISME_APP_BUILD = "40";
     chip.setAttribute("aria-label", "Why you're seeing this: " + r.why.text);
     const more = el("p", { class: "why-more", id: whyId, hidden: "" ,
       text: (r.explore ? "About 1 in 5 videos is something different, so your feed doesn't get stuck on one thing. " : "")
-        + "For You ranks these videos on this phone from what you watch, save and skip. Nothing leaves your phone; reset it anytime in Settings." });
+        + "More Pansa, Better the Chansa ranks these videos on this phone from what you watch, save and skip. Nothing leaves your phone; reset it anytime in Settings." });
     chip.onclick = () => { const o = more.hidden; more.hidden = !o; chip.setAttribute("aria-expanded", String(o)); };
     const by = [it.creator || it.source, v.tt ? "TikTok" : "YouTube"].filter(Boolean).join(" · ") + (it.published ? " · " + shortDate(it.published) : "");
     const info = el("div", { class: "vf-info" }, chip, more, el("h3", { text: it.title }), el("p", { class: "vf-by", text: by }),
@@ -2005,7 +2005,7 @@ window.CHISME_APP_BUILD = "40";
   });
   const loadSports = () => load("sports");
 
-  // ---------- views: News | Sports | Weather | ¿Cuál dieta? | Juegos | Events (tap the fixed buttons, swipe sideways or ←/→ on the tabs)
+  // ---------- views: News | Sports | Weather | ¿Cuál dieta? | Juegitos | Events (tap the fixed buttons, swipe sideways or ←/→ on the tabs)
   const VIEWS = ["news", "sports", "weather", "antojos", "juegos", "events"];
   // 🎲 Juegos: mounted the first time the tab opens (static/juegos.js lists the games; icebebe.js adds game 2).
   let juegos = null;
@@ -2015,6 +2015,7 @@ window.CHISME_APP_BUILD = "40";
     return juegos;
   }
   const juegosPause = () => { if (juegos) juegos.pause(); };
+  const juegosLeave = () => { if (juegos) (juegos.leave || juegos.pause)(); };   // another tab: drop full-screen play too
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") juegosPause(); });
   const GAP = 24;
   const track = $("#track"), viewsEl = $("#views"), tabsEl = $("#tabs");
@@ -2070,7 +2071,7 @@ window.CHISME_APP_BUILD = "40";
     if (VIEWS[i] === "weather" && map) map.invalidateSize();
     updateNewsPill();
     if (VIEWS[i] === "events" && rendered.events !== q()) loadEvents();
-    if (VIEWS[i] === "juegos") juegosOpen(juegosWant); else juegosPause();
+    if (VIEWS[i] === "juegos") juegosOpen(juegosWant); else juegosLeave();
     juegosWant = null;
     if (VIEWS[i] === "sports" && !rendered.sports) loadSports();
     if (VIEWS[i] === "antojos" && (!foodData || secs.food.shownUrl !== secs.food.url())) loadFood();   // new place → new city's food
@@ -2140,7 +2141,7 @@ window.CHISME_APP_BUILD = "40";
   const HASH_VIEW = { "#weather": ["weather"], "#forecast-sec": ["weather", "forecast-sec"], "#radar-sec": ["weather", "radar-sec"], "#radar": ["weather", "radar-sec"],
     "#alerts": ["weather", "alerts"], "#events": ["events"], "#antojos": ["antojos"], "#cual-dieta": ["antojos"], "#dieta": ["antojos"], "#food": ["antojos"], "#near": ["news", "near"], "#city": ["news", "city"],
     "#sports": ["sports"], "#spurs": ["sports"], "#nfl": ["sports"], "#mlb": ["sports"], "#missions": ["sports"], "#news": ["news"],
-    "#juegos": ["juegos"], "#games": ["juegos"], "#loteria": ["juegos", null, "loteria"], "#ice": ["juegos", null, "icebebe"], "#icebebe": ["juegos", null, "icebebe"] };
+    "#juegos": ["juegos"], "#juegitos": ["juegos"], "#games": ["juegos"], "#loteria": ["juegos", null, "loteria"], "#ice": ["juegos", null, "icebebe"], "#icebebe": ["juegos", null, "icebebe"] };
   pos(0); updateTabs();
 
   // ---------- settings sheet (tap the Chisme icon in the header)
@@ -2183,7 +2184,7 @@ window.CHISME_APP_BUILD = "40";
     newsForget();   // also forgets which stories you've seen/opened (News order)
     if (!FY) return;
     fyProfile = FY.reset(); renderForYouCard();
-    $("#set-fy-note").textContent = "Done: your For You feed forgot everything and starts fresh.";
+    $("#set-fy-note").textContent = "Done: your More Pansa, Better the Chansa feed forgot everything and starts fresh.";
   };
   $("#set-version").textContent = "· build " + window.CHISME_APP_BUILD;
 
@@ -2627,7 +2628,7 @@ window.CHISME_APP_BUILD = "40";
     newsForget();
     if (window.ChismeForYou) window.ChismeForYou.reset();
     b.textContent = "Forget me";
-    $("#set-forget-note").textContent = "Done. Tía forgot your chats and your interests, and the For You feed starts fresh.";
+    $("#set-forget-note").textContent = "Done. Tía forgot your chats and your interests, and the More Pansa, Better the Chansa feed starts fresh.";
     if (tiaDlg.open) tiaRender();
   };
   // ---------- Share Chisme: a small pill in the footer. The phone's own share sheet (Web Share API) where there is

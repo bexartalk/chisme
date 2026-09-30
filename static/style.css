@@ -683,12 +683,12 @@ body { overscroll-behavior-y: contain; }
   .brand-bubble{top:1.54vw;width:48.21vw;height:37.44vw;margin-left:-24.1vw}
 }
 
-/* ---------- ¿Cuál dieta? For You: banner + full-screen vertical feed (v25) */
+/* ---------- ¿Cuál dieta? feed (v25 "For You"; v40 renamed "More Pansa, Better the Chansa"): banner + full-screen vertical feed */
 .foryou-card{position:relative;margin:4px 0 16px;padding:16px 16px 14px;border:3px solid #000;border-radius:20px;color:#fff;
   background:radial-gradient(120% 90% at 100% 0,rgba(239,66,111,.95),transparent 60%),radial-gradient(90% 90% at 0 100%,rgba(0,201,205,.9),transparent 60%),#111;
   box-shadow:0 5px 0 #000;overflow:hidden}
 .foryou-card::after{content:"🌮";position:absolute;right:-6px;top:-14px;font-size:5.2rem;transform:rotate(18deg);opacity:.22;pointer-events:none}
-.fy-kicker{margin:0;font-size:.8rem;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#7ff0f2}
+.fy-kicker{margin:0;padding-right:3.2rem;font-size:clamp(.72rem,3.3vw,.82rem);font-weight:900;letter-spacing:.05em;line-height:1.25;text-transform:uppercase;color:#7ff0f2;overflow-wrap:anywhere;text-wrap:balance}
 .fy-title{margin:.1em 0 .2em;font-size:1.55rem;font-weight:900;line-height:1.1;color:#fff}
 .fy-sub{margin:0 0 12px;font-size:.98rem;font-weight:700;line-height:1.35;color:#fff}
 .fy-start{display:flex;align-items:center;justify-content:center;gap:.5em;width:100%;min-height:56px;border:3px solid #000;border-radius:999px;
@@ -707,7 +707,9 @@ html.feed-open,html.feed-open body{overflow:hidden}
 .feed-btn{min-height:44px;padding:.2em .85em;border:2px solid rgba(255,255,255,.85);border-radius:999px;background:rgba(0,0,0,.55);color:#fff;font-weight:900;font-size:.95rem}
 .feed-btn[aria-pressed="true"]{background:#fff;color:#000}
 .feed-btn:focus-visible,.vf-rail button:focus-visible,.vf-rail a:focus-visible,.why-chip:focus-visible,.vf-play:focus-visible{outline:4px solid var(--focus);outline-offset:2px}
-.feed-label{margin:0;font-size:.95rem;font-weight:900;text-shadow:0 1px 3px #000;white-space:nowrap}
+.feed-label{flex:1 1 auto;min-width:0;margin:0;font-size:clamp(.74rem,3.5vw,.95rem);font-weight:900;line-height:1.15;text-align:center;text-shadow:0 1px 3px #000;overflow-wrap:anywhere}
+.feed-label b{display:block;text-wrap:balance}
+.feed-label span:empty{display:none}
 .feed-btn{white-space:nowrap}
 .vf-slide.vf-loading .vf-frame{opacity:0}
 .vf-slide.vf-loading .vf-media::after{content:"";position:absolute;z-index:1;left:50%;top:50%;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;
@@ -962,7 +964,7 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
 .reduce-motion .lot-confetti{display:none}
 /* Ice Ice Bebé */
 .ice-wrap{position:relative;border:3px solid #000;border-radius:12px;overflow:hidden;background:#000}
-.ice-cv{display:block;width:100%;height:auto;aspect-ratio:16/9;image-rendering:pixelated;image-rendering:crisp-edges;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.ice-cv{display:block;margin:0 auto;width:auto;height:min(62vh,500px);max-width:100%;aspect-ratio:156/276;object-fit:contain;image-rendering:pixelated;image-rendering:crisp-edges;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 .ice-ov{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:.3em;padding:.5em;color:#fff;font-size:.92em;
   background:rgba(0,0,0,.62);font-weight:700;line-height:1.25}
 .ice-ov.on{display:flex}
@@ -988,3 +990,52 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
   background:none;color:var(--muted);font-size:1.05rem;font-weight:900;cursor:pointer}
 .donate-x:hover{color:var(--ink)}
 .donate-x:focus-visible{outline:4px solid var(--focus);outline-offset:0}
+
+/* ---------- v40: games play full screen in portrait (ChismeJuegos.fullscreen). A fixed overlay over the whole screen,
+   100dvh + the safe areas; tab bar, footer and Tía's button hidden; a title badge on top and a ✕ to go back to Juegitos. */
+html.game-fs,html.game-fs body{overflow:hidden;overscroll-behavior:none}
+html.game-fs .tabs,html.game-fs .foot,html.game-fs .tia-fab,html.game-fs .news-pill,html.game-fs .share-toast,html.game-fs #ptr{display:none!important}
+html.game-fs .track{transform:none!important;will-change:auto}   /* a transformed parent would trap position:fixed */
+.game-stage.gfs{position:fixed;inset:0;z-index:3000;width:auto;max-width:none;height:100vh;height:100dvh;margin:0;border:0;border-radius:0;box-shadow:none;
+  box-sizing:border-box;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);
+  display:flex;flex-direction:column;overflow:hidden;background:#0d0f1a;color:#fff;overscroll-behavior:none;touch-action:manipulation}
+.gfs-bar{flex:none;display:grid;grid-template-columns:44px 1fr 44px;align-items:center;gap:6px;padding:6px 10px;min-height:52px;box-sizing:border-box}
+.gfs-badge{justify-self:center;display:flex;align-items:center;gap:.35em;min-width:0;max-width:100%}
+.gfs-x{width:44px;height:44px;min-height:0;padding:0;display:grid;place-items:center;border:2px solid #fff;border-radius:50%;background:#000;color:#fff;font:inherit;font-size:1.2rem;font-weight:900;line-height:1;cursor:pointer}
+.gfs-x:focus-visible{outline:4px solid var(--focus);outline-offset:2px}
+.gfs-ice-cv{display:block;width:150px;height:auto;aspect-ratio:60/15;image-rendering:pixelated;image-rendering:crisp-edges}
+.gfs-lot{padding:.2em .75em .25em;border:2px solid #00b8b0;border-radius:999px;background:#ff3d8b;color:#fff;box-shadow:0 3px 0 #000;white-space:nowrap}
+.gfs-lot-emo{font-size:1.05rem;line-height:1}
+.gfs-lot-t{font-size:clamp(.82rem,3.9vw,1rem);font-weight:900;letter-spacing:.02em;text-shadow:0 1px 0 rgba(0,0,0,.35)}
+.gfs-lot-t b{color:#000;background:#fff;border-radius:6px;padding:0 .25em;margin-left:.1em;text-shadow:none}
+/* Ice Ice Bebé, full screen: the canvas fills the space between the top bar and the controls */
+.gfs .ice-wrap{flex:1 1 0;min-height:0;border:0;border-radius:0;background:#0d0f1a}
+.gfs .ice-cv{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);margin:0;max-width:none;aspect-ratio:auto}
+.gfs .ice-note,.gfs .lot-rules,.gfs .lot-stats{display:none}
+.gfs .ice-controls{flex:none;flex-wrap:nowrap;margin:0;padding:8px 10px 10px;gap:8px}
+.gfs .ice-controls .lot-btn{flex:none;min-width:52px;min-height:52px;padding:0 .6em;background:#1b1f2e;color:#fff;border-color:#3a4058;font-size:1.15rem}
+.gfs .ice-controls .ice-jump{flex:1 1 auto;background:var(--turq);color:#000;border-color:#000;font-size:1.2rem}
+.gfs .ice-lbl{display:none}
+.ice-ov.win button{pointer-events:auto}
+.ice-win-score{font-weight:800;background:rgba(0,0,0,.6);border-radius:8px;padding:.1em .5em}
+/* Lotería Chismosa, full screen: Tía + the called card on top, the board as big as the screen allows, then ¡Lotería! and the controls */
+.game-stage.gfs:has(.lot-fit){padding-left:max(10px,env(safe-area-inset-left,0px));padding-right:max(10px,env(safe-area-inset-right,0px));padding-bottom:max(8px,env(safe-area-inset-bottom,0px))}
+.gfs .lot-top{flex:none;order:1}
+.gfs .lot-tia{width:52px;height:52px}
+.gfs .lot-bubble{min-height:76px;padding:.45em .6em}
+.gfs .lot-line{font-size:.95rem}
+.gfs .lcard.big{width:60px}
+.gfs .lcard.big .lc-emo{font-size:1.6rem}
+.gfs .lot-count{flex:none;order:2;margin:.35em 0 .25em;text-align:center;color:#c9d0d8}
+.gfs .lot-fit{order:3;flex:1 1 0;min-height:0;container-type:size;display:flex;align-items:center;justify-content:center}
+.gfs .lot-tabla{width:min(100%,calc((100cqh - 33px) / 1.4 + 33px));box-sizing:border-box;margin:0 auto}
+.gfs .lot-claim{order:4;flex:none;margin:.45em 0 .35em;min-height:54px}
+.gfs .lot-controls{order:5;flex:none;flex-wrap:wrap;justify-content:center;margin:0;gap:6px}
+.gfs .lot-controls .lot-btn{flex:1 1 auto;min-width:0;padding:.2em .35em;font-size:clamp(.72rem,3.3vw,.92rem);white-space:nowrap;background:#1b1f2e;color:#fff;border-color:#3a4058}
+.gfs .lot-controls .lot-main{background:var(--turq);color:#000;border-color:#000}
+.gfs .lot-hist-wrap{display:none}
+/* level cleared: the message sits up in the sky so the destination (Home Dehole's sign, the shop, Mom's house) stays in view */
+.ice-ov.clear{justify-content:flex-start;padding-top:max(3.6em,11%);background:linear-gradient(rgba(0,0,0,.62),rgba(0,0,0,.35) 32%,rgba(0,0,0,0) 48%)}
+.ice-ov.clear .ice-big{font-size:1.2em}
+/* v40: on narrow phones the feed's long name gets its own centered row under ‹ Back / 🔇 Muted instead of a skinny column */
+@media (max-width:360px){ .feed-top{flex-wrap:wrap;row-gap:2px} .feed-label{order:3;flex-basis:100%} .feed-label b{display:inline} }
