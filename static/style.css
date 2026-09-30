@@ -738,6 +738,11 @@ html.feed-open,html.feed-open body{overflow:hidden}
 .vf-info,.vf-rail{transition:opacity .25s ease,visibility .25s}
 .vf-slide.vf-playing:not(:has(.vf-info :focus-visible,.vf-rail :focus-visible)) :is(.vf-info,.vf-rail){opacity:0;visibility:hidden}
 .reduce-motion .vf-info,.reduce-motion .vf-rail{transition:none}
+/* paused: YouTube / TikTok draw their own paused screen (title, share, logo) that Chisme can't turn off; a scrim on the tap
+   layer dims it at the top and bottom so ‹ Back, the info and the buttons stay readable */
+.vf-shield{transition:background-color .25s}
+.vf-slide.vf-paused .vf-shield{background:linear-gradient(to bottom,rgba(0,0,0,.6),rgba(0,0,0,0) 16%,rgba(0,0,0,0) 45%,rgba(0,0,0,.88) 72%,rgba(0,0,0,.94))}
+.vf-slide.vf-paused .vf-rail :is(button,a){background:rgba(0,0,0,.8)}
 .vf-play{position:absolute;left:50%;top:44%;z-index:2;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:6px;
   min-width:120px;min-height:120px;padding:14px 16px;border:3px solid #fff;border-radius:24px;background:rgba(0,0,0,.6);color:#fff;font-weight:900;font-size:1rem}
 .vf-play b{font-size:2.4rem;line-height:1}

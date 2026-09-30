@@ -57,7 +57,10 @@ async def wk(p):
     dev = dict(p.devices["iPhone 13"]); dev.pop("default_browser_type", None)
     ctx = await b.new_context(**dev); await ctx.add_init_script(INIT % "")
     pg = await ctx.new_page(); errs = []
-    pg.on("pageerror", lambda e: None if re.search(r"(tiktok|youtube(-nocookie)?)\.com\" from accessing a frame|tiktokw?\.|ttwstatic|byteimg|ibytedtos|googlevideo|ytimg", str(e)) else errs.append(str(e)[:160]))   # the player iframe poking at its parent (WebKit)
+    # WebKit: an embedded player torn down mid-call (far-behind players are unloaded) can throw "Context is stopped" from inside
+    # its own frame; it's only the app's if the stack points into Chisme's code
+    pg.on("pageerror", lambda e: print("    (player noise, not Chisme:", str(e)[:60] + ")") if str(e) == "Context is stopped" and "localhost" not in (e.stack or "") else None)
+    pg.on("pageerror", lambda e: None if (str(e) == "Context is stopped" and "localhost" not in (e.stack or "")) or re.search(r"(tiktok|youtube(-nocookie)?)\.com\" from accessing a frame|tiktokw?\.|ttwstatic|byteimg|ibytedtos|googlevideo|ytimg", str(e)) else errs.append(str(e)[:160]))   # the player iframe poking at its parent (WebKit)
     pg.on("console", lambda m: errs.append(m.text[:160]) if own_error(m) else None)
     await pg.goto(URL + "#cual-dieta")
     await pg.wait_for_function("() => window.__chisme && window.__chisme.foodReady && !document.querySelector('#foryou-card').hidden", timeout=90000)
