@@ -112,8 +112,8 @@ async def wk(p):
     # Sports YouTube clips play in the same sheet (no Save button there)
     await pg.tap('#tabs [data-view="sports"]')
     try:
-        await pg.wait_for_function("[...document.querySelectorAll('#view-sports a[aria-haspopup=dialog]')].length > 0", timeout=30000)
-        await pg.evaluate("document.querySelector('#view-sports a[aria-haspopup=dialog]').click()")
+        await pg.wait_for_function("[...document.querySelectorAll('#view-sports a[aria-haspopup=dialog]')].some(a => /youtu/.test(a.href))", timeout=30000)
+        await pg.evaluate("[...document.querySelectorAll('#view-sports a[aria-haspopup=dialog]')].find(a => /youtu/.test(a.href)).click()")   # every outside link opens a sheet now; pick a clip
         sp = await pg.evaluate("[document.querySelector('#player').open, (document.querySelector('#player-media iframe') || {}).src || '', !!document.querySelector('#player-actions .fr-save')]")
         check(sp[0] and "youtube-nocookie.com/embed/" in sp[1] and not sp[2], f"Sports video plays in the in-app player, without Save ({sp[1][:60]})")
         await pg.tap("#player-close")
