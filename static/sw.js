@@ -154,6 +154,7 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return; // map tiles, thumbnails, NWS icons: straight to network
   if (url.pathname === "/sw.js") return;
+  if (url.pathname === "/stats" || url.pathname.startsWith("/stats/")) return;   // the owner's private page: always the server, never the app shell
   if (url.pathname.startsWith("/api/")) { event.respondWith(apiNetworkFirst(req)); return; }
   if (req.mode === "navigate") { event.respondWith(pageCacheFirst(req)); return; }
   if (url.pathname.startsWith("/static/") || url.pathname === "/manifest.webmanifest") {

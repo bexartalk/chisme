@@ -210,7 +210,8 @@
         timer = setTimeout(() => { if (running) tick(); }, Date.now() - t0 > ms + 100 ? 700 : 0); };
       timer = setTimeout(wait, ms);
     }
-    function start() { if (over) { deal(true); } fs.enter(); started = true; running = true; controls(); clearTimeout(timer); tick(); }
+    function start() { if (!started || over) { try { root.dispatchEvent(new CustomEvent("chisme-game-play", { detail: "loteria" })); } catch (e) {} }   // v42: a new game (not a resume), for the anonymous counts
+      if (over) { deal(true); } fs.enter(); started = true; running = true; controls(); clearTimeout(timer); tick(); }
     function stop() { running = false; clearTimeout(timer); timer = null; if (tabla) controls(); }
     function pause() { if (running) { stop(); hush(); } }
     function confetti() {

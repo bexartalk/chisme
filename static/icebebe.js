@@ -174,7 +174,7 @@
     function overlay(html, cls = "") { ov.className = "ice-ov" + (html ? " on " + cls : ""); ov.innerHTML = html || ""; }
     const speed = () => LEVELS[level - 1].speed * (reduced() ? 0.85 : 1) * (hero.boost > 0 ? 1.45 : 1) * (hero.stumble > 0 ? 0.5 : 1);
     function jump() {
-      if (mode === "title") { startLevel(Math.min(st.levelMax, 1)); return; }
+      if (mode === "title") { try { root.dispatchEvent(new CustomEvent("chisme-game-play", { detail: "icebebe" })); } catch (e) {} startLevel(Math.min(st.levelMax, 1)); return; }
       if (mode !== "run") return;
       audio();
       if (hero.ground) { hero.vy = JUMP; hero.ground = false; hero.jumps = 1; SFX.jump(); puff(hero.x + 4, hero.y + hero.h, 3, "dust"); }
@@ -623,6 +623,7 @@
     jb.addEventListener("pointerdown", (e) => { e.preventDefault(); jump(); }); jb.addEventListener("pointerup", release);
     jb.addEventListener("click", (e) => { if (e.detail === 0) jump(); });   // keyboard activation
     el.addEventListener("click", (e) => { const b = e.target.closest("[data-act]"); if (!b) return; const a = b.dataset.act; audio();
+      if (a === "start" || a === "cont" || a === "again") { try { root.dispatchEvent(new CustomEvent("chisme-game-play", { detail: "icebebe" })); } catch (e) {} }   // v42: anonymous counts
       if (a === "start") startLevel(1); else if (a === "cont") { ckScore = 0; startLevel(st.levelMax); } else if (a === "next") startLevel(level + 1, true); else if (a === "again") startLevel(1); else if (a === "resume") resume(); });
     el.querySelector("#ice-pause").onclick = () => (paused ? resume() : pause());
     el.querySelector("#ice-restart").onclick = () => { paused = false; ckScore = 0; startLevel(level); ctrl(); };

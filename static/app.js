@@ -11,6 +11,42 @@ window.CHISME_APP_BUILD = "42";
   const SPORTS_MS = 5 * 60 * 1000;
   const MOVE_KM = 3;                      // refresh when the user moves farther than this
   const DEFAULT_LOC = { lat: 29.4241, lon: -98.4936, source: "default", label: "San Antonio, TX" };
+  // ---------- v42: anonymous usage counts (stats.py; the owner's /stats page). A random ID made on this phone (not a
+  // cookie, not tied to anything; the server only keeps a salted hash of it, as a count) + a queue of small events,
+  // sent in batches with navigator.sendBeacon. No names, no chat text, no exact location (the city only), no third
+  // parties. Nothing is sent when the browser asks for Do Not Track / Global Privacy Control.
+  const Stats = (() => {
+    const off = navigator.doNotTrack === "1" || window.doNotTrack === "1" || navigator.globalPrivacyControl === true;
+    const QK = "chisme-stats-q", IK = "chisme-anon-id";
+    let id = null, q = [], t = null;
+    try {
+      id = localStorage.getItem(IK);
+      if (!id || !/^[A-Za-z0-9_-]{16,64}$/.test(id)) {
+        const b = new Uint8Array(16); crypto.getRandomValues(b);
+        id = btoa(String.fromCharCode(...b)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); localStorage.setItem(IK, id);
+      }
+      q = JSON.parse(localStorage.getItem(QK) || "[]"); if (!Array.isArray(q)) q = [];   // (sent next time if the phone was offline)
+    } catch { q = []; }
+    const keep = () => { try { localStorage.setItem(QK, JSON.stringify(q.slice(-150))); } catch {} };
+    function send() {
+      clearTimeout(t); t = null;
+      if (off || !id || !q.length || !navigator.onLine) return false;
+      const batch = q.slice(0, 60), body = JSON.stringify({ d: id, e: batch });
+      let ok = false;
+      try { ok = !!(navigator.sendBeacon && navigator.sendBeacon("/api/stats", new Blob([body], { type: "text/plain" }))); } catch {}
+      if (!ok) { try { fetch("/api/stats", { method: "POST", body, keepalive: true, headers: { "Content-Type": "text/plain" } }).catch(() => {}); ok = true; } catch {} }
+      if (ok) { q = q.slice(batch.length); keep(); if (q.length) t = setTimeout(send, 1000); }
+      return ok;
+    }
+    function ev(type, v) {
+      if (off || !id) return;
+      q.push(v === undefined ? [type] : [type, v]); keep();
+      if (!t) t = setTimeout(send, 15000);   // a batch every 15 s at most, and whenever the app goes to the background
+    }
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") send(); });
+    window.addEventListener("pagehide", send);
+    return { ev, send, get queue() { return q.slice(); }, get off() { return off; } };
+  })();
   const LOC_KEY = "chisme-location";
   const $ = (s) => document.querySelector(s);
 
@@ -222,11 +258,19 @@ window.CHISME_APP_BUILD = "42";
       if (forQ !== q()) return;  // location changed while we were waiting
       if (p.tz) TZ = p.tz;       // the new place's time zone, before its weather arrives
       loc.place = { neighborhood: p.neighborhood, city: p.city, county: p.county, state: p.state_abbr || p.state, country_code: p.country_code, metro: p.metro || null };
+      statsCity();
       // manual searches keep their typed label (e.g. a ZIP) unless we have something nicer
       if (loc.source !== "manual" || !loc.label || /^\d{5}/.test(loc.label)) loc.label = p.label || loc.label;
       if (loc.source === "default") loc.label = DEFAULT_LOC.label;
       saveLoc(); renderLocLabel();
     } catch { /* offline: keep the saved label */ }
+  }
+  function statsCity() {   // the city of the location setting (never the neighborhood or the coordinates): once a day, or when it changes
+    const p = loc.place || {}, c = loc.source === "default" ? DEFAULT_LOC.label + " (default)" : p.city ? p.city + (p.state ? ", " + p.state : "") : null;
+    if (!c) return;
+    const k = new Date().toDateString() + "|" + c;
+    try { if (localStorage.getItem("chisme-stats-city") === k) return; localStorage.setItem("chisme-stats-city", k); } catch {}
+    Stats.ev("city", c.slice(0, 60));
   }
   async function setLocation(n, source) {
     // Bug fix (v24): picking a city in Settings used to leave the GPS watch running, and its next update
@@ -1301,6 +1345,10 @@ window.CHISME_APP_BUILD = "42";
     const txt = (a.textContent || "").replace(/[↗▶🔎🗺]/gu, "").replace(/\s+/g, " ").trim();
     return { url: a.href, ...m, title: m.title || a.getAttribute("data-title") || txt || hostOf(a.href), fromLink: !m.title };
   }
+  document.addEventListener("click", (e) => {   // donate taps (Cash App, Buy Me a Coffee), wherever the button is
+    const d = e.target.closest && e.target.closest(".donate-btn");
+    if (d) { Stats.ev("donate", [...d.classList].find((c) => c !== "donate-btn") || "other"); Stats.send(); }
+  }, true);
   document.addEventListener("click", (e) => {
     if (e.defaultPrevented || e.button > 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     const a = e.target.closest && e.target.closest("a[href]");
@@ -1312,6 +1360,7 @@ window.CHISME_APP_BUILD = "42";
     const m = metaFromLink(a);
     const sEl = a.closest(".story[data-sid]");
     if (sEl && NO) { NO.markOpened(nsState, sEl.dataset.sid); nsSaveSoon(); }   // opened: it'll make room at the top next visit
+    if (sEl) Stats.ev("story", { u: m.url, t: (m.title || "").slice(0, 140), s: (m.source || "").slice(0, 40) });   // the public headline, for "top stories"
     if (!m.map) tiaLearn(m, linkKind(a));   // what you read teaches la Tía (kept on this phone)
     if (m.map || MAPISH.test(u.host + u.pathname + u.search.slice(0, 1))) openMapSheet(m, a); else openReader(m, a);
   });
@@ -1705,6 +1754,7 @@ window.CHISME_APP_BUILD = "42";
       s.classList.remove("vf-loading", "vf-tap"); s.dataset.playing = "1";
       if (!isCur(s) || !feed.open) { const f = s.querySelector(".vf-frame"); if (f) { ttCmd(f, "mute"); ttCmd(f, "pause"); } if (s.dataset.warm) s.dataset.warm = "ready"; return; }   // a warmed TikTok: held on its first frame
       if (!feedPlaying) { feedCommand(s, "pause"); return; }
+      if (!s._counted) { s._counted = true; Stats.ev("food", kindOf(s)); }   // a food video view (once per time it comes on screen)
       if (!s._playedAt) { s._playedAt = now; warmSoon(300); }   // it's going: now warm the next one
       setUi(s, true);
     } else if (state === 0 && isCur(s) && feedPlaying) {   // ended: loop it
@@ -1868,7 +1918,7 @@ window.CHISME_APP_BUILD = "42";
     if (prev) {
       clearTimeout(prev._wd);
       feedCommand(prev, "pause"); if (kindOf(prev) === "tt") feedCommand(prev, "mute");
-      prev.classList.remove("vf-playing", "vf-paused", "vf-loading", "vf-tap"); delete prev.dataset.playing; prev._playedAt = 0; prev.querySelector(".vf-state")?.classList.remove("hold");
+      prev.classList.remove("vf-playing", "vf-paused", "vf-loading", "vf-tap"); delete prev.dataset.playing; prev._playedAt = 0; prev._counted = false; prev.querySelector(".vf-state")?.classList.remove("hold");
     }
     feedCur = i;
     const s = all[i], r = s && feedList.find((x) => x.item.url === s.dataset.url);
@@ -2316,6 +2366,7 @@ window.CHISME_APP_BUILD = "42";
     return juegos;
   }
   const juegosPause = () => { if (juegos) juegos.pause(); };
+  window.addEventListener("chisme-game-play", (e) => Stats.ev("game", String(e.detail || "game").slice(0, 24)));   // juegos.js / icebebe.js: a game started
   const juegosLeave = () => { if (juegos) (juegos.leave || juegos.pause)(); };   // another tab: drop full-screen play too
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") juegosPause(); });
   const GAP = 24;
@@ -2360,6 +2411,7 @@ window.CHISME_APP_BUILD = "42";
     peekI = null;
   }
   function finish(i, scrollId) {
+    statsTab(VIEWS[i]);
     savedY[VIEWS[cur]] = window.scrollY;
     const y = peekI === i ? peekY : window.scrollY;
     panes.forEach((p, k) => { p.classList.toggle("active", k === i); p.classList.remove("peek"); p.style.transform = ""; p.inert = k !== i; });
@@ -2380,7 +2432,8 @@ window.CHISME_APP_BUILD = "42";
     if (scrollId) { const t = document.getElementById(scrollId); if (t) window.scrollTo({ top: t.getBoundingClientRect().top + window.scrollY - tabsH() - 8, behavior: "instant" }); }
     localStorage.setItem("chisme-swiped", "1");
   }
-  let animT = null, juegosWant = null;
+  let animT = null, juegosWant = null, statTabLast = null;
+  const statsTab = (name) => { if (name !== statTabLast) { statTabLast = name; Stats.ev("tab", name); } };
   function goView(name, opts = {}) {
     const i = typeof name === "number" ? name : VIEWS.indexOf(name);
     if (i < 0) return;
@@ -2633,6 +2686,7 @@ window.CHISME_APP_BUILD = "42";
   const hv = HASH_VIEW[location.hash] || [defaultTab()];
   juegosWant = hv[2] || null;
   if (hv[0] !== "news") goView(hv[0], { instant: true });
+  Stats.ev("open", isStandalone() ? "app" : "web"); statsTab(VIEWS[cur]); statsCity();
   if (window.ChismeDonate) midLaunch = window.ChismeDonate.launch();
   if (midLaunch.line) { midTab = VIEWS[cur]; placeMid(); }   // a 5th open: the launch tab gets the one mid-list donate card
   window.addEventListener("hashchange", () => {   // #juegos, #loteria, #ice … typed or tapped while Chisme is open
@@ -2768,6 +2822,7 @@ window.CHISME_APP_BUILD = "42";
   const a2Sheet = $("#a2hs");
   function a2Open(auto) {
     a2Auto = !!auto; a2Opener = document.activeElement;
+    Stats.ev("a2hs", auto ? "shown_auto" : "shown");
     a2Sheet.classList.toggle("ipad", isIPad);
     $("#a2hs-where").textContent = isIPad ? "at the top right of Safari" : "at the bottom of Safari";
     a2Sheet.hidden = false; document.documentElement.classList.add("a2hs-open");
@@ -2777,6 +2832,7 @@ window.CHISME_APP_BUILD = "42";
   function a2Close(later) {
     if (a2Sheet.hidden) return;
     a2Sheet.hidden = true; document.documentElement.classList.remove("a2hs-open");
+    Stats.ev("a2hs", later ? "later" : "got_it");
     if (!later || (a2Auto && a2.shows >= 2)) a2.done = true;   // "Got it", or the second time it showed by itself
     else if (a2Auto) a2.next = a2.opens + 3;                    // "Maybe later": again 3 opens from now
     a2Save(a2); a2Auto = false;
@@ -2928,6 +2984,7 @@ window.CHISME_APP_BUILD = "42";
     text = (text || "").trim().slice(0, 500);
     if (!text || tiaBusy) return;
     const h = tiaLoad(); h.push({ role: "user", text, t: Date.now() }); tiaSave(h); tiaRender();
+    Stats.ev("tia");   // a count only: the text is never part of it
     tiaBusy = true; $("#tia-send").disabled = true;
     const typing = el("li", { class: "tia-msg from-tia typing", role: "status" }, el("div", { class: "tia-bub" }, el("span", { class: "dots", "aria-hidden": "true" }, el("i"), el("i"), el("i")), el("span", { class: "sr-only", text: TIA.name + " is typing" })));
     tiaLog.append(typing); tiaLog.scrollTop = tiaLog.scrollHeight;
@@ -3002,7 +3059,7 @@ window.CHISME_APP_BUILD = "42";
     }
     shareToast(await copyLink(SHARE.url) ? "Link copied!" : "Copy this link: " + SHARE.url);
   };
-  window.__chisme = { get newsPill() { return { held: !!newsHold, n: newsHoldN, shown: !$("#news-pill").hidden }; }, checkNews: () => { loadNews(); lastNews = Date.now(); }, openFromAlert, get pushPrefs() { return pushPrefs(); },
+  window.__chisme = { stats: Stats, get newsPill() { return { held: !!newsHold, n: newsHoldN, shown: !$("#news-pill").hidden }; }, checkNews: () => { loadNews(); lastNews = Date.now(); }, openFromAlert, get pushPrefs() { return pushPrefs(); },
     get frames() { return frames; }, get map() { return map; }, get loc() { return loc; },
     // ready = showing this location's news + weather (fresh or the saved copy); fresh = straight from the server
     get ready() { return secs.weather.shownUrl === secs.weather.url() && secs.news.shownUrl === secs.news.url(); },

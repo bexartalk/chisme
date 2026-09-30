@@ -31,7 +31,7 @@ from zoneinfo import ZoneInfo
 import feedparser
 import httpx
 from fastapi import FastAPI, Query, Request
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 import mascot as tia
@@ -39,6 +39,7 @@ import reader as rdr
 from limits import RateLimit, client_ip
 
 import push
+import stats
 
 # ---------------------------------------------------------------- config
 DEFAULT_LAT, DEFAULT_LON = 29.4241, -98.4936  # San Antonio, TX (used until the user picks)
@@ -2521,6 +2522,48 @@ async def api_push_tick(request: Request):
         return JSONResponse({"ok": False, "error": "VAPID keys aren't set"}, status_code=503)
     body = await _body(request, 200000) if push.conf()["test"] else {}   # test hooks (a fake clock / fake feeds) only with PUSH_TEST=1
     return JSONResponse(await push.tick(_push_stories, _push_alerts, now=body.get("now"), fake=body.get("fake")))
+
+
+# ---------------------------------------------------------------- v42: anonymous usage counts + the owner's /stats page
+STATS_LIMIT = RateLimit(int(os.environ.get("STATS_PER_HOUR", "240")), 3600)   # batches per phone per hour (keyed by a salted IP hash, memory only)
+
+
+@app.post("/api/stats")
+async def api_stats(request: Request):
+    """navigator.sendBeacon batches from the app (see stats.py). Always 204: nothing to tell the phone."""
+    if request.headers.get("dnt") == "1" or request.headers.get("sec-gpc") == "1":
+        return Response(status_code=204)   # the browser asked not to be tracked
+    ok, _ = STATS_LIMIT.check(stats.anon("ip:" + client_ip(request)))
+    if ok:
+        try:
+            await stats.collect(await request.body())
+        except Exception as ex:   # storage down: the app never notices
+            print("stats:", type(ex).__name__, str(ex)[:120])
+    return Response(status_code=204)
+
+
+STATS_HEADERS = {"Cache-Control": "no-store", "X-Robots-Tag": "noindex, nofollow", "Referrer-Policy": "no-referrer"}
+
+
+@app.get("/stats", include_in_schema=False)
+async def stats_page(request: Request, key: str | None = None):
+    if not stats.admin_token():
+        return Response("Not Found", status_code=404)
+    if key is not None:   # the admin link, once: trade the key for a cookie and drop it from the address bar
+        if not stats.key_ok(key):
+            return HTMLResponse(stats.gate_page(), status_code=401, headers=STATS_HEADERS)
+        r = RedirectResponse("/stats", status_code=303, headers=STATS_HEADERS)
+        https = request.url.scheme == "https" or request.headers.get("x-forwarded-proto", "").startswith("https")
+        r.set_cookie(stats.COOKIE, stats.session_value(), max_age=90 * 86400, path="/stats", httponly=True, secure=https, samesite="strict")
+        return r
+    if not stats.cookie_ok(request.cookies.get(stats.COOKIE)):
+        return HTMLResponse(stats.gate_page(), status_code=401, headers=STATS_HEADERS)
+    st = stats.store()
+    try:
+        data = await st.read(stats.last_days(30))
+    except Exception as ex:
+        return HTMLResponse(f"<p>Stats storage error: {html.escape(type(ex).__name__)}</p>", status_code=503, headers=STATS_HEADERS)
+    return HTMLResponse(stats.page(data, st.name), headers=STATS_HEADERS)
 
 
 @app.get("/healthz")
