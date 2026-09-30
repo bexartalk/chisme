@@ -1,7 +1,9 @@
 """v43 Lotería Chismosa redesign: laid out like a real tabla app, with our own vintage card art.
 
-1. Files: 54 finished card pictures (static/loteria/cards/01–54.webp, drawn by tools/make_loteria_cards.py), no yellow pixels in any
-   of them; #26 is El Chocolate, #38 is the huaraches card; the service worker precaches them.
+1. Files: 54 finished card pictures (static/loteria/cards/01–54.webp, drawn by tools/make_loteria_cards.py) in bright flat
+   vintage-print colors with a white border; golden yellow only in the art of the 5 cards the classic decks have it in
+   (El Diablito, La Estrella, El Alacrán, El Sol, La Corona; the user asked for it), none anywhere else; #26 is El Chocolate,
+   #38 is the huaraches card; the service worker precaches them. The app's UI stays yellow-free.
 2. WebKit 390×844 full screen: the teal top bar holds the title badge, the "Pick your tabla" picker, the "x / 16" bean count and ✕;
    under it a strip with the called card (picture, Spanish verse, count) + ▶/⏸ and ¡Lotería!; a 4×4 tabla of big cards filling the
    width; big Limpiar + Nueva tabla buttons at the bottom; nothing scrolls. A called card tapped → a big pinto bean covers it (the
@@ -30,19 +32,32 @@ def yellowish(r, g, b):
     h, s, v = colorsys.rgb_to_hsv(r / 255, g / 255, b / 255)
     return 45 / 360 <= h <= 68 / 360 and s >= 0.45 and v >= 0.55
 
+def goldish(r, g, b):   # golden yellow / amber-gold (the classic decks' gold)
+    h, s, v = colorsys.rgb_to_hsv(r / 255, g / 255, b / 255)
+    return 38 / 360 <= h <= 68 / 360 and s >= 0.6 and v >= 0.7
+
 def files():
     print("== the card pictures")
     d = os.path.join(HERE, "static", "loteria", "cards"); fs = sorted(glob.glob(os.path.join(d, "*.webp")))
     names = [os.path.basename(f) for f in fs]
     check(names == [f"{i:02d}.webp" for i in range(1, 55)], f"54 card pictures, 01–54.webp ({len(fs)})")
     sizes = [os.path.getsize(f) for f in fs]
-    check(all(5000 < z < 80000 for z in sizes), f"small files ({sum(sizes) // 1024} KB total, biggest {max(sizes) // 1024} KB)")
-    worst = 0; dims = set()
-    for f in fs:
-        im = Image.open(f).convert("RGB"); dims.add(im.size); px = im.resize((100, 150)).get_flattened_data() if hasattr(im, "get_flattened_data") else im.resize((100, 150)).getdata()
-        worst = max(worst, sum(yellowish(*p) for p in px) / 15000)
+    check(all(3000 < z < 80000 for z in sizes), f"small files ({sum(sizes) // 1024} KB total, biggest {max(sizes) // 1024} KB)")
+    GOLD = {2, 35, 40, 46, 47}
+    worst = 0; gold = {}; dims = set(); sat = []; border = []
+    for i, f in enumerate(fs, 1):
+        im = Image.open(f).convert("RGB"); dims.add(im.size); sm = im.resize((100, 150))
+        px = list(sm.get_flattened_data() if hasattr(sm, "get_flattened_data") else sm.getdata())
+        if i in GOLD: gold[i] = sum(goldish(*p) for p in px) / 15000
+        else: worst = max(worst, sum(yellowish(*p) for p in px) / 15000)
+        field = [p for k, p in enumerate(px) if 8 <= k % 100 <= 92 and 8 <= k // 100 <= 120]
+        sat.append(sum(colorsys.rgb_to_hsv(*(c / 255 for c in p))[1] for p in field) / len(field))
+        border.append(min(im.getpixel((im.width // 2, 6)) + im.getpixel((6, im.height // 2))))   # the white border, top and side
     check(len(dims) == 1 and abs(list(dims)[0][1] / list(dims)[0][0] - 1.5) < 0.01, f"all the same 2:3 portrait size ({dims})")
-    check(worst < 0.002, f"no yellow in any card's art (worst card {worst:.3%} yellow-ish pixels, anti-aliasing)")
+    check(worst < 0.002, f"no yellow in the other 49 cards' art (worst {worst:.3%} yellow-ish pixels, anti-aliasing)")
+    check(all(v > 0.03 for v in gold.values()), f"golden yellow in El Diablito, La Estrella, El Alacrán, El Sol, La Corona ({ {k: f'{v:.0%}' for k, v in gold.items()} })")
+    check(sum(sat) / len(sat) > 0.4 and min(sat) > 0.2, f"bright, saturated print colors, not muddy (mean saturation {sum(sat) / len(sat):.2f}, lowest {min(sat):.2f})")
+    check(min(border) >= 235, f"a crisp white card border on every card (darkest border pixel {min(border)})")
     sw = open(os.path.join(HERE, "static", "sw.js")).read()
     check("/static/loteria/cards/" in sw and re.search(r'VERSION = "chisme-v\d+"', sw), "the service worker precaches the pictures (offline tabla)")
     gen = open(os.path.join(HERE, "tools", "make_loteria_cards.py")).read()
