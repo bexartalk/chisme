@@ -1685,12 +1685,16 @@ window.CHISME_APP_BUILD = "42";
   // the watchdog: 2.5 s after a video should play, it's playing (with sound if it was allowed), or it's retried muted;
   // 3 s after that, still nothing (Low Power Mode refuses even muted video): "Tap to play"
   function watchStart(s) {
-    clearTimeout(s._wd); s._retried = false; s._waits = 0;
+    clearTimeout(s._wd); s._retried = false; s._waits = 0; s._reUnmuted = false;
     const check = () => {
       if (!isCur(s) || !feedPlaying || !feed.open) return;
       const p = ytOf(s), playing = stOf(s) === 1, mutedByPlayer = kindOf(s) === "yt" ? !!p && p.ytMuted === true : s._ttMuted === true;   // the player itself says it's muted
       if (playing && !(soundWanted && !s._soundBlocked && mutedByPlayer)) return;   // fine
-      if (playing) { soundBlocked(s); return; }   // it muted itself: the browser said no to sound
+      if (playing) {   // playing but muted: a player that already had its tap may just be reporting the warm-up's mute (a slow swap): ask once more
+        const had = kindOf(s) === "yt" ? !!(p && p.unlocked) : !!s._unlocked;
+        if (had && !s._reUnmuted) { s._reUnmuted = true; feedCommand(s, "unmute"); s._wd = setTimeout(check, 1200); return; }
+        soundBlocked(s); return;   // it muted itself: the browser said no to sound
+      }
       if (stOf(s) === 3 && s._waits++ < 1) { s._wd = setTimeout(check, 1500); return; }   // still buffering (slow network): it's trying, give it time
       if (!s._retried) { s._retried = true; if (soundWanted && !s._soundBlocked) soundBlocked(s); else { feedCommand(s, "mute"); feedCommand(s, "play"); } s._wd = setTimeout(check, 3000); return; }
       s.classList.remove("vf-loading"); s.classList.add("vf-tap"); setUi(s, false);

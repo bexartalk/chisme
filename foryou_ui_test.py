@@ -335,6 +335,8 @@ async def sound(p):
     check(s0["wanted"] and s0["pref"] is None and s0["setting"], f"nothing chosen yet: sound is wanted (Settings → Food videos: sound on is checked), and the video on screen tries to start WITH sound")
     try: await pg.wait_for_function("window.__chisme.forYou.sound.held", timeout=12000)
     except Exception: pass
+    try: await pg.wait_for_function("() => { const f = window.__chisme.forYou, s = document.querySelectorAll('#feed-scroll .vf-slide')[f.cur]; return s && (s.dataset.kind === 'yt' ? f.player.st === 1 : s._st === 1); }", timeout=10000)   # (past any buffering)
+    except Exception: pass
     await pg.wait_for_timeout(1500)
     s1 = await pg.evaluate(SND)
     if s1["held"]:
@@ -374,7 +376,7 @@ async def ios_five(p, slow):
     if slow:   # YouTube's player page arrives only 3 s after Start is tapped (so the players can't be ready for that tap)
         async def late(route): await gate.wait(); await asyncio.sleep(3); await route.continue_()
         await pg.route("**/www.youtube-nocookie.com/embed/**", late)
-    await pg.goto(URL + "#cual-dieta")
+    await pg.goto(URL + "#cual-dieta", wait_until="domcontentloaded")   # (not "load": the players' iframes are made on this screen, and here they're held until Start)
     await pg.wait_for_function("() => window.__chisme && window.__chisme.foodReady && !document.querySelector('#foryou-card').hidden", timeout=90000)
     if not slow:
         try: await pg.wait_for_function("window.__chisme.forYou.player.players.length === 2 && window.__chisme.forYou.player.players.every(p => p.ready)", timeout=20000)
@@ -400,7 +402,7 @@ async def ios_five(p, slow):
             w = await pg.evaluate(SND)
             check(w["unlocks"] == 1 and not w["held"] and w["ytMuted"] is False and w["st"] == 1 and w["playing"], f"one tap: sound on, and it keeps playing (YouTube muted={w['ytMuted']}, state {w['st']})")
         limit = 10 if slow and k == 0 else 3   # (slow: YouTube's player page is held back on purpose)
-        check(ok and dt <= limit, f"video {k + 1}: playing {dt:.1f} s after it came on screen (≤ {limit} s)")
+        check(ok and dt <= limit, f"video {k + 1} ({w['vid']}): playing {dt:.1f} s after it came on screen (≤ {limit} s)")
         check(w["ytMuted"] is False and not w["held"] and w["btn"] == "🔊 Sound on", f"video {k + 1}: with sound (YouTube muted={w['ytMuted']}, button '{w['btn']}')")
         if k == 1 and not slow: await pg.wait_for_timeout(2500); await pg.screenshot(path=os.path.join(OUT, "food-sound.png"))
         if k < 4:   # watch it a moment (like a person), then swipe up
