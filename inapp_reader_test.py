@@ -78,7 +78,7 @@ async def main():
 
         print("\n== audit: outside links on every tab")
         links = []
-        for v in ["news", "sports", "antojos", "weather", "events"]:
+        for v in ["news", "sports", "weather", "antojos", "juegos", "events"]:
             await pg.click(f"#tabs .tab[data-view={v}]"); await pg.wait_for_timeout(4000 if v in ("sports", "antojos", "events") else 1500)
             links += await pg.evaluate(AUDIT)
         uniq = {l["href"]: l for l in links}

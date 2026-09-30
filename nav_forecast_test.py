@@ -97,7 +97,7 @@ async def main():
         await page.tap("#forecast .day:nth-child(2)")
         await page.wait_for_timeout(300)
         rep["tap_again_collapses"] = await page.evaluate("document.querySelector('#fc-detail').hidden")
-        # a swipe on the Weather page outside the strip still switches views
+        # a swipe on the Weather page outside the strip still switches views (left → ¿Cuál dieta?)
         await page.evaluate("window.scrollTo({top: document.querySelector('#weather').getBoundingClientRect().top + scrollY - 80, behavior: 'instant'})")
         await drag(cdp, 330, 60, 500)
         await page.wait_for_timeout(700)

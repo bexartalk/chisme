@@ -4,7 +4,7 @@
    wins (rows, columns, diagonals, 4 corners) that only count for cards Tía actually called. Ice Ice Bebé's 5 levels
    (Home Dehole → La Taquería → La Tiendita → La Plaza → Casa de Mamá), same course every time, power-ups on each
    level, no hazards right after a checkpoint.
-2. WebKit iPhone 13: the 🎲 Juegos tab comes after Events and fits; a list of games. Lotería: Tía (avatar) calls
+2. WebKit iPhone 13: the 🎲 Juegos tab (between ¿Cuál dieta? and Events) fits; a list of games. Lotería: Tía (avatar) calls
    cards with a Spanish voice (mutable), pause, speed, new tabla, tap to put a ficha, ¡Lotería! checks the marks,
    confetti + a brag on a win, wins/streak/best in localStorage. Ice Ice Bebé: run, jump (tap / Space), caught → a
    random big pixel "¡Ay no!" / "¡Fuera!" / "¡Vámonos, amigo!" and back to the checkpoint, cafecito boost, chancla
@@ -94,7 +94,7 @@ async def webkit(p):
     await pg.wait_for_timeout(1500)
     tabs = await pg.evaluate("[...document.querySelectorAll('#tabs .tab')].map(t => t.textContent.trim())")
     fit = await pg.evaluate("(() => { const t = document.querySelector('.tabs-inner'), j = document.querySelector('.tab[data-view=juegos]').getBoundingClientRect(); return t.scrollWidth <= t.clientWidth + 1 && j.right <= innerWidth; })()")
-    check(tabs[-1] == "🎲 Juegos" and tabs[-2].endswith("Events"), f"🎲 Juegos is the last tab, after Events ({tabs})")
+    check([t.split()[-1] for t in tabs] == ["News", "Sports", "Weather", "dieta?", "Juegos", "Events"] and tabs[4] == "🎲 Juegos", f"tab bar: News · Sports · Weather · ¿Cuál dieta? · 🎲 Juegos · Events ({tabs})")
     check(fit, "all 6 tabs fit on an iPhone 13 (no sideways scroll)")
     check(await pg.evaluate("__chisme.view") == "juegos" and await pg.evaluate("__chisme.juegos.id") == "loteria", "#loteria opens Juegos → Lotería Chismosa")
     games = await pg.evaluate("[...document.querySelectorAll('.game-pick b')].map(b => b.textContent)")

@@ -39,10 +39,10 @@
     <div class="wrap tabs-inner">
       <button type="button" class="tab" data-view="news" aria-controls="view-news" aria-current="page"><span aria-hidden="true">📰</span> News</button>
       <button type="button" class="tab" data-view="sports" aria-controls="view-sports"><span aria-hidden="true">🏀</span> Sports</button>
-      <button type="button" class="tab" data-view="antojos" aria-controls="view-antojos"><span aria-hidden="true">🌮</span> <b class="tl">¿Cuál dieta?</b></button>
       <button type="button" class="tab" data-view="weather" aria-controls="view-weather"><span aria-hidden="true">🌤️</span> Weather</button>
-      <button type="button" class="tab" data-view="events" aria-controls="view-events"><span aria-hidden="true">🎉</span> Events</button>
+      <button type="button" class="tab" data-view="antojos" aria-controls="view-antojos"><span aria-hidden="true">🌮</span> <b class="tl">¿Cuál dieta?</b></button>
       <button type="button" class="tab" data-view="juegos" aria-controls="view-juegos"><span aria-hidden="true">🎲</span> Juegos</button>
+      <button type="button" class="tab" data-view="events" aria-controls="view-events"><span aria-hidden="true">🎉</span> Events</button>
     </div>
   </nav>
   <!-- outside the swiping views (they're transformed, which would break position:fixed) -->
@@ -185,6 +185,50 @@
         </section>
       </section>
 
+      <!-- ============ WEATHER ============ -->
+      <section id="view-weather" class="view" aria-label="Weather" data-view="weather" inert>
+        <section id="alerts" aria-live="polite"></section>
+
+        <section id="weather" class="card">
+          <div class="sec-head">
+            <h2 id="wx-title">Weather now</h2>
+            <span class="stamp" id="wx-updated"></span>
+          </div>
+          <p class="blurb" id="wx-blurb" hidden></p>
+          <div id="current" class="current"><p class="loading">Checking the sky…</p></div>
+          <div id="hourly" class="hourly" aria-label="Next 12 hours"></div>
+        </section>
+
+        <section id="radar-sec" class="card">
+          <div class="sec-head"><h2>Radar</h2><span class="stamp" id="radar-stamp">RainViewer · past 2 hours</span></div>
+          <div class="radar-wrap">
+            <div id="map" role="region" aria-label="Rain radar map centered on your location (blue dot)"></div>
+            <div class="radar-time" aria-live="off"><span class="live-dot" aria-hidden="true"></span><span id="radar-time">Loading radar…</span></div>
+          </div>
+          <div class="radar-legend" role="img" aria-label="Rain intensity legend, from light (light blue) through moderate (blue, yellow) and heavy (orange, red) to extreme (pink)">
+            <span class="bar" aria-hidden="true"></span>
+            <span class="lbl" aria-hidden="true"><span>Light</span><span>Moderate</span><span>Heavy</span><span>Extreme</span></span>
+          </div>
+          <div class="radar-controls">
+            <button type="button" id="r-play" class="primary" aria-label="Play or pause radar">❚❚ Pause</button>
+            <input type="range" id="r-slider" min="0" max="0" value="0" aria-label="Radar frame time">
+            <button type="button" id="r-prev" aria-label="Previous frame">◀</button>
+            <button type="button" id="r-next" aria-label="Next frame">▶</button>
+          </div>
+          <p class="credit">Radar: <a href="https://www.rainviewer.com/">RainViewer</a> (10-minute frames, Universal Blue colors; the free tiles stop at zoom 7, so close-ups look soft). Map © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors.</p>
+        </section>
+
+        <section id="forecast-sec" class="card">
+          <div class="sec-head"><h2>7-day forecast</h2><span class="stamp" id="fc-updated"></span></div>
+          <div id="forecast" class="forecast" role="group" aria-label="7-day forecast, scroll sideways"><p class="loading">Loading forecast…</p></div>
+          <div id="fc-detail" class="fc-detail" role="region" aria-live="polite" aria-label="Forecast details" hidden></div>
+          <p class="fc-hint">Swipe the days sideways · tap a day for details.</p>
+          <p class="credit" id="fc-credit">Source: National Weather Service (api.weather.gov)</p>
+        </section>
+
+
+      </section>
+
       <!-- ============ ¿CUÁL DIETA? (food) ============ -->
       <section id="view-antojos" class="view" aria-label="¿Cuál dieta?" data-view="antojos" inert>
         <section id="antojos" class="card">
@@ -239,48 +283,19 @@
         </aside>
       </section>
 
-      <!-- ============ WEATHER ============ -->
-      <section id="view-weather" class="view" aria-label="Weather" data-view="weather" inert>
-        <section id="alerts" aria-live="polite"></section>
-
-        <section id="weather" class="card">
-          <div class="sec-head">
-            <h2 id="wx-title">Weather now</h2>
-            <span class="stamp" id="wx-updated"></span>
-          </div>
-          <p class="blurb" id="wx-blurb" hidden></p>
-          <div id="current" class="current"><p class="loading">Checking the sky…</p></div>
-          <div id="hourly" class="hourly" aria-label="Next 12 hours"></div>
+      <!-- ============ JUEGOS (static/juegos.js + static/icebebe.js; all offline, nothing leaves the phone) ============ -->
+      <section id="view-juegos" class="view" aria-label="Juegos" data-view="juegos" inert>
+        <section id="juegos" class="card">
+          <div class="sec-head"><h2>🎲 Juegos</h2></div>
+          <p class="blurb">For when the chisme's slow. These games work offline, and your scores stay on this phone.</p>
+          <div id="games-list" class="games-list" role="group" aria-label="Pick a game"></div>
         </section>
-
-        <section id="radar-sec" class="card">
-          <div class="sec-head"><h2>Radar</h2><span class="stamp" id="radar-stamp">RainViewer · past 2 hours</span></div>
-          <div class="radar-wrap">
-            <div id="map" role="region" aria-label="Rain radar map centered on your location (blue dot)"></div>
-            <div class="radar-time" aria-live="off"><span class="live-dot" aria-hidden="true"></span><span id="radar-time">Loading radar…</span></div>
-          </div>
-          <div class="radar-legend" role="img" aria-label="Rain intensity legend, from light (light blue) through moderate (blue, yellow) and heavy (orange, red) to extreme (pink)">
-            <span class="bar" aria-hidden="true"></span>
-            <span class="lbl" aria-hidden="true"><span>Light</span><span>Moderate</span><span>Heavy</span><span>Extreme</span></span>
-          </div>
-          <div class="radar-controls">
-            <button type="button" id="r-play" class="primary" aria-label="Play or pause radar">❚❚ Pause</button>
-            <input type="range" id="r-slider" min="0" max="0" value="0" aria-label="Radar frame time">
-            <button type="button" id="r-prev" aria-label="Previous frame">◀</button>
-            <button type="button" id="r-next" aria-label="Next frame">▶</button>
-          </div>
-          <p class="credit">Radar: <a href="https://www.rainviewer.com/">RainViewer</a> (10-minute frames, Universal Blue colors; the free tiles stop at zoom 7, so close-ups look soft). Map © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors.</p>
-        </section>
-
-        <section id="forecast-sec" class="card">
-          <div class="sec-head"><h2>7-day forecast</h2><span class="stamp" id="fc-updated"></span></div>
-          <div id="forecast" class="forecast" role="group" aria-label="7-day forecast, scroll sideways"><p class="loading">Loading forecast…</p></div>
-          <div id="fc-detail" class="fc-detail" role="region" aria-live="polite" aria-label="Forecast details" hidden></div>
-          <p class="fc-hint">Swipe the days sideways · tap a day for details.</p>
-          <p class="credit" id="fc-credit">Source: National Weather Service (api.weather.gov)</p>
-        </section>
-
-
+        <section id="game-stage" class="card game-stage" aria-label="Game"><p class="loading">Shuffling the cards…</p></section>
+        <aside class="card donate" id="donate-juegos" aria-labelledby="donate-juegos-t">
+          <p class="donate-text" id="donate-juegos-t">The tea ain’t free! Help a chismoso out — donate now!</p>
+          <a class="donate-btn" href="https://cash.app/$Slurmkaos" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">💸</span> Donate on Cash App<span class="sr-only"> (opens Cash App)</span></a>
+          <p class="donate-tag">$Slurmkaos</p>
+        </aside>
       </section>
 
       <!-- ============ EVENTS ============ -->
@@ -310,21 +325,6 @@
             <ul id="event-sources"></ul>
             <p class="hint">Categories are tagged automatically from each listing's title and the source's own categories, so a few may land in the wrong bucket. “Free classes” only shows classes, talks and workshops the listing says are free.</p></details>
         </section>
-      </section>
-
-      <!-- ============ JUEGOS (static/juegos.js + static/icebebe.js; all offline, nothing leaves the phone) ============ -->
-      <section id="view-juegos" class="view" aria-label="Juegos" data-view="juegos" inert>
-        <section id="juegos" class="card">
-          <div class="sec-head"><h2>🎲 Juegos</h2></div>
-          <p class="blurb">For when the chisme's slow. These games work offline, and your scores stay on this phone.</p>
-          <div id="games-list" class="games-list" role="group" aria-label="Pick a game"></div>
-        </section>
-        <section id="game-stage" class="card game-stage" aria-label="Game"><p class="loading">Shuffling the cards…</p></section>
-        <aside class="card donate" id="donate-juegos" aria-labelledby="donate-juegos-t">
-          <p class="donate-text" id="donate-juegos-t">The tea ain’t free! Help a chismoso out — donate now!</p>
-          <a class="donate-btn" href="https://cash.app/$Slurmkaos" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">💸</span> Donate on Cash App<span class="sr-only"> (opens Cash App)</span></a>
-          <p class="donate-tag">$Slurmkaos</p>
-        </aside>
       </section>
     </div>
   </main>
@@ -440,10 +440,10 @@
         <div class="seg seg4" role="radiogroup" aria-label="Default opening tab">
           <label><input type="radio" name="deftab" value="news"><span><i class="emo" aria-hidden="true">📰</i> News</span></label>
           <label><input type="radio" name="deftab" value="sports"><span><i class="emo" aria-hidden="true">🏀</i> Sports</span></label>
-          <label><input type="radio" name="deftab" value="antojos"><span><i class="emo" aria-hidden="true">🌮</i> ¿Cuál dieta?</span></label>
           <label><input type="radio" name="deftab" value="weather"><span><i class="emo" aria-hidden="true">🌤️</i> Weather</span></label>
-          <label><input type="radio" name="deftab" value="events"><span><i class="emo" aria-hidden="true">🎉</i> Events</span></label>
+          <label><input type="radio" name="deftab" value="antojos"><span><i class="emo" aria-hidden="true">🌮</i> ¿Cuál dieta?</span></label>
           <label><input type="radio" name="deftab" value="juegos"><span><i class="emo" aria-hidden="true">🎲</i> Juegos</span></label>
+          <label><input type="radio" name="deftab" value="events"><span><i class="emo" aria-hidden="true">🎉</i> Events</span></label>
         </div>
       </fieldset>
       <fieldset class="set-group set-alerts" id="set-alerts">

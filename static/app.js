@@ -1,7 +1,7 @@
 /* Chisme — frontend (location-aware) */
 // Build of this file. Must equal the number in sw.js VERSION ("chisme-v22"); the page compares it
 // with the build the HTML was served for and reloads once if an old cached app.js got mixed in.
-window.CHISME_APP_BUILD = "30";
+window.CHISME_APP_BUILD = "31";
 (() => {
   "use strict";
   const WEATHER_MS = 10 * 60 * 1000;
@@ -1906,8 +1906,8 @@ window.CHISME_APP_BUILD = "30";
   });
   const loadSports = () => load("sports");
 
-  // ---------- views: News | Sports | ¿Cuál dieta? | Weather | Events | Juegos (tap the fixed buttons or swipe sideways)
-  const VIEWS = ["news", "sports", "antojos", "weather", "events", "juegos"];
+  // ---------- views: News | Sports | Weather | ¿Cuál dieta? | Juegos | Events (tap the fixed buttons, swipe sideways or ←/→ on the tabs)
+  const VIEWS = ["news", "sports", "weather", "antojos", "juegos", "events"];
   // 🎲 Juegos: mounted the first time the tab opens (static/juegos.js lists the games; icebebe.js adds game 2).
   let juegos = null;
   function juegosOpen(game) {

@@ -118,7 +118,7 @@ async def main():
         c1 = await page.evaluate("(() => { const c = window.__chisme.map.getCenter(); return [c.lat, c.lng]; })()")
         rep["6_map_pan"] = {"view": await page.evaluate("window.__chisme.view"), "map_center_moved_deg": round(abs(c1[1] - c0[1]), 4)}
         await page.evaluate("window.__chisme.map.setView([window.__chisme.loc.lat, window.__chisme.loc.lon], 8)")
-        # swipe back (weather -> ¿Cuál dieta?, the tab before Weather)
+        # swipe back (weather -> Sports, the tab before Weather)
         await page.evaluate("window.scrollTo({top: document.querySelector('#weather').getBoundingClientRect().top + scrollY - 90, behavior: 'instant'})")
         await swipe(cdp, 60, 330, 420)
         await page.wait_for_timeout(700)
@@ -177,10 +177,10 @@ async def main():
             window.scrollTo({ top: c.getBoundingClientRect().top + scrollY - document.querySelector('#tabs').offsetHeight - 8, behavior: 'instant' }); }""")
         await page.wait_for_timeout(1200)
         await page.screenshot(path=str(OUT / "update-event-card.png"))
-        # swipe events -> weather (right swipe)
+        # swipe events -> Juegos, the tab before Events (right swipe)
         await swipe(cdp, 60, 330, 500)
         await page.wait_for_timeout(700)
-        rep["10_swipe_events_to_weather"] = await page.evaluate("window.__chisme.view")
+        rep["10_swipe_events_to_juegos"] = await page.evaluate("window.__chisme.view")
 
         # 11. offline: reload with the network off (service worker + saved API copies)
         await page.reload(wait_until="networkidle")

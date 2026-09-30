@@ -85,7 +85,7 @@ async def main():
             window.scrollTo(0, f.getBoundingClientRect().top + scrollY - 110); }}""")
         await page.wait_for_timeout(900)
         await page.screenshot(path=str(OUT / "art-mural.png"))
-        # gestures on top of a photo: vertical drag scrolls, horizontal swipe switches to Weather and back
+        # gestures on top of a photo: vertical drag scrolls, horizontal swipe switches to Sports and back
         cdp = await ctx.new_cdp_session(page)
         bb = await page.locator(f'figure.art[data-art="{mural}"] img').first.bounding_box()
         cy = min(bb["y"] + bb["height"] / 2, 700)
