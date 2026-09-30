@@ -1609,6 +1609,10 @@ window.CHISME_APP_BUILD = "40";
     return slide;
   }
   const slides = () => [...feedScroll.querySelectorAll(".vf-slide")];
+  // the top bar's real height (it wraps to 2 rows on narrow phones): full-height players start just below it
+  const feedTop = feed.querySelector(".feed-top");
+  const syncFeedTop = () => { if (feedTop) feed.style.setProperty("--feed-top-h", Math.round(feedTop.getBoundingClientRect().height) + "px"); };
+  if (feedTop && window.ResizeObserver) new ResizeObserver(syncFeedTop).observe(feedTop);
   function endSlide() {
     const again = el("button", { type: "button", class: "fy-start" }, el("span", { "aria-hidden": "true", text: "↺" }), "Watch again from the top");
     again.onclick = () => { feedScroll.scrollTo({ top: 0, behavior: "instant" }); };
@@ -1701,6 +1705,7 @@ window.CHISME_APP_BUILD = "40";
     feedCur = -1; $("#feed-toast").replaceChildren();
     document.documentElement.classList.add("feed-open");
     if (!feed.open) feed.showModal();
+    syncFeedTop();
     if (!feedPushed) { history.pushState({ chismeFeed: 1 }, ""); feedPushed = true; }
     const at = Math.max(0, Math.min(feedList.length - 1, startAt || 0));
     feedScroll.scrollTop = at * feedScroll.clientHeight; activate(at);

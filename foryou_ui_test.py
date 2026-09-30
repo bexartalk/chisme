@@ -172,6 +172,11 @@ async def wk(p):
     check(f["info"] and f["info"]["info"].startswith("hidden") and f["info"]["rail"] == "hidden", f"while it plays, the title / creator / spot / buttons are hidden ({f['info']})")
     tb = await pg.evaluate("[...document.querySelectorAll('#feed-close, #feed-sound')].map(b => { const r = b.getBoundingClientRect(), st = getComputedStyle(b); return st.visibility === 'visible' && +st.opacity > .9 && r.top >= 0 && r.height >= 44; })")
     check(tb == [True, True], "‹ Back and 🔇 Muted stay on screen while it plays")
+    bar = await pg.evaluate("""() => { const t = document.querySelector('.feed-top'), r = t.getBoundingClientRect(), a = getComputedStyle(t).backgroundColor.match(/[\\d.]+/g).map(Number);
+      const tall = [...document.querySelectorAll('#feed-scroll .vf-slide.tall .vf-frame')].map(f => Math.round(f.getBoundingClientRect().top - f.closest('.vf-slide').getBoundingClientRect().top));
+      return { h: Math.round(r.bottom), alpha: a.length > 3 ? a[3] : 1, lum: Math.max(a[0], a[1], a[2]), tall }; }""")
+    check(bar["alpha"] >= 0.9 and bar["lum"] <= 30 and bar["tall"] and all(t >= bar["h"] - 1 for t in bar["tall"]),
+          f"top bar is a solid dark strip ({bar['h']} px) and full-height players start below it, so their own creator row never sits under the title (frame tops {bar['tall'][:4]})")
     fl = await pg.evaluate("""() => { const l = document.querySelector('.feed-label'), b = l.querySelector('b'), r = l.getBoundingClientRect(), back = document.querySelector('#feed-close').getBoundingClientRect(), snd = document.querySelector('#feed-sound').getBoundingClientRect();
       return { name: b.textContent, clear: r.left >= back.right - 1 && r.right <= snd.left + 1, fits: l.scrollWidth <= l.clientWidth + 1, h: Math.round(r.height) }; }""")
     check(fl["name"] == NAME and fl["clear"] and fl["fits"] and fl["h"] <= 60, f"feed top bar: '{fl['name']}' wraps/shrinks between ‹ Back and 🔇 Muted without overlapping ({fl['h']} px tall)")
