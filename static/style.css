@@ -1084,6 +1084,21 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
   background:none;color:var(--muted);font-size:1.05rem;font-weight:900;cursor:pointer}
 .donate-x:hover{color:var(--ink)}
 .donate-x:focus-visible{outline:4px solid var(--focus);outline-offset:0}
+/* v46: the donation reminder after every 7 posts (News, Events) and every 7 videos (its own slide in the For You feed) */
+.donate-every{position:relative;margin:14px 0;text-align:center;border-style:dashed;padding:16px 18px 14px;background:var(--card);grid-column:1 / -1}
+.donate-every .donate-text{padding:0 34px}
+.share-chisme{display:inline-flex;align-items:center;justify-content:center;gap:.45em;min-height:52px;padding:.45em 1.4em;flex:1 1 230px;max-width:340px;
+  border:3px solid #000;border-radius:999px;background:var(--pink);color:#000;font:inherit;font-weight:900;font-size:1.05rem;cursor:pointer;box-shadow:0 4px 0 #000}
+.share-chisme:hover{background:#ff6f93}
+.share-chisme:active{transform:translateY(3px);box-shadow:0 1px 0 #000}
+.share-chisme:focus-visible{outline:4px solid var(--turq);outline-offset:3px}
+.reduce-motion .share-chisme:active{transform:none}
+[data-theme="dark"] .share-chisme{border-color:var(--pink);box-shadow:0 4px 0 #8a1f3b}
+.vf-donate{display:flex;align-items:center;justify-content:center;padding:24px 16px}
+.vf-donate .donate-every{width:100%;max-width:420px;margin:0;background:#101320;color:#fff;border-color:var(--turq)}
+.vf-donate .donate-text{color:#fff;font-size:1.15rem}
+.vf-donate .donate-tag{color:#c9d0d8}
+.vf-donate .donate-x{color:#c9d0d8}
 
 /* ---------- v40: games play full screen in portrait (ChismeJuegos.fullscreen). A fixed overlay over the whole screen,
    100dvh + the safe areas; tab bar, footer and Tía's button hidden; a title badge on top and a ✕ to go back to Juegitos. */

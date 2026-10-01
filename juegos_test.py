@@ -341,6 +341,16 @@ async def webkit(p):
     hop = await until(pg, G + ".state.fuera", 2); s = await st(pg)
     check(hop and s["fueras"] > f0 and s["mode"] == "run", f"v46: hop over an agent → a big '¡Fuera!' and bonus points ({s['fueras']} escapes)")
     await until(pg, "!" + G + ".state.fuera", 3)
+    # v46: black ICE SUVs now and then in the far lane (driving by, or parked at the far curb): scenery only
+    await pg.evaluate(f"{G}.warp(1, 1500); {G}.clearAhead(700); {G}.setHealth(100); {G}.bgSpawn('drive', 30); {G}.bgSpawn('parked', 240)")
+    b0, sx0 = await pg.evaluate(f"[{G}.bgIce(), {G}.state.x]"); s0 = await st(pg); await pg.wait_for_timeout(900)
+    b1, sx1 = await pg.evaluate(f"[{G}.bgIce(), {G}.state.x]"); s = await st(pg); es = await pg.evaluate(G + ".ents()")   # (the cars + where Juan is in the same frame)
+    pk0 = next(c for c in b0["cars"] if c["kind"] == "parked"); pk1 = next((c for c in b1["cars"] if c["kind"] == "parked"), None)
+    dv0 = next(c for c in b0["cars"] if c["kind"] == "drive")
+    check(len(b0["cars"]) >= 2 and all(c["y"] >= 30 for c in b0["cars"]) and dv0["vx"] != 0 and pk0["vx"] == 0 and not [e for e in es if e["x"] - 60 < s["x"] < e["x"] + 60 and e["t"] == "suv"]
+          and s["mode"] == "run" and s["health"] == 100 and s["caught"] == s0["caught"], f"v46: dark ICE SUVs drive by / sit parked in the far lane, just scenery: Juan runs right past them ({s['mode']}, health {s['health']})")
+    mv = pk1["sx"] - pk0["sx"] if pk1 else 0
+    check(pk1 is not None and abs((pk1["sx"] - pk0["sx"]) + (sx1 - sx0)) < 1 and 0 < b1["next"] <= 17, f"…the parked one scrolls with the street, and another comes along now and then (moved {mv:.0f} as Juan ran {sx1 - sx0:.0f}; next in {b1['next']:.1f} s)")
     suv = next(e for e in await pg.evaluate(G + ".ents()") if e["t"] == "suv")
     await pg.evaluate(f"{G}.warp(1, {suv['x'] + suv['w'] + 62}); {G}.clearAhead(1400)")
     ch = await until(pg, G + ".state.chase", 2); s = await st(pg)
@@ -438,6 +448,10 @@ async def webkit(p):
     await pg.evaluate(G + ".jump()"); await pg.wait_for_timeout(1200)
     s = await st(pg)
     check(not s["parallax"] and s["fxMade"] == 0 and s["fullscreen"], f"reduce motion: The Juan That Got Away's background stays still (no parallax, shake, particles or confetti), still full screen (fx {s['fxMade']})")
+    nx = (await pg.evaluate(G + ".bgIce()"))["next"]
+    for _ in range(8): await pg.evaluate(G + ".bgSpawn()")
+    bg = await pg.evaluate(G + ".bgIce()")
+    check(nx > 9 and bg["cars"] and all(c["kind"] == "parked" and c["vx"] == 0 for c in bg["cars"]), f"reduce motion: the background ICE SUVs only sit parked, and come along rarely (next in {nx:.0f} s)")
     await b.close()
 
 async def fullscreen_shots(p):

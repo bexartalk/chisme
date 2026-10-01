@@ -11,7 +11,8 @@
    worn out ("¡Ay no!" / "¡Híjole!" / "¡Ándale, otra vez!") and goes back to the last 🚩 checkpoint. ☕ coffee = speed
    boost, breakfast taco = +health, conchas = points. Parallax: the San Antonio skyline far back (Tower of the Americas,
    Tower Life, Frost Tower …), SE Military Dr storefronts in the middle (taquería, raspas, tire shop, pawn shop,
-   lavandería, a grocery, the Brooks water tower and arch, palms, power lines), the road up front. Static layers are
+   lavandería, a grocery, the Brooks water tower and arch, palms, power lines), the road up front (v46: now and then a
+   black ICE SUV drives by or sits parked in the far lane, scenery only; parked-only and rare with reduce motion). Static layers are
    pre-rendered once per level into tiles, so a frame is a few image blits + the moving art (smooth on iPhone Safari).
    Score + best in localStorage "chisme-juegos-juan". Reduce motion: no parallax, shake, particles or confetti, a bit slower.
    UI chrome (HUD, overlays, badge) uses the Fiesta palette only: turquoise, pink, black, silver, white; no yellow.
@@ -580,6 +581,12 @@
     if (night) { c.fillStyle = "rgba(255,240,210,.35)"; c.beginPath(); c.moveTo(x + 2, y - 12); c.lineTo(x - 70, y - 26); c.lineTo(x - 70, y + 4); c.closePath(); c.fill(); ell(c, "#fff6e0", x + 3, y - 12, 2.5, 2.5); }
   }
 
+  function bgSuv(c, x, y, k, dir, night) {   // v46: a far-lane ICE SUV in the street (just scenery): the same dark SUV, smaller, with a small "ICE" on the back door
+    c.save(); c.translate(x, y); c.scale(k * dir, k); iceSuv(c, -62, 124, night, false); c.restore();
+    c.save(); c.font = `800 ${(11 * k).toFixed(1)}px ${UI}`; c.textAlign = "center"; c.textBaseline = "middle"; c.fillStyle = night ? "rgba(214,222,230,.7)" : "rgba(214,222,230,.85)";
+    c.fillText("ICE", x - 30 * k * dir, y - 20 * k); c.restore();   // never mirrored, whichever way it faces
+  }
+
   function mount(el, ctx) {
     const reduced = () => (ctx && ctx.reducedMotion ? ctx.reducedMotion() : matchMedia("(prefers-reduced-motion: reduce)").matches);
     const st = load();
@@ -627,6 +634,7 @@
     };
     // ---- state
     let oopsMsg = OOPS[0], level = 1, ents = [], hero, camX = 0, score = 0, ckScore = 0, ck = 0, mode = "title", t = 0, raf = null, last = 0, shake = 0, parts = [], msgT = 0, msg = "";
+    let bgIce = [], bgNext = 4, bgN = 0;   // v46: the ICE SUVs in the far lane (decor: not in ents, they never touch Juan)
     let fx = [], fxMade = 0, dustT = 0, paused = false, beersGot = 0, fueraT = 0, fueras = 0, caughtN = 0, caughtBy = "";
     let S = 1, VH = 580, GS = VH - ROADH, dpr = 1, dprCap = 3, cssW = VW, cache = {}, perf = { n: 0, sum: 0 };
     const cam = (x) => Math.min(x - HERO_X, CAM_END);
@@ -637,7 +645,22 @@
       ents = buildLevel(level).filter((e) => !((e.t === "concha" || e.t === "beer") && e.x < x0));
       for (const e of ents) if (e.t === "flag" && e.x <= x0) e.done = true;
       hero = { x: x0 + 8, y: -HERO_H, w: HERO_W, h: HERO_H, vy: 0, ground: true, jumps: 2, boost: 0, stumble: 0, inv: 0, frame: 0, health: HP, shield: 0 };
-      camX = cam(hero.x); score = ckScore; parts = []; fx = []; msgT = 0; shake = 0; fueraT = 0;
+      camX = cam(hero.x); score = ckScore; parts = []; fx = []; msgT = 0; shake = 0; fueraT = 0; bgIce = []; bgNext = reduced() ? 12 + Math.random() * 8 : 3 + Math.random() * 5;
+    }
+    // v46: now and then a dark ICE SUV drives by in the far lane, or sits parked at the far curb (drawn with the road, so it scrolls with it).
+    // Reduce motion: parked ones only, and rarer.
+    const BG_LANE = 50, BG_K = 0.6, BG_W = 124 * BG_K;
+    function bgSpawn(kind) {
+      const rm = reduced(), drive = kind ? kind === "drive" : !rm && Math.random() < 0.6, dir = drive ? (Math.random() < 0.5 ? -1 : 1) : (Math.random() < 0.5 ? -1 : 1);
+      const vx = !drive ? 0 : dir < 0 ? -(60 + Math.random() * 50) : L().speed + 70 + Math.random() * 60;   // toward Juan, or overtaking him
+      const x = !drive || dir < 0 ? camX + VW + BG_W / 2 + 10 + (drive ? 0 : Math.random() * 120) : camX - BG_W / 2 - 10;
+      bgIce.push({ x, vx, dir, kind: drive ? "drive" : "parked", y: BG_LANE - (drive ? 0 : 12) }); bgN++;
+    }
+    function bgTick(dt) {
+      for (const b of bgIce) b.x += b.vx * dt;
+      bgIce = bgIce.filter((b) => b.x - camX > -BG_W - 40 && b.x - camX < VW + BG_W + 260);
+      bgNext -= dt;
+      if (bgNext <= 0) { const rm = reduced(); if (bgIce.length < 2 && camX < CAM_END - VW) bgSpawn(); bgNext = rm ? 20 + Math.random() * 14 : 7 + Math.random() * 10; }
     }
     function startLevel(n, keepScore) {
       if (n !== level) cache = {};
@@ -785,7 +808,7 @@
       }
       if (h.ground && !wasGround) puff(h.x + 13, h.y + h.h, 6, "dust");
       else if (h.ground) { dustT -= dt; if (dustT <= 0) { dustT = h.boost > 0 ? 0.06 : 0.14; puff(h.x + 4, h.y + h.h, 1, "dust"); } }
-      camX = cam(h.x);
+      camX = cam(h.x); bgTick(dt);
       if (h.x >= END) clear();
       msgT = Math.max(0, msgT - dt); shake = Math.max(0, shake - dt);
     }
@@ -858,6 +881,8 @@
       if (park) { g.fillStyle = "rgba(240,244,248,.85)"; for (let x = -mod(camX, 74); x < VW; x += 74) { g.save(); g.translate(x, 0); g.transform(1, 0, -0.35, 1, 0, 0); g.fillRect(0, 10, 3, 34); g.fillRect(0, lane + 22, 3, 44); g.restore(); } g.fillRect(0, lane + 6, VW, 2.5); }
       else { g.fillStyle = nt ? "rgba(220,226,234,.75)" : "#eef1f4"; for (let x = -mod(camX, 84); x < VW; x += 84) { rr(g, x, lane, 44, 4, 2); g.fill(); } }
       for (let x = -mod(camX, 560) + 210; x < VW; x += 560) { ell(g, "#2a2c32", x, lane + 34, 16, 4.5); ell(g, "#4a4d55", x, lane + 33.5, 12, 3); }
+      for (const b of bgIce) if (b.kind === "parked") bgSuv(g, b.x - camX, b.y, BG_K, b.dir, false);   // (lights off)   // parked at the far curb, then the far-lane traffic
+      for (const b of bgIce) if (b.kind === "drive") bgSuv(g, b.x - camX, b.y, BG_K, b.dir, nt);
       if (!reduced()) { const cx = VW + 80 - mod(t * 90 + camX, VW + 300); lowrider(g, cx, lane + 70, nt); }
       box(g, "#a3a9b1", 0, bot - 44, VW, 5); box(g, lin(g, 0, bot - 39, 0, bot, ["#d3d8de", "#b5bbc3"]), 0, bot - 39, VW, 39);
       const fk = reduced() ? 1 : 1.25, fo = -mod(camX * fk, 48);
@@ -1018,7 +1043,9 @@
         ents = ents.filter((e) => !ICE.includes(e.t) || e.t === "suv" && e.x + e.w < x - 60 || e.x > x + 320); },   // v46: no agent right on top of him either
       air(y) { hero.y = y - HERO_H; hero.vy = 0; hero.ground = false; hero.jumps = 1; },   // test hooks: put Juan in the air…
       clearAhead(d) { ents = ents.filter((e) => !(HAZARDS.includes(e.t) || SOLID.includes(e.t) || e.t === "agent") || e.x > hero.x + d || e.x + e.w < hero.x - 40); },   // …clear the road ahead…
-      stumble(s) { hero.stumble = s; },   // …or slow him down (so a chaser catches up)
+      stumble(s) { hero.stumble = s; },
+      bgIce: () => ({ n: bgN, next: bgNext, cars: bgIce.map((b) => ({ kind: b.kind, x: b.x, sx: b.x - camX, vx: b.vx, dir: b.dir, y: b.y })) }),   // v46: the far-lane ICE SUVs (scenery)…
+      bgSpawn(kind, sx) { bgSpawn(kind); if (sx != null) bgIce[bgIce.length - 1].x = camX + sx; },   // …make one now (at a screen x)   // …or slow him down (so a chaser catches up)
       setHealth(v) { hero.health = Math.max(0, Math.min(HP, v)); },
       ents: () => ents.filter((e) => !e.gone).map((e) => ({ t: e.t, x: e.x, y: e.y, w: e.w, st: e.hit ? "hit" : e.on ? "on" : ICE.includes(e.t) ? e.st || (e.out ? "out" : "") : "" })),
     };

@@ -733,7 +733,7 @@ window.CHISME_APP_BUILD = "46";
     const at = (n) => (n ? [n, "after"] : null);
     if (tab === "news") return midInList(tab, kids($("#near-list"), ".story"));
     if (tab === "sports") return midInList(tab, kids($("#sports-body"), ":not(.loading):not(.error)"));
-    if (tab === "events") return midInList(tab, kids($("#events-list"), ":not(.ev-day):not(.loading):not(.error)"));
+    if (tab === "events") return midInList(tab, kids($("#events-list"), ":not(.ev-day):not(.loading):not(.error):not(.donate-every)"));
     if (tab === "weather") return at($("#radar-sec"));      // between the radar and the 7-day forecast
     if (tab === "antojos") return at($("#food-block"));     // after the videos, before the food news desk
     if (tab === "juegos") return at($("#juegos"));          // between the list of games and the game
@@ -759,6 +759,54 @@ window.CHISME_APP_BUILD = "46";
       };
     }
     if ((how === "after" ? ref.nextSibling : ref.previousSibling) !== midCard) ref[how](midCard);
+  }
+
+  // ---------- v46: a donation reminder after every 7 posts: News (all three lists, counted in order), Events, and its
+  // own swipeable slide every 7 videos in the full-screen For You feed. Tía's voice, the same Cash App + Buy Me a
+  // Coffee buttons as the other donate cards (they open outside the app), a 📣 Share Chisme button, and ✕ hides them
+  // all for the session. Like the other donate cards it never sits next to a serious story (ChismeDonate.serious).
+  const E7_KEY = "chisme-donate-every-x", E7 = 7;
+  const E7_LINES = [
+    "Still scrolling? Ay, you love the chisme. Spot Tía a cafecito? ☕",
+    "Tía's been talking all day, mija. A little tip keeps the tea hot. 🫖",
+    "No ads, no paywall, just pura chisme. Help keep the lights on? 💡",
+    "You read it here first, corazón. Toss a coin to your Tía. 💸",
+    "Chisme this good isn't free to brew. Chip in, or share it with your comadres. 💖",
+  ];
+  let e7n = 0, e7Where = { news: [], events: [], feed: 0 };
+  const e7Gone = () => { try { return sessionStorage.getItem(E7_KEY) === "1"; } catch (e) { return false; } };
+  function e7Card(slide) {
+    const c = el(slide ? "div" : "aside", { class: "card donate-every" + (slide ? " in-feed" : ""), role: slide ? null : "complementary", "aria-label": "Support Chisme" });
+    c.innerHTML = `<button type="button" class="donate-x" aria-label="Dismiss these for now">✕</button>
+      <p class="donate-text"></p>
+      <div class="donate-btns"><a class="donate-btn cashapp" href="https://cash.app/$Slurmkaos" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">💸</span> Donate on Cash App<span class="sr-only"> (opens Cash App)</span></a><a class="donate-btn bmc" href="https://buymeacoffee.com/Chismoso" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">☕</span> Buy Me a Coffee<span class="sr-only"> (opens Buy Me a Coffee)</span></a><button type="button" class="share-chisme"><span aria-hidden="true">📣</span> Share Chisme</button></div>
+      <p class="donate-tag">$Slurmkaos</p>`;
+    c.querySelector(".donate-text").textContent = E7_LINES[e7n++ % E7_LINES.length];
+    c.querySelector(".donate-x").onclick = () => e7Dismiss(c);
+    return c;
+  }
+  function e7Dismiss(card) {
+    try { sessionStorage.setItem(E7_KEY, "1"); } catch (e) {}
+    const next = card.closest(".vf-slide") ? null : card.nextElementSibling;
+    document.querySelectorAll(".donate-every:not(.in-feed)").forEach((n) => n.remove());
+    if (document.querySelector(".vf-donate")) { document.querySelectorAll(".vf-donate").forEach((n) => n.remove()); feedCur = -1; activate(nearest()); $("#feed-close").focus({ preventScroll: true }); }
+    const f = next && (next.matches("a, button") ? next : next.querySelector("a, button"));
+    if (f) f.focus({ preventScroll: true });
+  }
+  function placeEvery(tab) {   // after the 7th, 14th … post (nudged a slot or two to stay clear of serious stories and the mid-list card)
+    document.querySelectorAll(`#view-${tab} .donate-every`).forEach((n) => n.remove());
+    e7Where[tab] = [];
+    if (e7Gone()) return;
+    const boxes = tab === "news" ? ["#near-list", "#city-list", "#sa-list"] : ["#events-list"];
+    const items = boxes.flatMap((b) => { const box = $(b); return box && !box.closest("[hidden]") ? [...box.children].filter((n) => n.matches(tab === "news" ? ".story" : "article.ev")) : []; });
+    const D = window.ChismeDonate, heavy = items.map((n) => !!D && D.serious(itemText(n), n.querySelector(".src")?.textContent));
+    const nearMid = (n) => !!midCard && (n.nextElementSibling === midCard || n.previousElementSibling === midCard);
+    let last = 0, k = E7;
+    while (k <= items.length) {   // the next one is 7 posts after the last one (real news is heavy, so it may slide a few)
+      const c = [k, k + 1, k - 1, k + 2, k + 3, k - 2, k + 4, k + 5, k + 6].find((j) => j > last + 4 && j >= 1 && j <= items.length && !heavy[j - 1] && (j === items.length || !heavy[j]) && !nearMid(items[j - 1]));
+      if (!c) { k += E7; continue; }
+      items[c - 1].after(e7Card(false)); e7Where[tab].push(c); last = c; k = c + E7;
+    }
   }
 
   // ---------- news order: when nothing's new, each visit shows the stories in a different order (static/newsorder.js).
@@ -935,7 +983,7 @@ window.CHISME_APP_BUILD = "46";
       $("#sa-list").replaceChildren(...withArt(otherO.map((i) => story(i, false))));
       saveArtCursor();
       trackNews([nearO, moreO, otherO]);
-      placeMid();
+      placeMid(); placeEvery("news");
       $("#news-updated").textContent = stampFor(saved, n);
       $("#feeds").replaceChildren(...(n.feeds || []).map((f) => el("li", { class: f.ok ? "" : "bad",
         text: (f.ok ? `${f.name}: ${f.count} items` : `${f.name}: unavailable (${f.error})`) + (f.query ? ` — search: ${f.query}` : "") })));
@@ -1077,7 +1125,7 @@ window.CHISME_APP_BUILD = "46";
       : [el("p", { class: "loading", text: empty })]));
     $("#ongoing-sec").hidden = !ongoing.length;
     $("#ongoing-list").replaceChildren(...ongoing.map(eventCard));
-    placeMid();
+    placeMid(); placeEvery("events");
   }
   for (const b of document.querySelectorAll("#ev-chips .chip")) {
     b.onclick = () => {
@@ -1867,6 +1915,14 @@ window.CHISME_APP_BUILD = "46";
     return slide;
   }
   const slides = () => [...feedScroll.querySelectorAll(".vf-slide")];
+  // v46: after every 7 videos, a donate slide of its own (no video: it plays nothing, like the end card)
+  function withE7(list) {
+    e7Where.feed = 0; if (e7Gone()) return list;
+    const out = [];
+    list.forEach((s, i) => { out.push(s); if ((i + 1) % E7 === 0 && i + 1 < list.length) { out.push(el("section", { class: "vf-slide vf-donate", "aria-label": "Support Chisme" }, e7Card(true))); e7Where.feed++; } });
+    return out;
+  }
+  const slideAt = (k) => (document.querySelector(".vf-donate") ? k + Math.floor(k / E7) : k);
   // the top bar's real height (it wraps to 2 rows on narrow phones): full-height players start just below it
   const feedTop = feed.querySelector(".feed-top");
   const syncFeedTop = () => { if (feedTop) feed.style.setProperty("--feed-top-h", Math.round(feedTop.getBoundingClientRect().height) + "px"); };
@@ -1962,13 +2018,13 @@ window.CHISME_APP_BUILD = "46";
     fyProfile = FY.load();
     feedList = fyRank();   // same list as the banner cover
     feedOpener = opener || document.activeElement;
-    slides().forEach((x) => x.remove()); feedScroll.prepend(...feedList.map(feedSlide), endSlide());   // before the players' layers
+    slides().forEach((x) => x.remove()); feedScroll.prepend(...withE7(feedList.map(feedSlide)), endSlide());   // before the players' layers
     feedCur = -1; $("#feed-toast").replaceChildren();
     document.documentElement.classList.add("feed-open");
     if (!feed.open) feed.showModal();
     syncFeedTop();
     if (!feedPushed) { history.pushState({ chismeFeed: 1 }, ""); feedPushed = true; }
-    const at = Math.max(0, Math.min(feedList.length - 1, startAt || 0));
+    const at = slideAt(Math.max(0, Math.min(feedList.length - 1, startAt || 0)));   // v46: the donate slides count as slides
     feedScroll.scrollTop = at * feedScroll.clientHeight;
     feedGesture = !!(opener && opener.id === "fy-start");   // opened by the Start tap: the first video can start with sound right away
     try { activate(at); } finally { feedGesture = false; }
@@ -3109,14 +3165,20 @@ window.CHISME_APP_BUILD = "46";
     let ok = false; try { ok = document.execCommand("copy"); } catch {}
     ta.remove(); return ok;
   }
-  $("#share-btn").onclick = async () => {
+  async function shareChisme(data) {
     if (navigator.share) {
-      try { await navigator.share(SHARE); return; }
-      catch (e) { if (e && e.name === "AbortError") return; }   // closed the share sheet: nothing to do
+      try { await navigator.share(data); return "shared"; }
+      catch (e) { if (e && e.name === "AbortError") return "closed"; }   // closed the share sheet: nothing to do
     }
-    shareToast(await copyLink(SHARE.url) ? "Link copied!" : "Copy this link: " + SHARE.url);
-  };
-  window.__chisme = { stats: Stats, get newsPill() { return { held: !!newsHold, n: newsHoldN, shown: !$("#news-pill").hidden }; }, checkNews: () => { loadNews(); lastNews = Date.now(); }, openFromAlert, get pushPrefs() { return pushPrefs(); },
+    const ok = await copyLink(data.url);
+    shareToast(ok ? "Link copied!" : "Copy this link: " + data.url); return ok ? "copied" : "shown";
+  }
+  $("#share-btn").onclick = () => shareChisme(SHARE);
+  // v46: 📣 Share Chisme on the every-7 donate cards: the same helper, with a line of Tía's
+  const SHARE_E7 = { title: "Chisme", text: "Tía found the best chisme in town and she can't keep it to herself. ☕", url: "https://chisme.onrender.com/" };
+  document.addEventListener("click", (e) => { const b = e.target.closest && e.target.closest(".share-chisme"); if (b) { e.preventDefault(); shareChisme(SHARE_E7).then((r) => { lastShare = r; }); } });
+  let lastShare = null;
+  window.__chisme = { get every() { return { gone: e7Gone(), news: e7Where.news, events: e7Where.events, feed: e7Where.feed, lastShare, share: SHARE_E7 }; }, stats: Stats, get newsPill() { return { held: !!newsHold, n: newsHoldN, shown: !$("#news-pill").hidden }; }, checkNews: () => { loadNews(); lastNews = Date.now(); }, openFromAlert, get pushPrefs() { return pushPrefs(); },
     get frames() { return frames; }, get map() { return map; }, get loc() { return loc; },
     // ready = showing this location's news + weather (fresh or the saved copy); fresh = straight from the server
     get ready() { return secs.weather.shownUrl === secs.weather.url() && secs.news.shownUrl === secs.news.url(); },
