@@ -1,5 +1,6 @@
-# Chisme alerts: every ~10 minutes, wake the (sleeping, free) Render server and let it check the news and
-# NWS alerts for everyone who turned on alerts, and send what's new. The server does the work; this only knocks.
+# Chisme alerts (optional since v45): every ~10 minutes, wake the (sleeping, free) Render server and let it check NWS
+# alerts for everyone who turned on alerts plus the big-news auto alert (2 a day max, quiet 10 PM - 7 AM CT, never the
+# same story twice). Without it, checks only happen when someone opens the app. The server does the work; this only knocks.
 # Needs the repository secret PUSH_TICK_SECRET (the same value as on Render). Optional repository variable
 # CHISME_URL (default https://chisme.onrender.com).
 name: push-tick

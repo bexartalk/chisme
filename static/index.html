@@ -148,8 +148,12 @@
           <p class="swipe-hint" id="swipe-hint">Swipe <span aria-hidden="true">👈</span> for more · pull to refresh · tap the bubble for settings.</p>
         </div>
         <aside id="push-ask" class="card push-ask" hidden aria-labelledby="push-ask-t">
-          <p class="push-ask-t" id="push-ask-t"><span aria-hidden="true">🔔</span> Want a heads-up when there's new chisme or a weather warning near you?</p>
-          <div class="push-ask-row"><button type="button" id="push-ask-yes" class="primary">Turn on alerts 🔔</button><button type="button" id="push-ask-no">Not now</button></div>
+          <img class="push-ask-tia" src="/static/mascot/avatar-128.webp?art=3" alt="" width="56" height="56" aria-hidden="true">
+          <div class="push-ask-body">
+            <p class="push-ask-t" id="push-ask-t">Psst… it's Tía. Want me to tell you when something big happens?</p>
+            <p class="push-ask-s" id="push-ask-s">Only the real chisme: major local or breaking news and weather warnings. Two a day, tops, and never after 10 PM.</p>
+            <div class="push-ask-row"><button type="button" id="push-ask-yes" class="primary">Sí, avísame 🔔</button><button type="button" id="push-ask-no">Ahorita no</button></div>
+          </div>
         </aside>
 
         <section id="near" class="card" aria-labelledby="near-title">
@@ -476,12 +480,12 @@
       </fieldset>
       <fieldset class="set-group set-alerts" id="set-alerts">
         <legend>Alerts</legend>
-        <p class="set-note" id="set-push-status">Get a heads-up when there's new local chisme or an NWS warning near you. Nothing is sent until you turn it on.</p>
-        <button type="button" id="set-push" class="primary">Turn on alerts 🔔</button>
-        <label class="switch"><input type="checkbox" id="set-push-news" checked disabled><span>Breaking &amp; new local news</span></label>
+        <label class="switch push-switch"><input type="checkbox" role="switch" id="set-push" aria-describedby="set-push-status"><span id="set-push-l">Let Tía buzz you the big chisme 🔔</span></label>
+        <p class="set-note" id="set-push-status">Only when it really matters: big local or breaking news and NWS warnings near you. Nothing is sent until you turn it on.</p>
+        <label class="switch"><input type="checkbox" id="set-push-news" checked disabled><span>Big local &amp; breaking news</span></label>
         <label class="switch"><input type="checkbox" id="set-push-wx" checked disabled><span>NWS weather warnings &amp; watches for your location</span></label>
         <button type="button" id="set-push-test" hidden>Send a test</button>
-        <p class="set-note">At most one news alert every 45 minutes. Quiet hours are 10 PM – 7 AM: only weather warnings come through. Chisme keeps your area (rounded to about 1 km) on its server so alerts match where you are; turning alerts off deletes it.</p>
+        <p class="set-note">News alerts: at most 2 a day, only for major San Antonio-area or breaking stories, and none from 10 PM to 7 AM. Weather watches wait for the morning too; warnings still come through. Chisme keeps your area (rounded to about 1 km) on its server so alerts match where you are; turning alerts off deletes it.</p>
         <p class="set-note" id="set-push-note" aria-live="polite"></p>
       </fieldset>
       <fieldset class="set-group">

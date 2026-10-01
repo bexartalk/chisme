@@ -1,7 +1,7 @@
 /* Chisme service worker: caches the app shell and the last-loaded news/weather
    so the app opens instantly (and shows the last saved data) even when the server is asleep
    or there's no connection. */
-const VERSION = "chisme-v44";
+const VERSION = "chisme-v45";
 const BUILD = VERSION.replace("chisme-v", "");          // index.html asks for app.js?v=<BUILD>
 const SHELL_CACHE = `${VERSION}-shell`;
 const DATA_CACHE = `${VERSION}-data`;
@@ -164,28 +164,41 @@ self.addEventListener("fetch", (event) => {
   }
 });
 
-// ---------- Web Push (push.py): "New chisme, grab the tea! ☕" and NWS warnings/watches for your area.
-// Tapping a notification opens Chisme itself (never another site): the story opens in the in-app reader.
+// ---------- Web Push (push.py / autopush.py): big local/breaking news, the owner's notes and NWS warnings/watches.
+// House rule: every link opens inside Chisme. Tapping a notification focuses (or opens) the app and the story opens in
+// the in-app reader (app.js openFromAlert reads ?story=…), never the publisher's site in another tab.
 self.addEventListener("push", (event) => {
   let d = {};
   try { d = event.data ? event.data.json() : {}; } catch (e) { d = { body: event.data ? event.data.text() : "" }; }
   const opts = { body: d.body || "", tag: d.tag || "chisme", renotify: !!d.tag, icon: "/static/icons/icon-192.png",
-    badge: "/static/icons/favicon-32.png", data: { url: d.url || "/" }, requireInteraction: !!d.urgent };
+    badge: "/static/icons/favicon-32.png", data: { url: d.url || "/" }, requireInteraction: !!d.urgent, timestamp: Date.now() };
   event.waitUntil(self.registration.showNotification(d.title || "Chisme", opts));
 });
+// Only Chisme's own pages, made into an app link: a story link from the payload becomes /?story=…#news.
+function inAppUrl(raw) {
+  let url;
+  try { url = new URL(raw || "/", self.location.origin); } catch (e) { return new URL("/", self.location.origin); }
+  if (url.origin !== self.location.origin) {   // an outside link: open it in the in-app reader instead
+    if (!/^https?:$/.test(url.protocol)) return new URL("/", self.location.origin);
+    const u = new URL("/", self.location.origin); u.searchParams.set("story", url.href); u.hash = "#news"; return u;
+  }
+  if (url.pathname !== "/") return new URL("/" + url.search + url.hash, self.location.origin);   // never /stats or an API
+  return url;
+}
+const isAppWindow = (c) => { try { const u = new URL(c.url); return u.origin === self.location.origin && u.pathname === "/"; } catch (e) { return false; } };
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  let url;
-  try { url = new URL((event.notification.data && event.notification.data.url) || "/", self.location.origin); } catch (e) { url = new URL("/", self.location.origin); }
-  if (url.origin !== self.location.origin) url = new URL("/", self.location.origin);
+  const url = inAppUrl(event.notification.data && event.notification.data.url);
+  const rel = url.pathname + url.search + url.hash;
   event.waitUntil((async () => {
-    const wins = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-    const w = wins.find((c) => new URL(c.url).origin === self.location.origin);
+    const wins = (await self.clients.matchAll({ type: "window", includeUncontrolled: true })).filter(isAppWindow);
+    const w = wins.find((c) => c.focused) || wins.find((c) => c.visibilityState === "visible") || wins[0];
     if (w) {
-      try { w.postMessage({ chismeOpen: url.pathname + url.search + url.hash }); } catch (e) {}
-      try { return await w.focus(); } catch (e) {}
+      let focused = w;
+      try { focused = (await w.focus()) || w; } catch (e) {}
+      try { focused.postMessage({ chismeOpen: rel }); return; } catch (e) {}
     }
-    return self.clients.openWindow(url.href);
+    return self.clients.openWindow(url.href);   // the app isn't open: start it on the story (installed: opens the PWA)
   })());
 });
 const b64u = (s) => { const p = "=".repeat((4 - s.length % 4) % 4), b = atob((s + p).replace(/-/g, "+").replace(/_/g, "/")); return Uint8Array.from(b, (c) => c.charCodeAt(0)); };

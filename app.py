@@ -38,6 +38,7 @@ import mascot as tia
 import reader as rdr
 from limits import RateLimit, client_ip
 
+import autopush
 import push
 import stats
 
@@ -2493,10 +2494,13 @@ async def api_radar():
         return _err(ex)
 
 
-# ---------------------------------------------------------------- web push (see push.py for how it runs on a sleeping free host)
-async def _push_stories(lat: float, lon: float) -> list[dict]:
-    n = await build_news(lat, lon)
-    return [{k: i.get(k) for k in ("title", "link", "source", "published")} for i in (n.get("near") or []) + (n.get("more") or [])]
+# ---------------------------------------------------------------- web push (push.py: subscriptions + sending; autopush.py: big-news alerts + the owner's send box)
+async def _auto_stories() -> list[dict]:
+    """The San Antonio News feed (the same cache the News tab uses) for the big-news auto alert."""
+    c = cell(DEFAULT_LAT, DEFAULT_LON, 0.01)
+    n = await cached(f"news:{c}", 5 * 60, lambda: build_news(*c), stale=6 * 3600)
+    return [{k: i.get(k) for k in ("title", "link", "source", "published", "summary", "tier", "related", "local_score")}
+            for i in (n.get("near") or []) + (n.get("more") or [])]
 
 
 async def _push_alerts(lat: float, lon: float) -> list[dict]:
@@ -2521,7 +2525,15 @@ async def _body(request: Request, limit: int = 8000) -> dict:
 async def api_push_config():
     c = push.conf()
     return JSONResponse({"enabled": push.enabled(), "publicKey": c["public"] if push.enabled() else None, "store": push.store().name,
-                         "newsGapMin": push.news_gap() // 60, "quiet": [push.QUIET_FROM, push.QUIET_TO]}, headers={"Cache-Control": "no-store"})
+                         "dailyMax": autopush.daily_max(), "quiet": [autopush.QUIET_FROM, autopush.QUIET_TO]}, headers={"Cache-Control": "no-store"})
+
+
+@app.get("/api/push/key")
+async def api_push_key():
+    """The VAPID public key (the browser's applicationServerKey, base64url). 503 until the keys are set."""
+    if not push.enabled():
+        return JSONResponse({"publicKey": None, "error": "push isn't set up on this server"}, status_code=503)
+    return JSONResponse({"publicKey": push.conf()["public"]}, headers={"Cache-Control": "no-store"})
 
 
 @app.post("/api/push/subscribe")
@@ -2552,7 +2564,8 @@ async def api_push_test(request: Request):
 
 @app.post("/api/push/tick")
 async def api_push_tick(request: Request):
-    """Called every ~10 min by .github/workflows/push-tick.yml with the PUSH_TICK_SECRET (wakes a sleeping server)."""
+    """For an external cron (GitHub Actions tools/push-tick.yml, cron-job.org …) with the PUSH_TICK_SECRET: wakes a
+    sleeping server, sends new NWS warnings/watches per area, then runs the big-news auto check (all caps apply)."""
     if not push.conf()["secret"]:
         return JSONResponse({"ok": False, "error": "PUSH_TICK_SECRET isn't set"}, status_code=503)
     if not push.authorized(request.headers.get("authorization")):
@@ -2560,7 +2573,10 @@ async def api_push_tick(request: Request):
     if not push.enabled():
         return JSONResponse({"ok": False, "error": "VAPID keys aren't set"}, status_code=503)
     body = await _body(request, 200000) if push.conf()["test"] else {}   # test hooks (a fake clock / fake feeds) only with PUSH_TEST=1
-    return JSONResponse(await push.tick(_push_stories, _push_alerts, now=body.get("now"), fake=body.get("fake")))
+    fake = body.get("fake") if isinstance(body.get("fake"), dict) else None
+    wx = await push.tick(_push_alerts, now=body.get("now"), fake=fake)
+    auto = await autopush.check(_auto_stories, now=body.get("now"), reason="cron", fake_news=(fake or {}).get("news"))
+    return JSONResponse({**wx, "auto": auto})
 
 
 # ---------------------------------------------------------------- v42: anonymous usage counts + the owner's /stats page
@@ -2604,7 +2620,45 @@ async def stats_page(request: Request, key: str | None = None):
         code = getattr(getattr(ex, "response", None), "status_code", "")
         hint = " (Upstash rejected the token: re-copy UPSTASH_REDIS_REST_TOKEN, not the read-only one)" if code in (401, 403) else ""
         return HTMLResponse(f"<p style='font:600 18px system-ui;padding:16px'>Stats storage error: {html.escape(type(ex).__name__)} {code}{html.escape(hint)}<br><br>{html.escape(stats.upstash_diag())}</p>", status_code=503, headers=STATS_HEADERS)
-    return HTMLResponse(stats.page(data, st.name), headers=STATS_HEADERS)
+    try:
+        extra = autopush.admin_html(await autopush.admin_info())
+    except Exception as ex:
+        extra = f'<div class="ban warn" role="note"><b>Alerts panel unavailable:</b> {html.escape(type(ex).__name__)} (push storage). {html.escape(stats.upstash_diag())}</div>'
+    return HTMLResponse(stats.page(data, st.name, extra=extra), headers=STATS_HEADERS)
+
+
+def _admin_ok(request: Request) -> bool:
+    """The /stats cookie (path=/stats, HttpOnly, SameSite=Strict) and a JSON body (no cross-site form posts)."""
+    return (bool(stats.admin_token()) and stats.cookie_ok(request.cookies.get(stats.COOKIE))
+            and (request.headers.get("content-type") or "").split(";")[0].strip() == "application/json")
+
+
+@app.post("/stats/push/send", include_in_schema=False)
+async def stats_push_send(request: Request):
+    if not _admin_ok(request):
+        return JSONResponse({"ok": False, "error": "not allowed"}, status_code=404 if not stats.admin_token() else 401, headers=STATS_HEADERS)
+    r = await autopush.admin_send(await _body(request, 8000))
+    return JSONResponse(r, status_code=200 if r["ok"] else 400, headers=STATS_HEADERS)
+
+
+@app.post("/stats/push/auto", include_in_schema=False)
+async def stats_push_auto(request: Request):
+    if not _admin_ok(request):
+        return JSONResponse({"ok": False, "error": "not allowed"}, status_code=404 if not stats.admin_token() else 401, headers=STATS_HEADERS)
+    b = await _body(request)
+    if not isinstance(b.get("on"), bool):
+        return JSONResponse({"ok": False, "error": "on must be true or false"}, status_code=400, headers=STATS_HEADERS)
+    try:
+        return JSONResponse({"ok": True, "on": await autopush.set_auto(b["on"])}, headers=STATS_HEADERS)
+    except Exception as ex:
+        return JSONResponse({"ok": False, "error": f"storage: {type(ex).__name__}"}, status_code=503, headers=STATS_HEADERS)
+
+
+@app.post("/stats/push/check", include_in_schema=False)
+async def stats_push_check(request: Request):
+    if not _admin_ok(request):
+        return JSONResponse({"ok": False, "error": "not allowed"}, status_code=404 if not stats.admin_token() else 401, headers=STATS_HEADERS)
+    return JSONResponse(await autopush.check(_auto_stories, reason="owner"), headers=STATS_HEADERS)
 
 
 @app.get("/healthz")
@@ -2646,6 +2700,7 @@ async def index():
 async def cache_headers(request, call_next):
     """Code/styles/data must revalidate (cheap 304s via ETag) so phones never run a stale app.js;
     images can be cached for a day. Without this, browsers cache /static/* heuristically."""
+    autopush.kick(_auto_stories)   # big-news check: throttled, in the background, never awaited (the free server sleeps)
     resp = await call_next(request)
     resp.headers["X-Chisme"] = "1"   # lets the service worker tell our responses from a host "waking up" page
     path = request.url.path
@@ -2668,6 +2723,11 @@ async def warm():
                              api_food(DEFAULT_LAT, DEFAULT_LON), api_sports(DEFAULT_LAT, DEFAULT_LON),
                              return_exceptions=True)
     asyncio.create_task(_w())
+
+    async def _wake_check():   # just woke up: one big-news check once the caches are warm (throttled like the rest)
+        await asyncio.sleep(float(os.environ.get("AUTO_PUSH_WAKE_DELAY", "20")))
+        autopush.kick(_auto_stories, reason="wake")
+    asyncio.create_task(_wake_check())
 
 
 if __name__ == "__main__":

@@ -2,10 +2,12 @@
 VAPID signature (ES256 JWT with Chisme's public key) and decrypts each message (aes128gcm, RFC 8291) with the
 subscriber's own private key, like a phone would. Runs against the local server started with the test env:
     CHISME_ENV=/path/to/local.env PUSH_TEST=1 ./run.sh      (PUSH_TEST=1 allows the fake clock/feeds and http://localhost endpoints)
-Checks: config, subscription validation, tick auth, the quiet first look, the news push (title, headline body, in-app
-link), the 45-min rate limit, NWS warnings/watches (title '⚠️ <event>', high urgency), quiet hours 10 PM–7 AM
-(warnings only), stale stories never pushed, the test notification + its 1/min limit, expired subscriptions removed,
-unsubscribe, and that no private key is in the repo."""
+Checks: config + /api/push/key, subscription validation, tick auth, the quiet first look, v45 big-news auto push
+(off until the owner switches it on in /stats; title "Breaking news", headline body, in-app reader link; routine
+stories never; the same story never twice; 2 a day at most), NWS warnings/watches (title '⚠️ <event>', high
+urgency), quiet hours 10 PM–7 AM (warnings only; big news waits too), the test notification + its 1/min limit,
+the owner's send box (/stats/push/send) and expired subscriptions (410) removed, news off, unsubscribe, the Upstash
+REST store, and that no private key is in the repo. Unit tests with mocks: push_auto_test.py."""
 import base64, json, os, subprocess, sys, threading, time, urllib.parse
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -15,7 +17,7 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec, utils
 
 BASE = os.environ.get("CHISME_URL", "http://localhost:8211")
-ENV = os.environ.get("CHISME_ENV", "/workspace/secrets/chisme-local.env")
+ENV = os.environ.get("CHISME_ENV", "/workspace/secrets/chisme-local.env")   # needs ADMIN_TOKEN too (v45: the auto-send switch)
 env = dict(l.strip().split("=", 1) for l in open(ENV) if "=" in l and not l.startswith("#"))
 SECRET, PUB = env["PUSH_TICK_SECRET"], env["VAPID_PUBLIC_KEY"]
 STORE = env.get("PUSH_STORE_FILE", "/tmp/chisme-push.json")
@@ -70,9 +72,11 @@ def story(i, t_pub): return {"title": f"Story {i}: something happened on the Wes
 def alert(i, event): return {"id": f"urn:oid:test.{i}", "event": event, "headline": f"{event} issued for Bexar County until 9:00 PM CDT", "areaDesc": "Bexar, TX", "severity": "Severe"}
 
 # ---- 1. config + subscribe
-if os.path.exists(STORE): os.remove(STORE)
+for f in (STORE, STORE.rsplit(".", 1)[0] + ".state.json"):
+    if os.path.exists(f): os.remove(f)
 cfg = c.get("/api/push/config").json()
-check(cfg["enabled"] and cfg["publicKey"] == PUB and cfg["store"] == "file", f"config: enabled, public key served, store '{cfg['store']}'")
+check(cfg["enabled"] and cfg["publicKey"] == PUB and cfg["store"] == "file" and cfg["dailyMax"] == 2, f"config: enabled, public key served, store '{cfg['store']}', 2 news alerts a day max")
+check(c.get("/api/push/key").json() == {"publicKey": PUB}, "/api/push/key: the applicationServerKey")
 check(c.post("/api/push/subscribe", json={"subscription": {"endpoint": "ftp://x", "keys": {}}, "lat": 29.4, "lon": -98.5}).status_code == 400, "a bad subscription is refused")
 A = Phone("phoneA")
 r = c.post("/api/push/subscribe", json={"subscription": A.sub, "lat": 29.42412, "lon": -98.49363, "tz": "America/Chicago", "news": True, "weather": True}).json()
@@ -81,30 +85,38 @@ rec = list(json.load(open(STORE)).values())[0]
 check(rec["lat"] == 29.42 and rec["lon"] == -98.49, f"the stored area is rounded to ~1 km ({rec['lat']}, {rec['lon']})")
 # ---- 2. tick auth
 check(tick({}, auth=None).status_code == 401 and tick({}, auth="nope").status_code == 401, "tick without / with a wrong secret: 401")
-# ---- 3. first look: nothing sent
+# ---- 3. first look: nothing sent; big news: off until the owner switches it on
 t0 = at(15)
-news = [story(1, t0 - 1800), story(2, t0 - 3600)]; alerts = [alert(1, "Heat Advisory")]
+def major(i, t_pub, title=None):
+    return {"title": title or f"BREAKING: SAPD says active shooter at North Star Mall #{i}, shoppers told to shelter in place", "link": f"https://example.com/big/{i}",
+            "source": "KSAT", "published": t_pub, "summary": "", "related": [{"source": "KENS 5"}, {"source": "Express-News"}], "tier": "city"}
+news = [story(1, t0 - 1800), story(2, t0 - 3600), major(1, t0 - 600)]; alerts = [alert(1, "Heat Advisory")]
 j = tick({"now": t0, "fake": {"news": news, "alerts": alerts}}).json()
-check(j["primed"] == 1 and j["news"] == 0 and not got, f"first check after subscribing only records what's out there (no burst): {j}")
-# ---- 4. a new story → one push
-news = [story(3, t0 + 60)] + news
+check(j["primed"] == 1 and j["auto"]["result"] == "auto-send is off" and not got, f"first check: alerts only recorded; auto-send is off by default, nothing sent ({j['auto']['result']})")
+c.get("/stats", params={"key": env["ADMIN_TOKEN"]}, follow_redirects=False)
+check(c.post("/stats/push/auto", json={"on": True}).json() == {"ok": True, "on": True}, "the owner switches auto-send on (/stats, admin cookie)")
+# ---- 4. a major story → one push, routine ones never
 j = tick({"now": t0 + 600, "fake": {"news": news, "alerts": alerts}}).json()
 time.sleep(0.3)
-check(j["news"] == 1 and len(got) == 1, f"new story → 1 news push ({j['news']})")
+check(j["auto"]["result"].startswith("sent") and len(got) == 1, f"major breaking local story → 1 push ({j['auto']['result'][:60]})")
 if got:
     name, hd, body = got[-1]; msg = open_msg(A, body); ok, claims = vapid_ok(hd)
-    check(msg["title"] == "New chisme, grab the tea! ☕", f"title: '{msg['title']}'")
-    check(msg["body"].startswith("Story 3: something happened on the Westside — KSAT"), f"body is the headline: '{msg['body']}'")
+    check(msg["title"] == "Breaking news", f"title: '{msg['title']}' (serious wording)")
+    check(msg["body"].startswith("BREAKING: SAPD says active shooter at North Star Mall #1") and msg["body"].endswith("— KSAT"), f"body is the headline: '{msg['body'][:60]}…'")
     q = urllib.parse.parse_qs(urllib.parse.urlsplit(msg["url"]).query)
-    check(msg["url"].startswith("/?") and q["story"] == ["https://example.com/news/3"] and msg["url"].endswith("#news"), f"tap opens it in Chisme: {msg['url'][:70]}")
+    check(msg["url"].startswith("/?") and q["story"] == ["https://example.com/big/1"] and msg["url"].endswith("#news"), f"tap opens it in Chisme's reader: {msg['url'][:70]}")
     check(ok is True, f"VAPID: ES256 JWT signed with Chisme's key, aud = the push service, sub = VAPID_SUBJECT ({claims if ok is not True else 'verified'})")
-    check(hd.get("content-encoding") == "aes128gcm" and int(hd.get("ttl", 0)) > 0, f"encrypted aes128gcm, TTL {hd.get('ttl')} s, Urgency {hd.get('urgency')}")
-# ---- 5. rate limit: another new story 10 min later waits
-news = [story(4, t0 + 1100)] + news
-n0 = len(got); j = tick({"now": t0 + 1200, "fake": {"news": news, "alerts": alerts}}).json()
-check(j["rate_limited"] == 1 and len(got) == n0, "another new story 10 min later: held (max 1 news push per 45 min)")
-j = tick({"now": t0 + 600 + 46 * 60, "fake": {"news": news, "alerts": alerts}}).json(); time.sleep(0.3)
-check(j["news"] == 1 and len(got) == n0 + 1 and open_msg(A, got[-1][2])["body"].startswith("Story 4"), "46 min after the last one: it goes out")
+    check(hd.get("content-encoding") == "aes128gcm" and int(hd.get("ttl", 0)) > 0 and hd.get("urgency") == "high", f"encrypted aes128gcm, TTL {hd.get('ttl')} s, Urgency {hd.get('urgency')}")
+# ---- 5. never twice; 2 a day
+n0 = len(got); news = [story(3, t0 + 900)] + news
+j = tick({"now": t0 + 1200, "fake": {"news": news, "alerts": alerts}}).json()
+check(len(got) == n0 and j["auto"]["result"] == "nothing major", f"the same story isn't sent twice, and a routine new story never is ({j['auto']['result']})")
+news = [major(2, t0 + 1500, "Boil water notice issued for much of San Antonio after SAWS main break")] + news
+j = tick({"now": t0 + 1800, "fake": {"news": news, "alerts": alerts}}).json(); time.sleep(0.3)
+check(len(got) == n0 + 1 and open_msg(A, got[-1][2])["body"].startswith("Boil water notice"), "a second major story: sent (2 of 2 today)")
+news = [major(3, t0 + 2000, "I-10 closed in both directions near downtown San Antonio after tanker explosion")] + news
+n0 = len(got); j = tick({"now": t0 + 2400, "fake": {"news": news, "alerts": alerts}}).json()
+check(len(got) == n0 and j["auto"]["result"].startswith("daily cap"), f"a third: held by the daily cap ({j['auto']['result']})")
 # ---- 6. weather: advisories never, warnings/watches once, with high urgency for warnings
 t1 = t0 + 2 * 3600
 alerts = [alert(1, "Heat Advisory"), alert(2, "Tornado Warning")]
@@ -114,37 +126,39 @@ check(j["weather"] == 1 and m.get("title") == "⚠️ Tornado Warning" and m.get
 check(got[-1][1].get("urgency") == "high", f"warnings go out with Urgency: {got[-1][1].get('urgency')}")
 j = tick({"now": t1 + 600, "fake": {"news": news, "alerts": alerts}}).json()
 check(j["weather"] == 0, "the same warning isn't sent twice; the Heat Advisory is never pushed")
-# ---- 7. quiet hours (11:30 PM): news + watches wait, warnings still come through
-tq = at(23, 30)
-news = [story(5, tq - 300)] + news
+# ---- 7. quiet hours (11:30 PM, the next day): big news + watches wait, warnings still come through
+tq = at(23, 30, day=1) if False else datetime(2026, 10, 1, 23, 30, tzinfo=CT).timestamp()
+news = [major(4, tq - 300, "BREAKING: Explosion at Port San Antonio plant, nearby homes evacuated")] + news
 alerts += [alert(3, "Flood Watch"), alert(4, "Severe Thunderstorm Warning")]
 n0 = len(got); j = tick({"now": tq, "fake": {"news": news, "alerts": alerts}}).json(); time.sleep(0.3)
 titles = [open_msg(A, b)["title"] for _, _, b in got[n0:]]
-check(titles == ["⚠️ Severe Thunderstorm Warning"] and j["quiet"] >= 2, f"11:30 PM: only the warning comes through {titles} (held: {j['quiet']})")
-# ---- 8. morning: the watch (still active) goes out; a story from last night is too old to push
-tm = at(7, 30, day=1) if False else datetime(2026, 10, 1, 7, 30, tzinfo=CT).timestamp()
+check(titles == ["⚠️ Severe Thunderstorm Warning"] and j["quiet"] >= 1 and j["auto"]["result"].startswith("quiet hours"), f"11:30 PM: only the warning comes through {titles} (big news: {j['auto']['result']})")
+# ---- 8. morning: the watch (still active) goes out; last night's big story is too old to push
+tm = datetime(2026, 10, 2, 7, 30, tzinfo=CT).timestamp()
 n0 = len(got); j = tick({"now": tm, "fake": {"news": news, "alerts": alerts}}).json(); time.sleep(0.3)
 titles = [open_msg(A, b)["title"] for _, _, b in got[n0:]]
-check(titles == ["⚠️ Flood Watch"], f"7:30 AM: the Flood Watch goes out, last night's story doesn't (only stories < 3 h old) {titles}")
+check(titles == ["⚠️ Flood Watch"] and j["auto"]["considered"] == 0, f"7:30 AM: the Flood Watch goes out, last night's story doesn't (only stories < 3 h old) {titles}")
 # ---- 9. test notification
 r1 = c.post("/api/push/test", json={"endpoint": A.sub["endpoint"]}); time.sleep(0.3)
 r2 = c.post("/api/push/test", json={"endpoint": A.sub["endpoint"]})
 check(r1.status_code == 200 and open_msg(A, got[-1][2])["title"] == "Chisme alerts are on 🔔" and r2.status_code == 400, "Send a test: one sample notification, then 'wait a minute'")
-# ---- 10. an expired subscription (410 Gone) is removed
+# ---- 10. the owner's send box; an expired subscription (410 Gone) is removed
 G = Phone("gone1")
 c.post("/api/push/subscribe", json={"subscription": G.sub, "lat": 29.42, "lon": -98.49, "tz": "America/Chicago"})
-tick({"now": tm + 60, "fake": {"news": news, "alerts": alerts}})                       # first look
-news2 = [story(9, tm + 100)] + news
-j = tick({"now": tm + 3600 * 1.5, "fake": {"news": news2, "alerts": alerts}}).json()
+n0 = len(got); j = c.post("/stats/push/send", json={"title": "Chisme", "message": "¡Órale, new chisme! 👀", "link": "https://example.com/owner/1"}).json(); time.sleep(0.3)
+mine = [open_msg(A, b) for n, _, b in got[n0:] if n == "phoneA"]
 ids = list(json.load(open(STORE)).keys())
-check(j["removed"] == 1 and len(ids) == 1, f"push service says 410 Gone → subscription deleted (removed {j['removed']}, {len(ids)} left)")
+check(j["ok"] and (j["sent"], j["failed"], j["removed"]) == (1, 1, 1) and len(ids) == 1, f"owner send: sent {j['sent']}, failed {j['failed']} (410 Gone → removed {j['removed']}, {len(ids)} left)")
+check(mine and mine[0]["title"] == "Chisme" and mine[0]["body"] == "¡Órale, new chisme! 👀" and "story=https%3A%2F%2Fexample.com%2Fowner%2F1" in mine[0]["url"], "the owner's note arrives, its link opens in the in-app reader")
+check(httpx.post(BASE + "/stats/push/send", json={"message": "x"}).status_code == 401, "the send box needs the admin cookie (a client without it: 401)")
 # ---- 11. news off / unsubscribe
 c.post("/api/push/subscribe", json={"subscription": A.sub, "lat": 29.42, "lon": -98.49, "tz": "America/Chicago", "news": False, "weather": True})
-n0 = len(got); news3 = [story(10, tm + 3 * 3600)] + news2
+n0 = len(got); news3 = [major(5, tm + 3 * 3600, "BREAKING: SAPD manhunt after officers shot on the West Side, residents told to shelter in place")] + news
 j = tick({"now": tm + 3 * 3600 + 60, "fake": {"news": news3, "alerts": alerts}}).json()
-check(j["news"] == 0 and len(got) == n0, "news alerts off: no news push")
+check(len(got) == n0 and "nobody" in j["auto"]["result"], f"news alerts off: no news push ({j['auto']['result'][:60]})")
 c.post("/api/push/unsubscribe", json={"endpoint": A.sub["endpoint"]})
 check(json.load(open(STORE)) == {}, "Turn off alerts: the subscription and its area are deleted from the server")
+c.post("/stats/push/auto", json={"on": False})
 # ---- 12. the Upstash Redis store (what Render uses) against a mock of Upstash's REST API
 import asyncio
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -169,7 +183,7 @@ check(name == "upstash" and keys == ["abc", "def"] and g == {"id": "abc", "lat":
       f"Upstash store: put/get/all/count/delete over the REST API with the token ({[c[1][0] for c in calls]})")
 us.shutdown()
 # ---- 13. no secrets in git
-tracked = subprocess.run(["git", "grep", "-l", env["VAPID_PRIVATE_KEY"]], capture_output=True, text=True, cwd=os.path.dirname(os.path.abspath(__file__))).stdout.strip()
+tracked = subprocess.run(["git", "grep", "-l", "-e", env["VAPID_PRIVATE_KEY"]], capture_output=True, text=True, cwd=os.path.dirname(os.path.abspath(__file__))).stdout.strip()
 check(not tracked and env["PUSH_TICK_SECRET"] not in open(__file__).read(), "the VAPID private key and tick secret are nowhere in the repo")
 srv.shutdown()
 print("ALL PASS" if not fails else f"{fails} FAIL(S)"); sys.exit(1 if fails else 0)
