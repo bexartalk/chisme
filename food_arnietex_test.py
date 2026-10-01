@@ -90,14 +90,16 @@ async def ui(p):
     await pg.tap("#fy-start"); await pg.wait_for_function("document.querySelector('#feed').open", timeout=8000)
     try: await pg.wait_for_function("window.__chisme.forYou.player.st === 1", timeout=15000)
     except Exception: pass
-    mine = [k for k, f in enumerate((await pg.evaluate("window.__chisme.forYou"))["feed"]) if f["creator"] == "ArnieTex"]
+    # (v46+ the feed has a donate slide after every 7 videos, so a video's slide isn't its place in the list: find it by its url)
+    mine = await pg.evaluate("""() => { const f = window.__chisme.forYou, sl = [...document.querySelectorAll('#feed-scroll .vf-slide')];
+      return f.feed.filter(r => r.creator === 'ArnieTex').map(r => sl.findIndex(s => s.dataset.url === r.url)); }""")
     played = {}
     async def go(i):
         await pg.evaluate(f"() => {{ const s = document.querySelector('#feed-scroll'); s.scrollTo({{ top: s.clientHeight * {i}, behavior: 'instant' }}); }}")
         await pg.wait_for_function(f"window.__chisme.forYou.cur === {i}", timeout=8000)
         try: await pg.wait_for_function(f"() => {{ const f = window.__chisme.forYou; return f.player.slide === {i} && f.player.st === 1; }}", timeout=15000)
         except Exception: pass
-        return await pg.evaluate("(() => { const f = window.__chisme.forYou, s = [...document.querySelectorAll('#feed-scroll .vf-slide')][f.cur]; return { cur: f.cur, st: f.player.st, vid: f.player.vid, by: s.querySelector('.vf-by') ? s.querySelector('.vf-by').textContent : '', title: f.feed[f.cur].title }; })()")
+        return await pg.evaluate("(() => { const f = window.__chisme.forYou, s = [...document.querySelectorAll('#feed-scroll .vf-slide')][f.cur], r = f.feed.find(x => x.url === s.dataset.url) || {}; return { cur: f.cur, st: f.player.st, vid: f.player.vid, by: s.querySelector('.vf-by') ? s.querySelector('.vf-by').textContent : '', title: r.title || '' }; })()")
     for i in mine:   # every one of his videos, in feed order
         st = await go(i); want = next(v for v in A if v["title"] == st["title"])
         played[want["id"]] = st["st"] == 1 and st["vid"] == want["id"] and "ArnieTex" in st["by"]

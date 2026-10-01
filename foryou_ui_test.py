@@ -6,8 +6,9 @@ back close the feed; reduced motion → tap-to-play thumbnail; Settings → Rese
 labeled). v40: the feed is named "Bigger the Pansa, Better the Chansa" (banner, feed top bar, aria, Settings).
 v41: sound is ON by default (remembered; 🔇 Muted turns it off). The video on screen tries sound first; when the browser refuses
 (Chrome without a tap, iPhone Safari), it plays muted with a "Tap anywhere for sound" hint, and the first tap in the feed unmutes it.
-v42: two persistent YouTube players for the whole feed (loadVideoById), one on screen and one warming the next video (muted,
-held on its first frame, waiting under the slide on screen), swapping as you swipe; never an iframe per video. On iPhone the
+v42: persistent YouTube players for the whole feed (loadVideoById), one on screen and others warming the next videos (muted,
+held on its first frame, waiting under the slide on screen), swapping as you swipe; never an iframe per video.
+v47: preloading: 3 players on iPhone (on screen + the next 2 videos), 4 elsewhere (+ the one behind, paused). On iPhone the
 Start tap (or the first tap in the feed) unlocks sound for every video after it: WebKit iPhone, 5 videos in a row, each playing
 within 3 s, with sound after one tap (also with YouTube held back until 3 s after Start). Settings → Food videos: sound on/off
 (default on). TikToks go after YouTube on iPhone; elsewhere the next TikTok warms muted in its slide.
@@ -46,8 +47,10 @@ def own_error(m):
     return not re.search(r"tiktok|ttwstatic|byteimg|ibytedtos|youtube|ytimg|googlevideo", m.text, re.I)   # the players' own domains
 
 
-async def wait_warm(pg, ms=8000):   # v42: the video on screen plays and the next one is loaded in the other player (first frame, held)
-    try: await pg.wait_for_function("() => { const f = window.__chisme.forYou, sl = document.querySelectorAll('#feed-scroll .vf-slide'), c = sl[f.cur], n = sl[f.cur + 1]; return (c.dataset.kind === 'yt' ? f.player.st === 1 : c._st === 1) && (!n || !n.dataset.url || n.dataset.warm === 'ready'); }", timeout=ms)
+async def wait_warm(pg, ms=8000):   # v42/v47: the video on screen plays and the next 2 videos (donate slides skipped) are loaded in players of their own (first frame, held)
+    try: await pg.wait_for_function("""() => { const f = window.__chisme.forYou, P = f.player, sl = [...document.querySelectorAll('#feed-scroll .vf-slide')], c = sl[f.cur];
+      if (!(c.dataset.kind === 'yt' ? P.st === 1 : c._st === 1)) return false;
+      return sl.slice(f.cur + 1).filter(s => s.dataset.url).slice(0, P.ahead).every(s => s.dataset.warm === 'ready' || (P.ios && s.dataset.kind === 'tt')); }""", timeout=ms)
     except Exception: pass
 
 async def show_info(pg, i):   # while a video plays its info + buttons are hidden; a tap on the video pauses it and brings them back
@@ -59,6 +62,7 @@ async def show_info(pg, i):   # while a video plays its info + buttons are hidde
         except Exception: pass
     await pg.wait_for_timeout(300)
 
+SLIDE_OF = "(u) => [...document.querySelectorAll('#feed-scroll .vf-slide')].findIndex(s => s.dataset.url === u)"   # a video's slide (v46: a donate slide after every 7)
 async def go(pg, i):   # scroll the feed to slide i the way a snap scroll ends up
     await pg.evaluate("(i) => { const s = document.querySelector('#feed-scroll'); s.scrollTo({ top: i * s.clientHeight, behavior: 'instant' }); }", i)
     await pg.wait_for_function("(i) => window.__chisme.forYou.cur === i", arg=i, timeout=5000)
@@ -125,9 +129,9 @@ async def wk(p):
     # 3. swipe on (keyboard ↓, then a snap scroll): the player moves with you, one at a time; a fast skip is recorded
     await pg.keyboard.press("ArrowDown"); await pg.wait_for_function("window.__chisme.forYou.cur === 1", timeout=5000); await wait_warm(pg)
     f = await pg.evaluate(FEED)
-    check([x["slide"] for x in f["frames"]] == [1] and f["playingUi"] == [1] and f["warm"] == [2] and f["cur"] == 1,
-          f"↓ next video: video 2 plays in the player that had it warming, and the other player now warms video 3 (on screen {[x['slide'] for x in f['frames']]}, warm {f['warm']})")
-    check(f["yt"] == 2 and f["ytInSlides"] == 0, f"two YouTube players for the whole feed, reused from video to video (no iframe per video: {f['yt']} players, {f['ytInSlides']} in slides)")
+    check([x["slide"] for x in f["frames"]] == [1] and f["playingUi"] == [1] and f["warm"] == [2, 3] and f["cur"] == 1,
+          f"↓ next video: video 2 plays in the player that had it warming, and videos 3 + 4 are now warm (v47: 2 ahead) (on screen {[x['slide'] for x in f['frames']]}, warm {f['warm']})")
+    check(f["yt"] == 3 and f["ytInSlides"] == 0, f"v47 iPhone: 3 YouTube players for the whole feed, reused from video to video (no iframe per video: {f['yt']} players, {f['ytInSlides']} in slides)")
     prof = await pg.evaluate(PROF)
     check(prof and (prof["s"].get(feed[0]["url"]) or {}).get("sk") == 1, f"[{time.time() - t_open:.1f} s on video 1; {prof and prof['s'].get(feed[0]['url'])}] skip-fast (< 2 s) on video 1 is recorded on the phone")
     await pg.tap("#feed-scroll .vf-slide:nth-child(2) .vf-shield"); await pg.wait_for_timeout(400)
@@ -138,7 +142,7 @@ async def wk(p):
     check(not f["info"]["paused"] and f["info"]["info"].startswith("hidden") and f["playingUi"] == [1], f"tap again: it plays and the info hides ({f['info']}, {f['playingUi']})")
     await pg.wait_for_timeout(3600); await go(pg, 2); await wait_warm(pg)
     f = await pg.evaluate(FEED)
-    check([x["slide"] for x in f["frames"]] == [2] and f["warm"] == [3] and f["yt"] == 2, f"3 videos in: still the same 2 players (on screen {[x['slide'] for x in f['frames']]}, warming {f['warm']}, {f['yt']} YouTube players)")
+    check([x["slide"] for x in f["frames"]] == [2] and f["warm"] == [3, 4] and f["yt"] == 3, f"3 videos in: still the same 3 players (on screen {[x['slide'] for x in f['frames']]}, warm {f['warm']}, {f['yt']} YouTube players)")
     rs = await pg.evaluate("""(u) => { const s = document.querySelectorAll('#feed-scroll .vf-slide')[2], P = window.__chisme.forYou.player, id = (u.match(/shorts\\/([\\w-]{11})/) || [])[1];
       const fr = [...document.querySelectorAll('iframe.vf-yt')].find(f => !f.parentNode.classList.contains('warm') && !f.parentNode.classList.contains('off'));
       return { tag: s.querySelector('.vf-recipe')?.textContent, dir: !!s.querySelector('.vf-dir'), inApp: P.slide === 2 && P.vid === id && !!fr && fr.src.startsWith('https://www.youtube-nocookie.com/embed/'), tall: s.classList.contains('tall'), why: s.querySelector('.why-chip').textContent }; }""", feed[2]["url"])
@@ -181,7 +185,7 @@ async def wk(p):
     pl = await pg.evaluate("({ P: window.__chisme.forYou.player, src: [...document.querySelectorAll('iframe.vf-yt')].map(f => f.src) })")
     check([x["slide"] for x in f["frames"]] == [0] and pl["P"]["st"] == 1 and pl["P"]["ytMuted"] is True and all("playsinline=1" in u and "enablejsapi=1" in u for u in pl["src"]),
           f"(🔇 Muted chosen) the first video autoplays muted + inline (player state {pl['P']['st']}, YouTube muted={pl['P']['ytMuted']})")
-    check(f["playingUi"] == [0] and f["warm"] == [1], f"only the video on screen plays; the next one waits, loaded, in the other player (playing {f['playingUi']}, warm {f['warm']})")
+    check(f["playingUi"] == [0] and f["warm"] == [1, 2], f"only the video on screen plays; the next 2 wait, loaded, in the other players (playing {f['playingUi']}, warm {f['warm']})")
     check(f["info"] and f["info"]["info"].startswith("hidden") and f["info"]["rail"] == "hidden", f"while it plays, the title / creator / spot / buttons are hidden ({f['info']})")
     tb = await pg.evaluate("[...document.querySelectorAll('#feed-close, #feed-sound')].map(b => { const r = b.getBoundingClientRect(), st = getComputedStyle(b); return st.visibility === 'visible' && +st.opacity > .9 && r.top >= 0 && r.height >= 44; })")
     check(tb == [True, True], "‹ Back and 🔇 Muted stay on screen while it plays")
@@ -214,7 +218,8 @@ async def wk(p):
       return order.length ? { k: order[0][0], label: F.labelOf(order[0][0].slice(2)), idx: order[0][1] } : null; }""", feed)
     check(dish is not None, f"dish with ≥ 2 videos in today's feed: {dish and dish['label']} ({dish and len(dish['idx'])} videos)")
     if dish:
-        for i in dish["idx"][:2]:
+        for fi in dish["idx"][:2]:
+            i = await pg.evaluate(SLIDE_OF, feed[fi]["url"])   # (v46+: donate slides in between, so find the video's slide by its url)
             await go(pg, i); await show_info(pg, i); await pg.tap(f"#feed-scroll .vf-slide:nth-child({i + 1}) .vf-rail .fr-save"); await pg.wait_for_timeout(250)
         await pg.tap("#feed-close"); await pg.wait_for_timeout(500)
         meta = await pg.text_content("#fy-meta")
@@ -228,6 +233,7 @@ async def wk(p):
         ex = [r for r in feed2 if r["explore"]]
         check(len(ex) == len(feed2) // 5 and all(r["why"].startswith("Something") for r in ex), f"exploration: {len(ex)} of {len(feed2)} videos (~20%), chip '{ex[0]['why'] if ex else ''}'")
         if hit >= 0:
+            hit = await pg.evaluate(SLIDE_OF, feed2[hit]["url"])
             await go(pg, hit); await pg.wait_for_timeout(1400); await show_info(pg, hit)
             sel = f"#feed-scroll .vf-slide:nth-child({hit + 1}) .why-chip"
             await pg.tap(sel); await pg.wait_for_timeout(300)
@@ -282,7 +288,7 @@ async def cr(p):   # a real finger swipe on the video itself scrolls to the next
         await cdp.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
     await wait_warm(pg, 15000)
     w = await pg.evaluate("({ sl: [...document.querySelectorAll('#feed-scroll .vf-slide')].slice(0, 3).map(s => s.dataset.warm || ''), kind: document.querySelectorAll('#feed-scroll .vf-slide')[1].dataset.kind, tt: !!document.querySelector('#feed-scroll .vf-slide:nth-child(2) iframe.vf-frame'), P: window.__chisme.forYou.player.players })")
-    wp = next((x for x in w["P"] if x["warm"]), None)
+    wp = next((x for x in w["P"] if x["warm"] and x["slide"] == 1), None)
     if w["kind"] == "yt":
         check(w["sl"][1] == "ready" and wp and wp["slide"] == 1 and wp["st"] == 2 and wp["muted"] is True, f"Chromium: video 2 (YouTube) is loaded in the second player, muted and held on its first frame ({w['sl']}, {wp})")
     else:
@@ -299,8 +305,8 @@ async def cr(p):   # a real finger swipe on the video itself scrolls to the next
         check(pl["st"] == 1 and not pl["loading"] and pl["snd"] == "🔊 Sound on", f"Chromium: video {want + 1} is already playing 0.4 s after the swipe (it was warming), no spinner, sound stays on ({pl})")
         await wait_warm(pg); f = await pg.evaluate(FEED)
         on = sorted({x["slide"] for x in f["frames"]})   # the one on screen (+ the one just behind it, kept paused for a swipe back)
-        check(f["cur"] == want and f["top"] % f["h"] == 0 and want in on and set(on) <= {want - 1, want} and f["warm"] == [want + 1] and f["playingUi"] == [want] and f["yt"] == 2,
-              f"Chromium: finger swipe up on the video ({under}) → video {want + 1}, snapped exactly (scrollTop {f['top']}), only it plays; video {want + 2} is warming ({[(x['slide'], x['src'][:40]) for x in f['frames']]}, warm {f['warm']})")
+        check(f["cur"] == want and f["top"] % f["h"] == 0 and want in on and set(on) <= {want - 1, want} and f["warm"] == [want + 1, want + 2] and f["playingUi"] == [want] and f["yt"] == 4,
+              f"Chromium: finger swipe up on the video ({under}) → video {want + 1}, snapped exactly (scrollTop {f['top']}), only it plays; videos {want + 2} + {want + 3} are warm, 4 players ({[(x['slide'], x['src'][:40]) for x in f['frames']]}, warm {f['warm']})")
     await swipe(300, 450)
     try: await pg.wait_for_function("window.__chisme.forYou.cur === 1", timeout=5000)
     except Exception: pass
@@ -379,10 +385,10 @@ async def ios_five(p, slow):
     await pg.goto(URL + "#cual-dieta", wait_until="domcontentloaded")   # (not "load": the players' iframes are made on this screen, and here they're held until Start)
     await pg.wait_for_function("() => window.__chisme && window.__chisme.foodReady && !document.querySelector('#foryou-card').hidden", timeout=90000)
     if not slow:
-        try: await pg.wait_for_function("window.__chisme.forYou.player.players.length === 2 && window.__chisme.forYou.player.players.every(p => p.ready)", timeout=20000)
+        try: await pg.wait_for_function("window.__chisme.forYou.player.players.length === 3 && window.__chisme.forYou.player.players.every(p => p.ready)", timeout=20000)
         except Exception: pass
     await pg.tap("#fy-start"); gate.set(); await pg.wait_for_function("document.querySelector('#feed').open", timeout=5000)
-    kinds = await pg.evaluate("[...document.querySelectorAll('#feed-scroll .vf-slide')].map(s => s.dataset.kind || '')")
+    kinds = await pg.evaluate("[...document.querySelectorAll('#feed-scroll .vf-slide[data-url]')].map(s => s.dataset.kind || '')")   # (the videos: not the donate / end slides)
     tt = [i for i, k in enumerate(kinds) if k == "tt"]
     check(kinds[:5] == ["yt"] * 5 and (not tt or all(k == "tt" for k in kinds[tt[0]:-1])), f"iPhone: the YouTube videos come first, the TikToks after them ({len(tt)} TikToks from #{tt[0] + 1 if tt else '-'})")
     times, tapped = [], 0
@@ -409,7 +415,7 @@ async def ios_five(p, slow):
             await pg.wait_for_timeout(1500)
             await pg.evaluate("() => { const s = document.querySelector('#feed-scroll'); s.scrollTo({ top: s.scrollTop + s.clientHeight, behavior: 'instant' }); }")
     w = await pg.evaluate(SND)
-    check(tapped == (1 if slow else 0) and w["players"] == 2, f"{'one tap' if slow else 'no tap besides Start'}, 5 videos with sound, all in the same 2 players ({w['players']} YouTube iframes; times {times})")
+    check(tapped == (1 if slow else 0) and w["players"] == 3, f"{'one tap' if slow else 'no tap besides Start'}, 5 videos with sound, all in the same 3 players (v47: made before Start, so that one tap unlocks them all) ({w['players']} YouTube iframes; times {times})")
     check(not errs, f"no errors from Chisme ({errs[:2]})")
     await b.close()
 

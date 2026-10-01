@@ -1587,7 +1587,17 @@ window.CHISME_APP_BUILD = "47";
   // their own tap for sound, so on iPhone the TikToks come after the YouTube videos.
   // Nothing is ever left paused by the browser: a video that isn't playing 2.5 s after it should is retried muted, and if
   // even that is refused (Low Power Mode) the slide says "Tap to play" (a tap always works).
-  const KEEP_BEHIND = 1, PREFETCH_AHEAD = 3, YT_POOL = 2;
+  // v47: preloading. The pool grows to 3 players on iPhone (memory) / 4 elsewhere: the one on screen, the next 2 videos
+  // loaded and held on their first frame (skipping the donate slides), and (with 4) the one behind, paused, for a swipe back.
+  // On a slow connection (2g/3g) only 1 ahead (data saver already turns autoplay, and so all preloading, off).
+  // All of them are made before the Start tap, so on iPhone that one tap unlocks sound in every one (v41: a player made
+  // later would start muted). Players are reused (loadVideoById), never one iframe per video; a video more than 2 videos
+  // away is stopped and its player taken for the next one, so memory stays flat however far you swipe.
+  const KEEP_BEHIND = 1, YT_POOL_MAX = IOS_FEED ? 3 : 4;
+  const slowNet = () => { const c = navigator.connection; return !!c && (!!c.saveData || /^(slow-2g|2g|3g)$/.test(c.effectiveType || "")); };
+  const aheadN = () => (slowNet() ? 1 : 2);                     // videos preloaded ahead
+  const ytPool = () => Math.min(YT_POOL_MAX, aheadN() + 2);     // + the one on screen + the one behind
+  const prefetchN = () => (slowNet() ? 2 : 6);                  // slides ahead whose thumbnails are fetched (and decoded) now
   const FEED_SOUND_KEY = "chisme-feed-sound";
   let soundWanted = lsGet(FEED_SOUND_KEY) !== "off";
   let feedUnlocks = 0, feedGesture = false;   // feedGesture: true while handling a real tap (Start, a play button, the sound button)
@@ -1601,7 +1611,7 @@ window.CHISME_APP_BUILD = "47";
   const ytOf = (s) => (s ? YT.find((p) => p.slide === s) || null : null);   // the player sitting on slide s
   const ytSend = (p, func, args) => { if (p && p.frame && p.ready) ytCmd(p.frame, func, args); };
   function makePlayer(firstId) {
-    if (YT.length >= YT_POOL || !firstId || !navigator.onLine) return null;
+    if (YT.length >= ytPool() || !firstId || !navigator.onLine) return null;
     const origin = encodeURIComponent(location.origin);
     const p = { wrap: el("div", { class: "vf-player off" }), frame: null, ready: false, vid: firstId, slide: null, warm: false, st: -1, ytMuted: null,
       hs: 0, pending: null, unlocked: false, loadAt: 0, moved: false };
@@ -1622,9 +1632,9 @@ window.CHISME_APP_BUILD = "47";
   function preparePlayer() {
     clearTimeout(preparePlayer.t);
     preparePlayer.t = setTimeout(() => {
-      if (YT.length >= YT_POOL || !FY || !canAutoplay() || VIEWS[cur] !== "antojos" || $("#foryou-card").hidden) return;
+      if (YT.length >= ytPool() || !FY || !canAutoplay() || VIEWS[cur] !== "antojos" || $("#foryou-card").hidden) return;
       const ids = (fyList.length ? fyList : fyRank()).map((r) => ytId(r.item.url)).filter(Boolean);
-      for (const id of ids.slice(0, YT_POOL)) if (!YT.some((p) => p.vid === id)) makePlayer(id);
+      for (const id of ids.slice(0, ytPool())) if (!YT.some((p) => p.vid === id)) makePlayer(id);
     }, 700);
   }
   function dropPlayers() {   // back online after the players never loaded: fresh ones next time
@@ -1642,7 +1652,7 @@ window.CHISME_APP_BUILD = "47";
     if (p.warm) p.frame.tabIndex = -1;
   }
   if (window.ResizeObserver) new ResizeObserver(() => { for (const p of YT) if (p.slide && p.slide.isConnected) placePlayer(p, p.slide, p.warm); }).observe(feedScroll);
-  function freePlayer(p) { if (!p) return; ytSend(p, "pauseVideo"); if (p.slide) { delete p.slide.dataset.warm; } placePlayer(p, null); p.pending = null; }
+  function freePlayer(p) { if (!p) return; ytSend(p, "stopVideo"); if (p.slide) { delete p.slide.dataset.warm; } placePlayer(p, null); p.pending = null; }   // v47: stop (not just pause): the far video's buffer can go
   function ytGo(p, s, id, mode, fresh) {   // mode "play": on screen; "warm": loaded muted, held on its first frame. fresh: load it again from scratch
     placePlayer(p, s, mode === "warm");
     if (mode === "play") { p.frame.tabIndex = 0; p.frame.title = "YouTube video: " + (feedList.find((x) => x.item.url === s.dataset.url)?.item.title || ""); }
@@ -1658,7 +1668,7 @@ window.CHISME_APP_BUILD = "47";
   function ytPlay(s, id) {
     let p = ytOf(s) || YT.find((q) => !q.slide && q.vid === id) || YT.find((q) => !q.slide);
     if (!p) p = makePlayer(id);
-    if (!p) { const prev = YT.find((q) => q.slide && !isCur(q.slide) && !q.warm) || YT.find((q) => !isCur(q.slide)); p = prev; }
+    if (!p) { const ah = aheadSlides(); p = YT.find((q) => q.slide && !isCur(q.slide) && !q.warm) || YT.find((q) => !isCur(q.slide) && !ah.includes(q.slide)) || YT.find((q) => !isCur(q.slide)); }
     if (!p) return;
     for (const q of YT) if (q !== p && q.slide && !q.warm) ytSend(q, "pauseVideo");   // the one behind stays, paused, for a swipe back
     if (p.slide === s && p.warm && s.dataset.warm === "ready") {   // warmed: it's on its first frame already
@@ -1668,22 +1678,37 @@ window.CHISME_APP_BUILD = "47";
     }
     ytGo(p, s, id, "play", p.slide === s && p.warm);   // still warming (swiped quickly): load it again, clean, rather than un-pausing a half-loaded muted player (Safari can leave that buffering)
   }
-  function warmNext() {   // the next slide: a YouTube video loads in the other player, muted, held on its first frame
-    const all = slides(), n = all[feedCur + 1], cur_ = all[feedCur];
-    if (!feed.open || !n || !n.dataset.url || !canAutoplay()) return;
-    if (kindOf(n) === "tt") {   // a TikTok: its own player in its slide, muted and held (not on iPhone: Safari won't start an off-screen video)
-      const it = feedList.find((x) => x.item.url === n.dataset.url)?.item;
-      if (!IOS && it && !n.querySelector(".vf-frame")) { n.dataset.warm = "1"; mountTikTok(n, it); }
+  // v47: the next video slides after the one on screen (the donate slides skipped), up to `n` of them
+  function aheadSlides(n = aheadN()) {
+    const all = slides(), out = [];
+    for (let k = feedCur + 1; k < all.length && out.length < n; k++) if (all[k].dataset.url) out.push(all[k]);
+    return out;
+  }
+  function behindSlide() { const all = slides(); for (let k = feedCur - 1; k >= 0; k--) if (all[k].dataset.url) return all[k]; return null; }
+  function warmNext() {   // the next videos, nearest first and one at a time: each loads muted in a player of its own and is held on its first frame
+    const cur_ = slides()[feedCur];
+    if (!feed.open || !cur_ || !canAutoplay()) return;
+    const ahead = aheadSlides();
+    for (const n of ahead) {
+      if (kindOf(n) === "tt") {   // a TikTok: its own player in its slide, muted and held (not on iPhone: Safari won't start an off-screen video)
+        if (IOS || n.querySelector(".vf-frame")) { if (n.dataset.warm === "1") return; continue; }   // (still warming: wait for it)
+        const it = feedList.find((x) => x.item.url === n.dataset.url)?.item;
+        if (it) { n.dataset.warm = "1"; mountTikTok(n, it); }
+        return;
+      }
+      const have = ytOf(n);
+      if (have) { if (have.warm && n.dataset.warm !== "ready") return; continue; }   // warming: the next one waits for it (one download at a time)
+      const id = vidOf(feedList.find((x) => x.item.url === n.dataset.url)?.item || {})?.yt;
+      if (!id) continue;
+      const behind = behindSlide();   // a player for it: a free one, else one more than 2 away, else the one behind, else a new one (pool permitting)
+      let p = YT.find((q) => !q.slide) || YT.find((q) => q.slide !== cur_ && q.slide !== behind && !ahead.includes(q.slide)) || makePlayer(id)
+        || YT.find((q) => q.slide === behind && q.slide !== cur_);
+      if (!p || p.slide === cur_) return;
+      if (p.slide) { const old = p.slide; freePlayer(p); if (old !== n) unmountFrame(old); }
+      n.dataset.warm = "1";
+      ytGo(p, n, id, "warm");
       return;
     }
-    if (ytOf(n)) return;
-    const id = vidOf(feedList.find((x) => x.item.url === n.dataset.url)?.item || {})?.yt;
-    if (!id) return;
-    let p = YT.find((q) => !q.slide) || YT.find((q) => q.slide !== cur_) || makePlayer(id);
-    if (!p || p.slide === cur_) return;
-    if (p.slide) freePlayer(p);
-    n.dataset.warm = "1";
-    ytGo(p, n, id, "warm");
   }
   let warmTimer = null;
   function warmSoon(ms) { clearTimeout(warmTimer); warmTimer = setTimeout(warmNext, ms); }
@@ -1804,7 +1829,7 @@ window.CHISME_APP_BUILD = "47";
     const now = Date.now();
     if (state === 1) {   // playing
       s.classList.remove("vf-loading", "vf-tap"); s.dataset.playing = "1";
-      if (!isCur(s) || !feed.open) { const f = s.querySelector(".vf-frame"); if (f) { ttCmd(f, "mute"); ttCmd(f, "pause"); } if (s.dataset.warm) s.dataset.warm = "ready"; return; }   // a warmed TikTok: held on its first frame
+      if (!isCur(s) || !feed.open) { const f = s.querySelector(".vf-frame"); if (f) { ttCmd(f, "mute"); ttCmd(f, "pause"); } if (s.dataset.warm) { s.dataset.warm = "ready"; warmSoon(150); } return; }   // a warmed TikTok: held on its first frame (v47: then the next one)
       if (!feedPlaying) { feedCommand(s, "pause"); return; }
       if (!s._counted) { s._counted = true; Stats.ev("food", kindOf(s)); }   // a food video view (once per time it comes on screen)
       if (!s._playedAt) { s._playedAt = now; warmSoon(300); }   // it's going: now warm the next one
@@ -1821,9 +1846,15 @@ window.CHISME_APP_BUILD = "47";
     const s = p.slide;
     if (!s || !s.isConnected || !feed.open) { if (state === 1) ytSend(p, "pauseVideo"); return; }
     // right after loadVideoById the old video can still report "playing" for a moment: wait for the new one
-    if (state === 1 && p.moved && Date.now() - p.loadAt < 1200) { p.st = 3; return; }
+    if (state === 1 && p.moved && Date.now() - p.loadAt < 1200) {
+      p.st = 3;
+      // v47: a warming player must not keep going: hold it now, and ask again once the old video can't be the one talking
+      // (left alone it played on, muted, in the background, and Safari then refused to unmute it on the swipe)
+      if (p.warm) { ytSend(p, "pauseVideo"); clearTimeout(p.reWarm); p.reWarm = setTimeout(() => { if (p.warm && p.slide && p.slide.dataset.warm !== "ready" && feed.open) ytSend(p, "playVideo"); }, Math.max(60, 1260 - (Date.now() - p.loadAt))); }
+      return;
+    }
     if (p.warm) {   // warming the next video: as soon as it has a picture, hold it there (muted, first frame)
-      if (state === 1) { ytSend(p, "pauseVideo"); ytSend(p, "seekTo", [0, true]); s.dataset.warm = "ready"; s._st = 2; }
+      if (state === 1) { ytSend(p, "pauseVideo"); ytSend(p, "seekTo", [0, true]); s.dataset.warm = "ready"; s._st = 2; warmSoon(150); }   // v47: then the one after it
       return;
     }
     onPlayerState(s, state);
@@ -1958,12 +1989,12 @@ window.CHISME_APP_BUILD = "47";
     }
     setUi(s, true); updateSoundBtn(); watchStart(s);
   }
-  function syncWindow() {   // keep the slide behind (paused) for a quick swipe back and the next one warming; unload the rest; warm the next pictures
-    const all = slides();
+  function syncWindow() {   // keep the slide behind (paused) for a quick swipe back and the next ones warming; unload the rest; fetch the next pictures
+    const all = slides(), ahead = aheadSlides(), back = behindSlide(), pf = prefetchN();
     all.forEach((s, k) => {
       if (!s.dataset.url || k === feedCur) return;
-      if (k > feedCur && k <= feedCur + PREFETCH_AHEAD) s.querySelectorAll('img[loading="lazy"]').forEach((im) => { im.loading = "eager"; });
-      const behind = k < feedCur && k >= feedCur - KEEP_BEHIND, next = k === feedCur + 1 && ((ytOf(s) && ytOf(s).warm) || (kindOf(s) === "tt" && s.dataset.warm));
+      if (k > feedCur && k <= feedCur + pf) s.querySelectorAll("img.vf-thumb, img.vf-bg").forEach((im) => { if (im.loading !== "eager") { im.loading = "eager"; im.decode?.().catch(() => {}); } });   // v47: decoded ahead, on screen at once
+      const behind = s === back && KEEP_BEHIND > 0, next = ahead.includes(s) && ((ytOf(s) && ytOf(s).warm) || (kindOf(s) === "tt" && s.dataset.warm));
       if (next) return;
       if (behind && (s.querySelector(".vf-frame") || ytOf(s))) { feedCommand(s, "pause"); s.classList.remove("vf-playing"); }
       else if (s.querySelector(".vf-frame, .vf-shield, .vf-off") || ytOf(s)) unmountFrame(s);
@@ -1991,7 +2022,10 @@ window.CHISME_APP_BUILD = "47";
     syncWindow(); updateSoundBtn(); if (r && canAutoplay()) warmSoon(1500);
   }
   const nearest = () => Math.round(feedScroll.scrollTop / Math.max(1, feedScroll.clientHeight));
-  feedScroll.addEventListener("scroll", () => { clearTimeout(feedTimer); feedTimer = setTimeout(() => activate(nearest()), 140); }, { passive: true });
+  // v47: a scroll that has come to rest exactly on a slide (the snap) starts that video right away; mid-swipe, the 140 ms wait as before
+  const snapped = () => Math.abs(feedScroll.scrollTop - nearest() * feedScroll.clientHeight) < 1;
+  feedScroll.addEventListener("scroll", () => { clearTimeout(feedTimer); feedTimer = setTimeout(() => activate(nearest()), snapped() ? 30 : 140); }, { passive: true });
+  feedScroll.addEventListener("scrollend", () => { if (snapped()) { clearTimeout(feedTimer); activate(nearest()); } });
   function notInterested(r) {
     const s = slides().find((x) => x.dataset.url === r.item.url);
     if (!s) return;
@@ -3225,7 +3259,8 @@ window.CHISME_APP_BUILD = "47";
     get newsReady() { return secs.news.shownUrl === secs.news.url(); }, get sportsReady() { return secs.sports.shownUrl === secs.sports.url(); }, get eventsReady() { return secs.events.shownUrl === secs.events.url(); }, get foodReady() { return !!foodData; },
     get sync() { return { busy: [...Sync.busy], failed: [...Sync.failed.keys()], lastOk: Sync.lastOk }; }, refreshNow, get evCat() { return evCat; }, get view() { return VIEWS[cur]; }, radarColor: (r, g, b) => radarColor(r, g, b), get a2hs() { return { ...a2, open: !a2Sheet.hidden, ipad: isIPad, safari: isIOSSafari, standalone, kind: a2Kind(), shown: a2Shown, claim: a2Claim, visits }; }, get donateMid() { const c = document.getElementById("donate-mid"); return { opens: midLaunch.opens, line: midLaunch.line, tab: midTab, where: midWhere, placed: !!(c && c.isConnected), dismissed: midGone() }; }, goView, get juegos() { return juegosOpen(); }, get forYou() { return { profile: FY && FY.load(), feed: feedList.map((r) => ({ url: r.item.url, title: r.item.title, creator: r.item.creator, crew: r.crew, place: r.place, why: r.why.text, explore: r.explore, recipe: !!r.item.recipe, world: !!r.item.world, where: r.item.where || null })), cur: feedCur, open: feed.open, sound: { wanted: soundWanted, muted: feedMuted, unlocks: feedUnlocks, held: feed.classList.contains("sound-held") }, get player() { const sl = slides(), c = YT.find((p) => p.slide && !p.warm && sl.indexOf(p.slide) === feedCur) || YT.find((p) => p.slide && !p.warm) || YT[0] || {}, w = YT.find((p) => p.warm && p.slide);
       return { made: YT.length > 0, ready: !!c.ready, vid: c.vid || null, st: c.st ?? -1, ytMuted: c.ytMuted ?? null, unlocked: !!c.unlocked, slide: c.slide ? sl.indexOf(c.slide) : -1, frames: document.querySelectorAll("iframe.vf-yt").length,
-        players: YT.map((p) => ({ slide: p.slide ? sl.indexOf(p.slide) : -1, warm: p.warm, vid: p.vid, st: p.st, ready: p.ready, unlocked: p.unlocked, muted: p.ytMuted })), warm: w ? sl.indexOf(w.slide) : -1, ios: IOS_FEED }; }, cover: fyList.slice(0, 3).map((r) => r.item.url), coverCrews: fyList.slice(0, 3).map((r) => r.crew) }; }, openFeed, closeFeed,
+        players: YT.map((p) => ({ slide: p.slide ? sl.indexOf(p.slide) : -1, warm: p.warm, vid: p.vid, st: p.st, ready: p.ready, unlocked: p.unlocked, muted: p.ytMuted })), warm: w ? sl.indexOf(w.slide) : -1, ios: IOS_FEED,
+        warms: YT.filter((p) => p.warm && p.slide).map((p) => sl.indexOf(p.slide)).sort((a, b) => a - b), pool: ytPool(), ahead: aheadN(), slow: slowNet() }; }, cover: fyList.slice(0, 3).map((r) => r.item.url), coverCrews: fyList.slice(0, 3).map((r) => r.crew) }; }, openFeed, closeFeed,
     get sportsReady() { return !!rendered.sports; }, get spLg() { return spLg; } };
   window.__chismeBooted = true;
 })();
