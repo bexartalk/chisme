@@ -215,6 +215,39 @@ class UpstashStore:
         return {"per": per, "ranges": ranges, "stories": stories, "sample": False}
 
 
+def _upstash_host(v: str) -> str:
+    """Pull an Upstash host out of anything pasted: https://h, h, redis://default:pw@h:6379, rediss://..."""
+    m = re.search(r"([a-z0-9-]+(?:\.[a-z0-9-]+)*\.upstash\.io)", v or "", re.I)
+    return m.group(1).lower() if m else ""
+
+
+def upstash_conf() -> tuple[str, str]:
+    """(rest_url, token), forgiving: values swapped, quotes, NAME=, redis:// URLs, or a password-in-URL."""
+    a, b = _clean_env("UPSTASH_REDIS_REST_URL"), _clean_env("UPSTASH_REDIS_REST_TOKEN")
+    if not a and not b:
+        return "", ""
+    if _upstash_host(b) and not _upstash_host(a):
+        a, b = b, a   # pasted into the wrong rows
+    host = _upstash_host(a)
+    tok = b
+    if not tok:   # a redis://default:<password>@host URL also carries a usable token
+        m = re.search(r"//[^:/@]*:([^@/]+)@", a)
+        tok = m.group(1) if m else ""
+    return (f"https://{host}" if host else a), tok
+
+
+def upstash_diag() -> str:
+    """Masked hint for the owner: never prints the token."""
+    a, b = _clean_env("UPSTASH_REDIS_REST_URL"), _clean_env("UPSTASH_REDIS_REST_TOKEN")
+    url, tok = upstash_conf()
+    host = _upstash_host(url)
+    bits = [f"URL value: {'missing' if not a else (host if host else 'not an Upstash address (' + str(len(a)) + ' characters)')}",
+            f"token: {'missing' if not tok else str(len(tok)) + ' characters'}"]
+    if host and host != _upstash_host(a):
+        bits.append("(the two values looked swapped; fixed automatically)")
+    return " · ".join(bits)
+
+
 def _clean_env(name: str) -> str:
     """Forgiving read of a pasted env value: strips spaces, quotes, a leading NAME= / export NAME=, and stray ':'."""
     v = (os.environ.get(name) or "").strip()
@@ -228,9 +261,7 @@ _store = None
 
 def store():
     global _store
-    url, tok = _clean_env("UPSTASH_REDIS_REST_URL"), _clean_env("UPSTASH_REDIS_REST_TOKEN")
-    if url and not url.startswith(("http://", "https://")):
-        url = "https://" + url
+    url, tok = upstash_conf()
     want = ("upstash", url, tok) if url and tok else ("file", os.environ.get("STATS_STORE_FILE", "/tmp/chisme-stats.json"))
     if _store is None or getattr(_store, "_want", None) != want:
         _store = UpstashStore(url, tok) if want[0] == "upstash" else FileStore(want[1])

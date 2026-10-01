@@ -2603,7 +2603,7 @@ async def stats_page(request: Request, key: str | None = None):
     except Exception as ex:
         code = getattr(getattr(ex, "response", None), "status_code", "")
         hint = " (Upstash rejected the token: re-copy UPSTASH_REDIS_REST_TOKEN, not the read-only one)" if code in (401, 403) else ""
-        return HTMLResponse(f"<p>Stats storage error: {html.escape(type(ex).__name__)} {code}{html.escape(hint)}</p>", status_code=503, headers=STATS_HEADERS)
+        return HTMLResponse(f"<p style='font:600 18px system-ui;padding:16px'>Stats storage error: {html.escape(type(ex).__name__)} {code}{html.escape(hint)}<br><br>{html.escape(stats.upstash_diag())}</p>", status_code=503, headers=STATS_HEADERS)
     return HTMLResponse(stats.page(data, st.name), headers=STATS_HEADERS)
 
 
