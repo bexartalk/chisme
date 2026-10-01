@@ -5,9 +5,10 @@ the RainViewer tiles (recolored on a canvas) go blue → orange → red → pink
 
 Covers every tab (News, Sports, Weather, ¿Cuál dieta?, Juegitos, Events), Settings, the Tía chat sheet (her picture
 itself is excluded), the "Updated" status pill in every state, the "New chisme" pill, the offline banner, the focus
-ring, the radar legend and tiles, Lotería (a win, with its winning-row highlight) and Ice Ice Bebé (DOM overlays + canvas
-pixels on the title, level 1, caught, level clear, levels 2–4 and the win). WebKit, iPhone 13, against the local server.
-Screenshots, light | dark side by side: no-yellow-news.png, no-yellow-loteria.png, no-yellow-icebebe.png."""
+ring, the radar legend and tiles, Lotería (a win, with its winning-row highlight) and Juan's Long Day (v44: DOM overlays,
+the full-screen badge, and the canvas HUD panel's pixels on the title, level 1, worn out, every level and its clear, and the win;
+the game art itself may use yellow, e.g. the beer and the taco). WebKit, iPhone 13, against the local server.
+Screenshots, light | dark side by side: no-yellow-news.png, no-yellow-loteria.png, no-yellow-juan.png."""
 import asyncio, io, os, sys
 from playwright.async_api import async_playwright
 from PIL import Image
@@ -41,9 +42,11 @@ SCAN = r"""(root) => { """ + YELLOW_JS + r"""
   return { n: els.length, bad: [...new Set(bad)].slice(0, 10) };
 }"""
 
-# canvas pixels (Ice Ice Bebé): how many yellow pixels, and a few examples
+# canvas pixels (v44 Juan's Long Day): how many yellow pixels in the HUD panel (UI chrome, units 8..352 × 8..58 of the
+# 360-unit-wide game), and a few examples. The game art below it may be yellow (beer, taco, the sun).
 CANVAS = r"""(sel) => { """ + YELLOW_JS + r"""
-  const c = document.querySelector(sel); if (!c) return null; const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+  const c = document.querySelector(sel); if (!c) return null; const S = c.width / 360, x0 = Math.round(8 * S), y0 = Math.round(8 * S);
+  const d = c.getContext('2d').getImageData(x0, y0, Math.round(352 * S) - x0, Math.round(58 * S) - y0).data;
   let n = 0; const ex = new Set();
   for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 200 && yellow([d[i], d[i + 1], d[i + 2]])) { n++; if (ex.size < 4) ex.add('#' + [d[i], d[i + 1], d[i + 2]].map((v) => v.toString(16).padStart(2, '0')).join('')); }
   return { n, ex: [...ex], px: d.length / 4 };
@@ -132,31 +135,32 @@ async def run_theme(b, dev, theme, shots):
     shots["loteria"].append(await shot(pg))
     await scan(pg, ".gfs-bar", "Lotería full screen: ✕ + title badge")
     await pg.click(".gfs-x"); await pg.wait_for_timeout(300)   # v40: out of full screen, back to the Juegitos list
-    # --- Ice Ice Bebé: overlays (DOM) + canvas pixels in every state (full screen while playing)
-    await pg.click('.game-pick[data-game="icebebe"]'); await pg.wait_for_timeout(600)
+    # --- Juan's Long Day: overlays (DOM) + the HUD's canvas pixels in every state (full screen while playing)
+    await pg.click('.game-pick[data-game="juan"]'); await pg.wait_for_timeout(600)
     await pg.evaluate("document.querySelector('#game-stage').scrollIntoView({ block: 'start' })"); await pg.wait_for_timeout(300)
-    async def ice(label):
-        c = await pg.evaluate(CANVAS, "#ice-cv")
-        check(c and c["n"] == 0, f"Ice Ice Bebé {label}: no yellow pixels ({c['n'] if c else None} {c['ex'] if c else ''})")
-        await scan(pg, "#game-stage", f"Ice Ice Bebé {label}: overlay/UI")
-    await ice("title")
-    await pg.click('#ice-ov [data-act="start"]'); await pg.wait_for_timeout(900)
-    await pg.evaluate(G + ".warp(1, 300)"); await pg.wait_for_timeout(300); await ice("level 1 (HUD, road, agents)")
-    c = await pg.evaluate(CANVAS, ".gfs-ice-cv"); check(c and c["n"] == 0, f"Ice Ice Bebé full-screen pixel badge: no yellow pixels ({c})")
-    await until(pg, G + ".state.mode === 'caught'", 20); await pg.wait_for_timeout(150); await ice("caught (big pixel text)")
-    shots["icebebe"].append(await shot(pg))
+    async def juan(label):
+        c = await pg.evaluate(CANVAS, "#juan-cv")
+        check(c and c["n"] == 0, f"Juan's Long Day {label}: no yellow pixels in the HUD ({c['n'] if c else None} {c['ex'] if c else ''})")
+        await scan(pg, "#game-stage", f"Juan's Long Day {label}: overlay/UI")
+    await juan("title")
+    await pg.click('#juan-ov [data-act="start"]'); await pg.wait_for_timeout(900)
+    await pg.evaluate(G + ".warp(1, 300)"); await pg.wait_for_timeout(300); await juan("level 1 (HUD, health bar)")
+    await scan(pg, ".gfs-bar", "Juan's Long Day full screen: ✕ + hard-hat badge")
+    shots["juan"].append(await shot(pg))
+    await pg.evaluate(G + ".setHealth(1)"); await until(pg, G + ".state.mode === 'oops'", 20); await pg.wait_for_timeout(150); await juan("worn out")
     await until(pg, G + ".state.mode === 'run'", 3)
-    await pg.evaluate(G + ".warp(1, 2340)"); await until(pg, G + ".state.mode === 'clear'", 6); await pg.wait_for_timeout(300); await ice("level 1 clear: Home Dehole + level title")
+    await pg.evaluate(G + ".warp(1, 5900)"); await until(pg, G + ".state.mode === 'clear'", 6); await pg.wait_for_timeout(300); await juan("level 1 clear: Home Dehole + next level")
     for lv in (2, 3, 4):
         await pg.evaluate(f"{G}.warp({lv}, 400)"); await pg.wait_for_timeout(400)
-        if await pg.evaluate(G + ".state.mode") in ("run", "caught", "clear"): await ice(f"level {lv}")
-        await pg.evaluate(f"{G}.warp({lv}, 2340)"); await until(pg, G + ".state.mode === 'clear'", 6); await pg.wait_for_timeout(300); await ice(f"level {lv} clear")
-    await pg.evaluate(G + ".warp(5, 2330)"); await until(pg, G + ".state.mode === 'win'", 6); await pg.wait_for_timeout(1200); await ice("win (family party, confetti)")
+        if await pg.evaluate(G + ".state.mode") in ("run", "oops", "clear"): await juan(f"level {lv}")
+        await pg.evaluate(f"{G}.warp({lv}, 5900)"); await until(pg, G + ".state.mode === 'clear'", 6); await pg.wait_for_timeout(300); await juan(f"level {lv} clear")
+    await pg.evaluate(G + ".warp(5, 900)"); await pg.wait_for_timeout(400); await juan("level 5 (night, beers)")
+    await pg.evaluate(G + ".warp(5, 5900)"); await until(pg, G + ".state.mode === 'win'", 6); await pg.wait_for_timeout(1200); await juan("win (¡Salud, Juan!, confetti)")
     check(not errs, f"no page errors ({errs[:2]})")
     await ctx.close()
 
 async def main():
-    shots = {"news": [], "loteria": [], "icebebe": []}
+    shots = {"news": [], "loteria": [], "juan": []}
     async with async_playwright() as p:
         b = await p.webkit.launch(); dev = dict(p.devices["iPhone 13"]); dev.pop("default_browser_type", None)
         for theme in ("light", "dark"): await run_theme(b, dev, theme, shots)

@@ -1,22 +1,23 @@
-"""🎲 Juegitos (v30; v39 English UI; v40 renamed from Juegos + full-screen portrait play; v41 traditional Spanish Lotería): a games tab, all on the phone and offline.
+"""🎲 Juegitos (v30; v39 English UI; v40 renamed from Juegos + full-screen portrait play; v41 traditional Spanish Lotería; v44 Juan's Long Day): a games tab, all on the phone and offline.
 
 1. Node: Lotería Chismosa's deck: the 54 traditional cards (El Gallo … La Rana; #26 is El Chocolate instead of El Negrito) with their folk
    verses, each with its own original SVG art; the call is the verse then "¡Name!"; one recorded mp3 per call; random 4×4 tablas, and
-   wins (rows, columns, diagonals, 4 corners) that only count for cards Tía actually called. Ice Ice Bebé's 5 levels
-   (Home Dehole → The Taco Shop → The Corner Store → The Plaza → Mom's House), same course every time, power-ups on each
-   level, no hazards right after a checkpoint.
+   wins (rows, columns, diagonals, 4 corners) that only count for cards Tía actually called. Juan's Long Day's 5 levels
+   (Home Dehole → Don Pedroes → O'Reillees → Juan's Casa → Noche Caliente), same course every time, ☕ coffee + breakfast taco on each
+   level, cold ones to jump for on the cantina level, hazards on every level but none right at a checkpoint.
 2. WebKit iPhone 13: the 🎲 Juegitos tab (between ¿Cuál dieta? and Events) fits; a list of games. Lotería: Tía (avatar) calls
    cards in Spanish from recorded clips (the phone's es-MX voice only if a clip fails), 🔇 Sound, pause, speed, new board; a bean drops only on a
    called card (an uncalled one shakes), tap again to take it off; ¡Lotería! checks the beans,
-   confetti + a brag on a win, wins/streak/best in localStorage. Ice Ice Bebé: run, jump (tap / Space), caught → a
-   random big pixel "¡Ay no!" / "¡Fuera!" / "¡Vámonos, amigo!" (kept in Spanish) and back to the checkpoint, coffee boost, flip-flop
-   shield (the agent just gets dizzy), level clear, the win at Mom's, no Spanish UI text besides Lotería / the catch lines, best score, mute, pause. Reduce motion (no
-   confetti, no parallax). No links and no outside requests in the games. Settings → default tab Juegitos.
+   confetti + a brag on a win, wins/streak/best in localStorage. Juan's Long Day (v44, replaces Ice Ice Bebé): run, jump (tap / Space),
+   a bump costs health, out of health → a random "¡Ay no!" / "¡Híjole!" / "¡Ándale, otra vez!" (kept in Spanish) and back to the checkpoint,
+   coffee boost, taco health, beers (+health) at night, level clear, the win at Noche Caliente ("¡Salud, Juan!"), English UI, best score, mute, pause.
+   Reduce motion (no confetti, no parallax). No links and no outside requests in the games. Settings → default tab Juegitos.
 3. Chromium: offline (service worker), Juegitos still opens and both games run.
 4. v41 full screen: the board fills the width and most of the height at 390×844 and 320×640 with no scrolling; the called card sits small above it.
    v43: the tabla-app layout (picker + bean count in the top bar, the called-card strip, big vintage cards, Limpiar / Nueva tabla): see loteria_v43_test.py.
-Screenshots: juegos-tab.png, juegos-english.png, loteria-calls.png, loteria-win.png, loteria-tabla-big.png, loteria-cards.png, ice-ice-bebe-level1.png,
-ice-ice-bebe-win.png (+ ice-ice-bebe-home-dehole.png, loteria-320.png)."""
+   v44: Juan's Long Day full screen at 390×844 (level 1 at Home Dehole, Don Pedroes, level 5 at the cantina) and 320×640 (canvas + controls fit, no scrolling).
+Screenshots: juegos-tab.png, juegos-english.png, loteria-calls.png, loteria-win.png, loteria-tabla-big.png, loteria-cards.png, loteria-320.png,
+juan-intro.png, juan-l1.png, juan-don-pedroes.png, juan-l5.png, juan-win.png, juan-320.png."""
 import asyncio, json, os, re, subprocess
 from urllib.parse import urlparse
 from playwright.async_api import async_playwright
@@ -44,7 +45,9 @@ TRADITIONAL = ["El Gallo", "El Diablito", "La Dama", "El Catrín", "El Paraguas"
 # v43: the user asked for these (the big buttons, the picker and its preset tablas' names)
 ALLOWED_ES = ["Limpiar", "Nueva tabla", "Pick your tabla", "your tabla", "tabla", "La Clásica", "Del Campo", "La Fiesta", "Cielo y Mar", "La Gente"]
 SPANISH = ["Empezar", "Pausa", "Seguir", "Otra vez", "Nueva tabla", "Voz", "Lenta", "Rápida", "mija", "Siéntate", "carta", "baraja", "Primero", "Todavía",
-  "Ganaste", "Bienvenido", "Llegaste", "Qué", "fiesta", "Mamá", "Cafecito", "chancla", "Taquería", "Tiendita", "Casa de", "La Plaza", "tabla", "ficha", "esquinas", "fila", "columna"]
+  "Ganaste", "Bienvenido", "Llegaste", "Qué", "fiesta", "Mamá", "Cafecito", "Taquería", "Tiendita", "Casa de", "La Plaza", "tabla", "ficha", "esquinas", "fila", "columna"]
+JUAN_LEVELS = ["Home Dehole", "Don Pedroes", "O'Reillees", "Juan's Casa", "Noche Caliente"]
+OOPS = {"¡Ay no!", "¡Híjole!", "¡Ándale, otra vez!"}
 UNIT = r"""
 const J = require(process.argv[1]), I = require(process.argv[2]);
 const t = J.newTabla(), called = new Set(t), out = { n: J.CARDS.length, names: J.CARDS.map((c) => c.name), tabla: t.length, uniq: new Set(t).size, calls: J.CARDS.every((c) => c.verse && c.verse.length <= 100) };
@@ -55,20 +58,25 @@ const win = (cells, calledSet) => J.check(t, new Set(cells), calledSet || called
 out.row = win([4, 5, 6, 7]); out.col = win([1, 5, 9, 13]); out.diag = win([3, 6, 9, 12]); out.corners = win([0, 3, 12, 15]); out.none = win([0, 1, 2, 5]);
 out.uncalled = win([0, 1, 2, 3], new Set([t[0], t[1], t[2]]));
 out.lines = J.LINES.length;
-out.levels = I.LEVELS.map((l) => l.name);
+out.levels = I.LEVELS.map((l) => l.name); out.outfits = I.LEVELS.map((l) => l.outfit);
 out.same = JSON.stringify(I.buildLevel(3)) === JSON.stringify(I.buildLevel(3));
-out.power = [1, 2, 3, 4, 5].map((n) => { const e = I.buildLevel(n); return [e.filter((x) => x.t === "cup").length, e.filter((x) => x.t === "chancla").length]; });
-out.afterCheck = [1, 2, 3, 4, 5].every((n) => I.buildLevel(n).every((e) => !["agent", "cone", "suv", "crate"].includes(e.t) || I.CHECKS.every((c) => !c || e.x < c - 40 || e.x > c + 60)));
+out.power = [1, 2, 3, 4, 5].map((n) => { const e = I.buildLevel(n); return [e.filter((x) => x.t === "coffee").length, e.filter((x) => x.t === "taco").length]; });
+out.beers = [1, 2, 3, 4, 5].map((n) => I.buildLevel(n).filter((x) => x.t === "beer").length);
+out.lastBeers = I.buildLevel(5).filter((x) => x.t === "beer" && x.x > I.END - 200).length;
+const HZ = Object.keys(I.HAZ), SOLID = ["pallet", "tires"];
+out.haz = [1, 2, 3, 4, 5].map((n) => I.buildLevel(n).filter((x) => HZ.includes(x.t)).length);
+out.kinds = [...new Set([1, 2, 3, 4, 5].flatMap((n) => I.buildLevel(n).filter((x) => HZ.includes(x.t) || SOLID.includes(x.t)).map((x) => x.t)))].sort();
+out.dmg = Object.fromEntries(Object.entries(I.HAZ).map(([k, v]) => [k, v[0]])); out.hp = I.HP;
+out.afterCheck = [1, 2, 3, 4, 5].every((n) => I.buildLevel(n).every((e) => !(HZ.includes(e.t) || SOLID.includes(e.t)) || I.CHECKS.every((c) => !c || e.x + e.w < c - 40 || e.x > c + 60)));
 const fs = require("fs"), path = require("path"), src = fs.readFileSync(process.argv[1], "utf8") + fs.readFileSync(process.argv[2], "utf8") + fs.readFileSync(path.join(path.dirname(process.argv[1]), "loteria_cards.js"), "utf8");
 out.net = ["http:", "https:", "fetch(", "XMLHttpRequest", "import(", "sendBeacon", "WebSocket", "<a "].filter((w) => src.includes(w));
-out.agents = [1, 2, 3, 4, 5].map((n) => I.buildLevel(n).filter((x) => x.t === "agent").length);
 out.callsText = J.CARDS.map((c) => c.verse);
-out.signs = I.LEVELS.map((l) => l.sign); out.hints = I.LEVELS.map((l) => l.hint);
+out.hints = I.LEVELS.map((l) => l.hint); out.game = [I.game.id, I.game.name, I.KEY];
 console.log(JSON.stringify(out));
 """
 def unit():
-    print("== Node: Lotería Chismosa + Ice Ice Bebé logic")
-    r = subprocess.run(["node", "-e", UNIT, os.path.join(HERE, "static", "juegos.js"), os.path.join(HERE, "static", "icebebe.js")], capture_output=True, text=True, timeout=60)
+    print("== Node: Lotería Chismosa + Juan's Long Day logic")
+    r = subprocess.run(["node", "-e", UNIT, os.path.join(HERE, "static", "juegos.js"), os.path.join(HERE, "static", "juan.js")], capture_output=True, text=True, timeout=60)
     if r.returncode: check(False, "node harness: " + r.stderr[-300:]); return
     o = json.loads(r.stdout)
     check(o["n"] == 54 and o["names"] == TRADITIONAL and o["ids"] == list(range(1, 55)), f"the 54 traditional cards in order, El Gallo … La Rana ({o['n']}; #26 {o['names'][25]!r})")
@@ -81,7 +89,7 @@ def unit():
     check(o["calls"] and o["call1"] == "El que le cantó a San Pedro no le volverá a cantar. ¡El Gallo!", f"each call is the traditional verse, then the name ({o['call1']!r})")
     check(o["lines_es"] == {"intro": "¡Se va y se corre con…!", "loteria": "¡Lotería!", "over": "¡Se acabaron las cartas!"}, f"the other calls are Spanish too ({o['lines_es']})")
     es = [w for w in SPANISH if any(w.lower() in t.lower().split() or (" " in w and w.lower() in t.lower()) for t in o["hints"])]
-    check(not es, f"Ice Ice Bebé's level hints are English ({es})")
+    check(not es, f"Juan's Long Day's level hints are English ({es})")
     audio = os.path.join(HERE, "static", "loteria", "audio"); clips = [f"{i:02d}.mp3" for i in range(1, 55)] + ["intro.mp3", "loteria.mp3", "over.mp3"]
     sizes = [os.path.getsize(os.path.join(audio, f)) if os.path.exists(os.path.join(audio, f)) else 0 for f in clips]
     heads = [open(os.path.join(audio, f), "rb").read(3) for f in clips if os.path.exists(os.path.join(audio, f))]
@@ -90,12 +98,17 @@ def unit():
     check(o["row"]["win"] and o["col"]["win"] and o["diag"]["win"] and o["corners"]["win"] and o["lines"] == 11, "wins: a row, a column, a diagonal, the 4 corners (11 lines)")
     check(not o["none"]["win"], "4 marks that aren't a line: no win")
     check(not o["uncalled"]["win"] and len(o["uncalled"]["early"]) == 1, "a line with a card Tía hasn't called doesn't count (caught as an early mark)")
-    check(o["levels"] == ["Home Dehole", "The Taco Shop", "The Corner Store", "The Plaza", "Mom's House"] and o["signs"] == ["HOME DEHOLE", "TACO SHOP", "CORNER STORE", "THE PLAZA", "MOM'S HOUSE"], f"Ice Ice Bebé: 5 levels in English, ending at {o['levels']}")
+    check(o["game"] == ["juan", "Juan's Long Day", "chisme-juegos-juan"], f"v44: the second game is Juan's Long Day ({o['game']})")
+    check(o["levels"] == JUAN_LEVELS, f"Juan's Long Day: 5 stops, Home Dehole → Don Pedroes → O'Reillees → Juan's Casa → Noche Caliente ({o['levels']})")
+    check(o["outfits"] == ["work", "work", "work", "work", "western"], f"work clothes for the first 4 levels, cowboy clothes at night ({o['outfits']})")
     check(o["same"], "a level is the same course every time (so a checkpoint restarts it fairly)")
-    check(all(c >= 1 and s >= 1 for c, s in o["power"]), f"every level has a ☕ coffee and a 🩴 flip-flop ({o['power']})")
+    check(all(c >= 1 and t >= 1 for c, t in o["power"]), f"every level has a ☕ coffee and a breakfast taco ({o['power']})")
+    check(o["beers"][:4] == [0, 0, 0, 0] and o["beers"][4] >= 20 and o["lastBeers"] == 4, f"cold ones to jump for only on the cantina level, with a last arc of 4 by the door ({o['beers']}, last {o['lastBeers']})")
+    check(all(h >= 8 for h in o["haz"]), f"hazards on every level ({o['haz']})")
+    check(o["kinds"] == ["cart", "chancla", "chihuahua", "cone", "pallet", "pothole", "sprinkler", "tires"], f"cones, potholes, carts, chanclas, chihuahuas, sprinklers + pallets / tires to hop on ({o['kinds']})")
+    check(o["hp"] == 100 and all(5 <= d <= 20 for d in o["dmg"].values()), f"a bump costs a little of the 100-point health bar ({o['dmg']})")
     check(o["afterCheck"], "no hazards right at a checkpoint")
     check(not o["net"], f"the games' code has no URLs, links or network calls ({o['net']})")
-    check(all(a >= 3 for a in o["agents"]), f"agents on every level ({o['agents']})")
 
 async def to_stage(pg):
     await pg.evaluate("() => { const t = document.querySelector('#game-stage'); window.scrollTo(0, t.getBoundingClientRect().top + scrollY - 70); }"); await pg.wait_for_timeout(300)
@@ -138,7 +151,7 @@ async def webkit(p):
     check(fit, "all 6 tabs fit on an iPhone 13 (no sideways scroll)")
     check(await pg.evaluate("__chisme.view") == "juegos" and await pg.evaluate("__chisme.juegos.id") == "loteria", "#loteria opens Juegitos → Lotería Chismosa")
     games = await pg.evaluate("[...document.querySelectorAll('.game-pick b')].map(b => b.textContent)")
-    check(games == ["Lotería Chismosa", "Ice Ice Bebé"], f"a list of games ({games})")
+    check(games == ["Lotería Chismosa", "Juan's Long Day"], f"a list of games ({games})")
     watch["on"] = True
     check(await pg.evaluate("document.querySelectorAll('#lot-tabla .lot-cell').length") == 16, "a 4×4 tabla")
     await pg.evaluate("() => window.scrollTo(0, document.querySelector('#juegos').getBoundingClientRect().top + scrollY - 70)"); await pg.wait_for_timeout(400)
@@ -239,95 +252,103 @@ async def webkit(p):
     await pg.wait_for_timeout(3200)
     check(not s["running"] and not s["fullscreen"] and not f["on"] and f["tabs"] and f["foot"] and back and len((await st(pg))["called"]) == n0,
           f"✕: the calling stops, back to the Juegitos list, tab bar + footer back (running {s['running']}, fs {f['on']}, tabs {f['tabs']}, list in view {back})")
-    # --- Ice Ice Bebé
-    await pg.click('.game-pick[data-game="icebebe"]'); await to_stage(pg)
+    # --- Juan's Long Day (v44; replaces Ice Ice Bebé)
+    await pg.click('.game-pick[data-game="juan"]'); await to_stage(pg)
     s = await st(pg)
-    check(s["mode"] == "title" and "Ice Ice Bebé" in s["overlay"], "Ice Ice Bebé: title screen")
-    await pg.click('#ice-ov [data-act="start"]'); await pg.wait_for_timeout(700)
+    stops = await pg.evaluate("[...document.querySelectorAll('#juan-ov .juan-stops li')].map(l => l.textContent.replace(/^\\d+/, '').trim())")
+    check(s["mode"] == "title" and "Juan's Long Day" in s["overlay"] and "Help Juan get through the day!" in s["overlay"] and stops == JUAN_LEVELS, f"Juan's Long Day: title screen with the 5 stops ({stops})")
+    await pg.click('#juan-ov [data-act="start"]'); await pg.wait_for_timeout(700)
     s1 = await st(pg); await pg.wait_for_timeout(500); s2 = await st(pg)
-    check(s2["mode"] == "run" and s2["x"] > s1["x"] + 20, f"he runs ({s1['x']:.0f} → {s2['x']:.0f})")
+    check(s2["mode"] == "run" and s2["x"] > s1["x"] + 20 and s2["outfit"] == "work" and s2["health"] == 100, f"Juan runs, in his work clothes, full health ({s1['x']:.0f} → {s2['x']:.0f}, {s2['outfit']}, {s2['health']})")
     f = await fs(pg)
-    check(fs_ok(f) and f["badgeMid"] and "Ice Ice Bebé" in f["badge"] and await pg.evaluate("!!document.querySelector('.gfs-badge canvas.gfs-ice-cv')"), f"v40 ▶ Start: Ice Ice Bebé goes full screen (fixed overlay {f['iw']}×{f['ih']}, tab bar + footer hidden, ✕ top right, pixel 'ICE ICE BEBÉ' badge top center) {f}")
-    cvr = await pg.evaluate("(() => { const r = document.querySelector('#ice-cv').getBoundingClientRect(), c = document.querySelector('#ice-cv'); return { w: r.width, h: r.height, cw: c.width, ch: c.height, top: r.top, bot: r.bottom }; })()")
+    check(fs_ok(f) and f["badgeMid"] and "Juan's Long Day" in f["badge"] and await pg.evaluate("!!document.querySelector('.gfs-badge.gfs-juan svg.gfs-juan-hat')"), f"▶ Start: Juan's Long Day goes full screen (fixed overlay {f['iw']}×{f['ih']}, tab bar + footer hidden, ✕ top right, hard-hat 'Juan's Long Day' badge top center) {f}")
+    cvr = await pg.evaluate("(() => { const r = document.querySelector('#juan-cv').getBoundingClientRect(), c = document.querySelector('#juan-cv'); return { w: r.width, h: r.height, cw: c.width, ch: c.height, top: r.top, bot: r.bottom }; })()")
     check(cvr["ch"] > cvr["cw"] * 1.4 and cvr["h"] >= 0.7 * f["ih"] and cvr["w"] >= 0.9 * f["iw"], f"…a tall portrait screen that fills the phone ({cvr['cw']}×{cvr['ch']} px shown at {cvr['w']:.0f}×{cvr['h']:.0f})")
-    hud = await pg.evaluate("(() => { const g = document.querySelector('#ice-cv').getContext('2d'), px = (x, y) => [...g.getImageData(x, y, 1, 1).data].slice(0, 3).join(','); return [px(70, 1), px(40, 23), px(3, 3)]; })()")
-    check(hud[0] == "20,23,38" and hud[1] == "255,61,139" and hud[2] == "255,61,139", f"…a HUD across the top of the canvas, right under the ✕ bar (level chip, score, progress, power-up slots) {hud}")
-    await pg.locator("#ice-cv").dispatch_event("pointerdown"); await pg.wait_for_timeout(150)
+    s = await st(pg)
+    check(s["dpr"] >= 2 and abs(s["backing"][0] - s["cssW"] * s["dpr"]) <= 2, f"…drawn at the phone's pixel density, so it's crisp (dpr {s['dpr']}, {s['backing']} px for {s['cssW']:.0f} css px)")
+    hud = await pg.evaluate("""(() => { const c = document.querySelector('#juan-cv'), g = c.getContext('2d'), S = c.width / 360, px = (x, y) => [...g.getImageData(Math.round(x * S), Math.round(y * S), 1, 1).data].slice(0, 3);
+      return { chip: px(17, 21), heart: px(143, 46), panel: px(200, 28), track: px(110, 44), health: px(240, 44.5) }; })()""")
+    dark = lambda c: max(c) < 70
+    check(hud["chip"] == [255, 61, 139] and hud["heart"] == [255, 61, 139] and dark(hud["panel"]) and hud["track"] == [58, 64, 88] and hud["health"][0] == 255 and hud["health"][2] > 139, f"…a HUD across the top of the canvas, right under the ✕ bar (pink LV chip + heart on a dark panel, progress track, full pink health bar) {hud}")
+    await pg.locator("#juan-cv").dispatch_event("pointerdown"); await pg.wait_for_timeout(150)
     check(not (await st(pg))["ground"], "tap the game: he jumps")
     await pg.wait_for_timeout(900)
     await pg.keyboard.press("Space"); await pg.wait_for_timeout(120)
     check(not (await st(pg))["ground"], "Space: he jumps")
     s = await st(pg)
     check(s["fxMade"] > 5, f"particles: dust behind his boots and on landing, sparkles on the double jump / pickups ({s['fxMade']} so far)")
-    await pg.wait_for_timeout(700)
-    await pg.screenshot(path=os.path.join(OUT, "ice-ice-bebe-level1.png"))
-    caught = await until(pg, G + ".state.mode === 'caught'", 20)
+    # a bump costs a little health (no game over)
+    await until(pg, G + ".state.ground", 2)
+    hz = next(e for e in await pg.evaluate(G + ".ents()") if e["t"] == "cone" and e["x"] > 700)
+    await pg.evaluate(f"{G}.warp(1, {hz['x'] - 150}); {G}.setHealth(100)")
+    bumped = await until(pg, G + ".state.health < 100", 4); s = await st(pg)
+    check(bumped and s["mode"] == "run" and s["health"] >= 80 and re.search(r"−\d+$", s["msg"]), f"bump a hazard: a little health gone, a pop-up, keep running ({s['health']}, {s['msg']!r})")
+    await pg.evaluate(f"{G}.setHealth(1)")
+    oops = await until(pg, G + ".state.mode === 'oops'", 20)
     s = await st(pg)
-    check(caught and s["caughtMsg"] in ("¡Ay no!", "¡Fuera!", "¡Vámonos, amigo!") and "Try again" in s["overlay"], f"caught: big pixel {s['caughtMsg']!r} + Try again")
+    check(oops and s["oopsMsg"] in OOPS and "worn out" in s["overlay"] and "Try again" in s["overlay"], f"out of health: big {s['oopsMsg']!r} + 'Juan's worn out. Try again'")
     await until(pg, G + ".state.mode === 'run'", 3)
-    check((await st(pg))["x"] < 40, "…and back to the start")
-    msgs = {s["caughtMsg"]}
-    await pg.evaluate(G + ".warp(1, 820)"); await pg.wait_for_timeout(200)
-    check((await st(pg))["ck"] == 1, "passing the 🚩 flag sets a checkpoint")
-    await until(pg, G + ".state.mode === 'caught'", 25); msgs.add((await st(pg))["caughtMsg"]); await until(pg, G + ".state.mode === 'run'", 3)
+    s = await st(pg)
+    check(s["x"] < 200 and s["health"] == 100, f"…and back to the start with full health (x {s['x']:.0f})")
+    msgs = {s["oopsMsg"]}
+    await pg.evaluate(G + ".warp(1, 1880)")
+    check(await until(pg, G + ".state.ck === 1", 3), "running past the 🚩 flag sets a checkpoint")
+    await pg.evaluate(f"{G}.setHealth(1)")
+    await until(pg, G + ".state.mode === 'oops'", 25); msgs.add((await st(pg))["oopsMsg"]); await until(pg, G + ".state.mode === 'run'", 3)
     x = (await st(pg))["x"]
-    check(795 < x < 830, f"caught after the checkpoint → back to the checkpoint (x {x:.0f})")
-    ents = await pg.evaluate(G + ".ents()")
-    for kind, key in (("cup", "boost"), ("chancla", "shield")):
-        got = False
-        await until(pg, G + ".state.boost === 0 && " + G + ".state.mode === 'run'", 8)
-        for off in (12, 9, 15, 6, 18):
+    check(2000 <= x < 2120, f"worn out after the checkpoint → back to the checkpoint (x {x:.0f})")
+    async def grab(n, kind, ok_js):
+        for off in (40, 60, 25, 85, 110):
+            es = [e for e in await pg.evaluate(G + ".ents()") if e["t"] == kind and e["x"] > 300]
+            if not es: await pg.evaluate(f"{G}.warp({n}, 10)"); continue
             await until(pg, G + ".state.mode === 'run'", 3)
-            ex = next(e["x"] for e in await pg.evaluate(G + ".ents()") if e["t"] == kind) if any(e["t"] == kind for e in await pg.evaluate(G + ".ents()")) else None
-            if ex is None: await pg.evaluate(G + ".warp(1, 10)"); await pg.evaluate("__chisme.juegos.game"); continue
-            await pg.evaluate(f"{G}.warp(1, {ex - off})"); await pg.evaluate(G + ".jump()"); await pg.wait_for_timeout(450)
-            if (await st(pg))[key] > 0: got = True; break
-        check(got, f"{'☕ coffee → speed boost' if kind == 'cup' else '🩴 flip-flop → shield'} ({(await st(pg))['msg']!r})")
-        if got: check((await st(pg))["msg"] == ("Coffee! Speed boost" if kind == "cup" else "Flip-flop! Shield on"), "…with an English pop-up")
-        if kind == "chancla" and got:
-            dizzy = await until(pg, "__chisme.juegos.game.ents().some(e => e.st === 'dizzy') || __chisme.juegos.game.state.mode === 'caught'", 25)
-            s = await st(pg)
-            check(dizzy and s["mode"] != "caught" and any(e["st"] == "dizzy" for e in await pg.evaluate(G + ".ents()")), "with the flip-flop, the next agent just gets dizzy (he isn't caught)")
-    await pg.evaluate(f"{G}.warp(1, 2340)")
+            await pg.evaluate(f"{G}.warp({n}, {es[0]['x'] - off}); {G}.setHealth(50)"); await pg.wait_for_timeout(30); await pg.evaluate(G + ".jump()")
+            if await until(pg, ok_js, 0.9): return True
+        return False
+    for kind, ok_js, want in (("coffee", G + ".state.boost > 0", "Coffee! Speed boost"), ("taco", G + ".state.health >= 75", "Breakfast taco! +30 health")):
+        got = await grab(1, kind, ok_js); s = await st(pg)
+        check(got and s["msg"] == want, f"{'☕ coffee → speed boost' if kind == 'coffee' else 'breakfast taco → +30 health'}, with an English pop-up ({s['msg']!r}, boost {s['boost']:.1f}, health {s['health']})")
+    await pg.evaluate(f"{G}.warp(1, 5900)")
     await until(pg, G + ".state.mode === 'clear'", 6)
-    await pg.wait_for_timeout(300); await pg.locator("#ice-cv").screenshot(path=os.path.join(OUT, "ice-ice-bebe-home-dehole.png"))
     s = await st(pg)
     check(s["mode"] == "clear" and "You made it to Home Dehole!" in s["overlay"] and s["levelMax"] == 2, f"level 1 cleared at Home Dehole ({s['overlay'][:40]!r})")
-    await pg.click('#ice-ov [data-act="next"]'); await pg.wait_for_timeout(200)
-    check((await st(pg))["level"] == 2 and (await st(pg))["mode"] == "run", "▶ on to level 2: The Taco Shop")
-    await pg.click("#ice-pause"); s = await st(pg); await pg.wait_for_timeout(600)
+    await pg.click('#juan-ov [data-act="next"]'); await pg.wait_for_timeout(200)
+    check((await st(pg))["level"] == 2 and (await st(pg))["mode"] == "run" and (await st(pg))["name"] == "Don Pedroes", "▶ on to level 2: Don Pedroes")
+    await pg.click("#juan-pause"); s = await st(pg); await pg.wait_for_timeout(600)
     check(s["mode"] == "paused" and (await st(pg))["x"] == s["x"], "⏸ Pause freezes the game")
-    await pg.click("#ice-pause")
+    await pg.click("#juan-pause")
     check((await st(pg))["mode"] == "run" and (await fs(pg))["on"], "▶ Resume: still full screen")
     await pg.click(".gfs-x"); await pg.wait_for_timeout(300)
     s = await st(pg); f = await fs(pg)
-    check(s["mode"] == "paused" and not f["on"] and f["tabs"] and f["foot"] and "Paused" in s["overlay"], f"✕: Ice Ice Bebé pauses and it's back to Juegitos (tab bar + footer back) ({s['mode']}, fs {f['on']})")
-    await pg.click('#ice-ov [data-act="resume"]'); await pg.wait_for_timeout(200)
+    check(s["mode"] == "paused" and not f["on"] and f["tabs"] and f["foot"] and "Paused" in s["overlay"], f"✕: Juan's Long Day pauses and it's back to Juegitos (tab bar + footer back) ({s['mode']}, fs {f['on']})")
+    await pg.click('#juan-ov [data-act="resume"]'); await pg.wait_for_timeout(200)
     check((await st(pg))["mode"] == "run" and (await fs(pg))["on"], "▶ Resume from the list: full screen again")
     await pg.keyboard.press("Escape"); await pg.wait_for_timeout(200)
     check((await st(pg))["mode"] == "paused" and not (await fs(pg))["on"], "Escape works like ✕ (paused, out of full screen)")
-    await pg.click('#ice-ov [data-act="resume"]'); await pg.wait_for_timeout(150)
-    await pg.click("#ice-sound")
-    check((await st(pg))["muted"] and json.loads(await pg.evaluate("localStorage.getItem('chisme-juegos-ice')"))["muted"], "🔇 Sound mutes the beeps (remembered)")
-    await pg.evaluate(f"{G}.warp(5, 2330)")
+    await pg.click('#juan-ov [data-act="resume"]'); await pg.wait_for_timeout(150)
+    await pg.click("#juan-sound")
+    check((await st(pg))["muted"] and json.loads(await pg.evaluate("localStorage.getItem('chisme-juegos-juan')"))["muted"], "🔇 Sound mutes the beeps (remembered)")
+    # level 5: cowboy clothes, cold ones (+health)
+    got = await grab(5, "beer", G + ".state.beers > 0"); s = await st(pg)
+    check(got and s["outfit"] == "western" and s["health"] > 50 and s["msg"] == "¡Salud! +8 health", f"level 5: boots + cowboy hat on; jump for a cold one → a little health ({s['msg']!r}, health {s['health']}, beers {s['beers']})")
+    await pg.evaluate(f"{G}.warp(5, 5900)")
     won = await until(pg, G + ".state.mode === 'win'", 6)
     await pg.wait_for_timeout(1300)
-    s = await st(pg); ice = json.loads(await pg.evaluate("localStorage.getItem('chisme-juegos-ice')"))
-    note = await pg.text_content("#ice-note")
-    check(won and "Welcome home" in s["overlay"] and "Mom's house" in note and "What a party" in note, "level 5: home to Mom's House, the family party (in English)")
+    s = await st(pg); juan = json.loads(await pg.evaluate("localStorage.getItem('chisme-juegos-juan')"))
+    note = await pg.text_content("#juan-note")
+    check(won and "¡Salud, Juan!" in s["overlay"] and "He made it to Noche Caliente." in s["overlay"] and "What a long day!" in note and "Noche Caliente" in note, f"level 5: the win at the cantina, '¡Salud, Juan!' ({note[:70]!r})")
     txt = await pg.evaluate("(() => { const j = document.querySelector('#view-juegos'); return [...j.querySelectorAll('#juegos, #game-stage')].map(e => e.textContent).join(' ') + ' ' + [...j.querySelectorAll('[aria-label]')].map(e => e.getAttribute('aria-label')).join(' '); })()")   # textContent: the rules are hidden while full screen
     es = [w for w in SPANISH if w.lower() in txt.lower().replace("lotería", "")]
-    check(not es and "Coffee = speed boost" in txt and "Flip-flop = shield" in txt, f"Ice Ice Bebé's UI is English ({es})")
-    check(ice["best"] >= s["score"] > 0 and ice["wins"] == 1 and ice["levelMax"] == 5, f"best score saved on the phone ({ice['best']})")
+    check(not es and "Coffee = speed boost" in txt and "Breakfast taco = more health" in txt and "cold ones" in txt, f"Juan's Long Day's UI is English ({es})")
+    check(juan["best"] >= s["score"] > 0 and juan["wins"] == 1 and juan["levelMax"] == 5, f"best score saved on the phone ({juan['best']})")
     check("Play again" in s["overlay"], "…with ▶ Play again right on the full-screen win screen")
-    await pg.screenshot(path=os.path.join(OUT, "ice-ice-bebe-win.png"))
+    await pg.screenshot(path=os.path.join(OUT, "juan-win.png"))
     await pg.click(".gfs-x"); await pg.wait_for_timeout(300)
-    msgs_seen = set(msgs)
-    check(msgs_seen <= {"¡Ay no!", "¡Fuera!", "¡Vámonos, amigo!"}, f"caught lines seen (kept in Spanish): {sorted(msgs_seen)}")
+    check(msgs <= OOPS, f"worn-out lines seen (kept in Spanish): {sorted(msgs)}")
     check(await pg.evaluate("document.querySelectorAll('#game-stage a').length") == 0, "no links in the games")
     check(not outside, f"no outside requests while playing (besides other tabs' images) ({outside[:3]})")
-    # a fresh Ice Ice Bebé (title screen), then News: Space there must not start the game
-    await pg.click('.game-pick[data-game="loteria"]'); await pg.click('.game-pick[data-game="icebebe"]'); await pg.wait_for_timeout(200)
+    # a fresh Juan's Long Day (title screen), then News: Space there must not start the game
+    await pg.click('.game-pick[data-game="loteria"]'); await pg.click('.game-pick[data-game="juan"]'); await pg.wait_for_timeout(200)
     await pg.evaluate("__chisme.goView('news', { instant: true })"); await pg.wait_for_timeout(200)
     await pg.keyboard.press("Space"); await pg.wait_for_timeout(300)
     check((await st(pg))["mode"] == "title", "Space on another tab doesn't touch the game (and switching games drops the old one)")
@@ -368,10 +389,10 @@ async def webkit(p):
     s = await st(pg)
     check(s["over"] and not await pg.evaluate("!!document.querySelector('.lot-confetti')"), f"reduce motion: a win without confetti (over {s['over']}, marks {s['marks']}, line {await pg.text_content('#lot-line')!r})")
     await pg.click(".gfs-x"); await pg.wait_for_timeout(200)
-    await pg.click('.game-pick[data-game="icebebe"]'); await pg.click('#ice-ov [data-act="start"]'); await pg.wait_for_timeout(300)
+    await pg.click('.game-pick[data-game="juan"]'); await pg.click('#juan-ov [data-act="start"]'); await pg.wait_for_timeout(300)
     await pg.evaluate(G + ".jump()"); await pg.wait_for_timeout(1200)
     s = await st(pg)
-    check(not s["parallax"] and s["fxMade"] == 0 and s["fullscreen"], f"reduce motion: Ice Ice Bebé's background stays still (no parallax, shake, particles or confetti), still full screen (fx {s['fxMade']})")
+    check(not s["parallax"] and s["fxMade"] == 0 and s["fullscreen"], f"reduce motion: Juan's Long Day's background stays still (no parallax, shake, particles or confetti), still full screen (fx {s['fxMade']})")
     await b.close()
 
 async def fullscreen_shots(p):
@@ -379,19 +400,26 @@ async def fullscreen_shots(p):
     b = await p.webkit.launch(); dev = dict(p.devices["iPhone 13"]); dev.pop("default_browser_type", None); dev["viewport"] = {"width": 390, "height": 844}; dev["device_scale_factor"] = 1   # screenshots exactly 390×844
     ctx = await b.new_context(**dev); await ctx.add_init_script(INIT); await ctx.add_init_script(SPEECH)
     pg = await ctx.new_page(); errs = []; pg.on("pageerror", lambda e: errs.append(str(e)[:160]))
-    await pg.goto(BASE + "/#ice"); await pg.wait_for_function("window.__chisme && __chisme.ready", timeout=120000); await pg.wait_for_timeout(800)
-    await pg.click('#ice-ov [data-act="start"]'); await pg.wait_for_timeout(300)
-    await pg.evaluate(G + ".warp(1, 470)"); await pg.wait_for_timeout(700); await pg.evaluate(G + ".jump()"); await pg.wait_for_timeout(260)
-    f = await fs(pg); s = await st(pg)
-    cvh = await pg.evaluate("document.querySelector('#ice-cv').getBoundingClientRect().height")
-    check(fs_ok(f) and s["mode"] == "run" and s["H"] > 1.7 * s["W"] and cvh > 0.8 * f["ih"], f"390×844: Ice Ice Bebé mid-game, full screen (canvas {s['W']}×{s['H']}, {cvh:.0f} px tall on an {f['ih']} px screen)")
-    await pg.screenshot(path=os.path.join(OUT, "icebebe-fullscreen.png"))
-    await pg.evaluate(G + ".warp(2, 1100)"); await pg.wait_for_timeout(100)
-    ax = next((e["x"] for e in await pg.evaluate(G + ".ents()") if e["t"] == "agent" and e["x"] > 1200), 1360)
-    await pg.evaluate(f"{G}.warp(2, {ax - 110})"); await pg.wait_for_timeout(450); await pg.evaluate(G + ".jump()"); await pg.wait_for_timeout(180)   # an agent on screen
+    await pg.goto(BASE + "/#juan"); await pg.wait_for_function("window.__chisme && __chisme.ready", timeout=120000); await pg.wait_for_timeout(800)
+    await until(pg, "(document.querySelector('#sync') || {}).dataset?.state !== 'ok'", 6)
+    await pg.evaluate("() => { const t = document.querySelector('#game-stage'); window.scrollTo(0, t.getBoundingClientRect().top + scrollY - 60); }"); await pg.wait_for_timeout(500)
     s = await st(pg)
-    check(s["level"] == 2 and (await fs(pg))["on"], f"390×844: level 2, The Taco Shop street ({s['mode']})")
-    await pg.screenshot(path=os.path.join(OUT, "icebebe-level2.png"))
+    check(await pg.evaluate("__chisme.juegos.id") == "juan" and s["mode"] == "title", "#juan opens Juegitos → Juan's Long Day (title screen)")
+    await pg.screenshot(path=os.path.join(OUT, "juan-intro.png"))
+    await pg.click('#juan-ov [data-act="start"]'); await pg.wait_for_timeout(300)
+    await pg.evaluate(G + ".warp(1, 5740)"); await pg.wait_for_timeout(350); await pg.evaluate(G + ".jump()"); await pg.wait_for_timeout(200)
+    f = await fs(pg); s = await st(pg)
+    cvh = await pg.evaluate("document.querySelector('#juan-cv').getBoundingClientRect().height")
+    check(fs_ok(f) and s["mode"] == "run" and s["level"] == 1 and s["H"] > 1.7 * s["W"] and cvh > 0.8 * f["ih"], f"390×844: Juan's Long Day level 1, running up to Home Dehole, full screen (canvas {s['W']}×{s['H']:.0f}, {cvh:.0f} px tall on an {f['ih']} px screen)")
+    await pg.screenshot(path=os.path.join(OUT, "juan-l1.png"))
+    await pg.evaluate(G + ".warp(2, 5780)"); await pg.wait_for_timeout(450)
+    s = await st(pg)
+    check(s["level"] == 2 and s["name"] == "Don Pedroes" and (await fs(pg))["on"], f"390×844: level 2, Don Pedroes ({s['mode']})")
+    await pg.screenshot(path=os.path.join(OUT, "juan-don-pedroes.png"))
+    await pg.evaluate(G + ".warp(5, 5790)"); await pg.wait_for_timeout(120); await pg.evaluate(G + ".jump()"); await pg.wait_for_timeout(260)
+    s = await st(pg); beers = [e for e in await pg.evaluate(G + ".ents()") if e["t"] == "beer"]
+    check(s["level"] == 5 and s["outfit"] == "western" and not s["ground"] and len(beers) >= 3, f"390×844: level 5, cowboy Juan jumping for the cold ones by Noche Caliente ({len(beers)} beers left, {s['mode']})")
+    await pg.screenshot(path=os.path.join(OUT, "juan-l5.png"))
     await pg.click(".gfs-x"); await pg.wait_for_timeout(200)
     await pg.click('.game-pick[data-game="loteria"]'); await pg.wait_for_timeout(300)
     await pg.click("#lot-play"); await pg.wait_for_timeout(300); await pg.click("#lot-play")   # paused, so the called card stays put for the picture
@@ -440,6 +468,18 @@ async def fullscreen_shots(p):
     check(lay["ok"] and not lay["scroll"] and lay["w"] >= 0.85 * 320 and lay["h"] >= 0.58 * 640 and ctl and not lay["clipped"],
           f"320×640: everything fits with no scrolling, board {lay['w']:.0f}×{lay['h']:.0f}, controls one row of 44 px buttons ({ctl}), no clipped names {lay['clipped']}")
     await pg.screenshot(path=os.path.join(OUT, "loteria-320.png"))
+    # v44: Juan's Long Day on the small phone
+    await pg.click(".gfs-x"); await pg.wait_for_timeout(200)
+    await pg.click('.game-pick[data-game="juan"]'); await pg.click('#juan-ov [data-act="start"]'); await pg.wait_for_timeout(400)
+    await pg.evaluate(G + ".warp(2, 5700)"); await pg.wait_for_timeout(400)
+    sm = await pg.evaluate("""(() => { const c = document.querySelector('#juan-cv').getBoundingClientRect(), k = document.querySelector('.juan-controls').getBoundingClientRect(), st = document.querySelector('#game-stage');
+      const btns = [...document.querySelectorAll('.juan-controls .lot-btn')];
+      return { cw: c.width, ch: c.height, ctop: c.top, cbot: c.bottom, ktop: k.top, kbot: k.bottom, btn: btns.every(b => b.getBoundingClientRect().height >= 40 && b.scrollWidth <= b.clientWidth + 1),
+        scroll: st.scrollHeight > st.clientHeight + 1 }; })()""")
+    f = await fs(pg); s = await st(pg)
+    check(fs_ok(f) and sm["cw"] >= 0.95 * 320 and sm["ch"] >= 0.6 * 640 and sm["cbot"] <= sm["ktop"] + 1 and sm["kbot"] <= 641 and sm["btn"] and not sm["scroll"] and s["mode"] == "run",
+          f"320×640: Juan's Long Day fits: canvas {sm['cw']:.0f}×{sm['ch']:.0f}, the controls below it on screen, no scrolling {sm}")
+    await pg.screenshot(path=os.path.join(OUT, "juan-320.png"))
     await b.close()
 
 async def offline(p):
@@ -450,13 +490,13 @@ async def offline(p):
     await pg.wait_for_function("navigator.serviceWorker && navigator.serviceWorker.controller", timeout=60000)
     await pg.wait_for_timeout(2500)
     await ctx.set_offline(True)
-    await pg.evaluate("location.hash = '#ice'"); await pg.reload(); await pg.wait_for_function("window.__chisme && __chisme.view === 'juegos'", timeout=30000); await pg.wait_for_timeout(500)
-    ok = await pg.evaluate("__chisme.juegos.id") == "icebebe"
-    await pg.click('#ice-ov [data-act="start"]'); await pg.wait_for_timeout(800)
+    await pg.evaluate("location.hash = '#juan'"); await pg.reload(); await pg.wait_for_function("window.__chisme && __chisme.view === 'juegos'", timeout=30000); await pg.wait_for_timeout(500)
+    ok = await pg.evaluate("__chisme.juegos.id") == "juan"
+    await pg.click('#juan-ov [data-act="start"]'); await pg.wait_for_timeout(800)
     s = await pg.evaluate(G + ".state")
     await pg.click(".gfs-x"); await pg.wait_for_timeout(200)
     await pg.click('.game-pick[data-game="loteria"]'); await pg.wait_for_timeout(200)
-    check(ok and s["mode"] == "run" and await pg.evaluate("document.querySelectorAll('#lot-tabla .lot-cell').length") == 16, "offline: Juegitos opens (#ice), Ice Ice Bebé runs, Lotería deals a tabla")
+    check(ok and s["mode"] == "run" and await pg.evaluate("document.querySelectorAll('#lot-tabla .lot-cell').length") == 16, "offline: Juegitos opens (#juan), Juan's Long Day runs, Lotería deals a tabla")
     shell = re.search(r'VERSION\s*=\s*"(chisme-v\d+)"', open(os.path.join(HERE, "static", "sw.js")).read()).group(1) + "-shell"   # (this build's cache)
     cached = await pg.evaluate("(async () => { const c = await caches.open('" + shell + "'), k = (await c.keys()).map(r => new URL(r.url).pathname); const r = await fetch('/static/loteria/audio/01.mp3', { headers: { Range: 'bytes=0-99' } }); return { n: k.filter(p => p.startsWith('/static/loteria/audio/')).length, cards: k.includes('/static/loteria_cards.js'), status: r.status, len: (await r.arrayBuffer()).byteLength, cr: r.headers.get('Content-Range') }; })()")
     check(cached["n"] == 57 and cached["cards"] and cached["status"] == 206 and cached["len"] == 100, f"offline: the service worker has all 57 recorded calls + the card art, and answers a Range request with 206 (for Safari) ({cached})")

@@ -313,7 +313,7 @@ async def ui():
 async def tia_city():
     """v39: no "holographic" anywhere she's shown; greetings name only the city, never the neighborhood."""
     print("\n== v39: Tía's copy (no 'holographic') + city-only greetings")
-    src = "".join(open(os.path.join(HERE, f), encoding="utf-8").read() for f in ("static/index.html", "static/app.js", "mascot.py", "static/juegos.js", "static/icebebe.js"))
+    src = "".join(open(os.path.join(HERE, f), encoding="utf-8").read() for f in ("static/index.html", "static/app.js", "mascot.py", "static/juegos.js", "static/juan.js"))
     check("holograph" not in src.lower(), "no 'holographic' in the app's copy (index.html, app.js, mascot.py, games)")
     mj = json.load(open(os.path.join(HERE, "static", "mascot", "mascot.json")))
     art3 = all("art=3" in open(os.path.join(HERE, f), encoding="utf-8").read() and "art=2" not in open(os.path.join(HERE, f), encoding="utf-8").read() for f in ("static/index.html", "static/app.js", "static/sw.js", "static/juegos.js"))
