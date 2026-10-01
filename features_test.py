@@ -92,7 +92,7 @@ with sync_playwright() as p:
     check(all("espncdn.com" in u or "espn" in u for u in s["thumbs"]), f"only ESPN story thumbnails as news photos ({len(s['thumbs'])})")
     check(all("Wikimedia Commons" in c and "Photo:" in c for c in s["credits"]) and len(s["credits"]) == 2, "team photos credited (author, license, Commons)")
     check(all(l.startswith("https://") for l in s["links"]), f"{len(s['links'])} links, all https")
-    side_by_side([region(page, "#sports"), region(page, "#sports-body .scores"), region(page, "#sports-body .table-wrap")], OUT / "sports-spurs.png")
+    side_by_side([region(page, "#sports"), region(page, "#sports-body .scores"), region(page, "#sports-body .table-wrap")], OUT / "sports-spurs-features.png")
     # the score strip scrolls sideways without switching views
     box = page.locator("#sports-body .scores").first.bounding_box()
     page.evaluate("document.querySelector('#sports-body .scores').scrollIntoView({block: 'center'})")

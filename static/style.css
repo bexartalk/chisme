@@ -518,6 +518,10 @@ body { overscroll-behavior-y: contain; }
 .spurs-hero .sp-photo figcaption{border-top:0;padding-bottom:6px}
 .spurs-card{background:#000;color:#fff;padding:12px 14px 14px}
 .spurs-card .kicker{margin:0;font-size:.75rem;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#c4ced4}
+/* v47 Cowboys page: navy + silver (no photo; no yellow anywhere) */
+.spurs-hero.boys{box-shadow:0 4px 0 #2f6fd6}
+.spurs-hero.boys .spurs-card{background:#041e42}
+.spurs-hero.boys .spurs-card .kicker{color:#b0b7bc}
 .spurs-card h3{margin:2px 0 6px;font-size:1.4rem;font-weight:900;color:#fff}
 .spurs-line{margin:.2em 0;font-weight:700;font-size:.95rem}
 .scores{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;padding:2px 2px 8px;touch-action:pan-x pan-y}
@@ -639,6 +643,7 @@ body { overscroll-behavior-y: contain; }
 [data-theme="dark"] .gstat .live{color:#ff6961}
 [data-theme="dark"] .sched li,[data-theme="dark"] .sn,[data-theme="dark"] .trend,[data-theme="dark"] .game{background:#101a1d}
 [data-theme="dark"] .spurs-card{background:#000;border-top:3px solid var(--turq)}
+[data-theme="dark"] .spurs-hero.boys .spurs-card{background:#041e42;border-top:0}
 [data-theme="dark"] .set-head{background:#0d2f31;color:#fff;border-bottom-color:var(--turq)}
 [data-theme="dark"] .set-head h2{color:var(--turq)}
 [data-theme="dark"] .set-head button{background:var(--turq);color:#000;border-color:var(--turq)}

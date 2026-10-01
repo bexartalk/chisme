@@ -2134,6 +2134,74 @@ async def spurs_block(log: SportsLog, tm: dict | None = None, metro: dict | None
                      "youtube": names.get("yt-spurs")}}
 
 
+COWBOYS_ID = "6"
+COWBOYS_FEEDS = [
+    {"id": "btb", "name": "Blogging The Boys (SB Nation)", "kind": "blog", "home": "https://www.bloggingtheboys.com/",
+     "url": "https://www.bloggingtheboys.com/rss/index.xml"},
+    dict(gnews("gn-cowboys", "Google News: Cowboys", "\"Dallas Cowboys\" when:3d"), home="https://news.google.com/"),
+]
+
+
+async def cowboys_block(log: SportsLog) -> dict:
+    """The Dallas Cowboys page (ESPN NFL team 6): record, live/latest scores, schedule, NFC East table, news.
+    Same building blocks as spurs_block (sjson cache, espn_game, espn_news, fan feeds, _merge_news)."""
+    tm = next((t for t in PRO_TEAMS.get("nfl", []) if t["id"] == COWBOYS_ID),
+              {"id": COWBOYS_ID, "abbr": "DAL", "name": "Dallas Cowboys", "short": "Cowboys", "slug": "dallas-cowboys", "location": "Dallas"})
+    TEAM_ID, nm = tm["id"], tm["short"]
+    espn_home = "https://www.espn.com/nfl/team/_/name/dal/dallas-cowboys"
+    team = await log.run(f"ESPN: {nm} team page", espn_home, sjson(f"{ESPN}/football/nfl/teams/{TEAM_ID}", 15 * 60), {})
+    t = (team or {}).get("team") or {}
+    rec = ((t.get("record") or {}).get("items") or [{}])[0].get("summary")
+    fav = {"DAL"}
+
+    async def sched(qs):
+        try:
+            d = await sjson(f"{ESPN}/football/nfl/teams/{TEAM_ID}/schedule{qs}", 10 * 60)
+            return d, [espn_game(e, "nfl", fav) for e in d.get("events") or []]
+        except Exception:
+            return {}, []
+    (d2, reg), (_, pre), (_, post) = await asyncio.gather(sched("?seasontype=2"), sched("?seasontype=1"), sched("?seasontype=3"))
+    season = (d2.get("season") or {}).get("year")
+    games = sorted({g["id"]: g for g in pre + reg + post}.values(), key=lambda g: g["date"] or "")
+    done = [g for g in games if g["state"] == "post"]
+    last_season = None
+    if not done and season:   # before the opener: last season's final games
+        (_, lreg), (_, lpost) = await asyncio.gather(sched(f"?season={season - 1}&seasontype=2"), sched(f"?season={season - 1}&seasontype=3"))
+        done = sorted([g for g in lreg + lpost if g["state"] == "post"], key=lambda g: g["date"] or "")[-5:]
+        last_season = str(season - 1)
+    live = [g for g in games if g["state"] == "in"]
+    upcoming = [g for g in games if g["state"] == "pre"][:6]
+    log.sources.append({"name": f"ESPN: {nm} schedule", "home": "https://www.espn.com/nfl/team/schedule/_/name/dal", "ok": bool(games or done), "count": len(games)})
+    standings = None
+    try:
+        d = await sjson(f"{ESPN_STANDINGS}/football/nfl/standings?level=3", 30 * 60)
+        div = next(dv for cf in d["children"] for dv in cf.get("children") or [] if any(str(e["team"].get("id")) == TEAM_ID for e in dv["standings"]["entries"]))
+        rows = []
+        for e in div["standings"]["entries"]:
+            st = {x["name"]: x for x in e["stats"]}
+            val = lambda k: (st.get(k) or {}).get("value")
+            disp = lambda k: (st.get(k) or {}).get("displayValue")
+            rows.append({"team": e["team"].get("displayName"), "abbr": e["team"].get("abbreviation"), "seed": val("playoffSeed"),
+                         "w": int(val("wins") or 0), "l": int(val("losses") or 0), "t": int(val("ties") or 0), "pct": disp("winPercent"),
+                         "streak": disp("streak"), "us": str(e["team"].get("id")) == TEAM_ID})
+        rows.sort(key=lambda r: (-(r["w"] + r["t"] / 2), r["l"], r["seed"] or 99))
+        standings = {"season": div["standings"].get("seasonDisplayName") or (str(season) if season else None), "division": div["name"], "rows": rows}
+        log.sources.append({"name": "ESPN: NFC East standings", "home": "https://www.espn.com/nfl/standings", "ok": True, "count": len(rows)})
+    except Exception as ex:
+        log.sources.append({"name": "ESPN: NFC East standings", "home": "https://www.espn.com/nfl/standings", "ok": False, "error": f"{type(ex).__name__}: {ex}"[:160]})
+    news, *feeds = await asyncio.gather(log.run(f"ESPN: {nm} news", espn_home, espn_news("football/nfl", TEAM_ID, 16), []),
+                                        *(log.run(f["name"], f["home"], feed_items(f), []) for f in COWBOYS_FEEDS))
+    by = {f["id"]: items for f, items in zip(COWBOYS_FEEDS, feeds)}
+    now = time.time()
+    fresh = lambda items, days: [i for i in items if not i.get("published") or now - i["published"] < days * 86400]
+    return {"record": rec, "standing": t.get("standingSummary"), "season": (d2.get("season") or {}).get("displayName"),
+            "live": live, "last": done[-3:][::-1], "last_season": last_season, "upcoming": upcoming, "standings": standings,
+            "news": _merge_news(news, fresh(by.get("gn-cowboys", []), 3), limit=14),
+            "blog": fresh(by.get("btb", []), 14)[:6],
+            "team": {k: tm.get(k) for k in ("id", "abbr", "name", "short", "location", "slug")},
+            "fans": {"blog": COWBOYS_FEEDS[0]["name"]}}
+
+
 def mlb_game(g: dict, league: str = "mlb", fav: set | None = None) -> dict:
     st = g.get("status") or {}
     code = st.get("abstractGameCode")
@@ -2268,18 +2336,18 @@ async def build_sports(lat: float = DEFAULT_LAT, lon: float = DEFAULT_LON, place
         log.run("ESPN: NFL scoreboard", "https://www.espn.com/nfl/scoreboard", espn_scoreboard("nfl", "football/nfl", fav["nfl"]), []),
         log.run("ESPN: NFL news", "https://www.espn.com/nfl/", espn_news("football/nfl", None, 12), []),
         log.run("ESPN: NBA scoreboard", "https://www.espn.com/nba/scoreboard", espn_scoreboard("nba", "basketball/nba", fav["nba"]), []),
-        log.run("ESPN: NBA news", "https://www.espn.com/nba/", espn_news("basketball/nba", None, 10), []),
+        log.run("ESPN: NBA news", "https://www.espn.com/nba/", espn_news("basketball/nba", None, 14), []),
         log.run("MLB Stats API: MLB scores", "https://www.mlb.com/scores", mlb_scores(fav["mlb"]), {"games": []}),
         log.run("ESPN: MLB news", "https://www.espn.com/mlb/", espn_news("baseball/mlb", None, 12), []),
-        spurs_block(log, tp["nba"], metro), milb_job, *nfl_news_jobs, *mlb_news_jobs)
-    nfl_g, nfl_n, nba_g, nba_n, mlb_s, mlb_n, spurs, missions = res[:8]
-    nfl_team_news, mlb_team_news = res[8:8 + len(nfl_news_jobs)], res[8 + len(nfl_news_jobs):]
+        spurs_block(log, tp["nba"], metro), milb_job, cowboys_block(log), *nfl_news_jobs, *mlb_news_jobs)
+    nfl_g, nfl_n, nba_g, nba_n, mlb_s, mlb_n, spurs, missions, cowboys = res[:9]
+    nfl_team_news, mlb_team_news = res[9:9 + len(nfl_news_jobs)], res[9 + len(nfl_news_jobs):]
     short = lambda t: {k: t.get(k) for k in ("id", "abbr", "name", "short")}
     return {"generated": time.time(),
             "teams": {"nba": short(tp["nba"]), "nfl": [short(t) for t in nfl_teams], "mlb": [short(t) for t in mlb_teams],
                       "milb": missions["team"] if missions else None, "state": tp["state"],
                       "place": place.get("city") or (metro or {}).get("name")},
-            "nfl": {"games": nfl_g, "news": _merge_news(*nfl_team_news, nfl_n, limit=14)},
+            "nfl": {"games": nfl_g, "news": _merge_news(*nfl_team_news, nfl_n, limit=14), "cowboys": cowboys},
             "nba": {"games": nba_g, "news": nba_n, "spurs": spurs},
             "mlb": {**mlb_s, "news": _merge_news(*mlb_team_news, mlb_n, limit=14)},
             "missions": missions,

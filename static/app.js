@@ -2222,7 +2222,7 @@ window.CHISME_APP_BUILD = "47";
   });
   function loadEvents() { loadFood(); return load("events"); }
 
-  // ---------- sports: NFL · NBA (Spurs first) · MLB · San Antonio Missions
+  // ---------- sports: Spurs · NBA · Cowboys · NFL · MLB · San Antonio Missions (v47: team pages + league pages)
   // Photos: freely licensed Wikimedia Commons images (credited) + the thumbnails ESPN publishes
   // with its own stories. No team logos, no press photos.
   const SP_PHOTOS = {
@@ -2251,7 +2251,9 @@ window.CHISME_APP_BUILD = "47";
     return fig;
   }
   const SP_KEY = "chisme-sports-league";
-  const LEAGUES = ["nba", "nfl", "mlb", "missions"];
+  // "nba" = your NBA team's page (the Spurs in San Antonio; key kept from v46 so saved picks and #spurs still work),
+  // "nba-all" = the whole league (today's scores + ESPN news), "cowboys" = the Dallas Cowboys page, "nfl" = the whole league.
+  const LEAGUES = ["nba", "nba-all", "cowboys", "nfl", "mlb", "missions"];
   let spData = null, spLg = LEAGUES.includes(localStorage.getItem(SP_KEY)) ? localStorage.getItem(SP_KEY) : "nba";
   const ord = (n) => n + (["th", "st", "nd", "rd"][(n % 100 > 10 && n % 100 < 14) ? 0 : n % 10] || "th");
   function gameWhen(d) {
@@ -2309,11 +2311,19 @@ window.CHISME_APP_BUILD = "47";
   function standingsTable(st, caption, cols) {
     const t = el("table", { class: "standings" }, el("caption", { text: caption }),
       el("thead", {}, el("tr", {}, ...cols.map((c) => el("th", { scope: "col", text: c[0] })))),
-      el("tbody", {}, ...st.map((r) => el("tr", { class: r.spurs ? "us" : "" }, ...cols.map((c, k) => el(k === 1 ? "th" : "td", k === 1 ? { scope: "row" } : {}, String(c[1](r) ?? "")))))));
+      el("tbody", {}, ...st.map((r) => el("tr", { class: r.spurs || r.us ? "us" : "" }, ...cols.map((c, k) => el(k === 1 ? "th" : "td", k === 1 ? { scope: "row" } : {}, String(c[1](r) ?? "")))))));
     return el("div", { class: "table-wrap" }, t);
   }
+  const schedList = (games, abbr) => el("ol", { class: "sched" }, ...games.map((g) => {
+    const w = gameWhen(new Date(g.date)), home = g.home && g.home.abbr === abbr, opp = home ? g.away : g.home;
+    return el("li", {}, el("span", { class: "sd", text: w.day }), el("span", { class: "so" }, el("b", { text: (home ? "vs " : "@ ") + (opp ? opp.short : "TBD") }),
+      g.note ? el("span", { class: "tag", text: g.note }) : null), el("span", { class: "st", text: w.time + (g.tv ? " · " + g.tv : "") }));
+  }));
+  // "Next: vs. Giants, Sun, Oct 4 at 3:25 PM CDT." for a team page's summary card
+  const nextLine = (next, abbr) => { if (!next) return null; const w = gameWhen(new Date(next.date)), home = next.home && next.home.abbr === abbr, opp = home ? next.away : next.home;
+    return `Next: ${next.note ? next.note + " " : ""}${home ? "vs." : "at"} ${opp ? opp.short : "TBD"}, ${w.day} at ${w.time}.`; };
   // Your NBA team: the Spurs in San Antonio, the nearest team anywhere else (the server picks it).
-  function renderSpurs(sp, nba) {
+  function renderSpurs(sp) {
     const out = [];
     const T = sp.team || { abbr: "SA", name: "San Antonio Spurs", short: "Spurs", conf: "West" }, isSA = T.abbr === "SA", nm = T.short;
     const st = sp.standings, us = st && st.rows.find((r) => r.spurs);
@@ -2326,9 +2336,8 @@ window.CHISME_APP_BUILD = "47";
       const spurs = [last.home, last.away].find((t) => t.abbr === T.abbr), opp = [last.home, last.away].find((t) => t.abbr !== T.abbr);
       if (spurs && opp) lines.push(spurs.winner ? `Won the ${last.note.replace(/ - Game \d+/, "")} against the ${opp.short}.` : `The season ended in the ${last.note.replace(/ - Game \d+/, "")}, falling to the ${opp.short}.`);
     }
-    const next = sp.upcoming[0];
-    if (next) { const w = gameWhen(new Date(next.date)); const home = next.home && next.home.abbr === T.abbr; const opp = home ? next.away : next.home;
-      lines.push(`Next: ${next.note ? next.note + " " : ""}${home ? "vs." : "at"} ${opp ? opp.short : "TBD"}, ${w.day} at ${w.time}.`); }
+    const nx = nextLine(sp.upcoming[0], T.abbr);
+    if (nx) lines.push(nx);
     out.push(el("div", { class: "spurs-hero" + (isSA ? "" : " no-photo") }, isSA ? spPhoto(SP_PHOTOS.spursArena) : null,
       el("div", { class: "spurs-card" }, el("p", { class: "kicker", text: T.name }), el("h3", { text: sp.live.length ? "Live now" : `The latest on the ${nm}` }),
         ...lines.map((l) => el("p", { class: "spurs-line", text: l })))));
@@ -2337,14 +2346,7 @@ window.CHISME_APP_BUILD = "47";
       out.push(h3(sp.last_season ? `Latest scores (${sp.last_season} season)` : "Latest scores"));
       out.push(scoreStrip(sp.last, `Latest ${nm} scores`));
     }
-    if (sp.upcoming.length) {
-      out.push(h3(`Schedule · ${sp.season || "this season"}`));
-      out.push(el("ol", { class: "sched" }, ...sp.upcoming.map((g) => {
-        const w = gameWhen(new Date(g.date)), home = g.home && g.home.abbr === T.abbr, opp = home ? g.away : g.home;
-        return el("li", {}, el("span", { class: "sd", text: w.day }), el("span", { class: "so" }, el("b", { text: (home ? "vs " : "@ ") + (opp ? opp.short : "TBD") }),
-          g.note ? el("span", { class: "tag", text: g.note }) : null), el("span", { class: "st", text: w.time + (g.tv ? " · " + g.tv : "") }));
-      })));
-    }
+    if (sp.upcoming.length) { out.push(h3(`Schedule · ${sp.season || "this season"}`)); out.push(schedList(sp.upcoming, T.abbr)); }
     if (st) {
       out.push(h3(`${st.conference || T.conf + "ern Conference"} standings${st.final ? ` (${st.season} final)` : ""}`));
       const rows = st.rows.slice(0, 10);
@@ -2360,11 +2362,43 @@ window.CHISME_APP_BUILD = "47";
     if (sp.videos.length) trend.append(el("p", { class: "trend-h", text: `▶ New from the ${nm} on YouTube` }), linkList(sp.videos.map((v) => ({ ...v, video: true })), "yt", 6));
     if (sp.blog.length) trend.append(el("p", { class: "trend-h", text: `📝 ${fans.blog || "Pounding The Rock (SB Nation)"}` }), linkList(sp.blog, "blog", 5));
     if (trend.children.length) { out.push(h3(isSA ? "Trending in Spurs Nation" : `Trending with ${nm} fans`)); out.push(trend); }
-    out.push(h3("Around the NBA"));
-    const strip = scoreStrip(nba.games || [], "NBA scores");
-    out.push(strip || el("p", { class: "hint", text: "No NBA games on the board today." }));
-    out.push(newsList((nba.news || []).slice(0, 8), "No NBA headlines right now."));
     return out;
+  }
+  // The Dallas Cowboys (ESPN NFL team 6): same layout as the Spurs page, NFC East table, Blogging The Boys.
+  function renderCowboys(c) {
+    if (!c) return [el("p", { class: "loading", text: "Saddling up the Cowboys report…" })];
+    const T = c.team || { abbr: "DAL", name: "Dallas Cowboys", short: "Cowboys" }, nm = T.short, out = [];
+    const st = c.standings, us = st && st.rows.find((r) => r.us);
+    const lines = [];
+    if (c.live.length) lines.push(`Game on — the ${nm} are playing right now.`);
+    if (c.record && c.record !== "0-0") lines.push(`${c.season || ""} season: ${c.record}${c.standing ? ", " + c.standing : ""}.`.trim());
+    else if (c.last_season && c.last.length) lines.push(`The ${c.last_season} season is in the books.`);
+    const nx = nextLine(c.upcoming[0], T.abbr);
+    if (nx) lines.push(nx);
+    out.push(el("div", { class: "spurs-hero no-photo boys" },
+      el("div", { class: "spurs-card" }, el("p", { class: "kicker", text: T.name }), el("h3", { text: c.live.length ? "Live now" : `The latest on the ${nm}` }),
+        ...lines.map((l) => el("p", { class: "spurs-line", text: l })))));
+    if (c.live.length) { out.push(h3("Live")); out.push(...c.live.map((g) => gameCard(g, { wide: true }))); }
+    if (c.last.length) { out.push(h3(c.last_season ? `Latest scores (${c.last_season} season)` : "Latest scores")); out.push(scoreStrip(c.last, `Latest ${nm} scores`)); }
+    if (c.upcoming.length) { out.push(h3(`Schedule · ${c.season || "this season"}`)); out.push(schedList(c.upcoming, T.abbr)); }
+    if (st) {
+      out.push(h3(`${st.division} standings`));
+      out.push(standingsTable(st.rows, `${st.division}, ${st.season || ""}`, [["", () => ""], ["Team", (r) => r.team], ["W", (r) => r.w], ["L", (r) => r.l], ["T", (r) => r.t], ["PCT", (r) => r.pct]]));
+    }
+    out.push(h3(`${nm} news`));
+    out.push(newsList(c.news, "No fresh Cowboys stories right now — even the Star takes a day off."));
+    if (c.blog.length) out.push(h3(`Trending with ${nm} fans`), el("div", { class: "trend" }, el("p", { class: "trend-h", text: `📝 ${(c.fans || {}).blog || "Blogging The Boys"}` }), linkList(c.blog, "blog", 6)));
+    return out;
+  }
+  // A whole league: today's scoreboard (your home-state teams first) + ESPN's league news.
+  function renderLeague(L, name) {
+    const games = L.games || [], long = (d) => fmt(d, { weekday: "long", month: "short", day: "numeric" });
+    const today = games.some((g) => dayKey(new Date(g.date)) === dayKey(new Date()) || g.state === "in");   // ESPN's board moves to the next game day when today has none
+    const days = new Set(games.map((g) => dayKey(new Date(g.date))));   // the NFL board is the whole week (Thu–Mon)
+    const title = days.size > 1 ? "This week's scoreboard"
+      : !games.length || today ? `Today's scores · ${long(new Date())}` : `Next on the board · ${long(new Date(games[0].date))}`;
+    return [h3(title), scoreStrip(L.games || [], `${name} scores`) || el("p", { class: "hint", text: `No ${name} games on the board today.` }),
+      h3(`${name} news`), newsList(L.news || [], `No ${name} headlines right now.`)];
   }
   // Your Minor League club: the Missions in San Antonio, the nearest MiLB team (within 60 km) elsewhere.
   function renderMissions(m) {
@@ -2394,6 +2428,9 @@ window.CHISME_APP_BUILD = "47";
     nba: (d) => { const T = d.nba.spurs.team; if (T && T.abbr !== "SA") return d.nba.spurs.live.length ? `¡Ándale! The ${T.short} are on right now. 🏀`
         : pick([`Scores, schedule and the real reporting on the ${T.short}, with a side of fan chisme. 🏀`, `The latest on the ${T.name}, then the rest of the league.`]);
       return INTROS.spurs(d); },
+    "nba-all": (d) => pick(["The whole Association: today's scores and the league's top stories. 🏀", "Around the NBA: tonight's board and the headlines, from Wemby to the rest of 'em."]),
+    cowboys: (d) => ((d.nfl.cowboys || {}).live || []).length ? "¡Ándale! The Cowboys are on right now. 🏈"
+      : pick(["How 'bout them Cowboys? Scores, schedule and the real reporting from Big D. 🏈", "America's Team, Texas' chisme: the latest on the Cowboys."]),
     spurs: (d) => (d.nba.spurs.live.length ? "¡Ándale! The Spurs are on right now. 🏀" : pick(["Go Spurs Go! Scores, schedule and the real reporting, with a side of fan chisme. 🏀",
       "Spurs Nation, this one's for you: the latest on Wemby & company, then the rest of the league.", "Silver and black and read all over — your Spurs report."])),
     nfl: (d) => isTX(d) ? pick(["Football, Texas style: Cowboys and Texans first, then everybody else. 🏈", "Tailgate-ready: the scores and stories from around the NFL, Texas teams up top."])
@@ -2410,7 +2447,7 @@ window.CHISME_APP_BUILD = "47";
     if (d && d.teams) {   // chips follow your teams: "NBA · Rockets", the local MiLB club (hidden if there isn't one)
       if (!d.missions && spLg === "missions") spLg = "nba";
       const nb = document.querySelector('#sp-chips [data-lg="nba"]'), mi = document.querySelector('#sp-chips [data-lg="missions"]');
-      nb.replaceChildren(el("span", { "aria-hidden": "true", text: "🏀" }), ` NBA · ${d.teams.nba.short}`);
+      nb.replaceChildren(el("span", { "aria-hidden": "true", text: "🏀" }), ` ${d.teams.nba.short}`);
       mi.hidden = !d.missions;
       if (d.missions) mi.replaceChildren(el("span", { "aria-hidden": "true", text: d.missions.team.id === 510 ? "🌵" : "⚾" }), ` ${d.missions.team.short}`);
     }
@@ -2418,11 +2455,11 @@ window.CHISME_APP_BUILD = "47";
     if (!d) return;
     $("#sports-intro").textContent = INTROS[spLg](d);
     let kids;
-    if (spLg === "nba") kids = renderSpurs(d.nba.spurs, d.nba);
-    else if (spLg === "nfl") {
-      kids = [h3("Scores" + (d.nfl.games.length ? "" : "")), scoreStrip(d.nfl.games, "NFL scores") || el("p", { class: "hint", text: "No NFL games on the board." }),
-        h3("NFL news"), newsList(d.nfl.news, "No NFL headlines right now.")];
-    } else if (spLg === "mlb") {
+    if (spLg === "nba") kids = renderSpurs(d.nba.spurs);
+    else if (spLg === "nba-all") kids = renderLeague(d.nba, "NBA");
+    else if (spLg === "cowboys") kids = renderCowboys(d.nfl.cowboys);
+    else if (spLg === "nfl") kids = renderLeague(d.nfl, "NFL");
+    else if (spLg === "mlb") {
       const m = d.mlb, day = m.date ? fmt(new Date(m.date + "T12:00:00"), { weekday: "long", month: "short", day: "numeric" }) : "";
       kids = [h3(`Scores · ${day}`), scoreStrip(m.games || [], "MLB scores") || el("p", { class: "hint", text: "No MLB games today." })];
       if ((m.next || []).length) kids.push(h3("Next up · " + fmt(new Date(m.next_date + "T12:00:00"), { weekday: "long", month: "short", day: "numeric" })), scoreStrip(m.next, "Next MLB games"));
@@ -2589,7 +2626,7 @@ window.CHISME_APP_BUILD = "47";
   // Deep links (manifest shortcuts): #sports, #weather, #radar-sec, #events. Otherwise the default tab (News unless changed in Settings).
   const HASH_VIEW = { "#weather": ["weather"], "#forecast-sec": ["weather", "forecast-sec"], "#radar-sec": ["weather", "radar-sec"], "#radar": ["weather", "radar-sec"],
     "#alerts": ["weather", "alerts"], "#events": ["events"], "#antojos": ["antojos"], "#cual-dieta": ["antojos"], "#dieta": ["antojos"], "#food": ["antojos"], "#near": ["news", "near"], "#city": ["news", "city"],
-    "#sports": ["sports"], "#spurs": ["sports"], "#nfl": ["sports"], "#mlb": ["sports"], "#missions": ["sports"], "#news": ["news"],
+    "#sports": ["sports"], "#spurs": ["sports"], "#nba": ["sports"], "#cowboys": ["sports"], "#nfl": ["sports"], "#mlb": ["sports"], "#missions": ["sports"], "#news": ["news"],
     "#juegos": ["juegos"], "#juegitos": ["juegos"], "#games": ["juegos"], "#loteria": ["juegos", null, "loteria"], "#juan": ["juegos", null, "juan"], "#juans-long-day": ["juegos", null, "juan"], "#juan-that-got-away": ["juegos", null, "juan"] };
   pos(0); updateTabs();
 
@@ -2826,7 +2863,7 @@ window.CHISME_APP_BUILD = "47";
   }
   renderLocLabel();
   initMap();
-  const LG_HASH = { "#spurs": "nba", "#nfl": "nfl", "#mlb": "mlb", "#missions": "missions" };
+  const LG_HASH = { "#spurs": "nba", "#nba": "nba-all", "#cowboys": "cowboys", "#nfl": "nfl", "#mlb": "mlb", "#missions": "missions" };
   if (LG_HASH[location.hash]) { spLg = LG_HASH[location.hash]; localStorage.setItem(SP_KEY, spLg); }
   const hv = HASH_VIEW[location.hash] || [defaultTab()];
   juegosWant = hv[2] || null;
