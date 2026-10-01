@@ -1173,3 +1173,20 @@ html.game-fs .track{transform:none!important;will-change:auto}   /* a transforme
 @media (prefers-reduced-motion:reduce){ .a2hs-sheet,.a2hs-arrow{animation:none} }
 html.a2hs-open .tia-fab,html.a2hs-open .news-pill{visibility:hidden}
 .a2hs{background:rgba(0,0,0,.55)}
+
+/* v45: the alerts soft prompt (Tía's voice) + the "Add to Home Screen first" tip on iPhone — Fiesta colors, no yellow */
+.push-ask:not([hidden]){display:flex;gap:12px;align-items:flex-start;border:3px solid #000;border-left:12px solid var(--pink);background:linear-gradient(135deg,#e5fbfb,#fff 55%);box-shadow:0 4px 0 var(--turq)}
+.push-ask[data-kind="ios"]{border-left-color:var(--orange);box-shadow:0 4px 0 #a7a9ac}
+.push-ask-tia{flex:0 0 auto;width:56px;height:56px;border-radius:50%;border:3px solid var(--turq);background:#fff;object-fit:cover}
+.push-ask[data-kind="ios"] .push-ask-tia{border-color:var(--orange)}
+.push-ask-body{min-width:0;flex:1}
+.push-ask-t{margin:0;font-weight:900;font-size:1.02rem;line-height:1.25}
+.push-ask-s{margin:4px 0 0;font-size:.85rem;font-weight:700;color:var(--muted)}
+.push-ask-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.push-ask-row button{min-height:44px}
+.push-ask-row button:not(.primary){background:#fff;border-color:#a7a9ac}
+.push-switch span{font-size:1.02rem}
+[data-theme="dark"] .push-ask:not([hidden]){background:linear-gradient(135deg,#0f2a2b,var(--card) 55%);border-color:var(--line);border-left-color:var(--pink);box-shadow:0 4px 0 #00797c}
+[data-theme="dark"] .push-ask[data-kind="ios"]{border-left-color:var(--orange);box-shadow:0 4px 0 #5f6368}
+[data-theme="dark"] .push-ask-tia{background:var(--card)}
+[data-theme="dark"] .push-ask-row button:not(.primary){background:var(--card);border-color:#a7a9ac}

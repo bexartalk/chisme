@@ -23,7 +23,7 @@ It uses large, bold, high-contrast text, and it's an **installable phone app (PW
 * **Creators we follow:** a card per creator (`data/food_creators.json`) under the video strip, with YouTube / TikTok / Instagram profile links (they open in Chisme's reader, with a small link to the original) and what Chisme pulls in automatically. Instagram-only creators (S.A. Foodie) get an "Instagram only" link card: Instagram has no keyless feed or embed.
 * **Curated TikToks:** TikTok has no public RSS and no keyless listing API, so Chisme shows only TikTok videos listed in `data/food_tiktok.json` (`creators` with verified handles, `videos` with `https://www.tiktok.com/@handle/video/ID` links). The server looks each link up with TikTok's official oEmbed (`https://www.tiktok.com/oembed?url=…`: caption, thumbnail, author; cached 12 h), keeps only videos whose author is a listed creator, and dates them from the video ID. Edits are picked up on the next food refresh (no restart). These hand-picked videos skip the 60-day cutoff. Nothing is scraped.
 * **Fresher news, no jumping (v26):** while Chisme is open and on screen it checks for new stories every **4 minutes**, and right away when you come back to it (focus / visible again, if the last check is over a minute old). The server's per-feed cache is 4 minutes. If new stories arrive while you're reading, the list doesn't move: a **New chisme ↑** pill appears under the tabs (News tab only); tap it to show them and jump to the top. A check with nothing new only updates the time. Pull to refresh / Settings → Refresh now show new stories right away.
-* **Alerts (Web Push, v26):** opt-in only. **Settings → Alerts → Turn on alerts 🔔** (and a one-time inline "Want a heads-up…?" card on your second visit, never a popup; "Not now" hides it for good). The permission prompt only ever comes from that tap, as iOS requires. Two switches: **Breaking & new local news** and **NWS weather warnings & watches for your location**. A new story arrives as **"New chisme, grab the tea! ☕"** with the headline as the text; tapping it opens Chisme with the story in the in-app reader. Weather arrives as **"⚠️ Tornado Warning"** (the alert type) with the NWS headline; tapping opens Weather → alerts. At most **one news alert per 45 minutes**, only stories from the last 3 hours; **quiet hours 10 PM – 7 AM** in the phone's time zone (news and watches wait, warnings still come through); each alert once; the first check after you subscribe only records what's already out there. "Send a test" sends a sample. Works on Android/desktop browsers and on **iPhone/iPad in the Home Screen app (iOS 16.4+)**; in Safari on iPhone, Settings explains how to add it to the Home Screen. Server side: `push.py` (pywebpush + VAPID), see **Alerts setup** under Deploy.
+* **Alerts (Web Push, v26 → v45):** opt-in only. **Settings → Alerts → "Let Tía buzz you the big chisme 🔔"** (an on/off switch), and an inline prompt in Tía's voice (*"Psst… it's Tía. Want me to tell you when something big happens?"* → **Sí, avísame 🔔** / **Ahorita no**) that never comes on the first visit: only on a later visit after 2+ opened stories, or after 4+ stories in one go; "Ahorita no" is final, and it stops after 3 unanswered showings. On iPhone/iPad outside the Home Screen app the card is instead a short **"Add Chisme to your Home Screen first 📲"** tip (Show me how → the Add to Home Screen tutorial). The permission prompt only ever comes from a tap, as iOS requires. Two switches: **Big local & breaking news** and **NWS weather warnings & watches for your location**. **v45: news alerts are only for truly major San Antonio-area or breaking stories, at most 2 a day for everyone, never 10 PM – 7 AM Central, never the same story twice** (`autopush.py`; the old "every new story, one per 45 min" alerts are gone). They arrive as **"Breaking news"** with the headline and outlet as the text (serious wording; the wit stays in the app's own copy). Tapping any alert focuses Chisme (or opens it) and the story opens in the **in-app reader**, never another tab. The owner can also send a note from **/stats** (title, message, optional link). Weather arrives as **"⚠️ Tornado Warning"** (the alert type) with the NWS headline; tapping opens Weather → alerts; watches wait out quiet hours, warnings don't. "Send a test" sends a sample. Works on Android/desktop browsers and on **iPhone/iPad in the Home Screen app (iOS 16.4+)**. Server side: `push.py` (pywebpush + VAPID, subscriptions in Upstash, dead ones pruned on 404/410) and `autopush.py`; see **Alerts setup** under Deploy.
 * **Everything opens inside Chisme (v27):** every outside link (Read full story, Also reported by, More coverage, event
   pages, organizer sites, Gamecast/Gameday, ESPN/Reddit lists, creator profiles on YouTube/TikTok/Instagram, photo and
   radar credits) opens the **in-app reader sheet**. The server checks the page's own `X-Frame-Options` and
@@ -300,8 +300,10 @@ Radar: [RainViewer](https://www.rainviewer.com/) tiles; basemap © [OpenStreetMa
 ./venv/bin/python foryou_ui_test.py         # WebKit iPhone 13 + Chromium touch: "Bigger the Pansa, Better the Chansa" (was For You) banner, full-screen scroll-snap feed, one muted autoplay player, Save/Directions/Not for me/Undo, signals in localStorage, why chip, Back + history back, reduced motion tap-to-play, Reset my feed, creator cards, cover = first 3 videos, 9 creators in the first 9, lead rotation
 ./venv/bin/python food_world_test.py        # v43: the world food reviewers (40+ Shorts, 15+ creators, live oEmbed), /api/food "world", a SA creator leads, local/world take turns, no counter; food-v43.png
 ./venv/bin/python loteria_v43_test.py       # v43: the new Lotería (card art colors, gold only on 5 cards, white borders; bar, strip, tabla fit at 390×844 + 320×640, picker, beans, Limpiar); loteria-v43*.png
-./venv/bin/python push_test.py              # Web Push end to end against a local mock push service: VAPID signature, aes128gcm decrypt, first look, 45-min limit, warnings/watches, quiet hours, stale stories, test push, 410 cleanup, unsubscribe, Upstash REST store, no secrets in git
+./venv/bin/python push_test.py              # Web Push end to end against a local mock push service (v45: big-news auto push, switch, dedupe, 2/day, quiet hours, owner send + 410 prune): VAPID signature, aes128gcm decrypt, first look, warnings/watches, quiet hours, stale stories, test push, 410 cleanup, unsubscribe, Upstash REST store, no secrets in git
 ./venv/bin/python donate_alerts_test.py     # WebKit + Chromium: donate card (News/¿Cuál dieta?/Settings, light + dark, opens cash.app), New chisme ↑ pill (no jump, tap, refresh, focus check), alerts UI (soft prompt once, Turn on, test push decrypted, toggles, SW notification, tap opens the story in-app, Turn off)
+./venv/bin/python push_auto_test.py         # v45 unit tests, every outside call mocked: big-news score, switch, quiet hours, 2/day cap, dedupe (link + same story), Gemini yes/no/error/timeout (fail safe), recipients, real pywebpush vs 201/404/410/500 (prune), owner send, kick(), Upstash REST, /stats/push/* auth
+xvfb-run -a ./venv/bin/python push_v45_ui_test.py   # v45 in real browsers: headed Chrome with a REAL FCM subscription (prompt after engagement, Settings switch, /stats send box + confirm, auto push, FCM 404/410 prune, reader deep link), WebKit iPhone "Add to Home Screen first" tip, the SW notificationclick (Node); screenshots → /workspace/chisme-push-shots
 ./venv/bin/python food_player_test.py        # WebKit iPhone 13 + Chromium: ¿Cuál dieta? tab (nav, swipe and Settings order News · Sports · Weather · ¿Cuál dieta? · Juegos · Events, Sports ⇄ Weather ⇄ ¿Cuál dieta? ⇄ Juegos swipes, 6 tabs fit at 390/320 px with big text), no Food chip in Events, desk ≤ 5 at the bottom, in-app YouTube/TikTok player, reader sheet (framed vs Google News), Save from the sheet, swipe Events↔food tab, swipe-down close, offline
 ./venv/bin/python food_saved_test.py         # WebKit iPhone 13: food Save toggles, Saved spots (n), reload persistence, Directions (Apple Maps), remove/undo, add place; + Chromium offline
 ./venv/bin/python header_shots.py            # WebKit iPhone 13: header screenshots (light/dark/crop + 320 px, desktop, big text, Austin in /tmp/wk); bubble opens Settings, tail clear of the tower
@@ -443,25 +445,49 @@ rollers, a cafecito and a glowing phone.
 4. Check https://chisme.onrender.com/api/mascot/config: it says `"ai": true, "provider": "gemini"` once the key is live.
 Keep the key private: never commit it or paste it into chats. If it leaks, delete it in AI Studio and make a new one.
 
-### Alerts setup (free: Upstash Redis + a GitHub Actions timer)
+### Alerts setup (free: Upstash Redis + optional cron)
 
 Render's free plan sleeps after 15 idle minutes and has no disk, so Chisme can't keep subscriptions in memory or run
 its own timer. What it does instead:
-* **Subscriptions are stored in Upstash Redis** (free tier, no card) through its REST API. Without Upstash they go to a
-  file in `/tmp`, which Render wipes every time the service sleeps; the app re-registers when it's opened, but phones
-  that aren't opened would stop getting alerts. So set up Upstash.
-* **A GitHub Actions workflow runs every 10 minutes** (the file is `tools/push-tick.yml`; it has to be copied to
-  `.github/workflows/push-tick.yml`, see step 5) and calls `POST /api/push/tick` with a secret. That wakes
-  the server, which checks each subscriber's area (news + NWS alerts), sends what's new, and goes back to sleep later.
+* **Subscriptions are stored in Upstash Redis** (free tier, no card) through its REST API (`chisme:push:subs`; the
+  big-news state is `chisme:push:auto:*`: the switch, the per-day counter, the 30-day dedupe claims, the log). Without
+  Upstash they go to a file in `/tmp`, which Render wipes every time the service sleeps (and the auto-send switch falls
+  back to **off**). So set up Upstash.
+* **v45: checks ride on visits.** Every incoming request may start a big-news check in the background (at most every
+  `AUTO_PUSH_CHECK_MIN` minutes, default 10; never awaited, so no request waits), plus one ~20 s after the server
+  wakes up. **The limitation:** while nobody uses the app the server sleeps and nothing is checked, so a story that
+  breaks at 3 PM while nobody has the app open waits until the next visit (by then it may be older than 3 hours and is
+  skipped). For checks around the clock, add the optional cron below.
+* **Optional cron** (GitHub Actions `tools/push-tick.yml`, or any cron service such as cron-job.org) calls
+  `POST /api/push/tick` with `Authorization: Bearer <PUSH_TICK_SECRET>` every 10 minutes. That wakes the server,
+  which sends new NWS warnings/watches for each subscriber's area and runs the big-news check (all the caps apply).
+  Weather alerts need this cron: they're only checked by the tick.
+* **Big-news rules** (`autopush.py`): the San Antonio News feed, stories < 3 h old, a keyword score (urgency and scale,
+  local places/agencies, several outlets; follow-ups, features, opinion and sports count against it). With
+  `GEMINI_API_KEY`, stories scoring ≥ 8 go to Gemini, which must say it's major; without Gemini, or when it errors,
+  times out or is over quota, only scores ≥ 11 go out (fail safe: an outage never means more pushes). Hard caps: 2 a
+  day (Central), none 10 PM – 7 AM Central, never the same link or the same story from another outlet. Sent to news
+  subscribers within `AUTO_PUSH_RADIUS_KM` (100) of San Antonio. **Off until you switch it on at /stats.**
+* **/stats** (with `ADMIN_TOKEN`) has the owner's **Send a notification** box (title, message — default
+  "¡Órale, new chisme! 👀" — and an optional link that opens in the in-app reader; subscriber count, a confirm dialog,
+  then sent / failed / pruned) and the **Auto-send for big news** panel (the switch, today's count, last check, Run a
+  check now, the recent auto pushes).
 
 Steps (one time):
-1. **Make the keys.** On your computer, in this folder: `./venv/bin/python tools/make_vapid_keys.py`. It prints four lines
-   (`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `PUSH_TICK_SECRET`). Keep them private; don't commit them.
+1. **Make the keys.** On your computer, in this folder: `./venv/bin/python tools/make_vapid_keys.py` prints four lines
+   (`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `PUSH_TICK_SECRET`); with `--out DIR --subject mailto:you@…`
+   it writes them as 0600 files outside the repo instead (`vapid_public.txt`, `vapid_private.txt`, `vapid_private.pem`,
+   `push_tick_secret.txt`, `chisme-vapid.env`). Keep them private; don't commit them. **Changing the keys later breaks
+   every existing subscription** (the app re-subscribes by itself the next time each phone opens it, when it can).
 2. **Make the free database.** Sign up at upstash.com → **Create Database** (Redis, free, a US region) → open it →
    **REST API** → copy **UPSTASH_REDIS_REST_URL** and **UPSTASH_REDIS_REST_TOKEN**.
 3. **Tell Render.** Render dashboard → the `chisme` service → **Environment** → add six variables: `VAPID_PUBLIC_KEY`,
    `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (change it to `mailto:` + your email), `PUSH_TICK_SECRET`,
    `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` → **Save changes** (Render redeploys).
+   Also needed for v45: `ADMIN_TOKEN` (the /stats send box and auto-send switch) and, optionally, `GEMINI_API_KEY`
+   (the big-news second opinion). Optional tuning: `AUTO_PUSH_CHECK_MIN` (10, 5–120), `AUTO_PUSH_RADIUS_KM` (100),
+   `AUTO_PUSH_DAILY_MAX` (2; can only be lowered), `AUTO_PUSH_MODEL` (default `MASCOT_MODEL`), `AUTO_PUSH_GEMINI=0`
+   (keywords only).
 4. **Tell GitHub.** The repo on github.com → **Settings → Secrets and variables → Actions → New repository secret**:
    name `PUSH_TICK_SECRET`, value = the same secret as on Render. (Optional: a repository *variable* `CHISME_URL` if the
    app isn't at `https://chisme.onrender.com`.)
@@ -471,7 +497,7 @@ Steps (one time):
    **Actions** tab → allow workflows if asked → **push-tick** → **Run workflow**. The log should end with something like
    `{"ok":true,"subs":0,…}`.
 6. **Turn it on on your phone.** iPhone: open the site in Safari → Share → **Add to Home Screen** → open Chisme from
-   the Home Screen → Settings → **Alerts → Turn on alerts 🔔** → Allow → **Send a test**. Android/desktop: the same from
+   the Home Screen → Settings → **Alerts → the "Let Tía buzz you the big chisme 🔔" switch** → Allow → **Send a test**. Android/desktop: the same from
    the browser.
 
 Alerts limits: GitHub runs scheduled jobs every 10 minutes at best and often 5–15 minutes late (sometimes it skips a

@@ -320,7 +320,8 @@ def _top(c: dict, prefix: str, n: int = 8) -> list[tuple[str, int]]:
     return sorted(((k[len(prefix):], v) for k, v in c.items() if k.startswith(prefix)), key=lambda x: (-x[1], x[0]))[:n]
 
 
-def page(r: dict, store_name: str, now: float | None = None) -> str:
+def page(r: dict, store_name: str, now: float | None = None, extra: str = "") -> str:
+    """The dashboard. `extra`: trusted HTML from autopush.admin_html (v45: the send box + auto-send panel), shown first."""
     days = last_days(30, day_of(now))
     S = summarize(r, days)
     e = html.escape
@@ -403,7 +404,7 @@ svg{{width:100%;height:auto;display:block}}svg text{{font-size:11px;fill:#333}}.
 footer{{font-size:.75rem;color:#333;padding:4px 4px 24px}}
 </style></head><body>
 <header><h1>Chisme · Stats</h1><p>Private · anonymous counts · updated {e(when)}</p></header><div class="picado" aria-hidden="true"></div>
-<main>{"".join(banners)}
+<main>{"".join(banners)}{extra}
 <div class="seg" role="tablist" aria-label="Period">{tab_btns}</div>{panels}
 <section><h2>Visitors per day <small>last 30 days</small></h2>{chart}<p class="key"><i style="background:var(--turq)"></i>All visitors<i style="background:var(--pink)"></i>In the installed app</p></section>
 <div class="two"><section><h2>Top tabs <small>30 days</small></h2>{bars(tabs)}</section>

@@ -1,7 +1,7 @@
 /* Chisme — frontend (location-aware) */
 // Build of this file. Must equal the number in sw.js VERSION ("chisme-v22"); the page compares it
 // with the build the HTML was served for and reloads once if an old cached app.js got mixed in.
-window.CHISME_APP_BUILD = "43";
+window.CHISME_APP_BUILD = "45";
 (() => {
   "use strict";
   const WEATHER_MS = 10 * 60 * 1000;
@@ -1361,6 +1361,7 @@ window.CHISME_APP_BUILD = "43";
     const sEl = a.closest(".story[data-sid]");
     if (sEl && NO) { NO.markOpened(nsState, sEl.dataset.sid); nsSaveSoon(); }   // opened: it'll make room at the top next visit
     if (sEl) Stats.ev("story", { u: m.url, t: (m.title || "").slice(0, 140), s: (m.source || "").slice(0, 40) });   // the public headline, for "top stories"
+    if (sEl) pushEngaged();   // v45: the alerts prompt only comes after a few stories
     if (!m.map) tiaLearn(m, linkKind(a));   // what you read teaches la Tía (kept on this phone)
     if (m.map || MAPISH.test(u.host + u.pathname + u.search.slice(0, 1))) openMapSheet(m, a); else openReader(m, a);
   });
@@ -2550,16 +2551,18 @@ window.CHISME_APP_BUILD = "43";
   };
   $("#set-version").textContent = "· build " + window.CHISME_APP_BUILD;
 
-  // ---------- alerts: Web Push ("New chisme, grab the tea! ☕" + NWS warnings). Opt-in only, from a tap
-  // (iOS asks for permission only from a tap, and only in the Home Screen app, iOS 16.4+). See push.py.
-  const PUSH_KEY = "chisme-push", PUSH_ASKED = "chisme-push-asked", VISITS = "chisme-visits";
+  // ---------- alerts: Web Push (v45: big local/breaking news, max 2 a day, + NWS warnings). Opt-in only, from a tap
+  // (iOS asks for permission only from a tap, and only in the Home Screen app, iOS 16.4+). See push.py / autopush.py.
+  const PUSH_KEY = "chisme-push", PUSH_ASKED = "chisme-push-asked", VISITS = "chisme-visits", PUSH_ENGAGE = "chisme-push-engage", IOS_TIP = "chisme-push-ios-tip";
   const pushPrefs = () => { try { return { on: false, news: true, wx: true, ...JSON.parse(lsGet(PUSH_KEY) || "{}") }; } catch { return { on: false, news: true, wx: true }; } };
   const savePushPrefs = (p) => lsSet(PUSH_KEY, JSON.stringify(p));
   const isStandalone = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
   const pushCapable = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+  const iosNeedsHome = () => { const ua = navigator.userAgent; return (/iphone|ipod|ipad/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) && !isStandalone(); };
   let pushCfg = null, pushBusy = false;
   const pushCfgReady = fetch("/api/push/config", { cache: "no-store" }).then((r) => r.ok ? r.json() : null).then((c) => { pushCfg = c; return c; }).catch(() => null);
   const u8key = (b64) => { const p = "=".repeat((4 - b64.length % 4) % 4), b = atob((b64 + p).replace(/-/g, "+").replace(/_/g, "/")); return Uint8Array.from(b, (c) => c.charCodeAt(0)); };
+  const sameKey = (buf, b64) => { try { const a = new Uint8Array(buf), b = u8key(b64); return a.length === b.length && a.every((x, i) => x === b[i]); } catch { return true; } };
   async function pushSub() { if (!pushCapable()) return null; try { const reg = await navigator.serviceWorker.ready; return await reg.pushManager.getSubscription(); } catch { return null; } }
   async function pushPost(path, body) {
     const r = await fetch("/api/push/" + path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -2572,8 +2575,17 @@ window.CHISME_APP_BUILD = "43";
   async function pushResync() {   // every open and every move: the server's copy follows you (and heals if it was lost)
     const p = pushPrefs();
     if (!p.on || !pushCapable() || Notification.permission !== "granted") return;
-    const sub = await pushSub();
+    let sub = await pushSub();
     if (!sub) { savePushPrefs({ ...p, on: false }); renderAlertsUI(); return; }
+    // the server's VAPID key changed (new keys on the server): the old subscription can't be used any more, so swap it
+    const have = sub.options && sub.options.applicationServerKey;
+    if (have && pushCfg && pushCfg.publicKey && !sameKey(have, pushCfg.publicKey)) {
+      try {
+        const old = sub.endpoint; await sub.unsubscribe(); pushPost("unsubscribe", { endpoint: old }).catch(() => {});
+        const reg = await navigator.serviceWorker.ready;
+        sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: u8key(pushCfg.publicKey) }); pushLocKey = null;
+      } catch (e) { savePushPrefs({ ...p, on: false }); renderAlertsUI(); return; }
+    }
     const key = q() + p.news + p.wx;
     if (key === pushLocKey) return;
     try { await pushPost("subscribe", pushBody(sub)); pushLocKey = key; } catch (e) { console.warn("alerts resync", e); }
@@ -2586,13 +2598,14 @@ window.CHISME_APP_BUILD = "43";
     pushBusy = true;
     try {
       const perm = await Notification.requestPermission();
-      if (perm !== "granted") { pushNote(perm === "denied" ? "Alerts are blocked for Chisme. You can allow notifications for Chisme in your phone's or browser's settings." : "No problem: alerts stay off."); return; }
+      if (perm !== "granted") { pushNote(perm === "denied" ? "Alerts are blocked for Chisme. You can allow notifications for Chisme in your phone's or browser's settings." : "No problem: alerts stay off."); if (from === "ask") askDone("no"); return; }
       const reg = await navigator.serviceWorker.ready;
       const sub = (await reg.pushManager.getSubscription()) || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: u8key(pushCfg.publicKey) });
       savePushPrefs({ ...pushPrefs(), on: true });
       await pushPost("subscribe", pushBody(sub)); pushLocKey = q() + pushPrefs().news + pushPrefs().wx;
       pushNote(`Done: alerts are on for ${placeName()}. 🔔`);
-      if (from === "ask") { const a = $("#push-ask"); a.replaceChildren(el("p", { class: "push-ask-t", role: "status", text: "🔔 Alerts are on. Change them anytime in Settings." })); setTimeout(() => { a.hidden = true; }, 6000); }
+      lsSet(PUSH_ASKED, "yes:" + Date.now());
+      if (from === "ask") { const a = $("#push-ask"); a.replaceChildren(el("p", { class: "push-ask-t", role: "status", text: "🔔 ¡Listo! I'll only buzz you for the big stuff. Change it anytime in Settings." })); setTimeout(() => { a.hidden = true; }, 6000); }
     } catch (e) {
       savePushPrefs({ ...pushPrefs(), on: false });
       pushNote("Couldn't turn on alerts (" + e.message + "). Try again in a bit.");
@@ -2604,29 +2617,33 @@ window.CHISME_APP_BUILD = "43";
       const sub = await pushSub();
       if (sub) { await pushPost("unsubscribe", { endpoint: sub.endpoint }).catch(() => {}); await sub.unsubscribe().catch(() => {}); }
       savePushPrefs({ ...pushPrefs(), on: false }); pushLocKey = null;
-      pushNote("Alerts are off, and your area was removed from the server.");
+      pushNote("Alerts are off, and your area was removed from the server. Tía will keep the chisme to herself.");
     } finally { pushBusy = false; renderAlertsUI(); }
   }
+  const alertsOn = () => pushPrefs().on && pushCapable() && Notification.permission === "granted";
   function renderAlertsUI() {
-    const p = pushPrefs(), btn = $("#set-push"), st = $("#set-push-status"), test = $("#set-push-test");
-    const on = p.on && pushCapable() && Notification.permission === "granted";
+    const p = pushPrefs(), sw = $("#set-push"), st = $("#set-push-status"), test = $("#set-push-test");
+    const on = alertsOn();
     $("#set-push-news").checked = p.news; $("#set-push-wx").checked = p.wx;
     $("#set-push-news").disabled = $("#set-push-wx").disabled = !on;
     test.hidden = !on;
-    btn.disabled = false; btn.classList.toggle("primary", !on);
-    btn.replaceChildren(on ? "Turn off alerts" : "Turn on alerts 🔔");
-    if (!pushCapable()) {
-      btn.disabled = true;
-      st.textContent = isIOS && !isStandalone()
-        ? "On iPhone and iPad, alerts work in the Home Screen app (iOS 16.4 or newer): tap Share → Add to Home Screen, open Chisme from your Home Screen, then turn alerts on here."
+    sw.disabled = pushBusy; sw.checked = on; sw.setAttribute("aria-checked", String(on));
+    $("#set-push-l").textContent = on ? "Tía's alerts are on 🔔" : "Let Tía buzz you the big chisme 🔔";
+    if (!pushCapable() || iosNeedsHome()) {   // iPhone/iPad: push only exists in the Home Screen app (iOS 16.4+)
+      sw.disabled = true;
+      st.textContent = iosNeedsHome()
+        ? "On iPhone and iPad, alerts only work in the Home Screen app (iOS 16.4 or newer): tap Share → Add to Home Screen, open Chisme from your Home Screen, then turn this on."
         : "This browser can't show push alerts. Try Chrome, Edge, Firefox or Safari on a computer or Android phone, or the Home Screen app on iPhone.";
     } else if (pushCfg && !pushCfg.enabled) {
-      btn.disabled = true; st.textContent = "Alerts aren't switched on for this server yet.";
+      sw.disabled = true; st.textContent = "Alerts aren't switched on for this server yet.";
     } else if (Notification.permission === "denied") {
-      btn.disabled = true; st.textContent = "Notifications are blocked for Chisme. Allow them for Chisme in your phone's or browser's settings, then come back here.";
-    } else st.textContent = on ? `Alerts are on for ${placeName()}.` : "Get a heads-up when there's new local chisme or an NWS warning near you. Nothing is sent until you turn it on.";
+      sw.disabled = true; st.textContent = "Notifications are blocked for Chisme. Allow them for Chisme in your phone's or browser's settings, then come back here.";
+    } else st.textContent = on ? `Alerts are on for ${placeName()}.` : "Only when it really matters: big local or breaking news and NWS warnings near you. Nothing is sent until you turn it on.";
   }
-  $("#set-push").onclick = () => { if (pushPrefs().on && Notification.permission === "granted") turnOffAlerts(); else turnOnAlerts("settings"); };
+  $("#set-push").onchange = (e) => {
+    const want = e.target.checked; e.target.checked = !want;   // the real state follows once it's done
+    if (!want && pushPrefs().on) turnOffAlerts(); else if (want) turnOnAlerts("settings"); else renderAlertsUI();
+  };
   for (const [id, k] of [["#set-push-news", "news"], ["#set-push-wx", "wx"]]) {
     $(id).onchange = (e) => { savePushPrefs({ ...pushPrefs(), [k]: e.target.checked }); pushResync().then(() => pushNote("Saved.")); };
   }
@@ -2637,17 +2654,52 @@ window.CHISME_APP_BUILD = "43";
     try { await pushPost("test", { endpoint: sub.endpoint }); pushNote("Test sent: it should pop up in a few seconds."); }
     catch (e) { pushNote("Couldn't send a test (" + e.message + ")."); }
   };
-  // One-time soft prompt: on your second visit (never the first), only where alerts can work, never a popup.
+  // The soft prompt (inline card, never a popup, never on the first visit): only after some engagement — 2+ stories
+  // opened on a later visit, or 4+ stories in one go. "Ahorita no" is final (Settings still has the switch). On an
+  // iPhone outside the Home Screen app, a short "Add to Home Screen first" tip instead (also dismissable for good).
   const visits = (+lsGet(VISITS) || 0) + 1; lsSet(VISITS, String(visits));
-  pushCfgReady.then((c) => {
+  const engage = () => { try { return { stories: 0, ...JSON.parse(lsGet(PUSH_ENGAGE) || "{}") }; } catch { return { stories: 0 }; } };
+  const engaged = () => { const n = engage().stories; return (visits >= 2 && n >= 2) || n >= 4; };
+  function askDone(how) { lsSet(PUSH_ASKED, how + ":" + Date.now()); }
+  function pushAskFill(kind) {
+    const ask = $("#push-ask");
+    ask.dataset.kind = kind;
+    if (kind === "ios") {
+      $("#push-ask-t").textContent = "Add Chisme to your Home Screen first 📲";
+      $("#push-ask-s").textContent = "On iPhone, Apple only lets me send alerts to the Home Screen app (iOS 16.4+). Tap Share → Add to Home Screen, open Chisme from there, and I'll ask you again.";
+      $("#push-ask-yes").textContent = "Show me how"; $("#push-ask-no").textContent = "Got it";
+    } else {
+      $("#push-ask-t").textContent = "Psst… it's Tía. Want me to tell you when something big happens?";
+      $("#push-ask-s").textContent = "Only the real chisme: major local or breaking news and weather warnings. Two a day, tops, and never after 10 PM. I'm nosy, not rude.";
+      $("#push-ask-yes").textContent = "Sí, avísame 🔔"; $("#push-ask-no").textContent = "Ahorita no";
+    }
+  }
+  let askShown = false;
+  function maybeAsk() {
+    const ask = $("#push-ask"), c = pushCfg;
+    if (!ask || askShown || !c || !c.enabled || pushPrefs().on || !engaged() || document.documentElement.classList.contains("a2hs-open")) return;
+    if (iosNeedsHome()) {
+      if (lsGet(IOS_TIP)) return;
+      pushAskFill("ios"); askShown = true; ask.hidden = false;
+      $("#push-ask-yes").onclick = () => { lsSet(IOS_TIP, "how:" + Date.now()); ask.hidden = true; a2Open(false); };
+      $("#push-ask-no").onclick = () => { lsSet(IOS_TIP, "ok:" + Date.now()); ask.hidden = true; };
+      return;
+    }
+    if (lsGet(PUSH_ASKED) || !pushCapable() || Notification.permission === "denied") return;
+    pushAskFill("ask"); askShown = true; ask.hidden = false;
+    const e = engage(); e.shown = (e.shown || 0) + 1; lsSet(PUSH_ENGAGE, JSON.stringify(e));
+    if (e.shown >= 3) askDone("ignored");   // shown on 3 visits without an answer: that's an answer too
+    $("#push-ask-yes").onclick = () => turnOnAlerts("ask");
+    $("#push-ask-no").onclick = () => { askDone("no"); ask.hidden = true; };
+  }
+  function pushEngaged() {   // a story was opened in the reader
+    const e = engage(); e.stories = (e.stories || 0) + 1; lsSet(PUSH_ENGAGE, JSON.stringify(e));
+    if (pushCfg) setTimeout(maybeAsk, 400);
+  }
+  pushCfgReady.then(() => {
     renderAlertsUI();
     pushResync();
-    const ask = $("#push-ask");
-    if (!ask || visits < 2 || lsGet(PUSH_ASKED) || !c || !c.enabled || !pushCapable() || Notification.permission === "denied" || pushPrefs().on) return;
-    lsSet(PUSH_ASKED, String(Date.now()));   // shown once, whatever you pick
-    ask.hidden = false;
-    $("#push-ask-yes").onclick = () => turnOnAlerts("ask");
-    $("#push-ask-no").onclick = () => { ask.hidden = true; };
+    maybeAsk();
   });
   // Tapping a notification: the story opens in Chisme's reader (or the weather alerts), never another app.
   function openFromAlert(href) {
