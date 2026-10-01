@@ -168,7 +168,7 @@ async def webkit(p):
     check(fit, "all 6 tabs fit on an iPhone 13 (no sideways scroll)")
     check(await pg.evaluate("__chisme.view") == "juegos" and await pg.evaluate("__chisme.juegos.id") == "loteria", "#loteria opens Juegitos → Lotería Chismosa")
     games = await pg.evaluate("[...document.querySelectorAll('.game-pick b')].map(b => b.textContent)")
-    check(games == ["Lotería Chismosa", "The Juan That Got Away"], f"a list of games ({games})")
+    check(games == ["The Juan That Got Away", "Lotería Chismosa"], f"a list of games, The Juan That Got Away first (v47) ({games})")
     watch["on"] = True
     check(await pg.evaluate("document.querySelectorAll('#lot-tabla .lot-cell').length") == 16, "a 4×4 tabla")
     await pg.evaluate("() => window.scrollTo(0, document.querySelector('#juegos').getBoundingClientRect().top + scrollY - 70)"); await pg.wait_for_timeout(400)

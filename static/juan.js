@@ -1123,9 +1123,12 @@
     const jb = $("#juan-jump");
     jb.addEventListener("pointerdown", (e) => { e.preventDefault(); jump(); }); jb.addEventListener("pointerup", release);
     jb.addEventListener("click", (e) => { if (e.detail === 0) jump(); });   // keyboard activation
-    el.addEventListener("click", (e) => { const b = e.target.closest("[data-act]"); if (!b) return; const a = b.dataset.act; audio();
+    // v47: a named handler, removed in destroy(): #game-stage is shared, and Juan now mounts first (then maybe Lotería, then Juan
+    // again), so a leftover handler from the old Juan would also "start" and put a 2nd full-screen bar on the stage
+    const onAct = (e) => { const b = e.target.closest("[data-act]"); if (!b) return; const a = b.dataset.act; audio();
       if (a === "start" || a === "cont" || a === "again") played();
-      if (a === "start") startLevel(1); else if (a === "cont") { ckScore = 0; startLevel(st.levelMax); } else if (a === "next") startLevel(level + 1, true); else if (a === "again") startLevel(1); else if (a === "resume") resume(); });
+      if (a === "start") startLevel(1); else if (a === "cont") { ckScore = 0; startLevel(st.levelMax); } else if (a === "next") startLevel(level + 1, true); else if (a === "again") startLevel(1); else if (a === "resume") resume(); };
+    el.addEventListener("click", onAct);
     $("#juan-pause").onclick = () => (paused ? resume() : pause());
     $("#juan-restart").onclick = () => { paused = false; ckScore = 0; startLevel(level); ctrl(); };
     $("#juan-sound").onclick = () => { st.muted = !st.muted; save(st); ctrl(); if (!st.muted) SFX.coin(); };
@@ -1142,7 +1145,7 @@
     return {
       pause, resume, jump,
       fs, exitFullscreen: (quiet) => fs.exit(quiet),
-      destroy() { fs.exit(true); cancelAnimationFrame(raf); document.removeEventListener("keydown", onKey); document.removeEventListener("keyup", onKeyUp); root.removeEventListener("resize", onWin); cache = {}; },
+      destroy() { fs.exit(true); cancelAnimationFrame(raf); document.removeEventListener("keydown", onKey); document.removeEventListener("keyup", onKeyUp); root.removeEventListener("resize", onWin); el.removeEventListener("click", onAct); cache = {}; },
       get state() { return { oopsMsg, msg, mode, level, name: L().name, outfit: L().outfit, x: hero.x, y: hero.y, ground: hero.ground, score, ck, best: st.best, muted: st.muted, boost: hero.boost, health: hero.health, beers: beersGot, shield: hero.shield, fuera: fueraT > 0, fueras, caught: caughtN, caughtBy,
         chase: ents.some((e) => e.t === "chaser" && e.st === "chase"),
         levelMax: st.levelMax, parallax: !reduced(), overlay: ov.textContent.trim(), fullscreen: fs.on, W: VW, H: VH, dpr, cssW, backing: [cv.width, cv.height], fx: fx.length, fxMade }; },
@@ -1167,5 +1170,5 @@
   const game = { id: "juan", name: "The Juan That Got Away", emoji: "👢", blurb: "¡Ya es viernes! Get Juan through his Friday shift and on to beers with the crew at Noche Caliente.", mount };
   const api = { KEY, LEVELS, END, CHECKS, VW, HP, HAZ, ICE, CAUGHT, pickCaught, FUERA, buildLevel, load, save, reset, game };
   if (typeof module === "object" && module.exports) module.exports = api;
-  else { root.ChismeJuan = api; if (root.ChismeJuegos) root.ChismeJuegos.GAMES.push(game); }
+  else { root.ChismeJuan = api; if (root.ChismeJuegos) root.ChismeJuegos.GAMES.unshift(game); }   // v47: first in the list = the game Juegitos opens on
 })(typeof window !== "undefined" ? window : this);

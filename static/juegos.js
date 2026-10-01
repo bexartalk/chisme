@@ -333,7 +333,7 @@
 
   const GAMES = [{ id: "loteria", name: "Lotería Chismosa", emoji: "🎴", blurb: "Tía calls the cards; fill a line and shout ¡Lotería!", mount: mountLoteria }];
 
-  // ---- the Juegos tab: list the games, mount the chosen one (only one for now) ----
+  // ---- the Juegos tab: list the games, mount the chosen one (GAMES[0] by default: v47 The Juan That Got Away, unshifted by juan.js) ----
   function mountTab(listEl, stageEl, ctx) {
     let active = null, activeId = null;
     const open = (id) => {
