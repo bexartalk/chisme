@@ -2363,7 +2363,7 @@ window.CHISME_APP_BUILD = "44";
 
   // ---------- views: News | Sports | Weather | ¿Cuál dieta? | Juegitos | Events (tap the fixed buttons, swipe sideways or ←/→ on the tabs)
   const VIEWS = ["news", "sports", "weather", "antojos", "juegos", "events"];
-  // 🎲 Juegos: mounted the first time the tab opens (static/juegos.js lists the games; juan.js adds game 2, Juan's Long Day).
+  // 🎲 Juegos: mounted the first time the tab opens (static/juegos.js lists the games; juan.js adds game 2, The Juan That Got Away).
   let juegos = null;
   function juegosOpen(game) {
     if (!juegos && window.ChismeJuegos) juegos = window.ChismeJuegos.mountTab($("#games-list"), $("#game-stage"), { reducedMotion });
@@ -2501,7 +2501,7 @@ window.CHISME_APP_BUILD = "44";
   const HASH_VIEW = { "#weather": ["weather"], "#forecast-sec": ["weather", "forecast-sec"], "#radar-sec": ["weather", "radar-sec"], "#radar": ["weather", "radar-sec"],
     "#alerts": ["weather", "alerts"], "#events": ["events"], "#antojos": ["antojos"], "#cual-dieta": ["antojos"], "#dieta": ["antojos"], "#food": ["antojos"], "#near": ["news", "near"], "#city": ["news", "city"],
     "#sports": ["sports"], "#spurs": ["sports"], "#nfl": ["sports"], "#mlb": ["sports"], "#missions": ["sports"], "#news": ["news"],
-    "#juegos": ["juegos"], "#juegitos": ["juegos"], "#games": ["juegos"], "#loteria": ["juegos", null, "loteria"], "#juan": ["juegos", null, "juan"], "#juans-long-day": ["juegos", null, "juan"] };
+    "#juegos": ["juegos"], "#juegitos": ["juegos"], "#games": ["juegos"], "#loteria": ["juegos", null, "loteria"], "#juan": ["juegos", null, "juan"], "#juans-long-day": ["juegos", null, "juan"], "#juan-that-got-away": ["juegos", null, "juan"] };
   pos(0); updateTabs();
 
   // ---------- settings sheet (tap the Chisme icon in the header)

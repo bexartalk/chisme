@@ -354,7 +354,7 @@ def page(r: dict, store_name: str, now: float | None = None) -> str:
         m = r["stories"].get(k) or {}
         t = e(m.get("t") or "(a story)"); src = e(m.get("s") or "")
         stories.append((f'<a href="{e(m.get("u") or "#")}" target="_blank" rel="noopener noreferrer">{t}</a>' + (f' <small>{src}</small>' if src else ""), v))
-    games = [(e({"loteria": "Lotería Chismosa", "juan": "Juan's Long Day", "icebebe": "Juan's Long Day (old runner)"}.get(k, k)), v) for k, v in _top(c30, "game:")]
+    games = [(e({"loteria": "Lotería Chismosa", "juan": "The Juan That Got Away", "icebebe": "The Juan That Got Away (old runner)"}.get(k, k)), v) for k, v in _top(c30, "game:")]
     cities = [(e(k), v) for k, v in _top(c30, "city:", 10)]
     a2 = [(e(A2HS_NAMES.get(k, k)), v) for k, v in _top(c30, "a2hs:")]
 

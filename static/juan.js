@@ -1,4 +1,4 @@
-/* Chisme · Juegitos game 2: "Juan's Long Day" (v44), a side-scrolling runner with smooth vector art on a canvas
+/* Chisme · Juegitos game 2: "The Juan That Got Away" (v44; first called "Juan's Long Day"), a side-scrolling runner with smooth vector art on a canvas
    (paths, gradients and anti-aliasing, drawn at the phone's devicePixelRatio so it stays crisp; no image files, no requests).
    Help Juan get through the day, 5 levels: Home Dehole (the parody hardware store: beige building, orange sign, white
    letters) → Don Pedroes (a Southside Mexican restaurant: cream stucco, red tile roofs, the tall pole sign with the
@@ -473,7 +473,7 @@
     const st = load();
     el.innerHTML = `
       <div class="juan-wrap">
-        <canvas id="juan-cv" class="juan-cv no-swipe" width="${VW}" height="580" role="img" aria-label="Juan's Long Day game screen. Tap it, or press Space, to jump."></canvas>
+        <canvas id="juan-cv" class="juan-cv no-swipe" width="${VW}" height="580" role="img" aria-label="The Juan That Got Away game screen. Tap it, or press Space, to jump."></canvas>
         <div id="juan-ov" class="juan-ov" aria-live="polite"></div>
       </div>
       <p class="juan-note" id="juan-note" aria-live="polite"></p>
@@ -488,7 +488,7 @@
     const cv = el.querySelector("#juan-cv"), g = cv.getContext("2d", { alpha: false }), ov = el.querySelector("#juan-ov"), wrap = el.querySelector(".juan-wrap"), $ = (s) => el.querySelector(s);
     const HAT = `<svg class="gfs-juan-hat" viewBox="0 0 32 20" aria-hidden="true" focusable="false"><path d="M4 15a12 12 0 0 1 24 0z" fill="#fff"/><rect x="1" y="14" width="30" height="4" rx="2" fill="#e1e6ea"/><rect x="14.5" y="3.4" width="3" height="11" rx="1.2" fill="#c9d0d8"/></svg>`;
     const FS = root.ChismeJuegos && root.ChismeJuegos.fullscreen;
-    const fs = FS ? FS(el, { title: "Juan's Long Day", badgeClass: "gfs-juan", badge: `${HAT}<span class="gfs-juan-t" aria-hidden="true">Juan's <b>Long Day</b></span>`,
+    const fs = FS ? FS(el, { title: "The Juan That Got Away", badgeClass: "gfs-juan", badge: `${HAT}<span class="gfs-juan-t" aria-hidden="true">The Juan <b>That Got Away</b></span>`,
       onEnter: () => fit(), onResize: () => fit(), onExit: () => { pause(); fit(); }, onLeave: () => { pause(); fit(); } }) : { enter() {}, exit() {}, on: false };
     // ---- sound: small WebAudio blips (🔇 mutes)
     let ac = null;
@@ -580,8 +580,8 @@
       if (level === 5) {
         mode = "win"; st.wins++; st.levelMax = 5; st.beers = Math.max(st.beers || 0, beersGot); save(st); stats();
         if (!reduced()) for (let i = 0; i < 120; i++) parts.push({ x: Math.random() * VW, y: -Math.random() * VH, vy: 40 + Math.random() * 70, vx: Math.random() * 30 - 15, r: Math.random() * 6, c: ["#00b8b0", "#ff3d8b", "#ff8a00", "#c9d0d8", "#ffffff"][i % 5] });
-        overlay(`<p class="juan-big">¡Salud, Juan!</p><p class="juan-win-line">He made it to Noche Caliente.</p><p class="juan-win-score">Final score <b>${score}</b></p><button type="button" class="lot-btn lot-main" data-act="again">▶ Play again</button>`, "win");
-        $("#juan-note").innerHTML = `🎉 What a long day! Juan made it to Noche Caliente for a cold one with the compas. <span class="juan-score">Final score <b>${score}</b> · Best <b>${st.best}</b></span> <button type="button" class="lot-btn lot-main" data-act="again">▶ Play again</button>`;
+        overlay(`<p class="juan-big">¡Salud, Juan!</p><p class="juan-win-line">The Juan That Got Away made it to Noche Caliente.</p><p class="juan-win-score">Final score <b>${score}</b></p><button type="button" class="lot-btn lot-main" data-act="again">▶ Play again</button>`, "win");
+        $("#juan-note").innerHTML = `🎉 What a long day! The Juan that got away made it to Noche Caliente for a cold one with the compas. <span class="juan-score">Final score <b>${score}</b> · Best <b>${st.best}</b></span> <button type="button" class="lot-btn lot-main" data-act="again">▶ Play again</button>`;
         return;
       }
       st.levelMax = Math.max(st.levelMax, level + 1); save(st); stats();
@@ -791,7 +791,7 @@
       level = 1; cache = {}; spawn(0); hero.x = 140; camX = cam(hero.x); mode = "title"; fit();
       const cont = st.levelMax > 1 ? `<button type="button" class="lot-btn" data-act="cont">▶ Keep going: level ${st.levelMax}</button>` : "";
       $("#juan-note").textContent = "Help Juan get through the day: 5 stops from Home Dehole to the cantina. Hop the cones, potholes and runaway carts, and grab a coffee.";
-      overlay(`<p class="juan-big">Juan's Long Day</p><p class="juan-story">Help Juan get through the day!</p>
+      overlay(`<p class="juan-big">The Juan That Got Away</p><p class="juan-story">Help Juan get through the day!</p>
         <ol class="juan-stops">${LEVELS.map((l, i) => `<li><span>${i + 1}</span>${l.name}</li>`).join("")}</ol>
         <p class="juan-sub">Supplies, lunch, a truck part, home to change, then boots on for Noche Caliente. <span lang="es">¡Ándale!</span></p>
         <p class="juan-btns"><button type="button" class="lot-btn lot-main" data-act="start">▶ Start at level 1</button>${cont}</p>${st.best ? `<p class="juan-score">Best score <b>${st.best}</b></p>` : ""}`, "title");
@@ -857,7 +857,7 @@
     };
   }
 
-  const game = { id: "juan", name: "Juan's Long Day", emoji: "👢", blurb: "Help Juan get through the day: 5 stops, from Home Dehole to the cantina.", mount };
+  const game = { id: "juan", name: "The Juan That Got Away", emoji: "👢", blurb: "Help Juan get through the day: 5 stops, from Home Dehole to the cantina.", mount };
   const api = { KEY, LEVELS, END, CHECKS, VW, HP, HAZ, buildLevel, load, save, reset, game };
   if (typeof module === "object" && module.exports) module.exports = api;
   else { root.ChismeJuan = api; if (root.ChismeJuegos) root.ChismeJuegos.GAMES.push(game); }

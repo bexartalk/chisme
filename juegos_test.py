@@ -1,21 +1,21 @@
-"""🎲 Juegitos (v30; v39 English UI; v40 renamed from Juegos + full-screen portrait play; v41 traditional Spanish Lotería; v44 Juan's Long Day): a games tab, all on the phone and offline.
+"""🎲 Juegitos (v30; v39 English UI; v40 renamed from Juegos + full-screen portrait play; v41 traditional Spanish Lotería; v44 The Juan That Got Away): a games tab, all on the phone and offline.
 
 1. Node: Lotería Chismosa's deck: the 54 traditional cards (El Gallo … La Rana; #26 is El Chocolate instead of El Negrito) with their folk
    verses, each with its own original SVG art; the call is the verse then "¡Name!"; one recorded mp3 per call; random 4×4 tablas, and
-   wins (rows, columns, diagonals, 4 corners) that only count for cards Tía actually called. Juan's Long Day's 5 levels
+   wins (rows, columns, diagonals, 4 corners) that only count for cards Tía actually called. The Juan That Got Away's 5 levels
    (Home Dehole → Don Pedroes → O'Reillees → Juan's Casa → Noche Caliente), same course every time, ☕ coffee + breakfast taco on each
    level, cold ones to jump for on the cantina level, hazards on every level but none right at a checkpoint.
 2. WebKit iPhone 13: the 🎲 Juegitos tab (between ¿Cuál dieta? and Events) fits; a list of games. Lotería: Tía (avatar) calls
    cards in Spanish from recorded clips (the phone's es-MX voice only if a clip fails), 🔇 Sound, pause, speed, new board; a bean drops only on a
    called card (an uncalled one shakes), tap again to take it off; ¡Lotería! checks the beans,
-   confetti + a brag on a win, wins/streak/best in localStorage. Juan's Long Day (v44, replaces Ice Ice Bebé): run, jump (tap / Space),
+   confetti + a brag on a win, wins/streak/best in localStorage. The Juan That Got Away (v44, replaces Ice Ice Bebé): run, jump (tap / Space),
    a bump costs health, out of health → a random "¡Ay no!" / "¡Híjole!" / "¡Ándale, otra vez!" (kept in Spanish) and back to the checkpoint,
    coffee boost, taco health, beers (+health) at night, level clear, the win at Noche Caliente ("¡Salud, Juan!"), English UI, best score, mute, pause.
    Reduce motion (no confetti, no parallax). No links and no outside requests in the games. Settings → default tab Juegitos.
 3. Chromium: offline (service worker), Juegitos still opens and both games run.
 4. v41 full screen: the board fills the width and most of the height at 390×844 and 320×640 with no scrolling; the called card sits small above it.
    v43: the tabla-app layout (picker + bean count in the top bar, the called-card strip, big vintage cards, Limpiar / Nueva tabla): see loteria_v43_test.py.
-   v44: Juan's Long Day full screen at 390×844 (level 1 at Home Dehole, Don Pedroes, level 5 at the cantina) and 320×640 (canvas + controls fit, no scrolling).
+   v44: The Juan That Got Away full screen at 390×844 (level 1 at Home Dehole, Don Pedroes, level 5 at the cantina) and 320×640 (canvas + controls fit, no scrolling).
 Screenshots: juegos-tab.png, juegos-english.png, loteria-calls.png, loteria-win.png, loteria-tabla-big.png, loteria-cards.png, loteria-320.png,
 juan-intro.png, juan-l1.png, juan-don-pedroes.png, juan-l5.png, juan-win.png, juan-320.png."""
 import asyncio, json, os, re, subprocess
@@ -75,7 +75,7 @@ out.hints = I.LEVELS.map((l) => l.hint); out.game = [I.game.id, I.game.name, I.K
 console.log(JSON.stringify(out));
 """
 def unit():
-    print("== Node: Lotería Chismosa + Juan's Long Day logic")
+    print("== Node: Lotería Chismosa + The Juan That Got Away logic")
     r = subprocess.run(["node", "-e", UNIT, os.path.join(HERE, "static", "juegos.js"), os.path.join(HERE, "static", "juan.js")], capture_output=True, text=True, timeout=60)
     if r.returncode: check(False, "node harness: " + r.stderr[-300:]); return
     o = json.loads(r.stdout)
@@ -89,7 +89,7 @@ def unit():
     check(o["calls"] and o["call1"] == "El que le cantó a San Pedro no le volverá a cantar. ¡El Gallo!", f"each call is the traditional verse, then the name ({o['call1']!r})")
     check(o["lines_es"] == {"intro": "¡Se va y se corre con…!", "loteria": "¡Lotería!", "over": "¡Se acabaron las cartas!"}, f"the other calls are Spanish too ({o['lines_es']})")
     es = [w for w in SPANISH if any(w.lower() in t.lower().split() or (" " in w and w.lower() in t.lower()) for t in o["hints"])]
-    check(not es, f"Juan's Long Day's level hints are English ({es})")
+    check(not es, f"The Juan That Got Away's level hints are English ({es})")
     audio = os.path.join(HERE, "static", "loteria", "audio"); clips = [f"{i:02d}.mp3" for i in range(1, 55)] + ["intro.mp3", "loteria.mp3", "over.mp3"]
     sizes = [os.path.getsize(os.path.join(audio, f)) if os.path.exists(os.path.join(audio, f)) else 0 for f in clips]
     heads = [open(os.path.join(audio, f), "rb").read(3) for f in clips if os.path.exists(os.path.join(audio, f))]
@@ -98,8 +98,8 @@ def unit():
     check(o["row"]["win"] and o["col"]["win"] and o["diag"]["win"] and o["corners"]["win"] and o["lines"] == 11, "wins: a row, a column, a diagonal, the 4 corners (11 lines)")
     check(not o["none"]["win"], "4 marks that aren't a line: no win")
     check(not o["uncalled"]["win"] and len(o["uncalled"]["early"]) == 1, "a line with a card Tía hasn't called doesn't count (caught as an early mark)")
-    check(o["game"] == ["juan", "Juan's Long Day", "chisme-juegos-juan"], f"v44: the second game is Juan's Long Day ({o['game']})")
-    check(o["levels"] == JUAN_LEVELS, f"Juan's Long Day: 5 stops, Home Dehole → Don Pedroes → O'Reillees → Juan's Casa → Noche Caliente ({o['levels']})")
+    check(o["game"] == ["juan", "The Juan That Got Away", "chisme-juegos-juan"], f"v44: the second game is The Juan That Got Away ({o['game']})")
+    check(o["levels"] == JUAN_LEVELS, f"The Juan That Got Away: 5 stops, Home Dehole → Don Pedroes → O'Reillees → Juan's Casa → Noche Caliente ({o['levels']})")
     check(o["outfits"] == ["work", "work", "work", "work", "western"], f"work clothes for the first 4 levels, cowboy clothes at night ({o['outfits']})")
     check(o["same"], "a level is the same course every time (so a checkpoint restarts it fairly)")
     check(all(c >= 1 and t >= 1 for c, t in o["power"]), f"every level has a ☕ coffee and a breakfast taco ({o['power']})")
@@ -151,7 +151,7 @@ async def webkit(p):
     check(fit, "all 6 tabs fit on an iPhone 13 (no sideways scroll)")
     check(await pg.evaluate("__chisme.view") == "juegos" and await pg.evaluate("__chisme.juegos.id") == "loteria", "#loteria opens Juegitos → Lotería Chismosa")
     games = await pg.evaluate("[...document.querySelectorAll('.game-pick b')].map(b => b.textContent)")
-    check(games == ["Lotería Chismosa", "Juan's Long Day"], f"a list of games ({games})")
+    check(games == ["Lotería Chismosa", "The Juan That Got Away"], f"a list of games ({games})")
     watch["on"] = True
     check(await pg.evaluate("document.querySelectorAll('#lot-tabla .lot-cell').length") == 16, "a 4×4 tabla")
     await pg.evaluate("() => window.scrollTo(0, document.querySelector('#juegos').getBoundingClientRect().top + scrollY - 70)"); await pg.wait_for_timeout(400)
@@ -252,16 +252,16 @@ async def webkit(p):
     await pg.wait_for_timeout(3200)
     check(not s["running"] and not s["fullscreen"] and not f["on"] and f["tabs"] and f["foot"] and back and len((await st(pg))["called"]) == n0,
           f"✕: the calling stops, back to the Juegitos list, tab bar + footer back (running {s['running']}, fs {f['on']}, tabs {f['tabs']}, list in view {back})")
-    # --- Juan's Long Day (v44; replaces Ice Ice Bebé)
+    # --- The Juan That Got Away (v44; replaces Ice Ice Bebé)
     await pg.click('.game-pick[data-game="juan"]'); await to_stage(pg)
     s = await st(pg)
     stops = await pg.evaluate("[...document.querySelectorAll('#juan-ov .juan-stops li')].map(l => l.textContent.replace(/^\\d+/, '').trim())")
-    check(s["mode"] == "title" and "Juan's Long Day" in s["overlay"] and "Help Juan get through the day!" in s["overlay"] and stops == JUAN_LEVELS, f"Juan's Long Day: title screen with the 5 stops ({stops})")
+    check(s["mode"] == "title" and "The Juan That Got Away" in s["overlay"] and "Help Juan get through the day!" in s["overlay"] and stops == JUAN_LEVELS, f"The Juan That Got Away: title screen with the 5 stops ({stops})")
     await pg.click('#juan-ov [data-act="start"]'); await pg.wait_for_timeout(700)
     s1 = await st(pg); await pg.wait_for_timeout(500); s2 = await st(pg)
     check(s2["mode"] == "run" and s2["x"] > s1["x"] + 20 and s2["outfit"] == "work" and s2["health"] == 100, f"Juan runs, in his work clothes, full health ({s1['x']:.0f} → {s2['x']:.0f}, {s2['outfit']}, {s2['health']})")
     f = await fs(pg)
-    check(fs_ok(f) and f["badgeMid"] and "Juan's Long Day" in f["badge"] and await pg.evaluate("!!document.querySelector('.gfs-badge.gfs-juan svg.gfs-juan-hat')"), f"▶ Start: Juan's Long Day goes full screen (fixed overlay {f['iw']}×{f['ih']}, tab bar + footer hidden, ✕ top right, hard-hat 'Juan's Long Day' badge top center) {f}")
+    check(fs_ok(f) and f["badgeMid"] and "The Juan That Got Away" in f["badge"] and await pg.text_content(".gfs-juan-t b") == "That Got Away" and await pg.evaluate("!!document.querySelector('.gfs-badge.gfs-juan svg.gfs-juan-hat')"), f"▶ Start: The Juan That Got Away goes full screen (fixed overlay {f['iw']}×{f['ih']}, tab bar + footer hidden, ✕ top right, hard-hat 'The Juan' + pink 'That Got Away' badge top center) {f}")
     cvr = await pg.evaluate("(() => { const r = document.querySelector('#juan-cv').getBoundingClientRect(), c = document.querySelector('#juan-cv'); return { w: r.width, h: r.height, cw: c.width, ch: c.height, top: r.top, bot: r.bottom }; })()")
     check(cvr["ch"] > cvr["cw"] * 1.4 and cvr["h"] >= 0.7 * f["ih"] and cvr["w"] >= 0.9 * f["iw"], f"…a tall portrait screen that fills the phone ({cvr['cw']}×{cvr['ch']} px shown at {cvr['w']:.0f}×{cvr['h']:.0f})")
     s = await st(pg)
@@ -320,7 +320,7 @@ async def webkit(p):
     check((await st(pg))["mode"] == "run" and (await fs(pg))["on"], "▶ Resume: still full screen")
     await pg.click(".gfs-x"); await pg.wait_for_timeout(300)
     s = await st(pg); f = await fs(pg)
-    check(s["mode"] == "paused" and not f["on"] and f["tabs"] and f["foot"] and "Paused" in s["overlay"], f"✕: Juan's Long Day pauses and it's back to Juegitos (tab bar + footer back) ({s['mode']}, fs {f['on']})")
+    check(s["mode"] == "paused" and not f["on"] and f["tabs"] and f["foot"] and "Paused" in s["overlay"], f"✕: The Juan That Got Away pauses and it's back to Juegitos (tab bar + footer back) ({s['mode']}, fs {f['on']})")
     await pg.click('#juan-ov [data-act="resume"]'); await pg.wait_for_timeout(200)
     check((await st(pg))["mode"] == "run" and (await fs(pg))["on"], "▶ Resume from the list: full screen again")
     await pg.keyboard.press("Escape"); await pg.wait_for_timeout(200)
@@ -336,10 +336,10 @@ async def webkit(p):
     await pg.wait_for_timeout(1300)
     s = await st(pg); juan = json.loads(await pg.evaluate("localStorage.getItem('chisme-juegos-juan')"))
     note = await pg.text_content("#juan-note")
-    check(won and "¡Salud, Juan!" in s["overlay"] and "He made it to Noche Caliente." in s["overlay"] and "What a long day!" in note and "Noche Caliente" in note, f"level 5: the win at the cantina, '¡Salud, Juan!' ({note[:70]!r})")
+    check(won and "¡Salud, Juan!" in s["overlay"] and "The Juan That Got Away made it to Noche Caliente." in s["overlay"] and "The Juan that got away" in note and "What a long day!" in note and "Noche Caliente" in note, f"level 5: the win at the cantina, '¡Salud, Juan!' ({note[:70]!r})")
     txt = await pg.evaluate("(() => { const j = document.querySelector('#view-juegos'); return [...j.querySelectorAll('#juegos, #game-stage')].map(e => e.textContent).join(' ') + ' ' + [...j.querySelectorAll('[aria-label]')].map(e => e.getAttribute('aria-label')).join(' '); })()")   # textContent: the rules are hidden while full screen
     es = [w for w in SPANISH if w.lower() in txt.lower().replace("lotería", "")]
-    check(not es and "Coffee = speed boost" in txt and "Breakfast taco = more health" in txt and "cold ones" in txt, f"Juan's Long Day's UI is English ({es})")
+    check(not es and "Coffee = speed boost" in txt and "Breakfast taco = more health" in txt and "cold ones" in txt, f"The Juan That Got Away's UI is English ({es})")
     check(juan["best"] >= s["score"] > 0 and juan["wins"] == 1 and juan["levelMax"] == 5, f"best score saved on the phone ({juan['best']})")
     check("Play again" in s["overlay"], "…with ▶ Play again right on the full-screen win screen")
     await pg.screenshot(path=os.path.join(OUT, "juan-win.png"))
@@ -347,7 +347,7 @@ async def webkit(p):
     check(msgs <= OOPS, f"worn-out lines seen (kept in Spanish): {sorted(msgs)}")
     check(await pg.evaluate("document.querySelectorAll('#game-stage a').length") == 0, "no links in the games")
     check(not outside, f"no outside requests while playing (besides other tabs' images) ({outside[:3]})")
-    # a fresh Juan's Long Day (title screen), then News: Space there must not start the game
+    # a fresh The Juan That Got Away (title screen), then News: Space there must not start the game
     await pg.click('.game-pick[data-game="loteria"]'); await pg.click('.game-pick[data-game="juan"]'); await pg.wait_for_timeout(200)
     await pg.evaluate("__chisme.goView('news', { instant: true })"); await pg.wait_for_timeout(200)
     await pg.keyboard.press("Space"); await pg.wait_for_timeout(300)
@@ -392,7 +392,7 @@ async def webkit(p):
     await pg.click('.game-pick[data-game="juan"]'); await pg.click('#juan-ov [data-act="start"]'); await pg.wait_for_timeout(300)
     await pg.evaluate(G + ".jump()"); await pg.wait_for_timeout(1200)
     s = await st(pg)
-    check(not s["parallax"] and s["fxMade"] == 0 and s["fullscreen"], f"reduce motion: Juan's Long Day's background stays still (no parallax, shake, particles or confetti), still full screen (fx {s['fxMade']})")
+    check(not s["parallax"] and s["fxMade"] == 0 and s["fullscreen"], f"reduce motion: The Juan That Got Away's background stays still (no parallax, shake, particles or confetti), still full screen (fx {s['fxMade']})")
     await b.close()
 
 async def fullscreen_shots(p):
@@ -400,17 +400,20 @@ async def fullscreen_shots(p):
     b = await p.webkit.launch(); dev = dict(p.devices["iPhone 13"]); dev.pop("default_browser_type", None); dev["viewport"] = {"width": 390, "height": 844}; dev["device_scale_factor"] = 1   # screenshots exactly 390×844
     ctx = await b.new_context(**dev); await ctx.add_init_script(INIT); await ctx.add_init_script(SPEECH)
     pg = await ctx.new_page(); errs = []; pg.on("pageerror", lambda e: errs.append(str(e)[:160]))
+    for alias in ("#juan-that-got-away", "#juans-long-day"):   # the new title's link + the old one (#juan below)
+        await pg.goto(BASE + "/" + alias); await pg.wait_for_function("window.__chisme && __chisme.ready", timeout=120000)
+        check(await pg.evaluate("__chisme.view") == "juegos" and await pg.evaluate("__chisme.juegos.id") == "juan", f"{alias} opens Juegitos → The Juan That Got Away")
     await pg.goto(BASE + "/#juan"); await pg.wait_for_function("window.__chisme && __chisme.ready", timeout=120000); await pg.wait_for_timeout(800)
-    await until(pg, "(document.querySelector('#sync') || {}).dataset?.state !== 'ok'", 6)
-    await pg.evaluate("() => { const t = document.querySelector('#game-stage'); window.scrollTo(0, t.getBoundingClientRect().top + scrollY - 60); }"); await pg.wait_for_timeout(500)
+    await until(pg, "(document.querySelector('#sync') || {}).dataset?.state === 'done'", 15)   # the "Updating… / ✓ Updated" pill gone, so it doesn't cover the title
+    await pg.evaluate("() => { const t = document.querySelector('#game-stage'); window.scrollTo(0, t.getBoundingClientRect().top + scrollY - 60); }"); await pg.wait_for_timeout(700)
     s = await st(pg)
-    check(await pg.evaluate("__chisme.juegos.id") == "juan" and s["mode"] == "title", "#juan opens Juegitos → Juan's Long Day (title screen)")
+    check(await pg.evaluate("__chisme.juegos.id") == "juan" and s["mode"] == "title", "#juan opens Juegitos → The Juan That Got Away (title screen)")
     await pg.screenshot(path=os.path.join(OUT, "juan-intro.png"))
     await pg.click('#juan-ov [data-act="start"]'); await pg.wait_for_timeout(300)
     await pg.evaluate(G + ".warp(1, 5740)"); await pg.wait_for_timeout(350); await pg.evaluate(G + ".jump()"); await pg.wait_for_timeout(200)
     f = await fs(pg); s = await st(pg)
     cvh = await pg.evaluate("document.querySelector('#juan-cv').getBoundingClientRect().height")
-    check(fs_ok(f) and s["mode"] == "run" and s["level"] == 1 and s["H"] > 1.7 * s["W"] and cvh > 0.8 * f["ih"], f"390×844: Juan's Long Day level 1, running up to Home Dehole, full screen (canvas {s['W']}×{s['H']:.0f}, {cvh:.0f} px tall on an {f['ih']} px screen)")
+    check(fs_ok(f) and s["mode"] == "run" and s["level"] == 1 and s["H"] > 1.7 * s["W"] and cvh > 0.8 * f["ih"], f"390×844: The Juan That Got Away level 1, running up to Home Dehole, full screen (canvas {s['W']}×{s['H']:.0f}, {cvh:.0f} px tall on an {f['ih']} px screen)")
     await pg.screenshot(path=os.path.join(OUT, "juan-l1.png"))
     await pg.evaluate(G + ".warp(2, 5780)"); await pg.wait_for_timeout(450)
     s = await st(pg)
@@ -468,9 +471,15 @@ async def fullscreen_shots(p):
     check(lay["ok"] and not lay["scroll"] and lay["w"] >= 0.85 * 320 and lay["h"] >= 0.58 * 640 and ctl and not lay["clipped"],
           f"320×640: everything fits with no scrolling, board {lay['w']:.0f}×{lay['h']:.0f}, controls one row of 44 px buttons ({ctl}), no clipped names {lay['clipped']}")
     await pg.screenshot(path=os.path.join(OUT, "loteria-320.png"))
-    # v44: Juan's Long Day on the small phone
+    # v44: The Juan That Got Away on the small phone
     await pg.click(".gfs-x"); await pg.wait_for_timeout(200)
-    await pg.click('.game-pick[data-game="juan"]'); await pg.click('#juan-ov [data-act="start"]'); await pg.wait_for_timeout(400)
+    await pg.click('.game-pick[data-game="juan"]'); await pg.wait_for_timeout(300)
+    await pg.evaluate("document.querySelector('#game-stage').scrollIntoView()"); await pg.wait_for_timeout(200)
+    intro = await pg.evaluate("(() => { const o = document.querySelector('#juan-ov').getBoundingClientRect(), b = document.querySelector('#juan-ov [data-act=start]').getBoundingClientRect(), t = document.querySelector('#juan-ov .juan-big').getBoundingClientRect(); return { btn: b.bottom <= o.bottom + 1 && b.top >= o.top, title: t.left >= o.left && t.right <= o.right }; })()")
+    check(intro["btn"] and intro["title"], f"320×640: the intro's title 'The Juan That Got Away', the 5 stops and ▶ Start all fit on the game screen {intro}")
+    await pg.click('#juan-ov [data-act="start"]'); await pg.wait_for_timeout(400)
+    badge = await pg.evaluate("(() => { const b = document.querySelector('.gfs-badge.gfs-juan'), t = b.querySelector('.gfs-juan-t'), br = b.getBoundingClientRect(), x = document.querySelector('.gfs-x').getBoundingClientRect(); return { fits: t.scrollWidth <= t.clientWidth + 1 && b.scrollWidth <= b.clientWidth + 1, clear: br.left >= 4 && br.right <= x.left - 4, w: Math.round(br.width), text: t.textContent }; })()")
+    check(badge["fits"] and badge["clear"] and badge["text"] == "The Juan That Got Away", f"320×640: the full-screen badge 'The Juan That Got Away' fits whole, clear of the ✕ {badge}")
     await pg.evaluate(G + ".warp(2, 5700)"); await pg.wait_for_timeout(400)
     sm = await pg.evaluate("""(() => { const c = document.querySelector('#juan-cv').getBoundingClientRect(), k = document.querySelector('.juan-controls').getBoundingClientRect(), st = document.querySelector('#game-stage');
       const btns = [...document.querySelectorAll('.juan-controls .lot-btn')];
@@ -478,7 +487,7 @@ async def fullscreen_shots(p):
         scroll: st.scrollHeight > st.clientHeight + 1 }; })()""")
     f = await fs(pg); s = await st(pg)
     check(fs_ok(f) and sm["cw"] >= 0.95 * 320 and sm["ch"] >= 0.6 * 640 and sm["cbot"] <= sm["ktop"] + 1 and sm["kbot"] <= 641 and sm["btn"] and not sm["scroll"] and s["mode"] == "run",
-          f"320×640: Juan's Long Day fits: canvas {sm['cw']:.0f}×{sm['ch']:.0f}, the controls below it on screen, no scrolling {sm}")
+          f"320×640: The Juan That Got Away fits: canvas {sm['cw']:.0f}×{sm['ch']:.0f}, the controls below it on screen, no scrolling {sm}")
     await pg.screenshot(path=os.path.join(OUT, "juan-320.png"))
     await b.close()
 
@@ -496,7 +505,7 @@ async def offline(p):
     s = await pg.evaluate(G + ".state")
     await pg.click(".gfs-x"); await pg.wait_for_timeout(200)
     await pg.click('.game-pick[data-game="loteria"]'); await pg.wait_for_timeout(200)
-    check(ok and s["mode"] == "run" and await pg.evaluate("document.querySelectorAll('#lot-tabla .lot-cell').length") == 16, "offline: Juegitos opens (#juan), Juan's Long Day runs, Lotería deals a tabla")
+    check(ok and s["mode"] == "run" and await pg.evaluate("document.querySelectorAll('#lot-tabla .lot-cell').length") == 16, "offline: Juegitos opens (#juan), The Juan That Got Away runs, Lotería deals a tabla")
     shell = re.search(r'VERSION\s*=\s*"(chisme-v\d+)"', open(os.path.join(HERE, "static", "sw.js")).read()).group(1) + "-shell"   # (this build's cache)
     cached = await pg.evaluate("(async () => { const c = await caches.open('" + shell + "'), k = (await c.keys()).map(r => new URL(r.url).pathname); const r = await fetch('/static/loteria/audio/01.mp3', { headers: { Range: 'bytes=0-99' } }); return { n: k.filter(p => p.startsWith('/static/loteria/audio/')).length, cards: k.includes('/static/loteria_cards.js'), status: r.status, len: (await r.arrayBuffer()).byteLength, cr: r.headers.get('Content-Range') }; })()")
     check(cached["n"] == 57 and cached["cards"] and cached["status"] == 206 and cached["len"] == 100, f"offline: the service worker has all 57 recorded calls + the card art, and answers a Range request with 206 (for Safari) ({cached})")

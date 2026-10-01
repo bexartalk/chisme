@@ -5,7 +5,7 @@ the RainViewer tiles (recolored on a canvas) go blue → orange → red → pink
 
 Covers every tab (News, Sports, Weather, ¿Cuál dieta?, Juegitos, Events), Settings, the Tía chat sheet (her picture
 itself is excluded), the "Updated" status pill in every state, the "New chisme" pill, the offline banner, the focus
-ring, the radar legend and tiles, Lotería (a win, with its winning-row highlight) and Juan's Long Day (v44: DOM overlays,
+ring, the radar legend and tiles, Lotería (a win, with its winning-row highlight) and The Juan That Got Away (v44: DOM overlays,
 the full-screen badge, and the canvas HUD panel's pixels on the title, level 1, worn out, every level and its clear, and the win;
 the game art itself may use yellow, e.g. the beer and the taco). WebKit, iPhone 13, against the local server.
 Screenshots, light | dark side by side: no-yellow-news.png, no-yellow-loteria.png, no-yellow-juan.png."""
@@ -42,7 +42,7 @@ SCAN = r"""(root) => { """ + YELLOW_JS + r"""
   return { n: els.length, bad: [...new Set(bad)].slice(0, 10) };
 }"""
 
-# canvas pixels (v44 Juan's Long Day): how many yellow pixels in the HUD panel (UI chrome, units 8..352 × 8..58 of the
+# canvas pixels (v44 The Juan That Got Away): how many yellow pixels in the HUD panel (UI chrome, units 8..352 × 8..58 of the
 # 360-unit-wide game), and a few examples. The game art below it may be yellow (beer, taco, the sun).
 CANVAS = r"""(sel) => { """ + YELLOW_JS + r"""
   const c = document.querySelector(sel); if (!c) return null; const S = c.width / 360, x0 = Math.round(8 * S), y0 = Math.round(8 * S);
@@ -135,17 +135,17 @@ async def run_theme(b, dev, theme, shots):
     shots["loteria"].append(await shot(pg))
     await scan(pg, ".gfs-bar", "Lotería full screen: ✕ + title badge")
     await pg.click(".gfs-x"); await pg.wait_for_timeout(300)   # v40: out of full screen, back to the Juegitos list
-    # --- Juan's Long Day: overlays (DOM) + the HUD's canvas pixels in every state (full screen while playing)
+    # --- The Juan That Got Away: overlays (DOM) + the HUD's canvas pixels in every state (full screen while playing)
     await pg.click('.game-pick[data-game="juan"]'); await pg.wait_for_timeout(600)
     await pg.evaluate("document.querySelector('#game-stage').scrollIntoView({ block: 'start' })"); await pg.wait_for_timeout(300)
     async def juan(label):
         c = await pg.evaluate(CANVAS, "#juan-cv")
-        check(c and c["n"] == 0, f"Juan's Long Day {label}: no yellow pixels in the HUD ({c['n'] if c else None} {c['ex'] if c else ''})")
-        await scan(pg, "#game-stage", f"Juan's Long Day {label}: overlay/UI")
+        check(c and c["n"] == 0, f"The Juan That Got Away {label}: no yellow pixels in the HUD ({c['n'] if c else None} {c['ex'] if c else ''})")
+        await scan(pg, "#game-stage", f"The Juan That Got Away {label}: overlay/UI")
     await juan("title")
     await pg.click('#juan-ov [data-act="start"]'); await pg.wait_for_timeout(900)
     await pg.evaluate(G + ".warp(1, 300)"); await pg.wait_for_timeout(300); await juan("level 1 (HUD, health bar)")
-    await scan(pg, ".gfs-bar", "Juan's Long Day full screen: ✕ + hard-hat badge")
+    await scan(pg, ".gfs-bar", "The Juan That Got Away full screen: ✕ + hard-hat badge")
     shots["juan"].append(await shot(pg))
     await pg.evaluate(G + ".setHealth(1)"); await until(pg, G + ".state.mode === 'oops'", 20); await pg.wait_for_timeout(150); await juan("worn out")
     await until(pg, G + ".state.mode === 'run'", 3)
