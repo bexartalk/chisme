@@ -2,8 +2,8 @@
 
 1. Node: Lotería Chismosa's deck: the 54 traditional cards (El Gallo … La Rana; #26 is El Chocolate instead of El Negrito) with their folk
    verses, each with its own original SVG art; the call is the verse then "¡Name!"; one recorded mp3 per call; random 4×4 tablas, and
-   wins (rows, columns, diagonals, 4 corners) that only count for cards Tía actually called. The Juan That Got Away's 5 levels
-   (Home Dehole → Don Pedroes → O'Reillees → Juan's Casa → Noche Caliente), same course every time, ☕ coffee + breakfast taco on each
+   wins (rows, columns, diagonals, 4 corners) that only count for cards Tía actually called. The Juan That Got Away's 6 levels
+   (Hon Dipo → The Job Site → Don Pedroes → O'Reillees → Juan's Casa → Noche Caliente), same course every time, ☕ coffee + breakfast taco on each
    level, cold ones to jump for on the cantina level, hazards on every level but none right at a checkpoint.
 2. WebKit iPhone 13: the 🎲 Juegitos tab (between ¿Cuál dieta? and Events) fits; a list of games. Lotería: Tía (avatar) calls
    cards in Spanish from recorded clips (the phone's es-MX voice only if a clip fails), 🔇 Sound, pause, speed, new board; a bean drops only on a
@@ -15,9 +15,9 @@
 3. Chromium: offline (service worker), Juegitos still opens and both games run.
 4. v41 full screen: the board fills the width and most of the height at 390×844 and 320×640 with no scrolling; the called card sits small above it.
    v43: the tabla-app layout (picker + bean count in the top bar, the called-card strip, big vintage cards, Limpiar / Nueva tabla): see loteria_v43_test.py.
-   v44: The Juan That Got Away full screen at 390×844 (level 1 at Home Dehole, Don Pedroes, level 5 at the cantina) and 320×640 (canvas + controls fit, no scrolling).
+   v44: The Juan That Got Away full screen at 390×844 (level 1 at Hon Dipo, level 2 at The Job Site, Don Pedroes, level 6 at the cantina) and 320×640 (canvas + controls fit, no scrolling).
 Screenshots: juegos-tab.png, juegos-english.png, loteria-calls.png, loteria-win.png, loteria-tabla-big.png, loteria-cards.png, loteria-320.png,
-juan-intro.png, juan-l1.png, juan-don-pedroes.png, juan-l5.png, juan-win.png, juan-320.png."""
+juan-intro.png, juan-l1.png, juan-job-site.png, juan-don-pedroes.png, juan-l5.png, juan-win.png, juan-320.png."""
 import asyncio, json, os, re, subprocess
 from urllib.parse import urlparse
 from playwright.async_api import async_playwright
@@ -46,7 +46,7 @@ TRADITIONAL = ["El Gallo", "El Diablito", "La Dama", "El Catrín", "El Paraguas"
 ALLOWED_ES = ["Limpiar", "Nueva tabla", "Pick your tabla", "your tabla", "tabla", "La Clásica", "Del Campo", "La Fiesta", "Cielo y Mar", "La Gente"]
 SPANISH = ["Empezar", "Pausa", "Seguir", "Otra vez", "Nueva tabla", "Voz", "Lenta", "Rápida", "mija", "Siéntate", "carta", "baraja", "Primero", "Todavía",
   "Ganaste", "Bienvenido", "Llegaste", "Qué", "fiesta", "Mamá", "Cafecito", "Taquería", "Tiendita", "Casa de", "La Plaza", "tabla", "ficha", "esquinas", "fila", "columna"]
-JUAN_LEVELS = ["Home Dehole", "Don Pedroes", "O'Reillees", "Juan's Casa", "Noche Caliente"]
+JUAN_LEVELS = ["Hon Dipo", "The Job Site", "Don Pedroes", "O'Reillees", "Juan's Casa", "Noche Caliente"]
 OOPS = {"¡Ay no!", "¡Híjole!", "¡Ándale, otra vez!"}
 UNIT = r"""
 const J = require(process.argv[1]), I = require(process.argv[2]);
@@ -60,20 +60,21 @@ out.uncalled = win([0, 1, 2, 3], new Set([t[0], t[1], t[2]]));
 out.lines = J.LINES.length;
 out.levels = I.LEVELS.map((l) => l.name); out.outfits = I.LEVELS.map((l) => l.outfit);
 out.same = JSON.stringify(I.buildLevel(3)) === JSON.stringify(I.buildLevel(3));
-out.power = [1, 2, 3, 4, 5].map((n) => { const e = I.buildLevel(n); return [e.filter((x) => x.t === "coffee").length, e.filter((x) => x.t === "taco").length]; });
-out.beers = [1, 2, 3, 4, 5].map((n) => I.buildLevel(n).filter((x) => x.t === "beer").length);
-out.lastBeers = I.buildLevel(5).filter((x) => x.t === "beer" && x.x > I.END - 200).length;
+out.power = [1, 2, 3, 4, 5, 6].map((n) => { const e = I.buildLevel(n); return [e.filter((x) => x.t === "coffee").length, e.filter((x) => x.t === "taco").length]; });
+out.beers = [1, 2, 3, 4, 5, 6].map((n) => I.buildLevel(n).filter((x) => x.t === "beer").length);
+out.lastBeers = I.buildLevel(6).filter((x) => x.t === "beer" && x.x > I.END - 200).length;
 const HZ = Object.keys(I.HAZ), SOLID = ["pallet", "tires"];
-out.haz = [1, 2, 3, 4, 5].map((n) => I.buildLevel(n).filter((x) => HZ.includes(x.t)).length);
-out.kinds = [...new Set([1, 2, 3, 4, 5].flatMap((n) => I.buildLevel(n).filter((x) => HZ.includes(x.t) || SOLID.includes(x.t)).map((x) => x.t)))].sort();
+out.haz = [1, 2, 3, 4, 5, 6].map((n) => I.buildLevel(n).filter((x) => HZ.includes(x.t)).length);
+out.kinds = [...new Set([1, 2, 3, 4, 5, 6].flatMap((n) => I.buildLevel(n).filter((x) => HZ.includes(x.t) || SOLID.includes(x.t)).map((x) => x.t)))].sort();
 out.dmg = Object.fromEntries(Object.entries(I.HAZ).map(([k, v]) => [k, v[0]])); out.hp = I.HP;
-out.afterCheck = [1, 2, 3, 4, 5].every((n) => I.buildLevel(n).every((e) => !(HZ.includes(e.t) || SOLID.includes(e.t)) || I.CHECKS.every((c) => !c || e.x + e.w < c - 40 || e.x > c + 60)));
+out.afterCheck = [1, 2, 3, 4, 5, 6].every((n) => I.buildLevel(n).every((e) => !(HZ.includes(e.t) || SOLID.includes(e.t)) || I.CHECKS.every((c) => !c || e.x + e.w < c - 40 || e.x > c + 60)));
 const fs = require("fs"), path = require("path"), src = fs.readFileSync(process.argv[1], "utf8") + fs.readFileSync(process.argv[2], "utf8") + fs.readFileSync(path.join(path.dirname(process.argv[1]), "loteria_cards.js"), "utf8");
 out.net = ["http:", "https:", "fetch(", "XMLHttpRequest", "import(", "sendBeacon", "WebSocket", "<a "].filter((w) => src.includes(w));
 out.callsText = J.CARDS.map((c) => c.verse);
 out.hints = I.LEVELS.map((l) => l.hint); out.game = [I.game.id, I.game.name, I.KEY];
-out.ice = [1, 2, 3, 4, 5].map((n) => { const e = I.buildLevel(n); return [e.filter((x) => x.t === "agent").length, e.filter((x) => x.t === "suv").length, e.filter((x) => x.t === "flipflops").length]; });
-out.iceLines = [I.CAUGHT, I.FUERA]; out.iceSafe = [1, 2, 3, 4, 5].every((n) => I.buildLevel(n).every((e) => !I.ICE.includes(e.t) || I.CHECKS.every((c) => !c || e.x + e.w < c - 40 || e.x > c + 60)));
+out.ice = [1, 2, 3, 4, 5, 6].map((n) => { const e = I.buildLevel(n); return [e.filter((x) => x.t === "agent").length, e.filter((x) => x.t === "suv").length, e.filter((x) => x.t === "flipflops").length]; });
+out.city = I.LEVELS.map((l) => !!l.city); out.sameOld = I.LEVELS.filter((l) => l.seed && l.seed === l.d).length === 5;
+out.iceLines = [I.CAUGHT, I.FUERA]; out.iceSafe = [1, 2, 3, 4, 5, 6].every((n) => I.buildLevel(n).every((e) => !I.ICE.includes(e.t) || I.CHECKS.every((c) => !c || e.x + e.w < c - 40 || e.x > c + 60)));
 out.iceSrc = /weapon|gun|pistol|handcuff|taser|blood/i.test(fs.readFileSync(process.argv[2], "utf8").replace(/No weapons|no weapons/g, ""));
 console.log(JSON.stringify(out));
 """
@@ -102,13 +103,16 @@ def unit():
     check(not o["none"]["win"], "4 marks that aren't a line: no win")
     check(not o["uncalled"]["win"] and len(o["uncalled"]["early"]) == 1, "a line with a card Tía hasn't called doesn't count (caught as an early mark)")
     check(o["game"] == ["juan", "The Juan That Got Away", "chisme-juegos-juan"], f"v44: the second game is The Juan That Got Away ({o['game']})")
-    check(o["levels"] == JUAN_LEVELS, f"The Juan That Got Away: 5 stops, Home Dehole → Don Pedroes → O'Reillees → Juan's Casa → Noche Caliente ({o['levels']})")
-    check(o["outfits"] == ["work", "work", "work", "work", "western"], f"work clothes for the first 4 levels, cowboy clothes at night ({o['outfits']})")
+    check(o["levels"] == JUAN_LEVELS, f"The Juan That Got Away: 6 stops, Hon Dipo → The Job Site → Don Pedroes → O'Reillees → Juan's Casa → Noche Caliente ({o['levels']})")
+    check(o["outfits"] == ["work", "work", "work", "work", "work", "western"], f"work clothes for the first 5 levels, cowboy clothes at night ({o['outfits']})")
     check(o["same"], "a level is the same course every time (so a checkpoint restarts it fairly)")
     check(all(c >= 1 and t >= 1 for c, t in o["power"]), f"every level has a ☕ coffee and a breakfast taco ({o['power']})")
-    check(o["beers"][:4] == [0, 0, 0, 0] and o["beers"][4] >= 20 and o["lastBeers"] == 4, f"cold ones to jump for only on the cantina level, with a last arc of 4 by the door ({o['beers']}, last {o['lastBeers']})")
+    check(o["beers"][:5] == [0, 0, 0, 0, 0] and o["beers"][5] >= 20 and o["lastBeers"] == 4, f"cold ones to jump for only on the cantina level, with a last arc of 4 by the door ({o['beers']}, last {o['lastBeers']})")
     check(all(h >= 6 for h in o["haz"]), f"neutral hazards on every level, mixed in with the agents ({o['haz']})")
     check(all(a >= 2 and v >= 1 and f == 1 for a, v, f in o["ice"]), f"v46: ICE agents back on every level: patrolling agents + a dark SUV with a chaser, and a 🩴 flip-flops shield ({o['ice']})")
+    check(o["ice"][1][0] > max(a for i, (a, v, f) in enumerate(o["ice"]) if i != 1) and o["ice"][1][1] >= 2 and o["city"] == [False, True, False, False, False, False],
+          f"v47: The Job Site (downtown) has the most ICE agents of any level, and 2+ SUVs ({[a for a, v, f in o['ice']]})")
+    check(o["sameOld"], "v47: the other 5 levels keep their old courses (seeded by the level, not its place in the list)")
     check(o["iceLines"] == ["¡Ay no!", "¡Fuera!"] and o["iceSafe"], f"v46: '¡Ay no!' when caught, '¡Fuera!' when he gets away; no agents right at a checkpoint ({o['iceLines']})")
     check(not o["iceSrc"], "v46: cartoon agents, nothing violent in the game's code (no weapons, handcuffs, blood)")
     check(o["kinds"] == ["cart", "chancla", "chihuahua", "cone", "pallet", "pothole", "sprinkler", "tires"], f"cones, potholes, carts, chanclas, chihuahuas, sprinklers + pallets / tires to hop on ({o['kinds']})")
@@ -262,7 +266,7 @@ async def webkit(p):
     await pg.click('.game-pick[data-game="juan"]'); await to_stage(pg)
     s = await st(pg)
     stops = await pg.evaluate("[...document.querySelectorAll('#juan-ov .juan-stops li')].map(l => l.textContent.replace(/^\\d+/, '').trim())")
-    check(s["mode"] == "title" and "The Juan That Got Away" in s["overlay"] and "Help Juan get through the day!" in s["overlay"] and stops == JUAN_LEVELS, f"The Juan That Got Away: title screen with the 5 stops ({stops})")
+    check(s["mode"] == "title" and "The Juan That Got Away" in s["overlay"] and "It's FRIDAY! ¡Ya es viernes!" in s["overlay"] and "cold beers with the crew" in s["overlay"] and stops == JUAN_LEVELS, f"The Juan That Got Away: title screen with the 6 stops ({stops})")
     await pg.click('#juan-ov [data-act="start"]'); await pg.wait_for_timeout(700)
     s1 = await st(pg); await pg.wait_for_timeout(500); s2 = await st(pg)
     check(s2["mode"] == "run" and s2["x"] > s1["x"] + 20 and s2["outfit"] == "work" and s2["health"] == 100, f"Juan runs, in his work clothes, full health ({s1['x']:.0f} → {s2['x']:.0f}, {s2['outfit']}, {s2['health']})")
@@ -366,9 +370,9 @@ async def webkit(p):
     await pg.evaluate(f"{G}.warp(1, 5900)")
     await until(pg, G + ".state.mode === 'clear'", 6)
     s = await st(pg)
-    check(s["mode"] == "clear" and "You made it to Home Dehole!" in s["overlay"] and s["levelMax"] == 2, f"level 1 cleared at Home Dehole ({s['overlay'][:40]!r})")
+    check(s["mode"] == "clear" and "You made it to Hon Dipo!" in s["overlay"] and "Supplies loaded. ¡Órale!" in s["overlay"] and s["levelMax"] == 2, f"level 1 cleared at Hon Dipo ({s['overlay'][:40]!r})")
     await pg.click('#juan-ov [data-act="next"]'); await pg.wait_for_timeout(200)
-    check((await st(pg))["level"] == 2 and (await st(pg))["mode"] == "run" and (await st(pg))["name"] == "Don Pedroes", "▶ on to level 2: Don Pedroes")
+    check((await st(pg))["level"] == 2 and (await st(pg))["mode"] == "run" and (await st(pg))["name"] == "The Job Site", "▶ on to level 2: The Job Site")
     await pg.click("#juan-pause"); s = await st(pg); await pg.wait_for_timeout(600)
     check(s["mode"] == "paused" and (await st(pg))["x"] == s["x"], "⏸ Pause freezes the game")
     await pg.click("#juan-pause")
@@ -383,19 +387,19 @@ async def webkit(p):
     await pg.click('#juan-ov [data-act="resume"]'); await pg.wait_for_timeout(150)
     await pg.click("#juan-sound")
     check((await st(pg))["muted"] and json.loads(await pg.evaluate("localStorage.getItem('chisme-juegos-juan')"))["muted"], "🔇 Sound mutes the beeps (remembered)")
-    # level 5: cowboy clothes, cold ones (+health)
-    got = await grab(5, "beer", G + ".state.beers > 0"); s = await st(pg)
-    check(got and s["outfit"] == "western" and s["health"] > 50 and s["msg"] == "¡Salud! +8 health", f"level 5: boots + cowboy hat on; jump for a cold one → a little health ({s['msg']!r}, health {s['health']}, beers {s['beers']})")
-    await pg.evaluate(f"{G}.warp(5, 5900)")
+    # level 6 (Noche Caliente): cowboy clothes, cold ones (+health)
+    got = await grab(6, "beer", G + ".state.beers > 0"); s = await st(pg)
+    check(got and s["outfit"] == "western" and s["health"] > 50 and s["msg"] == "¡Salud! +8 health", f"level 6: boots + cowboy hat on; jump for a cold one → a little health ({s['msg']!r}, health {s['health']}, beers {s['beers']})")
+    await pg.evaluate(f"{G}.warp(6, 5900)")
     won = await until(pg, G + ".state.mode === 'win'", 6)
     await pg.wait_for_timeout(1300)
     s = await st(pg); juan = json.loads(await pg.evaluate("localStorage.getItem('chisme-juegos-juan')"))
     note = await pg.text_content("#juan-note")
-    check(won and "¡Salud, Juan!" in s["overlay"] and "The Juan That Got Away made it to Noche Caliente." in s["overlay"] and "The Juan that got away" in note and "What a long day!" in note and "Noche Caliente" in note, f"level 5: the win at the cantina, '¡Salud, Juan!' ({note[:70]!r})")
+    check(won and "¡Salud, Juan!" in s["overlay"] and "The Juan That Got Away made it to Noche Caliente. Cold beers with the crew. ¡Ya es viernes!" in s["overlay"] and "The Juan that got away" in note and "Friday shift done" in note and "Noche Caliente" in note, f"level 5: the win at the cantina, '¡Salud, Juan!' ({note[:70]!r})")
     txt = await pg.evaluate("(() => { const j = document.querySelector('#view-juegos'); return [...j.querySelectorAll('#juegos, #game-stage')].map(e => e.textContent).join(' ') + ' ' + [...j.querySelectorAll('[aria-label]')].map(e => e.getAttribute('aria-label')).join(' '); })()")   # textContent: the rules are hidden while full screen
     es = [w for w in SPANISH if w.lower() in txt.lower().replace("lotería", "")]
     check(not es and "Coffee = speed boost" in txt and "Breakfast taco = more health" in txt and "cold ones" in txt and "ICE agents" in txt and "Flip-flops = a shield" in txt, f"The Juan That Got Away's UI is English ({es})")
-    check(juan["best"] >= s["score"] > 0 and juan["wins"] == 1 and juan["levelMax"] == 5, f"best score saved on the phone ({juan['best']})")
+    check(juan["best"] >= s["score"] > 0 and juan["wins"] == 1 and juan["levelMax"] == 6, f"best score saved on the phone ({juan['best']})")
     check("Play again" in s["overlay"], "…with ▶ Play again right on the full-screen win screen")
     await pg.screenshot(path=os.path.join(OUT, "juan-win.png"))
     await pg.click(".gfs-x"); await pg.wait_for_timeout(300)
@@ -472,15 +476,19 @@ async def fullscreen_shots(p):
     await pg.evaluate(G + ".warp(1, 5740)"); await pg.wait_for_timeout(350); await pg.evaluate(G + ".jump()"); await pg.wait_for_timeout(200)
     f = await fs(pg); s = await st(pg)
     cvh = await pg.evaluate("document.querySelector('#juan-cv').getBoundingClientRect().height")
-    check(fs_ok(f) and s["mode"] == "run" and s["level"] == 1 and s["H"] > 1.7 * s["W"] and cvh > 0.8 * f["ih"], f"390×844: The Juan That Got Away level 1, running up to Home Dehole, full screen (canvas {s['W']}×{s['H']:.0f}, {cvh:.0f} px tall on an {f['ih']} px screen)")
+    check(fs_ok(f) and s["mode"] == "run" and s["level"] == 1 and s["H"] > 1.7 * s["W"] and cvh > 0.8 * f["ih"], f"390×844: The Juan That Got Away level 1, running up to Hon Dipo, full screen (canvas {s['W']}×{s['H']:.0f}, {cvh:.0f} px tall on an {f['ih']} px screen)")
     await pg.screenshot(path=os.path.join(OUT, "juan-l1.png"))
     await pg.evaluate(G + ".warp(2, 5780)"); await pg.wait_for_timeout(450)
     s = await st(pg)
-    check(s["level"] == 2 and s["name"] == "Don Pedroes" and (await fs(pg))["on"], f"390×844: level 2, Don Pedroes ({s['mode']})")
+    check(s["level"] == 2 and s["name"] == "The Job Site" and (await fs(pg))["on"], f"v47 390×844: level 2, The Job Site: the construction site with the COMING SOON Gualmart sign ({s['mode']})")
+    await pg.screenshot(path=os.path.join(OUT, "juan-job-site.png"))
+    await pg.evaluate(G + ".warp(3, 5780)"); await pg.wait_for_timeout(450)
+    s = await st(pg)
+    check(s["level"] == 3 and s["name"] == "Don Pedroes" and (await fs(pg))["on"], f"390×844: level 3, Don Pedroes ({s['mode']})")
     await pg.screenshot(path=os.path.join(OUT, "juan-don-pedroes.png"))
-    await pg.evaluate(G + ".warp(5, 5790)"); await pg.wait_for_timeout(120); await pg.evaluate(G + ".jump()"); await pg.wait_for_timeout(260)
+    await pg.evaluate(G + ".warp(6, 5790)"); await pg.wait_for_timeout(120); await pg.evaluate(G + ".jump()"); await pg.wait_for_timeout(260)
     s = await st(pg); beers = [e for e in await pg.evaluate(G + ".ents()") if e["t"] == "beer"]
-    check(s["level"] == 5 and s["outfit"] == "western" and not s["ground"] and len(beers) >= 3, f"390×844: level 5, cowboy Juan jumping for the cold ones by Noche Caliente ({len(beers)} beers left, {s['mode']})")
+    check(s["level"] == 6 and s["outfit"] == "western" and not s["ground"] and len(beers) >= 3, f"390×844: level 6, cowboy Juan jumping for the cold ones by Noche Caliente ({len(beers)} beers left, {s['mode']})")
     await pg.screenshot(path=os.path.join(OUT, "juan-l5.png"))
     await pg.click(".gfs-x"); await pg.wait_for_timeout(200)
     await pg.click('.game-pick[data-game="loteria"]'); await pg.wait_for_timeout(300)
@@ -535,7 +543,7 @@ async def fullscreen_shots(p):
     await pg.click('.game-pick[data-game="juan"]'); await pg.wait_for_timeout(300)
     await pg.evaluate("document.querySelector('#game-stage').scrollIntoView()"); await pg.wait_for_timeout(200)
     intro = await pg.evaluate("(() => { const o = document.querySelector('#juan-ov').getBoundingClientRect(), b = document.querySelector('#juan-ov [data-act=start]').getBoundingClientRect(), t = document.querySelector('#juan-ov .juan-big').getBoundingClientRect(); return { btn: b.bottom <= o.bottom + 1 && b.top >= o.top, title: t.left >= o.left && t.right <= o.right }; })()")
-    check(intro["btn"] and intro["title"], f"320×640: the intro's title 'The Juan That Got Away', the 5 stops and ▶ Start all fit on the game screen {intro}")
+    check(intro["btn"] and intro["title"], f"320×640: the intro's title 'The Juan That Got Away', the 6 stops and ▶ Start all fit on the game screen {intro}")
     await pg.click('#juan-ov [data-act="start"]'); await pg.wait_for_timeout(400)
     badge = await pg.evaluate("(() => { const b = document.querySelector('.gfs-badge.gfs-juan'), t = b.querySelector('.gfs-juan-t'), br = b.getBoundingClientRect(), x = document.querySelector('.gfs-x').getBoundingClientRect(); return { fits: t.scrollWidth <= t.clientWidth + 1 && b.scrollWidth <= b.clientWidth + 1, clear: br.left >= 4 && br.right <= x.left - 4, w: Math.round(br.width), text: t.textContent }; })()")
     check(badge["fits"] and badge["clear"] and badge["text"] == "The Juan That Got Away", f"320×640: the full-screen badge 'The Juan That Got Away' fits whole, clear of the ✕ {badge}")

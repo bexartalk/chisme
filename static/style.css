@@ -1129,6 +1129,7 @@ html.game-fs .track{transform:none!important;will-change:auto}   /* a transforme
 .gfs .juan-controls .juan-jump{flex:1 1 auto;background:var(--turq);color:#000;border-color:#000;font-size:1.2rem}
 .gfs .juan-lbl{display:none}
 @media (max-height:700px){ .juan-ov.title{padding-top:3.9em;font-size:.88em} .juan-stops{gap:3px} .juan-ov.title .juan-big{font-size:1.7em} }
+@media (max-height:700px){ .juan-stops{display:grid;grid-template-columns:1fr 1fr;width:min(100%,310px);gap:4px} .juan-stops li{padding:.14em .5em .14em .25em;gap:.4em;font-size:.92em;white-space:nowrap} }   /* v47: 6 stops in two columns on a short screen */
 /* "The Juan That Got Away" on a 320–380 px phone: the badge gets a smaller hat + text (no hat at 340 px and under) so the pill fits beside the ✕;
    the intro's two-line title, the stops and the Start button all fit on the canvas (and it scrolls if a phone is shorter still) */
 .juan-ov.title{overflow-y:auto}

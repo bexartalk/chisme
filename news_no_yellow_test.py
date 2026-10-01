@@ -149,13 +149,13 @@ async def run_theme(b, dev, theme, shots):
     shots["juan"].append(await shot(pg))
     await pg.evaluate(G + ".setHealth(1)"); await until(pg, G + ".state.mode === 'oops'", 20); await pg.wait_for_timeout(150); await juan("worn out")
     await until(pg, G + ".state.mode === 'run'", 3)
-    await pg.evaluate(G + ".warp(1, 5900)"); await until(pg, G + ".state.mode === 'clear'", 6); await pg.wait_for_timeout(300); await juan("level 1 clear: Home Dehole + next level")
-    for lv in (2, 3, 4):
+    await pg.evaluate(G + ".warp(1, 5900)"); await until(pg, G + ".state.mode === 'clear'", 6); await pg.wait_for_timeout(300); await juan("level 1 clear: Hon Dipo + next level")
+    for lv in (2, 3, 4, 5):
         await pg.evaluate(f"{G}.warp({lv}, 400)"); await pg.wait_for_timeout(400)
         if await pg.evaluate(G + ".state.mode") in ("run", "oops", "clear"): await juan(f"level {lv}")
         await pg.evaluate(f"{G}.warp({lv}, 5900)"); await until(pg, G + ".state.mode === 'clear'", 6); await pg.wait_for_timeout(300); await juan(f"level {lv} clear")
-    await pg.evaluate(G + ".warp(5, 900)"); await pg.wait_for_timeout(400); await juan("level 5 (night, beers)")
-    await pg.evaluate(G + ".warp(5, 5900)"); await until(pg, G + ".state.mode === 'win'", 6); await pg.wait_for_timeout(1200); await juan("win (¡Salud, Juan!, confetti)")
+    await pg.evaluate(G + ".warp(6, 900)"); await pg.wait_for_timeout(400); await juan("level 6 (night, beers)")
+    await pg.evaluate(G + ".warp(6, 5900)"); await until(pg, G + ".state.mode === 'win'", 6); await pg.wait_for_timeout(1200); await juan("win (¡Salud, Juan!, confetti)")
     check(not errs, f"no page errors ({errs[:2]})")
     await ctx.close()
 

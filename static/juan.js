@@ -1,7 +1,10 @@
 /* Chisme · Juegitos game 2: "The Juan That Got Away" (v44; first called "Juan's Long Day"), a side-scrolling runner with smooth vector art on a canvas
    (paths, gradients and anti-aliasing, drawn at the phone's devicePixelRatio so it stays crisp; no image files, no requests).
-   Help Juan get through the day, 5 levels: Home Dehole (the parody hardware store: beige building, orange sign, white
-   letters) → Don Pedroes (a Southside Mexican restaurant: cream stucco, red tile roofs, the tall pole sign with the
+   v47 story: it's FRIDAY, and Juan grinds through his workday to get to Noche Caliente for beers with the crew. 6 levels:
+   Hon Dipo (v47, was Home Dehole; our own parody hardware store: beige building, bright orange trim, a square orange sign
+   with heavy condensed white letters, no real logo) → The Job Site (v47: downtown San Antonio, the most ICE agents and
+   background SUVs; it ends at a construction site with a cement mixer, a yellow excavator + loader, fencing, cones and a blue
+   "COMING SOON Gualmart" parody sign) → Don Pedroes (a Southside Mexican restaurant: cream stucco, red tile roofs, the tall pole sign with the
    specials) → O'Reillees (a green-and-white parody auto-parts store, no real logo) → Juan's Casa (quitting time: wash up,
    boots on) → Noche Caliente, the cantina. Work levels: neon safety-green shirt with orange/silver hi-vis stripes and a
    white hard hat. Level 5: a beige cowboy hat, pearl-snap western shirt, jeans and boots, and floating cold ones to jump
@@ -31,18 +34,21 @@
   const UI = '-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif';
   const WEST = 'Rockwell,"American Typewriter",Georgia,"Times New Roman",serif';
   const LEVELS = [
-    { name: "Home Dehole", speed: 188, time: "morning", outfit: "work", hint: "Grab the supplies for the job. Watch out for runaway carts and the agents!",
+    { name: "Hon Dipo", speed: 188, time: "morning", outfit: "work", hint: "Friday shift, 7 a.m. Load up the supplies and dodge the runaway carts and the ICE agents. ¡Órale!", done: "Supplies loaded. ¡Órale!", d: 1, seed: 1,
       mix: { cone: 3, cart: 3, pothole: 2, pallet: 2, agent: 2, suv: 1 }, power: [[900, "coffee"], [2300, "flipflops"], [2700, "taco"], [4400, "coffee"]] },
-    { name: "Don Pedroes", speed: 198, time: "noon", outfit: "work", hint: "Lunch break! The alambre plate is calling.",
+    { name: "The Job Site", speed: 194, time: "morning", outfit: "work", d: "site", seed: 23, diff: 3, city: true,   // v47: downtown, the most ICE agents, the SUVs out in force
+      hint: "Supplies in the truck, now downtown to the job site. ICE agents on every corner, so hop 'em! ¡Ándale!", done: "Clocked in! Gualmart won't build itself.",
+      mix: { agent: 8, cone: 4, pothole: 3, cart: 2, pallet: 2, suv: 2 }, power: [[1100, "coffee"], [2300, "flipflops"], [2800, "taco"], [4500, "coffee"]] },
+    { name: "Don Pedroes", speed: 198, time: "noon", outfit: "work", d: 2, seed: 2, hint: "Lunch break! The alambre plate is calling, and the weekend's almost here.", done: "Panza full. Back to work!",
       mix: { pothole: 3, chancla: 2, chihuahua: 2, cone: 2, agent: 2, suv: 1 }, power: [[1250, "taco"], [2350, "flipflops"], [3100, "coffee"], [4700, "taco"]] },
-    { name: "O'Reillees", speed: 208, time: "afternoon", outfit: "work", hint: "The work truck needs a part. Mind the potholes.",
+    { name: "O'Reillees", speed: 208, time: "afternoon", outfit: "work", d: 3, seed: 3, hint: "The work truck needs a part before quitting time. Mind the potholes. ¡Ándale!", done: "Part in hand. Almost quitting time!",
       mix: { pothole: 3, tires: 2, cone: 2, cart: 1, chihuahua: 2, agent: 3, suv: 1 }, power: [[1000, "coffee"], [2250, "flipflops"], [2600, "taco"], [4500, "coffee"]] },
-    { name: "Juan's Casa", speed: 216, time: "sunset", outfit: "work", hint: "Quitting time! Home to wash up and put on the boots.",
+    { name: "Juan's Casa", speed: 216, time: "sunset", outfit: "work", d: 4, seed: 4, hint: "Quitting time! Home to wash up, then boots and cowboy hat on.", done: "Boots on, hat on. ¡Ya es viernes!",
       mix: { sprinkler: 3, chihuahua: 2, chancla: 2, pothole: 2, cone: 1, agent: 3, suv: 2 }, power: [[1300, "taco"], [2300, "flipflops"], [3000, "coffee"], [4600, "taco"]] },
-    { name: "Noche Caliente", speed: 222, time: "night", outfit: "western", hint: "Boots on, hat on. Jump for the cold ones on the way to the cantina!",
+    { name: "Noche Caliente", speed: 222, time: "night", outfit: "western", d: 5, seed: 5, hint: "¡Ya es viernes! The crew's saving him a seat. Jump for the cold ones on the way!",
       mix: { pothole: 2, cone: 2, chihuahua: 2, chancla: 2, sprinkler: 1, agent: 3, suv: 2 }, power: [[1500, "coffee"], [2300, "flipflops"], [3300, "taco"]], beers: true },
   ];
-  const DEST_H = [210, 312, 150, 150, 232];   // how tall each stop's building is (units), so a short screen can shrink it to fit under the HUD
+  const DEST_H = [210, 256, 312, 150, 150, 232];   // how tall each stop's building is (units), so a short screen can shrink it to fit under the HUD
   const DIM = { cone: [24, 32], pothole: [56, 8], cart: [52, 46], chancla: [30, 14], chihuahua: [36, 28], sprinkler: [18, 12], pallet: [70, 38], tires: [46, 48],
     concha: [22, 16], beer: [24, 32], coffee: [22, 28], taco: [32, 20], flipflops: [30, 18], flag: [10, 70], agent: [30, 64], chaser: [30, 64], suv: [124, 54] };
   const HAZ = { cone: [10, "Bonk! A cone"], pothole: [15, "¡Híjole! A pothole"], cart: [20, "Runaway cart!"], chancla: [10, "¡La chancla!"], chihuahua: [15, "Yap yap yap!"], sprinkler: [8, "Soaked!"] };
@@ -62,7 +68,7 @@
 
   // A level's layout is the same every time (seeded by the level number), so a checkpoint restarts the same course.
   function buildLevel(n) {
-    const L = LEVELS[n - 1], r = rng(1000 + n * 7919), ents = [], bag = [];
+    const L = LEVELS[n - 1], q = L.diff || L.seed || n, r = rng(1000 + (L.seed || n) * 7919), ents = [], bag = [];
     for (const [k, w] of Object.entries(L.mix)) for (let i = 0; i < w; i++) bag.push(k);
     const clearOf = (x) => CHECKS.some((c) => c && x + 140 > c - 100 && x - 80 < c + 170);   // nothing right at a 🚩
     const add = (t, x, y, extra) => { const [w, h] = DIM[t]; const e = Object.assign({ t, x, y: y == null ? -h : y, w, h }, extra || {}); ents.push(e); return e; };
@@ -71,7 +77,7 @@
     const next = () => { if (!deal.length) { const d = bag.slice(); for (let i = d.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [d[i], d[j]] = [d[j], d[i]]; } deal.push(...d); } return deal.shift(); };
     let x = 620;
     while (x < END - 420) {
-      x += 250 - n * 8 + Math.floor(r() * 180);
+      x += 250 - q * 8 + Math.floor(r() * 180);
       if (clearOf(x) || x > END - 460) continue;
       const k = next();
       if (k === "cart") add("cart", x, null, { vx: -75 });
@@ -79,9 +85,9 @@
       else if (k === "chancla") add("chancla", x, null, { ph: r() * 6, home: x });
       else if (k === "sprinkler") add("sprinkler", x, null, { ph: r() * 2.4 });
       else if (k === "agent") {   // a patrolling agent; sometimes a cone he'll trip over, sometimes a partner a bit further on
-        add("agent", x, null, { vx: -(34 + n * 4), home: x, st: "walk", tt: 0, ph: r() * 6, sk: Math.floor(r() * SKINS.length), st2: r() < 0.5 });
+        add("agent", x, null, { vx: -(34 + q * 4), home: x, st: "walk", tt: 0, ph: r() * 6, sk: Math.floor(r() * SKINS.length), st2: r() < 0.5 });
         if (r() < 0.3) add("cone", x - 70);
-        if (n >= 3 && r() < 0.3 && x + 130 < END - 460) { x += 130; add("agent", x, null, { vx: -(34 + n * 4), home: x, st: "walk", tt: 0, ph: r() * 6, sk: Math.floor(r() * SKINS.length), st2: r() < 0.5 }); }
+        if (q >= 3 && r() < (L.city ? 0.45 : 0.3) && x + 130 < END - 460) { x += 130; add("agent", x, null, { vx: -(34 + q * 4), home: x, st: "walk", tt: 0, ph: r() * 6, sk: Math.floor(r() * SKINS.length), st2: r() < 0.5 }); }
       }
       else if (k === "suv") add("suv", x, null, { sk: Math.floor(r() * SKINS.length), night: L.time === "night" });
       else add(k, x);
@@ -94,7 +100,8 @@
     return ents;
   }
   const hit = (a, b, pad = 3) => a.x + pad < b.x + b.w && a.x + a.w - pad > b.x && a.y + pad < b.y + b.h && a.y + a.h - pad > b.y;
-  function load() { const d = { best: 0, muted: false, levelMax: 1, wins: 0, beers: 0 }; try { return Object.assign(d, JSON.parse(localStorage.getItem(KEY) || "{}")); } catch (e) { return d; } }
+  function load() { const d = { best: 0, muted: false, levelMax: 1, wins: 0, beers: 0 }; let o = {}; try { o = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) {}
+    Object.assign(d, o); if (!o.v6 && d.levelMax >= 2) d.levelMax = Math.min(6, d.levelMax + 1); d.v6 = 1; return d; }   // v47: a save from the 5-stop game: the new level 2 shifts the rest by one
   function save(s) { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) {} }
   const reset = () => { try { localStorage.removeItem(KEY); } catch (e) {} };
 
@@ -230,18 +237,114 @@
       box(c, "#0f7a3a", 818, -176, 56, 12, 2); say(c, "SE MILITARY DR", 846, -170, 8, "#ffffff", { max: 52, weight: 900 }); }
   }
 
+  // ---- v47: the mid layer for The Job Site: downtown San Antonio (period 2000), office towers, limestone hotels, brick, the River Walk, a parking garage
+  function cityLayer(c, P, night, pass) {
+    if (pass === "lights") return;
+    const grid = (x, y, w, h, cw, ch, gap, col) => { c.fillStyle = col; for (let yy = y; yy + ch <= y + h; yy += ch + gap) for (let xx = x; xx + cw <= x + w; xx += cw + gap) c.fillRect(xx, yy, cw, ch); };
+    const tower = (x, w, h, top, bot, win) => { box(c, lin(c, 0, -h, 0, 0, [top, bot]), x, -h, w, h); grid(x + 6, -h + 10, w - 12, h - 40, 6, 9, 4, win); };
+    const lamp = (x) => { line(c, "#2b2f38", 2.2, [x, 0, x, -64]); line(c, "#2b2f38", 2, [x, -64, x + 10, -68]); ell(c, "#e8edf2", x + 12, -67, 4, 2.6); };
+    const banner = (x, col) => { box(c, col, x + 2, -58, 12, 22, 2); box(c, "#ffffff", x + 4, -50, 8, 2); };
+    const tree = (x, s) => { box(c, "#6b4a2e", x - 2, -24 * s, 4, 24 * s); for (const [dx, dy, r] of [[0, -38, 16], [-11, -30, 12], [11, -30, 12]]) ell(c, "#4f8f3e", x + dx * s, dy * s, r * s, r * s * 0.9); ell(c, "rgba(255,255,255,.12)", x - 4 * s, -42 * s, 7 * s, 4 * s); };
+    // a blue glass office tower
+    tower(20, 170, 232, "#7fb3d6", "#4f7fa6", "rgba(255,255,255,.35)"); box(c, "#3b5f80", 20, -232, 170, 6); box(c, "#2b3f55", 70, -40, 70, 40); glass(c, 76, -36, 58, 36, false);
+    // a limestone hotel with arched windows, a cornice and a blade sign
+    box(c, lin(c, 0, -160, 0, 0, ["#efe2c8", "#d8c6a4"]), 210, -160, 180, 160); box(c, "#c9b48c", 204, -166, 192, 8, 2); box(c, "#c9b48c", 210, -60, 180, 5);
+    for (let k = 0; k < 4; k++) for (let j = 0; j < 4; j++) { const wx = 226 + k * 42, wy = -148 + j * 28; box(c, "#5d6f84", wx, wy, 22, 18); c.fillStyle = "#5d6f84"; c.beginPath(); c.arc(wx + 11, wy, 11, Math.PI, 0); c.fill(); }
+    box(c, "#7a1f2b", 270, -46, 60, 46, 3); glass(c, 276, -40, 48, 40, false); box(c, "#7a1f2b", 262, -54, 76, 8, 3);
+    box(c, "#7a1f2b", 372, -150, 22, 84, 3); c.save(); c.translate(383, -108); c.rotate(-Math.PI / 2); say(c, "HOTEL", 0, 0, 13, "#ffffff", { weight: 900, max: 76 }); c.restore();
+    // red brick with a fire escape and a café awning
+    box(c, lin(c, 0, -122, 0, 0, ["#b5523b", "#8f3d2b"]), 410, -122, 150, 122); c.fillStyle = "rgba(255,255,255,.08)"; for (let y = -118; y < 0; y += 5) c.fillRect(410, y, 150, 1);
+    for (let k = 0; k < 3; k++) for (let j = 0; j < 3; j++) box(c, "#2f3d4c", 424 + k * 46, -110 + j * 28, 26, 18);
+    for (let j = 0; j < 3; j++) { line(c, "#22252c", 1.4, [418, -86 + j * 28, 548, -86 + j * 28]); for (let x = 420; x < 548; x += 8) line(c, "#22252c", 0.8, [x, -86 + j * 28, x, -94 + j * 28]); }
+    for (let i = 0; i < 9; i++) poly(c, i % 2 ? "#ffffff" : "#00b8b0", [420 + i * 14, -40, 434 + i * 14, -40, 434 + i * 14, -30, 420 + i * 14, -30]); box(c, "#22252c", 420, -30, 126, 30); glass(c, 428, -26, 50, 26, false); say(c, "CAFÉ", 510, -16, 11, "#3ee8eb", { weight: 900 });
+    // the River Walk: a stone wall with a railing, stairs going down, cypress trees and a little sign
+    box(c, lin(c, 0, -26, 0, 0, ["#cdbb98", "#b09c78"]), 580, -26, 200, 26); for (let x = 584; x < 780; x += 14) line(c, "#3a3f4a", 1.2, [x, -26, x, -42]); line(c, "#3a3f4a", 2, [580, -42, 780, -42]);
+    tree(610, 1.4); tree(700, 1.6); tree(760, 1.2); box(c, "#0f6d73", 640, -78, 70, 18, 3); say(c, "RIVER WALK", 675, -69, 9.5, "#ffffff", { weight: 900, max: 64 }); line(c, "#3a3f4a", 2, [675, -60, 675, -26]);
+    // a tall tan tower with a stepped crown
+    tower(800, 100, 214, "#d9c3a0", "#b39b78", "rgba(60,70,90,.55)"); poly(c, "#c4ab84", [800, -214, 900, -214, 884, -232, 816, -232]); box(c, "#c4ab84", 840, -248, 20, 16);
+    // a parking garage with ribbon openings
+    box(c, lin(c, 0, -112, 0, 0, ["#c9ced6", "#a3a9b1"]), 920, -112, 180, 112); for (let j = 0; j < 4; j++) box(c, "#3a3f4a", 928, -104 + j * 26, 164, 12);
+    for (let j = 0; j < 4; j++) for (let k = 0; k < 4; k++) box(c, ["#ff3d8b", "#e8edf2", "#3ee8eb", "#7d848e"][(j + k) % 4], 940 + k * 38, -100 + j * 26, 18, 7, 2);
+    box(c, "#111111", 1040, -60, 52, 22, 3); say(c, "PARK", 1066, -49, 12, "#3ee8eb", { weight: 900 });
+    // a San Fernando–style limestone church front with a bell tower
+    box(c, lin(c, 0, -120, 0, 0, ["#f0e4cc", "#d7c4a2"]), 1120, -120, 170, 120); box(c, lin(c, 0, -200, 0, -120, ["#f0e4cc", "#e0cfae"]), 1150, -200, 40, 80); poly(c, "#d7c4a2", [1146, -200, 1194, -200, 1170, -228]);
+    c.fillStyle = "#6a5a48"; c.beginPath(); c.arc(1170, -170, 9, Math.PI, 0); c.fill(); box(c, "#6a5a48", 1161, -170, 18, 16); box(c, "#7a3b2a", 1220, -58, 34, 58, 3); c.fillStyle = "#7a3b2a"; c.beginPath(); c.arc(1237, -58, 17, Math.PI, 0); c.fill();
+    c.fillStyle = "#5d6f84"; for (const x of [1136, 1270]) { c.beginPath(); c.arc(x + 8, -80, 8, Math.PI, 0); c.fill(); c.fillRect(x, -80, 16, 24); } ell(c, "#5d6f84", 1237, -96, 9, 9);
+    // a dark glass tower and an office slab
+    tower(1310, 120, 200, "#5a6b80", "#3a4658", "rgba(160,200,230,.45)"); tower(1440, 80, 150, "#a9b6c4", "#7f8c9a", "rgba(40,50,70,.45)");
+    // a building going up: steel frame, a tower crane, a hint of where Juan's headed
+    c.strokeStyle = "#7d848e"; c.lineWidth = 3; for (let x = 1540; x <= 1700; x += 40) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, -150); c.stroke(); } for (let y = -150; y < 0; y += 30) { c.beginPath(); c.moveTo(1540, y); c.lineTo(1700, y); c.stroke(); }
+    line(c, "#ff8a00", 3, [1720, 0, 1720, -224]); line(c, "#ff8a00", 3, [1600, -220, 1790, -220]); line(c, "#ff8a00", 1.4, [1720, -232, 1600, -220]); line(c, "#3a3f4a", 1, [1640, -220, 1640, -170]); box(c, "#3a3f4a", 1634, -170, 12, 8);
+    box(c, "#ff8a00", 1540, -18, 160, 18); for (let x = 1548; x < 1700; x += 18) line(c, "#ffffff", 3, [x, -2, x + 8, -16]);
+    // lamps, banners and trees along the curb
+    for (let x = 200; x < 2000; x += 260) { lamp(x); banner(x - 16, x % 520 ? "#ff3d8b" : "#00b8b0"); }
+    tree(1830, 1.5); tree(1930, 1.3); box(c, lin(c, 0, -90, 0, 0, ["#efe2c8", "#d8c6a4"]), 1850, -90, 60, 90); grid(1856, -84, 48, 60, 8, 10, 5, "#5d6f84");
+  }
+
   // ---- each stop's building (drawn once per level into a cache, 360 units wide, ground at y 0)
   function destination(c, n, night) {
-    if (n === 1) {   // Home Dehole: a parody big-box hardware store (beige block, orange sign band, white letters, no logo)
-      box(c, lin(c, 0, -196, 0, 0, ["#e6d7c1", "#d2bfa4"]), 0, -196, 360, 196); box(c, "#bba68a", 0, -196, 360, 8);
-      c.fillStyle = "rgba(120,96,70,.16)"; for (let x = 24; x < 360; x += 24) c.fillRect(x, -188, 1.2, 188);
-      box(c, "#7a5b3e", 34, -176, 292, 46, 6); box(c, lin(c, 0, -174, 0, -132, ["#ff8a1a", "#ee6a00"]), 36, -174, 288, 42, 5);
-      say(c, "HOME DEHOLE", 180, -152, 34, "#ffffff", { weight: 900, max: 270, stroke: "rgba(150,60,0,.55)", sw: 2.4 });
-      box(c, "#ee6a00", 40, -122, 280, 14, 3); say(c, "LUMBER · TOOLS · PAINT · GARDEN", 180, -115, 9, "#ffffff", { weight: 800, max: 270 });
-      box(c, lin(c, 0, -96, 0, -84, ["#ff8a1a", "#d85f00"]), 112, -96, 136, 12, 3); box(c, "#6c757d", 120, -84, 120, 84);
-      glass(c, 124, -80, 54, 80, false); glass(c, 182, -80, 54, 80, false); box(c, "#6c757d", 178, -80, 4, 80);
-      for (let k = 0; k < 3; k++) for (const cx of [26, 62, 270, 306]) { const y = -16 - k * 0; box(c, "#ff7a00", cx + k * 4, y - 22, 30, 4, 1); c.strokeStyle = "#ff7a00"; c.lineWidth = 1.2; rr(c, cx + k * 4, y - 20, 30, 18, 2); c.stroke(); for (let g = 4; g < 30; g += 5) { c.beginPath(); c.moveTo(cx + k * 4 + g, y - 20); c.lineTo(cx + k * 4 + g, y - 2); c.stroke(); } ell(c, "#111", cx + k * 4 + 5, -1, 2.5, 2.5); ell(c, "#111", cx + k * 4 + 26, -1, 2.5, 2.5); }
-      box(c, "#8a6a48", 254, -10, 0, 0); for (let k = 0; k < 3; k++) box(c, ["#c9b29a", "#b39b81", "#d6c2ab"][k], 92 - k * 2, -12 - k * 10, 22, 10, 3);
+    if (n === "site") {   // v47 The Job Site: a construction site downtown: steel frame + crane, a "COMING SOON Gualmart" parody sign (our own art), fencing, cones, a cement mixer, a yellow excavator and loader
+      const BLUE = "#0a5fc2", YEL = "#f5b800", YEL2 = "#d79a00";
+      box(c, lin(c, 0, -40, 0, 0, ["#c9a77c", "#a8865c"]), 0, -40, 360, 40); c.fillStyle = "#b8956a"; c.beginPath(); c.moveTo(-10, -36); c.quadraticCurveTo(40, -96, 100, -36); c.fill();   // the dirt lot + a pile
+      box(c, lin(c, 0, -190, 0, -30, ["#b9c1ca", "#9aa3ad"]), 196, -190, 70, 160); for (let y = -182; y < -40; y += 32) box(c, "#7d848e", 196, y, 70, 3);   // the concrete core going up
+      box(c, "#d6c2a0", 0, -64, 150, 24, 2); for (let x = 6; x < 150; x += 14) box(c, "#c4ab84", x, -64, 2, 24);   // a stack of plywood
+      c.strokeStyle = "#8a939c"; c.lineWidth = 4; for (let x = 150; x <= 350; x += 40) { c.beginPath(); c.moveTo(x, -30); c.lineTo(x, -190); c.stroke(); } for (let y = -190; y < -30; y += 32) { c.beginPath(); c.moveTo(150, y); c.lineTo(350, y); c.stroke(); }
+      c.strokeStyle = "rgba(138,147,156,.6)"; c.lineWidth = 1.4; for (let x = 150; x < 350; x += 40) for (let y = -190; y < -30; y += 32) { c.beginPath(); c.moveTo(x, y); c.lineTo(x + 40, y + 32); c.stroke(); }
+      // the tower crane
+      for (let y = -230; y < -30; y += 12) { line(c, YEL2, 1.2, [318, y, 330, y + 12]); line(c, YEL2, 1.2, [330, y, 318, y + 12]); } line(c, YEL, 3, [318, -30, 318, -232]); line(c, YEL, 3, [330, -30, 330, -232]);
+      box(c, YEL, 196, -236, 162, 6, 1); line(c, YEL2, 1.2, [324, -250, 200, -236]); line(c, YEL2, 1.2, [324, -250, 356, -236]); box(c, YEL, 321, -252, 6, 16); box(c, "#3a3f4a", 334, -244, 22, 8, 1);
+      line(c, "#3a3f4a", 1, [236, -230, 236, -170]); box(c, "#7d848e", 222, -170, 28, 6, 1);   // a beam on the hook
+      // the yellow loader, parked behind the fence
+      c.save(); c.translate(150, -30); c.scale(0.8, 0.8); box(c, YEL, 0, -36, 70, 22, 4); box(c, YEL, 36, -64, 30, 30, 3); glass(c, 40, -60, 22, 20, false); poly(c, YEL2, [-28, -6, -6, -32, 2, -28, -18, -2]); box(c, "#3a3f4a", -32, -14, 30, 14, 2);
+      for (const wx of [14, 58]) { ell(c, "#1d1f24", wx, -10, 14, 14); ell(c, "#7d848e", wx, -10, 6, 6); } c.restore();
+      // the sign: COMING SOON Gualmart, white letters on Gualmart blue, with our own four-point sparkle
+      for (const px of [42, 166]) box(c, "#6c757d", px, -98, 6, 98);
+      box(c, "#073f84", 14, -184, 186, 92, 6); box(c, lin(c, 0, -182, 0, -94, ["#1a74d6", BLUE, "#0750a8"]), 16, -182, 182, 88, 5);
+      say(c, "COMING SOON", 107, -166, 15, "#ffffff", { weight: 900, max: 170 });
+      line(c, "rgba(255,255,255,.6)", 1.2, [36, -155, 178, -155]);
+      say(c, "Gualmart", 96, -132, 33, "#ffffff", { weight: 900, max: 140, font: UI });
+      const sp = (x, y, r) => { c.fillStyle = "#ffffff"; c.beginPath(); for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4, rr2 = i % 2 ? r * 0.28 : r; c.lineTo(x + Math.cos(a) * rr2, y + Math.sin(a) * rr2); } c.closePath(); c.fill(); };
+      sp(182, -134, 12); sp(170, -150, 4.5);
+      say(c, "Pardon our dust · Opening soon", 107, -106, 9, "#dbe9ff", { weight: 800, max: 170 });
+      // fencing: chain-link with an orange safety stripe, the gate open where Juan walks in
+      for (const [x0, x1] of [[0, 196], [270, 360]]) {
+        box(c, "rgba(220,226,234,.22)", x0, -46, x1 - x0, 46); c.strokeStyle = "rgba(120,128,138,.75)"; c.lineWidth = 0.8;
+        for (let x = x0; x < x1; x += 7) { c.beginPath(); c.moveTo(x, -46); c.lineTo(x + 7, 0); c.stroke(); c.beginPath(); c.moveTo(x + 7, -46); c.lineTo(x, 0); c.stroke(); }
+        line(c, "#7d848e", 2.2, [x0, -46, x1, -46]); for (let x = x0; x <= x1; x += 49) line(c, "#7d848e", 2.6, [x, -48, x, 0]); box(c, "#ff6a00", x0, -24, x1 - x0, 6);
+      }
+      // the cement mixer truck (left), facing right
+      c.save(); c.translate(6, 0);
+      box(c, "#3a3f4a", 0, -20, 128, 10, 2); box(c, lin(c, 0, -60, 0, -18, ["#ffffff", "#c9d0d8"]), 92, -58, 34, 40, 4); glass(c, 104, -54, 18, 16, false); box(c, BLUE, 92, -30, 34, 5);
+      c.save(); c.translate(48, -46); c.rotate(-0.18); ell(c, lin(c, -40, -20, 40, 20, ["#f2f5f8", "#b9c1ca"]), 0, 0, 42, 22); c.save(); c.beginPath(); c.ellipse(0, 0, 42, 22, 0, 0, Math.PI * 2); c.clip();
+      c.strokeStyle = "#ff6a00"; c.lineWidth = 5; for (const dx of [-30, -8, 14, 36]) { c.beginPath(); c.moveTo(dx - 14, 24); c.lineTo(dx + 8, -24); c.stroke(); } c.restore(); ell(c, "rgba(255,255,255,.5)", -10, -12, 18, 4); c.restore();
+      poly(c, "#7d848e", [6, -34, -6, -24, 2, -20, 12, -30]); box(c, "#7d848e", 86, -40, 6, 22);
+      for (const wx of [24, 50, 110]) { ell(c, "#1d1f24", wx, -9, 10, 10); ell(c, "#c9d0d8", wx, -9, 4.5, 4.5); } c.restore();
+      // the yellow excavator (right), the arm reaching up over the fence
+      c.save(); c.translate(282, 0);
+      box(c, "#2b2f38", 0, -16, 74, 16, 8); for (let x = 8; x < 70; x += 10) ell(c, "#4a4d55", x, -8, 3.5, 3.5);
+      box(c, YEL, 6, -44, 62, 28, 4); box(c, YEL, 6, -70, 30, 28, 4); glass(c, 10, -66, 22, 20, false); box(c, YEL2, 40, -36, 26, 4);
+      line(c, YEL, 7, [50, -40, 70, -96], "butt"); line(c, YEL, 6, [70, -96, 92, -60], "butt"); ell(c, YEL2, 70, -96, 5, 5);
+      poly(c, "#3a3f4a", [86, -64, 102, -56, 96, -40, 84, -48]); c.restore();
+      // cones at the gate
+      for (const cx of [204, 262, 352]) { poly(c, "#ff6a00", [cx - 7, 0, cx + 7, 0, cx + 3, -22, cx - 3, -22]); box(c, "#ffffff", cx - 5, -14, 10, 4); box(c, "#3a3f4a", cx - 9, -2, 18, 2); }
+      return;
+    }
+    if (n === 1) {   // v47 Hon Dipo: our own parody big-box hardware store (beige block, bright orange trim, a square orange sign with heavy condensed white letters; no real logo)
+      const OR = "#f96302", OR2 = "#d95400";
+      box(c, lin(c, 0, -196, 0, 0, ["#e6d7c1", "#d2bfa4"]), 0, -196, 360, 196);
+      c.fillStyle = "rgba(120,96,70,.16)"; for (let x = 24; x < 360; x += 24) c.fillRect(x, -180, 1.2, 180);
+      box(c, OR, 0, -196, 360, 12); box(c, OR2, 0, -184, 360, 3);   // the orange roof trim
+      box(c, OR, 0, -112, 360, 6); box(c, OR, 0, -6, 360, 6);         // …a stripe across the front and along the bottom
+      for (const [x0, txt] of [[14, "LUMBER · TOOLS"], [242, "PAINT · GARDEN"]]) { box(c, OR, x0, -158, 104, 22, 3); say(c, txt, x0 + 52, -147, 10, "#ffffff", { weight: 900, max: 96 }); }
+      // the square sign: bright orange, rounded corners, a thin darker edge, HON over DIPO in heavy condensed white letters
+      box(c, "rgba(0,0,0,.18)", 135, -187, 96, 96, 7); box(c, OR2, 132, -190, 96, 96, 7); box(c, lin(c, 0, -188, 0, -96, ["#ff7a1f", OR, "#ec5a00"]), 134, -188, 92, 92, 6);
+      const HV = '"Avenir Next Condensed","Roboto Condensed","Arial Narrow","Helvetica Neue",Arial,sans-serif';
+      for (const [txt, y] of [["HON", -163], ["DIPO", -123]]) { c.save(); c.translate(180, y); c.scale(0.84, 1); say(c, txt, 0, 0, 38, "#ffffff", { font: HV, weight: 900, max: 100 }); c.restore(); }
+      line(c, "rgba(255,255,255,.85)", 2, [146, -143, 214, -143]);   // a little rule between the words
+      box(c, lin(c, 0, -90, 0, -80, ["#ff8a1a", OR2]), 112, -90, 136, 10, 3); box(c, "#6c757d", 120, -80, 120, 74);
+      glass(c, 124, -76, 54, 70, false); glass(c, 182, -76, 54, 70, false); box(c, "#6c757d", 178, -76, 4, 70);
+      for (let k = 0; k < 3; k++) for (const cx of [26, 62, 270, 306]) { const y = -16; box(c, OR, cx + k * 4, y - 22, 30, 4, 1); c.strokeStyle = OR; c.lineWidth = 1.2; rr(c, cx + k * 4, y - 20, 30, 18, 2); c.stroke(); for (let g = 4; g < 30; g += 5) { c.beginPath(); c.moveTo(cx + k * 4 + g, y - 20); c.lineTo(cx + k * 4 + g, y - 2); c.stroke(); } ell(c, "#111", cx + k * 4 + 5, -1, 2.5, 2.5); ell(c, "#111", cx + k * 4 + 26, -1, 2.5, 2.5); }
+      for (let k = 0; k < 3; k++) box(c, ["#c9b29a", "#b39b81", "#d6c2ab"][k], 92 - k * 2, -12 - k * 10, 22, 10, 3);
       return;
     }
     if (n === 2) {   // Don Pedroes: low cream stucco, red Spanish-tile roofs, the arched block-pattern entry, the tall pole sign
@@ -645,7 +748,7 @@
       ents = buildLevel(level).filter((e) => !((e.t === "concha" || e.t === "beer") && e.x < x0));
       for (const e of ents) if (e.t === "flag" && e.x <= x0) e.done = true;
       hero = { x: x0 + 8, y: -HERO_H, w: HERO_W, h: HERO_H, vy: 0, ground: true, jumps: 2, boost: 0, stumble: 0, inv: 0, frame: 0, health: HP, shield: 0 };
-      camX = cam(hero.x); score = ckScore; parts = []; fx = []; msgT = 0; shake = 0; fueraT = 0; bgIce = []; bgNext = reduced() ? 12 + Math.random() * 8 : 3 + Math.random() * 5;
+      camX = cam(hero.x); score = ckScore; parts = []; fx = []; msgT = 0; shake = 0; fueraT = 0; bgIce = []; bgNext = (reduced() ? 12 + Math.random() * 8 : 3 + Math.random() * 5) * (L().city ? 0.5 : 1);
     }
     // v46: now and then a dark ICE SUV drives by in the far lane, or sits parked at the far curb (drawn with the road, so it scrolls with it).
     // Reduce motion: parked ones only, and rarer.
@@ -660,7 +763,7 @@
       for (const b of bgIce) b.x += b.vx * dt;
       bgIce = bgIce.filter((b) => b.x - camX > -BG_W - 40 && b.x - camX < VW + BG_W + 260);
       bgNext -= dt;
-      if (bgNext <= 0) { const rm = reduced(); if (bgIce.length < 2 && camX < CAM_END - VW) bgSpawn(); bgNext = rm ? 20 + Math.random() * 14 : 7 + Math.random() * 10; }
+      if (bgNext <= 0) { const rm = reduced(); if (bgIce.length < 2 && camX < CAM_END - VW) bgSpawn(); bgNext = (rm ? 20 + Math.random() * 14 : 7 + Math.random() * 10) * (L().city ? 0.5 : 1); }
     }
     function startLevel(n, keepScore) {
       if (n !== level) cache = {};
@@ -750,16 +853,16 @@
     function clear() {
       const name = L().name; score += 500; ckScore = score; st.best = Math.max(st.best, score);
       SFX.clear(); puff(hero.x + 13, hero.y + 10, 18, "spark");
-      if (level === 5) {
-        mode = "win"; st.wins++; st.levelMax = 5; st.beers = Math.max(st.beers || 0, beersGot); save(st); stats();
+      if (level === LEVELS.length) {
+        mode = "win"; st.wins++; st.levelMax = LEVELS.length; st.beers = Math.max(st.beers || 0, beersGot); save(st); stats();
         if (!reduced()) for (let i = 0; i < 120; i++) parts.push({ x: Math.random() * VW, y: -Math.random() * VH, vy: 40 + Math.random() * 70, vx: Math.random() * 30 - 15, r: Math.random() * 6, c: ["#00b8b0", "#ff3d8b", "#ff8a00", "#c9d0d8", "#ffffff"][i % 5] });
-        overlay(`<p class="juan-big">¡Salud, Juan!</p><p class="juan-win-line">The Juan That Got Away made it to Noche Caliente.</p><p class="juan-win-score">Final score <b>${score}</b></p><button type="button" class="lot-btn lot-main" data-act="again">▶ Play again</button>`, "win");
-        $("#juan-note").innerHTML = `🎉 What a long day! The Juan that got away made it to Noche Caliente for a cold one with the compas. <span class="juan-score">Final score <b>${score}</b> · Best <b>${st.best}</b></span> <button type="button" class="lot-btn lot-main" data-act="again">▶ Play again</button>`;
+        overlay(`<p class="juan-big">¡Salud, Juan!</p><p class="juan-win-line">The Juan That Got Away made it to Noche Caliente. Cold beers with the crew. <span lang="es">¡Ya es viernes!</span></p><p class="juan-win-score">Final score <b>${score}</b></p><button type="button" class="lot-btn lot-main" data-act="again">▶ Play again</button>`, "win");
+        $("#juan-note").innerHTML = `🎉 <span lang="es">¡Órale!</span> Friday shift done. The Juan that got away made it to Noche Caliente for cold beers with the crew. <span lang="es">¡Salud!</span> <span class="juan-score">Final score <b>${score}</b> · Best <b>${st.best}</b></span> <button type="button" class="lot-btn lot-main" data-act="again">▶ Play again</button>`;
         return;
       }
       st.levelMax = Math.max(st.levelMax, level + 1); save(st); stats();
       mode = "clear";
-      overlay(`<p class="juan-big">You made it to ${name}!</p><p>+500 · Score <b>${score}</b></p><button type="button" class="lot-btn lot-main" data-act="next">▶ Level ${level + 1}: ${LEVELS[level].name}</button>`, "clear");
+      overlay(`<p class="juan-big">You made it to ${name}!</p><p class="juan-story">${L().done}</p><p>+500 · Score <b>${score}</b></p><button type="button" class="lot-btn lot-main" data-act="next">▶ Level ${level + 1}: ${LEVELS[level].name}</button>`, "clear");
       $("#juan-note").textContent = `Next up: ${LEVELS[level].name}. ${LEVELS[level].hint}`;
     }
     function update(dt) {
@@ -858,7 +961,7 @@
     function makeDest() {
       const c2 = document.createElement("canvas"); c2.width = Math.ceil(VW * S) + 2; c2.height = Math.ceil(360 * S);
       const ds = Math.min(1, (GS - 12 - 70) / DEST_H[level - 1]), c = c2.getContext("2d");
-      c.setTransform(S * ds, 0, 0, S * ds, (VW * (1 - ds) / 2) * S, 360 * S); destination(c, level, isNight() || level === 4); return c2;
+      c.setTransform(S * ds, 0, 0, S * ds, (VW * (1 - ds) / 2) * S, 360 * S); destination(c, L().d, isNight() || L().d === 4); return c2;
     }
     function caches() {
       if (cache.level !== level || cache.S !== S) cache = { level, S };
@@ -867,7 +970,7 @@
       if (!cache.sky) cache.sky = makeSky();
       if (cache.cloud === undefined) cache.cloud = makeCloud();
       if (!cache.far) cache.far = makeLayer(1400, 400, Math.min(S, 2.2), (c) => farLayer(c, p, night), null);
-      if (!cache.mid) cache.mid = makeLayer(2000, 240, S, (c, pass) => midLayer(c, p, night, pass), p.tint, night, 1.1);
+      if (!cache.mid) cache.mid = makeLayer(2000, 240, S, (c, pass) => (L().city ? cityLayer : midLayer)(c, p, night, pass), p.tint, night, 1.1);   // v47: downtown for The Job Site
       if (!cache.dest) cache.dest = makeDest();
     }
     const destX = () => CAM_END;
@@ -877,7 +980,7 @@
       g.strokeStyle = "rgba(0,0,0,.13)"; g.lineWidth = 1; for (let x = -mod(camX, 64); x < VW; x += 64) { g.beginPath(); g.moveTo(x, -30); g.lineTo(x - 6, -10); g.stroke(); }
       box(g, "#a3a9b1", 0, -10, VW, 4); box(g, "#7d848e", 0, -6, VW, 3);
       box(g, lin(g, 0, -3, 0, bot - 44, ["#4b4e56", "#3b3d44", "#34363c"]), 0, -3, VW, bot - 41);
-      const park = level === 1 || (level <= 3 && camX > END - 900);
+      const D = L().d, park = D === 1 || (D <= 3 && camX > END - 900);
       if (park) { g.fillStyle = "rgba(240,244,248,.85)"; for (let x = -mod(camX, 74); x < VW; x += 74) { g.save(); g.translate(x, 0); g.transform(1, 0, -0.35, 1, 0, 0); g.fillRect(0, 10, 3, 34); g.fillRect(0, lane + 22, 3, 44); g.restore(); } g.fillRect(0, lane + 6, VW, 2.5); }
       else { g.fillStyle = nt ? "rgba(220,226,234,.75)" : "#eef1f4"; for (let x = -mod(camX, 84); x < VW; x += 84) { rr(g, x, lane, 44, 4, 2); g.fill(); } }
       for (let x = -mod(camX, 560) + 210; x < VW; x += 560) { ell(g, "#2a2c32", x, lane + 34, 16, 4.5); ell(g, "#4a4d55", x, lane + 33.5, 12, 3); }
@@ -976,10 +1079,10 @@
     function title() {
       level = 1; cache = {}; spawn(0); hero.x = 140; camX = cam(hero.x); mode = "title"; fit();
       const cont = st.levelMax > 1 ? `<button type="button" class="lot-btn" data-act="cont">▶ Keep going: level ${st.levelMax}</button>` : "";
-      $("#juan-note").textContent = "Help Juan get through the day: 5 stops from Home Dehole to the cantina. Hop the cones, potholes and runaway carts, dodge the ICE agents, and grab a coffee.";
-      overlay(`<p class="juan-big">The Juan That Got Away</p><p class="juan-story">Help Juan get through the day!</p>
+      $("#juan-note").textContent = "¡Ya es viernes! Juan's grinding through his Friday shift: 6 stops from Hon Dipo to Noche Caliente, where the crew has a cold one waiting. Hop the cones, potholes and runaway carts, dodge the ICE agents, and grab a coffee.";
+      overlay(`<p class="juan-big">The Juan That Got Away</p><p class="juan-story">It's FRIDAY! <span lang="es">¡Ya es viernes!</span></p>
         <ol class="juan-stops">${LEVELS.map((l, i) => `<li><span>${i + 1}</span>${l.name}</li>`).join("")}</ol>
-        <p class="juan-sub">Supplies, lunch, a truck part, home to change, then the cantina. Dodge the ICE agents! <span lang="es">¡Ándale!</span></p>
+        <p class="juan-sub">One more workday, then cold beers with the crew. Dodge the ICE agents! <span lang="es">¡Ándale!</span></p>
         <p class="juan-btns"><button type="button" class="lot-btn lot-main" data-act="start">▶ Start at level 1</button>${cont}</p>${st.best ? `<p class="juan-score">Best score <b>${st.best}</b></p>` : ""}`, "title");
     }
     function loop() {
@@ -1051,7 +1154,7 @@
     };
   }
 
-  const game = { id: "juan", name: "The Juan That Got Away", emoji: "👢", blurb: "Help Juan get through the day: 5 stops, from Home Dehole to the cantina.", mount };
+  const game = { id: "juan", name: "The Juan That Got Away", emoji: "👢", blurb: "¡Ya es viernes! Get Juan through his Friday shift and on to beers with the crew at Noche Caliente.", mount };
   const api = { KEY, LEVELS, END, CHECKS, VW, HP, HAZ, ICE, CAUGHT, FUERA, buildLevel, load, save, reset, game };
   if (typeof module === "object" && module.exports) module.exports = api;
   else { root.ChismeJuan = api; if (root.ChismeJuegos) root.ChismeJuegos.GAMES.push(game); }
