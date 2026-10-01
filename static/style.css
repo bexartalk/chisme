@@ -686,6 +686,13 @@ body { overscroll-behavior-y: contain; }
 .topbar .actions{position:absolute;right:12px;top:12px}
 .topbar .picado{position:absolute;left:0;right:0;bottom:0}
 [data-theme="dark"] .skyline{fill:#0a8f93}
+/* v46: tiny window squares (cut-outs in the header's own colour) + a small helicopter silhouette that hovers gently */
+.sky-win{fill:var(--turq);opacity:.5}
+[data-theme="dark"] .sky-win{fill:#0d2f31;opacity:.55}
+.heli-drift{animation:heli-drift 14s ease-in-out infinite}
+@keyframes heli-drift{0%,100%{transform:translate(0,0)}25%{transform:translate(-5px,-1.5px)}50%{transform:translate(-9px,.5px)}75%{transform:translate(-4px,1.5px)}}
+.reduce-motion .heli-drift{animation:none}
+@media (prefers-reduced-motion:reduce){.heli-drift{animation:none}}
 [data-theme="dark"] .bubble-edge{fill:#0d2f31;stroke:var(--turq);stroke-width:14}
 .reduce-motion .brand-bubble{transition:none}
 [data-theme="dark"] .brand-bubble{background:transparent;border:0;box-shadow:none}

@@ -21,8 +21,9 @@ CX = 800              # canvas centre (= screen centre)
 
 def f(v): return f"{v:.1f}".rstrip("0").rstrip(".")
 
-def blocks(seed, lo, hi, x0=0, x1=1600, keep_out=()):
-    """Background buildings: flat roofs, some setbacks and antennas. keep_out = [(a, b, max_h)]"""
+def blocks(seed, lo, hi, x0=0, x1=1600, keep_out=(), rects=None):
+    """Background buildings: flat roofs, some setbacks and antennas. keep_out = [(a, b, max_h)]
+    rects (v46): collects each building's box (x, top, w), for its little windows"""
     rnd = random.Random(seed); x = x0; parts = []
     while x < x1:
         w = rnd.randint(14, 34); h = rnd.randint(lo, hi)
@@ -38,6 +39,7 @@ def blocks(seed, lo, hi, x0=0, x1=1600, keep_out=()):
         else:
             d += f"H{x + w}"
         d += f"V{GROUND}Z"; parts.append(d)
+        if rects is not None: rects.append((x, top, w))
         x += w + rnd.choice((0, 0, 1, 2))
     return parts
 
@@ -65,15 +67,37 @@ def spire_tower(x, w=22, h=76):
     t = GROUND - h; m = x + w / 2
     return f"M{x} {GROUND}V{t + 10}H{x + 4}V{t}H{x + w - 4}V{t + 10}H{x + w}V{GROUND}Z M{m - 1} {t}V{t - 14}H{m + 1}V{t}Z"
 
+def windows(seed, rects):
+    """v46: small window squares in the buildings (2 x 2 units on a 5 x 6 grid, about half of them lit), drawn in the
+    header's own background colour so they read as tiny cut-outs: subtle, crisp (whole units), no new colours."""
+    rnd = random.Random(seed); d = []
+    for x, top, w in rects:
+        cols = int((w - 4) // 5)
+        if cols < 1 or GROUND - top < 14: continue
+        x0 = x + (w - (cols * 5 - 3)) // 2
+        for y in range(int(top) + 4, GROUND - 6, 6):
+            for k in range(cols):
+                if rnd.random() < 0.5: d.append(f"M{x0 + k * 5} {y}h2v2h-2Z")
+    return "".join(d)
+
+def heli(x, y):
+    """v46: a small helicopter silhouette (faces left): cabin, tail boom + fin, mast, main rotor, skids."""
+    P = lambda dx, dy: f"{f(x + dx)} {f(y + dy)}"
+    return (f"M{P(-7, 0)}C{P(-7, -4)} {P(-3, -5)} {P(1, -5)}H{f(x + 4)}C{P(7, -5)} {P(8, -2)} {P(8, 0)}C{P(8, 3)} {P(5, 4)} {P(1, 4)}H{f(x - 4)}C{P(-6, 4)} {P(-7, 2)} {P(-7, 0)}Z"
+            f"M{P(6, -2.5)}L{P(19, -3)}V{f(y - 1.2)}L{P(6, 1)}Z M{P(17, -3)}L{P(18.6, -7.5)}H{f(x + 20)}L{P(19.8, -1.2)}Z"
+            f"M{P(0, -5)}V{f(y - 7)}H{f(x + 1.5)}V{f(y - 5)}Z M{P(-12, -7.8)}H{f(x + 14)}V{f(y - 6.8)}H{f(x - 12)}Z"
+            f"M{P(-3, 3.5)}h1v3h-1Z M{P(3, 3.5)}h1v3h-1Z M{P(-6.5, 6.3)}H{f(x + 7)}V{f(y + 7.3)}H{f(x - 5.5)}Q{P(-7, 7.3)} {P(-7.5, 5.8)}Z")
+
 TOWER_X = CX - 152
 ground = f"M0 {GROUND}H1600V140H0Z"
 
 # San Antonio: keep the blocks low right around the tower and the Alamo so they read clearly
-sa_blocks = blocks(7, 10, 32, keep_out=[(TOWER_X - 24, TOWER_X + 24, 12), (CX + 40, CX + 94, 10)])
+sa_rects = []; sa_blocks = blocks(7, 10, 32, rects=sa_rects, keep_out=[(TOWER_X - 24, TOWER_X + 24, 12), (CX + 40, CX + 94, 10)])
 sa = sa_blocks + [tower_of_americas(TOWER_X), stepped_pyramid(CX + 116, 26, 50), slant_top(CX + 94, 20, 44), alamo(CX + 44),
                   f"M{CX + 150} {GROUND}V{GROUND - 46}H{CX + 172}V{GROUND}Z", ground]
 
-city_blocks = blocks(11, 12, 40, keep_out=[(TOWER_X - 16, TOWER_X + 16, 14)])
+sa_rects += [(CX + 116, GROUND - 50 + 14, 26), (CX + 94, GROUND - 44 + 12, 20), (CX + 150, GROUND - 46, 22)]
+city_rects = []; city_blocks = blocks(11, 12, 40, rects=city_rects, keep_out=[(TOWER_X - 16, TOWER_X + 16, 14)])
 city = city_blocks + [spire_tower(TOWER_X - 11, 22, 64), spire_tower(CX + 96, 26, 58), slant_top(CX + 60, 24, 48),
                       f"M{CX + 130} {GROUND}V{GROUND - 52}H{CX + 152}V{GROUND}Z", ground]
 
@@ -139,16 +163,16 @@ def palm(x, h=58, lean=6):
                      for dx, dy in ((-16, 6), (-12, 12), (16, 6), (12, 12), (-6, -1), (7, -1)))
     return trunk + " " + fronds
 
-hou = blocks(21, 12, 38, keep_out=[(TOWER_X - 20, TOWER_X + 20, 14)]) + [
+hou_rects = []; hou = blocks(21, 12, 38, rects=hou_rects, keep_out=[(TOWER_X - 20, TOWER_X + 20, 14)]) + [
     williams_tower(TOWER_X - 9), pennzoil(CX + 52), gables(CX + 96, 30, 58), bevel_box(CX + 134, 24, 80),
     f"M{CX + 164} {GROUND}V{GROUND - 50}H{CX + 184}V{GROUND}Z", ground]
-atx = blocks(31, 10, 30, keep_out=[(TOWER_X - 40, TOWER_X + 40, 10)]) + [
+atx_rects = []; atx = blocks(31, 10, 30, rects=atx_rects, keep_out=[(TOWER_X - 40, TOWER_X + 40, 10)]) + [
     capitol(TOWER_X - 32), frost_tower(CX + 60), ut_tower(CX + 100), independent(CX + 128),
     f"M{CX + 160} {GROUND}V{GROUND - 44}H{CX + 180}V{GROUND}Z", ground]
-dal = blocks(41, 12, 36, keep_out=[(TOWER_X - 16, TOWER_X + 16, 12)]) + [
+dal_rects = []; dal = blocks(41, 12, 36, rects=dal_rects, keep_out=[(TOWER_X - 16, TOWER_X + 16, 12)]) + [
     reunion(TOWER_X), fountain_place(CX + 60), bevel_box(CX + 98, 24, 84, 0), spire_tower(CX + 132, 20, 60),
     f"M{CX + 160} {GROUND}V{GROUND - 48}H{CX + 180}V{GROUND}Z", ground]
-mia = blocks(51, 10, 28, keep_out=[(TOWER_X - 46, TOWER_X + 40, 10)]) + [
+mia_rects = []; mia = blocks(51, 10, 28, rects=mia_rects, keep_out=[(TOWER_X - 46, TOWER_X + 40, 10)]) + [
     palm(TOWER_X - 36, 50, -5), freedom_tower(TOWER_X - 6), palm(TOWER_X + 30, 44, 6),
     bevel_box(CX + 58, 20, 70, 0), bevel_box(CX + 82, 18, 82, 6), f"M{CX + 104} {GROUND}V{GROUND - 60}H{CX + 124}V{GROUND}Z",
     palm(CX + 140, 52, 5), f"M{CX + 156} {GROUND}V{GROUND - 40}H{CX + 178}V{GROUND}Z", ground]
@@ -173,12 +197,13 @@ sky_conf = confetti([(x + 605, y, 11, 7, r, c) for x, y, r, c in SCREEN])
 ART = f'''<!-- HEADER-ART (generated by tools/make_header_art.py): flat skyline + the app icon's speech bubble -->
     <svg class="skyline" viewBox="0 0 1600 140" preserveAspectRatio="xMidYMax slice" aria-hidden="true" focusable="false">
       <g class="confetti">{sky_conf}</g>
-      <g class="sky-sa"><path d="{"".join(sa)}"/></g>
-      <g class="sky-city"><path d="{"".join(city)}"/></g>
-      <g class="sky-houston"><path d="{"".join(hou)}"/></g>
-      <g class="sky-austin"><path d="{"".join(atx)}"/></g>
-      <g class="sky-dallas"><path d="{"".join(dal)}"/></g>
-      <g class="sky-miami"><path d="{"".join(mia)}"/></g>
+      <g class="sky-sa"><path d="{"".join(sa)}"/><path class="sky-win" d="{windows(70, sa_rects)}"/></g>
+      <g class="sky-city"><path d="{"".join(city)}"/><path class="sky-win" d="{windows(110, city_rects)}"/></g>
+      <g class="sky-houston"><path d="{"".join(hou)}"/><path class="sky-win" d="{windows(210, hou_rects)}"/></g>
+      <g class="sky-austin"><path d="{"".join(atx)}"/><path class="sky-win" d="{windows(310, atx_rects)}"/></g>
+      <g class="sky-dallas"><path d="{"".join(dal)}"/><path class="sky-win" d="{windows(410, dal_rects)}"/></g>
+      <g class="sky-miami"><path d="{"".join(mia)}"/><path class="sky-win" d="{windows(510, mia_rects)}"/></g>
+      <g class="heli-drift"><path class="heli" d="{heli(CX + 140, 63)}"/></g>
     </svg>
     <button type="button" id="settings-btn" class="brand-bubble" aria-label="Settings" aria-haspopup="dialog" aria-controls="settings">
       <svg class="bubble" viewBox="{BUBBLE_VB}" aria-hidden="true" focusable="false">

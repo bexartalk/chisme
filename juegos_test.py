@@ -72,6 +72,9 @@ const fs = require("fs"), path = require("path"), src = fs.readFileSync(process.
 out.net = ["http:", "https:", "fetch(", "XMLHttpRequest", "import(", "sendBeacon", "WebSocket", "<a "].filter((w) => src.includes(w));
 out.callsText = J.CARDS.map((c) => c.verse);
 out.hints = I.LEVELS.map((l) => l.hint); out.game = [I.game.id, I.game.name, I.KEY];
+out.ice = [1, 2, 3, 4, 5].map((n) => { const e = I.buildLevel(n); return [e.filter((x) => x.t === "agent").length, e.filter((x) => x.t === "suv").length, e.filter((x) => x.t === "flipflops").length]; });
+out.iceLines = [I.CAUGHT, I.FUERA]; out.iceSafe = [1, 2, 3, 4, 5].every((n) => I.buildLevel(n).every((e) => !I.ICE.includes(e.t) || I.CHECKS.every((c) => !c || e.x + e.w < c - 40 || e.x > c + 60)));
+out.iceSrc = /weapon|gun|pistol|handcuff|taser|blood/i.test(fs.readFileSync(process.argv[2], "utf8").replace(/No weapons|no weapons/g, ""));
 console.log(JSON.stringify(out));
 """
 def unit():
@@ -104,7 +107,10 @@ def unit():
     check(o["same"], "a level is the same course every time (so a checkpoint restarts it fairly)")
     check(all(c >= 1 and t >= 1 for c, t in o["power"]), f"every level has a ☕ coffee and a breakfast taco ({o['power']})")
     check(o["beers"][:4] == [0, 0, 0, 0] and o["beers"][4] >= 20 and o["lastBeers"] == 4, f"cold ones to jump for only on the cantina level, with a last arc of 4 by the door ({o['beers']}, last {o['lastBeers']})")
-    check(all(h >= 8 for h in o["haz"]), f"hazards on every level ({o['haz']})")
+    check(all(h >= 6 for h in o["haz"]), f"neutral hazards on every level, mixed in with the agents ({o['haz']})")
+    check(all(a >= 2 and v >= 1 and f == 1 for a, v, f in o["ice"]), f"v46: ICE agents back on every level: patrolling agents + a dark SUV with a chaser, and a 🩴 flip-flops shield ({o['ice']})")
+    check(o["iceLines"] == ["¡Ay no!", "¡Fuera!"] and o["iceSafe"], f"v46: '¡Ay no!' when caught, '¡Fuera!' when he gets away; no agents right at a checkpoint ({o['iceLines']})")
+    check(not o["iceSrc"], "v46: cartoon agents, nothing violent in the game's code (no weapons, handcuffs, blood)")
     check(o["kinds"] == ["cart", "chancla", "chihuahua", "cone", "pallet", "pothole", "sprinkler", "tires"], f"cones, potholes, carts, chanclas, chihuahuas, sprinklers + pallets / tires to hop on ({o['kinds']})")
     check(o["hp"] == 100 and all(5 <= d <= 20 for d in o["dmg"].values()), f"a bump costs a little of the 100-point health bar ({o['dmg']})")
     check(o["afterCheck"], "no hazards right at a checkpoint")
@@ -283,7 +289,9 @@ async def webkit(p):
     await pg.evaluate(f"{G}.warp(1, {hz['x'] - 150}); {G}.setHealth(100)")
     bumped = await until(pg, G + ".state.health < 100", 4); s = await st(pg)
     check(bumped and s["mode"] == "run" and s["health"] >= 80 and re.search(r"−\d+$", s["msg"]), f"bump a hazard: a little health gone, a pop-up, keep running ({s['health']}, {s['msg']!r})")
-    await pg.evaluate(f"{G}.setHealth(1)")
+    hz = next(e for e in await pg.evaluate(G + ".ents()") if e["t"] in ("cone", "pothole", "cart") and e["st"] != "hit" and 700 < e["x"] < 1750)
+    await pg.wait_for_timeout(1100)   # the blink after the last bump is over
+    await pg.evaluate(f"{G}.warp(1, {hz['x'] - 150}); {G}.setHealth(1)")
     oops = await until(pg, G + ".state.mode === 'oops'", 20)
     s = await st(pg)
     check(oops and s["oopsMsg"] in OOPS and "worn out" in s["overlay"] and "Try again" in s["overlay"], f"out of health: big {s['oopsMsg']!r} + 'Juan's worn out. Try again'")
@@ -293,7 +301,8 @@ async def webkit(p):
     msgs = {s["oopsMsg"]}
     await pg.evaluate(G + ".warp(1, 1880)")
     check(await until(pg, G + ".state.ck === 1", 3), "running past the 🚩 flag sets a checkpoint")
-    await pg.evaluate(f"{G}.setHealth(1)")
+    x = (await st(pg))["x"]; hz = next(e for e in await pg.evaluate(G + ".ents()") if e["t"] in ("cone", "pothole", "cart") and e["x"] > x + 160)
+    await pg.evaluate(f"{G}.warp(1, {hz['x'] - 150}); {G}.setHealth(1)")
     await until(pg, G + ".state.mode === 'oops'", 25); msgs.add((await st(pg))["oopsMsg"]); await until(pg, G + ".state.mode === 'run'", 3)
     x = (await st(pg))["x"]
     check(2000 <= x < 2120, f"worn out after the checkpoint → back to the checkpoint (x {x:.0f})")
@@ -305,9 +314,45 @@ async def webkit(p):
             await pg.evaluate(f"{G}.warp({n}, {es[0]['x'] - off}); {G}.setHealth(50)"); await pg.wait_for_timeout(30); await pg.evaluate(G + ".jump()")
             if await until(pg, ok_js, 0.9): return True
         return False
-    for kind, ok_js, want in (("coffee", G + ".state.boost > 0", "Coffee! Speed boost"), ("taco", G + ".state.health >= 75", "Breakfast taco! +30 health")):
+    for kind, ok_js, want in (("coffee", G + ".state.boost > 0", "Coffee! Speed boost"), ("taco", G + ".state.health >= 75", "Breakfast taco! +30 health"), ("flipflops", G + ".state.shield > 0", "Flip-flops! Shield on")):
         got = await grab(1, kind, ok_js); s = await st(pg)
-        check(got and s["msg"] == want, f"{'☕ coffee → speed boost' if kind == 'coffee' else 'breakfast taco → +30 health'}, with an English pop-up ({s['msg']!r}, boost {s['boost']:.1f}, health {s['health']})")
+        check(got and s["msg"] == want, f"{ {'coffee': '☕ coffee → speed boost', 'taco': 'breakfast taco → +30 health', 'flipflops': 'v46: 🩴 flip-flops → shield'}[kind] }, with an English pop-up ({s['msg']!r}, boost {s['boost']:.1f}, health {s['health']}, shield {s['shield']})")
+    # v46: the ICE agents (shield on from the flip-flops: the next agent who reaches him just gets dizzy)
+    async def to_agent(n, gap=330):   # stand Juan `gap` in front of an agent with no cone by him (he'd trip on it), the road between clear
+        await until(pg, G + ".state.mode === 'run'", 3); await pg.evaluate(f"{G}.warp({n}, 100)")
+        es = await pg.evaluate(G + ".ents()")
+        ag = next(e for e in es if e["t"] == "agent" and e["x"] > 900 and not any(k["t"] == "cone" and e["x"] - 160 < k["x"] < e["x"] + 30 for k in es))
+        await pg.evaluate(f"{G}.warp({n}, {ag['x'] - gap}); {G}.clearAhead({gap - 40})"); return ag
+    await to_agent(1); await pg.evaluate(f"{G}.setHealth(100)")
+    if (await st(pg))["shield"] <= 0: await grab(1, "flipflops", G + ".state.shield > 0"); await to_agent(1)
+    dz = await until(pg, f"{G}.ents().some(e => e.t === 'agent' && e.st === 'dizzy')", 4); s = await st(pg)
+    check(dz and s["mode"] == "run" and s["shield"] == 0 and s["msg"] == "Flip-flops! He's dizzy", f"v46: shield on, an agent reaches Juan → he just gets dizzy, Juan keeps running ({s['msg']!r}, {s['mode']})")
+    await pg.wait_for_timeout(2700)   # he shakes it off
+    await to_agent(1)
+    caught = await until(pg, G + ".state.mode === 'oops'", 5); s = await st(pg)
+    check(caught and s["oopsMsg"] == "¡Ay no!" and s["caughtBy"] == "agent" and "Caught!" in s["overlay"] and "tries again" in s["overlay"], f"v46: run into an agent → caught: a big '¡Ay no!' + 'Caught! Juan tries again…' ({s['oopsMsg']!r}, {s['overlay'][-50:]!r})")
+    await until(pg, G + ".state.mode === 'run'", 3); s = await st(pg)
+    check(s["mode"] == "run" and s["health"] == 100, "…then back to the last checkpoint, nobody hurt")
+    await to_agent(1); f0 = (await st(pg))["fueras"]
+    for _ in range(160):   # hop over him: jump when he's close
+        es = [e for e in await pg.evaluate(G + ".ents()") if e["t"] == "agent"]; x = (await st(pg))["x"]
+        if min([e["x"] - x for e in es if e["x"] > x - 40] or [999]) < 95: await pg.evaluate(G + ".jump()"); await pg.wait_for_timeout(170); await pg.evaluate(G + ".jump()"); break
+        await pg.wait_for_timeout(15)
+    hop = await until(pg, G + ".state.fuera", 2); s = await st(pg)
+    check(hop and s["fueras"] > f0 and s["mode"] == "run", f"v46: hop over an agent → a big '¡Fuera!' and bonus points ({s['fueras']} escapes)")
+    await until(pg, "!" + G + ".state.fuera", 3)
+    suv = next(e for e in await pg.evaluate(G + ".ents()") if e["t"] == "suv")
+    await pg.evaluate(f"{G}.warp(1, {suv['x'] + suv['w'] + 62}); {G}.clearAhead(1400)")
+    ch = await until(pg, G + ".state.chase", 2); s = await st(pg)
+    check(ch and s["msg"] == "¡Vámonos, amigo!", f"v46: run past a dark SUV → an agent hops out and chases Juan ('¡Vámonos, amigo!') ({s['msg']!r})")
+    f0 = s["fueras"]; away = await until(pg, G + ".state.fuera", 5); s = await st(pg)
+    check(away and not s["chase"] and s["fueras"] > f0 and s["mode"] == "run", f"…he runs out of breath: '¡Fuera!', Juan got away ({s['fueras']})")
+    suv = next((e for e in await pg.evaluate(G + ".ents()") if e["t"] == "suv" and e["x"] > s["x"] + 300), None)
+    if suv:
+        await pg.evaluate(f"{G}.warp(1, {suv['x'] + suv['w'] + 62}); {G}.clearAhead(1400)"); await until(pg, G + ".state.chase", 2); await pg.evaluate(G + ".stumble(3)")
+        got = await until(pg, G + ".state.mode === 'oops'", 4); s = await st(pg)
+        check(got and s["caughtBy"] == "chaser" and s["oopsMsg"] == "¡Ay no!", f"v46: slowed down while chased → the agent catches up: '¡Ay no!' ({s['caughtBy']})")
+        await until(pg, G + ".state.mode === 'run'", 3)
     await pg.evaluate(f"{G}.warp(1, 5900)")
     await until(pg, G + ".state.mode === 'clear'", 6)
     s = await st(pg)
@@ -339,7 +384,7 @@ async def webkit(p):
     check(won and "¡Salud, Juan!" in s["overlay"] and "The Juan That Got Away made it to Noche Caliente." in s["overlay"] and "The Juan that got away" in note and "What a long day!" in note and "Noche Caliente" in note, f"level 5: the win at the cantina, '¡Salud, Juan!' ({note[:70]!r})")
     txt = await pg.evaluate("(() => { const j = document.querySelector('#view-juegos'); return [...j.querySelectorAll('#juegos, #game-stage')].map(e => e.textContent).join(' ') + ' ' + [...j.querySelectorAll('[aria-label]')].map(e => e.getAttribute('aria-label')).join(' '); })()")   # textContent: the rules are hidden while full screen
     es = [w for w in SPANISH if w.lower() in txt.lower().replace("lotería", "")]
-    check(not es and "Coffee = speed boost" in txt and "Breakfast taco = more health" in txt and "cold ones" in txt, f"The Juan That Got Away's UI is English ({es})")
+    check(not es and "Coffee = speed boost" in txt and "Breakfast taco = more health" in txt and "cold ones" in txt and "ICE agents" in txt and "Flip-flops = a shield" in txt, f"The Juan That Got Away's UI is English ({es})")
     check(juan["best"] >= s["score"] > 0 and juan["wins"] == 1 and juan["levelMax"] == 5, f"best score saved on the phone ({juan['best']})")
     check("Play again" in s["overlay"], "…with ▶ Play again right on the full-screen win screen")
     await pg.screenshot(path=os.path.join(OUT, "juan-win.png"))

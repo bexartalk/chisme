@@ -14,7 +14,13 @@
    lavandería, a grocery, the Brooks water tower and arch, palms, power lines), the road up front. Static layers are
    pre-rendered once per level into tiles, so a frame is a few image blits + the moving art (smooth on iPhone Safari).
    Score + best in localStorage "chisme-juegos-juan". Reduce motion: no parallax, shake, particles or confetti, a bit slower.
-   UI chrome (HUD, overlays, badge) uses the Fiesta palette only: turquoise, pink, black, silver, white; no yellow. */
+   UI chrome (HUD, overlays, badge) uses the Fiesta palette only: turquoise, pink, black, silver, white; no yellow.
+   v46: the ICE agents from the old Ice Ice Bebé are back, redrawn in this smooth style (cartoon agents in navy "ICE"
+   windbreakers, caps and sunglasses; no weapons, nobody gets hurt). Agents patrol the sidewalk (hop over them: "¡Fuera!",
+   they look up "?"); dark unmarked SUVs are parked along the way (hop onto the roof) and, once Juan runs past one, an
+   agent hops out and chases him ("¡Vámonos, amigo!") until he's out of breath ("¡Fuera!", Juan got away). Getting
+   caught is a big "¡Ay no!" and back to the last 🚩. Old slapstick kept: agents trip over traffic cones (cap rolls off,
+   "!?"), and the 🩴 flip-flops power-up is a shield: the next agent who reaches Juan just gets dizzy (stars). */
 (function (root) {
   "use strict";
   const KEY = "chisme-juegos-juan";
@@ -24,23 +30,25 @@
   const UI = '-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif';
   const WEST = 'Rockwell,"American Typewriter",Georgia,"Times New Roman",serif';
   const LEVELS = [
-    { name: "Home Dehole", speed: 188, time: "morning", outfit: "work", hint: "Grab the supplies for the job. Watch out for runaway carts!",
-      mix: { cone: 3, cart: 3, pothole: 2, pallet: 2 }, power: [[900, "coffee"], [2700, "taco"], [4400, "coffee"]] },
+    { name: "Home Dehole", speed: 188, time: "morning", outfit: "work", hint: "Grab the supplies for the job. Watch out for runaway carts and the agents!",
+      mix: { cone: 3, cart: 3, pothole: 2, pallet: 2, agent: 2, suv: 1 }, power: [[900, "coffee"], [2300, "flipflops"], [2700, "taco"], [4400, "coffee"]] },
     { name: "Don Pedroes", speed: 198, time: "noon", outfit: "work", hint: "Lunch break! The alambre plate is calling.",
-      mix: { pothole: 3, chancla: 2, chihuahua: 2, cone: 2 }, power: [[1250, "taco"], [3100, "coffee"], [4700, "taco"]] },
+      mix: { pothole: 3, chancla: 2, chihuahua: 2, cone: 2, agent: 2, suv: 1 }, power: [[1250, "taco"], [2350, "flipflops"], [3100, "coffee"], [4700, "taco"]] },
     { name: "O'Reillees", speed: 208, time: "afternoon", outfit: "work", hint: "The work truck needs a part. Mind the potholes.",
-      mix: { pothole: 3, tires: 2, cone: 2, cart: 1, chihuahua: 2 }, power: [[1000, "coffee"], [2600, "taco"], [4500, "coffee"]] },
+      mix: { pothole: 3, tires: 2, cone: 2, cart: 1, chihuahua: 2, agent: 3, suv: 1 }, power: [[1000, "coffee"], [2250, "flipflops"], [2600, "taco"], [4500, "coffee"]] },
     { name: "Juan's Casa", speed: 216, time: "sunset", outfit: "work", hint: "Quitting time! Home to wash up and put on the boots.",
-      mix: { sprinkler: 3, chihuahua: 2, chancla: 2, pothole: 2, cone: 1 }, power: [[1300, "taco"], [3000, "coffee"], [4600, "taco"]] },
+      mix: { sprinkler: 3, chihuahua: 2, chancla: 2, pothole: 2, cone: 1, agent: 3, suv: 2 }, power: [[1300, "taco"], [2300, "flipflops"], [3000, "coffee"], [4600, "taco"]] },
     { name: "Noche Caliente", speed: 222, time: "night", outfit: "western", hint: "Boots on, hat on. Jump for the cold ones on the way to the cantina!",
-      mix: { pothole: 2, cone: 2, chihuahua: 2, chancla: 2, sprinkler: 1 }, power: [[1500, "coffee"], [3300, "taco"]], beers: true },
+      mix: { pothole: 2, cone: 2, chihuahua: 2, chancla: 2, sprinkler: 1, agent: 3, suv: 2 }, power: [[1500, "coffee"], [2300, "flipflops"], [3300, "taco"]], beers: true },
   ];
   const DEST_H = [210, 312, 150, 150, 232];   // how tall each stop's building is (units), so a short screen can shrink it to fit under the HUD
   const DIM = { cone: [24, 32], pothole: [56, 8], cart: [52, 46], chancla: [30, 14], chihuahua: [36, 28], sprinkler: [18, 12], pallet: [70, 38], tires: [46, 48],
-    concha: [22, 16], beer: [24, 32], coffee: [22, 28], taco: [32, 20], flag: [10, 70] };
+    concha: [22, 16], beer: [24, 32], coffee: [22, 28], taco: [32, 20], flipflops: [30, 18], flag: [10, 70], agent: [30, 64], chaser: [30, 64], suv: [124, 54] };
   const HAZ = { cone: [10, "Bonk! A cone"], pothole: [15, "¡Híjole! A pothole"], cart: [20, "Runaway cart!"], chancla: [10, "¡La chancla!"], chihuahua: [15, "Yap yap yap!"], sprinkler: [8, "Soaked!"] };
-  const HAZARDS = Object.keys(HAZ), SOLID = ["pallet", "tires"];
+  const HAZARDS = Object.keys(HAZ), SOLID = ["pallet", "tires", "suv"], ICE = ["agent", "suv", "chaser"];   // v46: the ICE agents (not in HAZ: they don't cost health, they catch Juan)
   const OOPS = ["¡Ay no!", "¡Híjole!", "¡Ándale, otra vez!"];
+  const CAUGHT = "¡Ay no!", FUERA = "¡Fuera!", VAMONOS = "¡Vámonos, amigo!";   // v46: the old Ice Ice Bebé lines (kept in Spanish on purpose)
+  const SKINS = [["#e3b896", "#c3906c"], ["#c68a5e", "#a5683f"], ["#8d5a3b", "#6e4229"], ["#f2cdb0", "#d5a585"], ["#a8724a", "#87552f"]];
   const SKY = {
     morning: { sky: ["#3f9fe6", "#8fd0f7", "#d9f1ff"], far: ["#8eb3cc", "#b5d0e0"], tint: null, road: 0, sun: "sun" },
     noon: { sky: ["#1f7fd8", "#5fb2f0", "#bfe4ff"], far: ["#86abc6", "#aac8dc"], tint: null, road: 0, sun: "sun" },
@@ -58,15 +66,23 @@
     const clearOf = (x) => CHECKS.some((c) => c && x + 140 > c - 100 && x - 80 < c + 170);   // nothing right at a 🚩
     const add = (t, x, y, extra) => { const [w, h] = DIM[t]; const e = Object.assign({ t, x, y: y == null ? -h : y, w, h }, extra || {}); ents.push(e); return e; };
     for (const [px, kind] of L.power) add(kind, px, -120);
+    const deal = [];   // v46: deal from a shuffled bag (refilled when it runs out), so every level gets its share of each kind (agents + an SUV too)
+    const next = () => { if (!deal.length) { const d = bag.slice(); for (let i = d.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [d[i], d[j]] = [d[j], d[i]]; } deal.push(...d); } return deal.shift(); };
     let x = 620;
     while (x < END - 420) {
       x += 250 - n * 8 + Math.floor(r() * 180);
       if (clearOf(x) || x > END - 460) continue;
-      const k = bag[Math.floor(r() * bag.length)];
+      const k = next();
       if (k === "cart") add("cart", x, null, { vx: -75 });
       else if (k === "chihuahua") add("chihuahua", x, null, { vx: -80, home: x, ph: r() * 6 });
       else if (k === "chancla") add("chancla", x, null, { ph: r() * 6, home: x });
       else if (k === "sprinkler") add("sprinkler", x, null, { ph: r() * 2.4 });
+      else if (k === "agent") {   // a patrolling agent; sometimes a cone he'll trip over, sometimes a partner a bit further on
+        add("agent", x, null, { vx: -(34 + n * 4), home: x, st: "walk", tt: 0, ph: r() * 6, sk: Math.floor(r() * SKINS.length), st2: r() < 0.5 });
+        if (r() < 0.3) add("cone", x - 70);
+        if (n >= 3 && r() < 0.3 && x + 130 < END - 460) { x += 130; add("agent", x, null, { vx: -(34 + n * 4), home: x, st: "walk", tt: 0, ph: r() * 6, sk: Math.floor(r() * SKINS.length), st2: r() < 0.5 }); }
+      }
+      else if (k === "suv") add("suv", x, null, { sk: Math.floor(r() * SKINS.length), night: L.time === "night" });
       else add(k, x);
       if (SOLID.includes(k)) for (let i = 0; i < 2; i++) add("concha", x + 10 + i * 28, -DIM[k][1] - 44);
       else if (!L.beers && r() < 0.55) for (let i = 0; i < 3; i++) add("concha", x - 28 + i * 34, -104 - (i === 1 ? 26 : 0));
@@ -88,6 +104,7 @@
   function ell(c, fill, x, y, rx, ry, rot) { c.fillStyle = fill; c.beginPath(); c.ellipse(x, y, Math.max(0.1, rx), Math.max(0.1, ry), rot || 0, 0, Math.PI * 2); c.fill(); }
   function line(c, col, w, pts, cap) { c.strokeStyle = col; c.lineWidth = w; c.lineCap = cap || "round"; c.lineJoin = "round"; c.beginPath(); c.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) c.lineTo(pts[i], pts[i + 1]); c.stroke(); }
   function poly(c, fill, pts) { c.fillStyle = fill; c.beginPath(); c.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) c.lineTo(pts[i], pts[i + 1]); c.closePath(); c.fill(); }
+  const sayText = (...a) => say(...a);
   function say(c, s, x, y, size, col, o = {}) {
     c.font = `${o.italic ? "italic " : ""}${o.weight || 800} ${size}px ${o.font || SANS}`; c.textAlign = o.align || "center"; c.textBaseline = "middle";
     if (o.glow) { c.shadowColor = o.glow; c.shadowBlur = o.blur || 8; }
@@ -452,12 +469,107 @@
         box(c, "#e1e6ea", x + 1.5, by + 4, 19, 5, 2); box(c, "#c9d0d8", x + 7, by + 1.5, 8, 3, 1);
         if (!rm) { c.strokeStyle = "rgba(255,255,255,.7)"; c.lineWidth = 1.3; for (let k = 0; k < 2; k++) { const sx = x + 8 + k * 6, ph = t * 3 + k; c.beginPath(); c.moveTo(sx, by); c.bezierCurveTo(sx + 3 * Math.sin(ph), by - 5, sx - 3 * Math.sin(ph), by - 9, sx, by - 14); c.stroke(); } }
         break; }
+      case "agent": case "chaser": {
+        const pose = e.st === "walk" ? (rm ? "stand" : "walk") : e.st === "chase" ? (e.air ? "air" : "run") : e.st;
+        const flip = e.t === "agent" && e.vx < 0; c.save(); c.translate(x + 15, e.y + e.h); if (flip) c.scale(-1, 1);
+        iceAgent(c, { pose, flip, ph: e.t === "chaser" ? e.run || 0 : t * 7 + (e.ph || 0), t, rm, sk: e.sk, st2: e.st2 }); c.restore(); break; }
+      case "suv": iceSuv(c, x, w, e.night, e.out); break;
+      case "flipflops": flipflops(c, x, y, t, rm); break;
       case "taco": {
         const by = y + (rm ? 0 : Math.sin(t * 4 + 1) * 3);
         ell(c, "#ffd27a", x + 16, by + 11, 12, 7); ell(c, "#ff6a3a", x + 10, by + 8, 4, 2.5); ell(c, "#3ad07a", x + 18, by + 7, 4.5, 2.2); ell(c, "#c8432c", x + 23, by + 9, 3.5, 2);
         c.fillStyle = lin(c, 0, by, 0, by + 20, ["#f1d9a0", "#d9b46a"]); c.beginPath(); c.moveTo(x, by + 12); c.quadraticCurveTo(x + 16, by + 30, x + 32, by + 12); c.quadraticCurveTo(x + 16, by + 20, x, by + 12); c.fill();
         break; }
     }
+  }
+
+  // ================= v46: the ICE agents (cartoon, feet at 0,0, facing right; flipped with scale(-1,1)) =================
+  // A navy windbreaker with white "ICE" letters, a navy cap, sunglasses, gray cargo pants, boots. No weapons, no badges.
+  function iceAgent(c, o) {
+    const say = (cc, str, x, y, size, col, opt) => { if (!o.flip) return sayText(cc, str, x, y, size, col, opt); cc.save(); cc.translate(x, y); cc.scale(-1, 1); sayText(cc, str, 0, 0, size, col, opt); cc.restore(); };   // never mirrored
+    const [SK, SK2] = SKINS[o.sk || 0], NV = "#1f2c4c", NV2 = "#142039", PA = "#565d6b", PA2 = "#434955", BT = "#16181d", t = o.t || 0, q = o.ph || 0, rm = o.rm;
+    if (o.pose === "trip") {   // flat on his back, boots kicking in the air, the cap rolled off: slapstick, he gets back up
+      const kick = rm ? 0 : Math.sin(t * 14) * 0.35;
+      ell(c, "rgba(0,0,0,.25)", 2, 0, 30, 3.5);
+      line(c, PA, 8, [8, -5, 20, -16 + kick * 8, 28, -24 - kick * 6]); line(c, PA2, 8, [8, -5, 22, -10 - kick * 6, 32, -14 + kick * 8]);
+      box(c, BT, 25, -30 - kick * 6, 9, 7, 2.5); box(c, BT, 30, -19 + kick * 8, 9, 7, 2.5);
+      c.fillStyle = lin(c, 0, -14, 0, 0, [NV, NV2]); rr(c, -16, -13, 26, 13, 6); c.fill();
+      say(c, "ICE", -3, -6.5, 8, "#ffffff", { weight: 900 });
+      ell(c, SK, -22, -7, 7.5, 7); box(c, "#0d0f14", -27, -11, 9, 3.4, 1.6); ell(c, SK2, -28.5, -5, 2.2, 1.8);
+      const rx = -40 - (rm ? 0 : mod(t * 18, 14)); c.save(); c.translate(rx, -4); c.rotate(rm ? 0 : t * 6); ell(c, NV, 0, 0, 6, 4.5); box(c, NV2, -1, -5, 8, 2.2, 1); c.restore();   // the cap rolling away
+      say(c, "!?", 0, -36 - (rm ? 0 : Math.abs(Math.sin(t * 5)) * 4), 15, "#ff3d8b", { weight: 900, stroke: "#ffffff", sw: 3 });
+      return;
+    }
+    let bob = 0, lean = 0, lf, lb, af, ab;
+    if (o.pose === "run") { lf = [0.8 * Math.sin(q), 0.25 + 1.1 * Math.max(0, Math.cos(q))]; lb = [0.8 * Math.sin(q + Math.PI), 0.25 + 1.1 * Math.max(0, Math.cos(q + Math.PI))];
+      af = [-0.9 * Math.sin(q), 1.4]; ab = [0.9 * Math.sin(q), 1.4]; bob = -Math.abs(Math.cos(q)) * 2.2; lean = 0.2; }
+    else if (o.pose === "walk") { lf = [0.38 * Math.sin(q), 0.15 + 0.5 * Math.max(0, Math.cos(q))]; lb = [0.38 * Math.sin(q + Math.PI), 0.15 + 0.5 * Math.max(0, Math.cos(q + Math.PI))];
+      af = [-0.45 * Math.sin(q), 0.5]; ab = [0.45 * Math.sin(q), 0.5]; bob = -Math.abs(Math.cos(q)) * 1.2; lean = 0.04; }
+    else if (o.pose === "air") { lf = [0.9, 1.4]; lb = [-0.4, 0.9]; af = [2.4, 0.5]; ab = [-1.2, -0.5]; lean = 0.1; }
+    else if (o.pose === "tired") { const p = rm ? 0 : Math.sin(t * 7) * 0.05; lf = [0.35, 0.7]; lb = [-0.1, 0.55]; af = [0.55, 0.15]; ab = [0.4, 0.2]; lean = 0.62 + p; bob = 4; }
+    else if (o.pose === "grab") { lf = [0.45, 0.4]; lb = [-0.3, 0.3]; af = [1.75, -0.1]; ab = [1.5, 0.1]; lean = 0.08; }
+    else if (o.pose === "huh") { lf = [0.08, 0.04]; lb = [-0.08, 0.04]; af = [0.3, 2.3]; ab = [-0.15, 0.3]; lean = -0.12; }
+    else { lf = [0.1, 0.05]; lb = [-0.1, 0.05]; af = [0.2, 0.35]; ab = [-0.15, 0.35]; }
+    if (o.pose === "dizzy" && !rm) { c.save(); c.rotate(Math.sin(t * 9) * 0.08); }
+    const hx = 0, hy = -30 + bob;
+    const leg = ([a, b], col) => { const kx = hx + Math.sin(a) * 15, ky = hy + Math.cos(a) * 15, s = a - b, fx = kx + Math.sin(s) * 15, fy = ky + Math.cos(s) * 15;
+      line(c, col, 9, [hx, hy, kx, ky, fx, fy]); box(c, col === PA ? "#6a7280" : "#4d5360", kx - 3.5, ky - 3, 7, 5, 2);   // a cargo pocket
+      c.save(); c.translate(fx, fy); c.rotate(s * 0.55); box(c, BT, -4.5, -4.5, 14, 7, 3); box(c, "#050608", -5, 1.6, 15, 2.6, 1); c.restore(); };
+    const sh = { x: hx + Math.sin(lean) * 22, y: hy - Math.cos(lean) * 22 };
+    const arm = ([a, b], col, skin) => { const ex = sh.x + Math.sin(a) * 11, ey = sh.y + Math.cos(a) * 11, s = a + b, wx = ex + Math.sin(s) * 10, wy = ey + Math.cos(s) * 10;
+      line(c, col, 7.5, [sh.x, sh.y, ex, ey, wx, wy]); ell(c, skin, wx + Math.sin(s) * 2, wy + Math.cos(s) * 2, 3.3, 3.3); };
+    arm(ab, NV2, SK2); leg(lb, PA2); leg(lf, PA);
+    c.save(); c.translate(hx, hy); c.rotate(lean);
+    box(c, "#22252c", -11, -4, 22, 7, 3);   // belt
+    c.fillStyle = lin(c, -12, -26, 12, 0, ["#2c3c63", NV, NV2]); rr(c, -12, -25, 24, 23, 8); c.fill();
+    ell(c, "rgba(255,255,255,.07)", -3, -16, 7, 9);   // a little shine on the nylon
+    line(c, "rgba(0,0,0,.35)", 0.9, [7, -24, 7, -3]); box(c, "#3a4a72", -9, -26, 18, 4, 2);   // zipper + collar
+    say(c, "ICE", -1.5, -13, 9.5, "#ffffff", { weight: 900, font: UI });
+    c.translate(2.5, -32);   // head
+    box(c, SK2, -4, 4, 7, 5, 2);
+    ell(c, lin(c, -7, -7, 8, 8, [SK, SK, SK2]), 0.5, 0, 8.4, 8.8);
+    ell(c, SK2, -4.5, 1, 1.8, 2.5);   // ear
+    ell(c, SK2, 8.4, 2, 2.6, 2.4);   // a big round cartoon nose
+    if (o.st2) { c.fillStyle = "#2a1c14"; c.beginPath(); c.moveTo(3.4, 4.6); c.quadraticCurveTo(6.6, 2.6, 9.8, 4.6); c.quadraticCurveTo(6.6, 6.6, 3.4, 4.6); c.fill(); }
+    if (o.pose === "tired" || o.pose === "grab") ell(c, "#5a2a22", 6.4, 6.6, 1.8, o.pose === "tired" ? 2.2 : 1.2); else line(c, "#5a2a22", 0.9, [4.6, 7, 7.2, 6.6]);
+    if (o.pose === "dizzy") { line(c, "#1b120c", 0.9, [3, -2.5, 6, -0.5]); line(c, "#1b120c", 0.9, [3, -0.5, 6, -2.5]); }
+    else { box(c, "#0d0f14", 1.2, -3.6, 8.4, 4.2, 1.8); line(c, "#0d0f14", 1.1, [1.5, -2, -4, -1.6]); ell(c, "rgba(255,255,255,.75)", 6.6, -2.6, 1.1, 0.7, -0.4); }   // sunglasses with a glint
+    c.fillStyle = lin(c, 0, -10, 0, -2, ["#2c3c63", NV2]); c.beginPath(); c.ellipse(0.2, -3, 8.9, 7.6, 0, Math.PI, 0); c.fill();   // the cap
+    box(c, NV2, 3, -4.6, 11.5, 2.6, 1.3); box(c, "#3a4a72", -8.6, -4.4, 17.6, 1.6, 0.8);
+    if (o.pose === "run" || o.pose === "tired") { ell(c, "rgba(170,220,255,.9)", -7, -6 - (rm ? 0 : mod(t * 9, 4)), 1.3, 2); ell(c, "rgba(170,220,255,.9)", 11, -9 + (rm ? 0 : mod(t * 7, 3)), 1.1, 1.7); }   // sweat
+    c.restore();
+    arm(af, NV, SK);
+    if (o.pose === "dizzy") { if (!rm) c.restore();
+      for (let k = 0; k < 3; k++) { const a = (rm ? 0 : t * 5) + k * 2.1, sx = 3 + Math.cos(a) * 13, sy = -72 + Math.sin(a) * 3.5, col = ["#ff3d8b", "#3ee8eb", "#ffffff"][k];
+        poly(c, col, [sx, sy - 4, sx + 1.2, sy - 1.2, sx + 4, sy, sx + 1.2, sy + 1.2, sx, sy + 4, sx - 1.2, sy + 1.2, sx - 4, sy, sx - 1.2, sy - 1.2]); } }
+    if (o.pose === "dizzy" || o.pose === "huh") say(c, "?", 4, -86 + (rm ? 0 : Math.sin(t * 6) * 2), 17, "#ff3d8b", { weight: 900, stroke: "#ffffff", sw: 3 });
+    if (o.pose === "grab") say(c, "!", 6, -86, 20, "#ff3d8b", { weight: 900, stroke: "#ffffff", sw: 3 });
+    if (o.pose === "tired" && !rm) for (let k = 0; k < 2; k++) { const a = mod(t * 1.6 + k * 0.5, 1); ell(c, `rgba(255,255,255,${(0.7 * (1 - a)).toFixed(2)})`, 18 + a * 14, -50 - a * 10, 3 + a * 4, 2.4 + a * 3); }   // huff, puff
+  }
+  function iceSuv(c, x, w, night, open) {   // a dark unmarked SUV (faces right), the driver's door swings open when an agent hops out
+    ell(c, "rgba(0,0,0,.3)", x + w / 2, 0, w / 2 + 4, 4);
+    c.fillStyle = lin(c, 0, -54, 0, -8, ["#3a404c", "#20242c", "#121419"]); c.beginPath();
+    c.moveTo(x + 4, -12); c.lineTo(x + 2, -34); c.quadraticCurveTo(x + 3, -40, x + 10, -40); c.lineTo(x + 16, -54); c.lineTo(x + w - 34, -54); c.lineTo(x + w - 20, -40);
+    c.lineTo(x + w - 6, -38); c.quadraticCurveTo(x + w, -36, x + w, -28); c.lineTo(x + w, -12); c.closePath(); c.fill();
+    poly(c, lin(c, x, -52, x + w, -40, ["#2b3a4e", "#4e6680", "#2b3a4e"]), [x + 19, -51, x + 52, -51, x + 52, -41, x + 13, -41]);
+    poly(c, lin(c, x, -52, x + w, -40, ["#2b3a4e", "#4e6680", "#2b3a4e"]), [x + 56, -51, x + w - 36, -51, x + w - 25, -41, x + 56, -41]);
+    c.fillStyle = "rgba(255,255,255,.22)"; c.beginPath(); c.moveTo(x + 64, -41); c.lineTo(x + 72, -51); c.lineTo(x + 77, -51); c.lineTo(x + 69, -41); c.fill();
+    line(c, "#8a939c", 1.2, [x + 6, -27, x + w - 2, -27]); box(c, "#c9d0d8", x + 18, -56, w - 56, 2, 1);   // chrome trim + roof rails
+    line(c, "rgba(0,0,0,.45)", 0.9, [x + 54, -41, x + 54, -14]); line(c, "rgba(0,0,0,.45)", 0.9, [x + w - 30, -40, x + w - 30, -14]);
+    box(c, "#c9d0d8", x + 44, -34, 6, 1.6, 0.8); box(c, "#c9d0d8", x + w - 42, -34, 6, 1.6, 0.8);
+    box(c, "#d7262e", x + 1, -34, 3, 8, 1); ell(c, night ? "#fff6e0" : "#e8edf2", x + w - 3, -31, 3, 2.4);
+    if (night) { c.fillStyle = "rgba(255,240,210,.22)"; c.beginPath(); c.moveTo(x + w - 2, -31); c.lineTo(x + w + 90, -44); c.lineTo(x + w + 90, -6); c.closePath(); c.fill(); }
+    box(c, "#0b0c0f", x + 2, -14, w - 2, 5, 2);
+    for (const wx of [x + 26, x + w - 26]) { ell(c, "#0b0c0f", wx, -10, 13, 13); ell(c, "#14161a", wx, -10, 10.5, 10.5); ell(c, lin(c, wx - 6, -16, wx + 6, -4, ["#e8edf2", "#7d848e"]), wx, -10, 6, 6); ell(c, "#2b2f38", wx, -10, 2, 2); }
+    if (open) { poly(c, lin(c, x + w - 30, 0, x + w + 6, 0, ["#2a2f38", "#15171c"]), [x + w - 30, -40, x + w - 4, -48, x + w - 4, -20, x + w - 30, -14]); poly(c, "#3a4a5e", [x + w - 27, -40, x + w - 8, -46, x + w - 8, -36, x + w - 27, -32]); }
+  }
+  function flipflops(c, x, y, t, rm) {   // the 🩴 shield power-up: a pair of turquoise flip-flops with a twinkle
+    const by = y + (rm ? 0 : Math.sin(t * 4 + 2) * 3);
+    if (!rm) { c.fillStyle = "rgba(62,232,235,.22)"; c.beginPath(); c.arc(x + 15, by + 9, 19 + Math.sin(t * 5) * 1.5, 0, Math.PI * 2); c.fill(); }
+    for (const [dx, rot] of [[8, -0.35], [21, 0.3]]) { c.save(); c.translate(x + dx, by + 9); c.rotate(rot);
+      ell(c, lin(c, 0, -9, 0, 9, ["#3ee8eb", "#00a7a0"]), 0, 0, 5.5, 9.5); ell(c, "#ffffff", 0, -0.5, 3.6, 7.2); ell(c, "#7ff2f3", 0, -0.5, 3, 6.6);
+      line(c, "#ff3d8b", 1.8, [-3.6, 1.5, 0, -5, 3.6, 1.5]); c.restore(); }
+    if (!rm) { const a = t * 3, sx = x + 15 + Math.cos(a) * 17, sy = by + 9 + Math.sin(a) * 12; poly(c, "#ffffff", [sx, sy - 4, sx + 1, sy - 1, sx + 4, sy, sx + 1, sy + 1, sx, sy + 4, sx - 1, sy + 1, sx - 4, sy, sx - 1, sy - 1]); }
   }
 
   function heart(c, x, y, r, col) { c.fillStyle = col; c.beginPath(); c.moveTo(x, y + r * 0.9); c.bezierCurveTo(x - r * 1.4, y - r * 0.1, x - r * 0.7, y - r * 1.25, x, y - r * 0.45); c.bezierCurveTo(x + r * 0.7, y - r * 1.25, x + r * 1.4, y - r * 0.1, x, y + r * 0.9); c.fill(); }
@@ -483,7 +595,7 @@
         <button type="button" id="juan-restart" class="lot-btn" aria-label="Restart level"><span aria-hidden="true">↺</span><span class="juan-lbl"> Restart level</span></button>
         <button type="button" id="juan-sound" class="lot-btn" aria-pressed="true"></button>
       </div>
-      <p class="lot-rules">Tap the game (or Space / ↑) to jump; tap again in the air for a double jump. Hop the cones, potholes, runaway carts, loose chanclas, yappy chihuahuas and sprinklers: every bump costs a little health. ☕ Coffee = speed boost · Breakfast taco = more health · Conchas = points. On the way to the cantina, jump for the cold ones: each gives a little health. Out of health? Back to the last 🚩 checkpoint. Nobody gets hurt.</p>
+      <p class="lot-rules">Tap the game (or Space / ↑) to jump; tap again in the air for a double jump. Hop the cones, potholes, runaway carts, loose chanclas, yappy chihuahuas and sprinklers: every bump costs a little health. ICE agents patrol the sidewalks and hop out of dark SUVs to chase Juan: jump over them or outrun them. If one catches him, it's back to the last 🚩 checkpoint. 🩴 Flip-flops = a shield (the next agent just gets dizzy). ☕ Coffee = speed boost · Breakfast taco = more health · Conchas = points. On the way to the cantina, jump for the cold ones: each gives a little health. Out of health? Back to the last 🚩 checkpoint. Nobody gets hurt.</p>
       <p class="lot-stats" id="juan-stats"></p>`;
     const cv = el.querySelector("#juan-cv"), g = cv.getContext("2d", { alpha: false }), ov = el.querySelector("#juan-ov"), wrap = el.querySelector(".juan-wrap"), $ = (s) => el.querySelector(s);
     const HAT = `<svg class="gfs-juan-hat" viewBox="0 0 32 20" aria-hidden="true" focusable="false"><path d="M4 15a12 12 0 0 1 24 0z" fill="#fff"/><rect x="1" y="14" width="30" height="4" rx="2" fill="#e1e6ea"/><rect x="14.5" y="3.4" width="3" height="11" rx="1.2" fill="#c9d0d8"/></svg>`;
@@ -509,10 +621,13 @@
       oops: () => [392, 330, 262, 196].forEach((f, i) => beep(f, 0.12, null, "triangle", 0.06, i * 0.1)),
       clear: () => [523, 659, 784, 659, 784, 1047].forEach((f, i) => beep(f, 0.1, null, "triangle", 0.06, i * 0.09)),
       check: () => { beep(784, 0.07, null, "triangle", 0.05); beep(1047, 0.1, null, "triangle", 0.05, 0.07); },
+      fuera: () => [659, 880, 1175].forEach((f, i) => beep(f, 0.09, null, "triangle", 0.06, i * 0.07)),
+      whistle: () => { beep(1760, 0.12, 2200, "sine", 0.05); beep(1760, 0.16, 2400, "sine", 0.05, 0.16); },
+      shield: () => beep(700, 0.18, 300, "sawtooth", 0.03), bonk: () => beep(180, 0.12, 90, "square", 0.04),
     };
     // ---- state
     let oopsMsg = OOPS[0], level = 1, ents = [], hero, camX = 0, score = 0, ckScore = 0, ck = 0, mode = "title", t = 0, raf = null, last = 0, shake = 0, parts = [], msgT = 0, msg = "";
-    let fx = [], fxMade = 0, dustT = 0, paused = false, beersGot = 0;
+    let fx = [], fxMade = 0, dustT = 0, paused = false, beersGot = 0, fueraT = 0, fueras = 0, caughtN = 0, caughtBy = "";
     let S = 1, VH = 580, GS = VH - ROADH, dpr = 1, dprCap = 3, cssW = VW, cache = {}, perf = { n: 0, sum: 0 };
     const cam = (x) => Math.min(x - HERO_X, CAM_END);
     const L = () => LEVELS[level - 1], P = () => SKY[L().time], isNight = () => L().time === "night";
@@ -521,8 +636,8 @@
       const x0 = CHECKS[atCheck];
       ents = buildLevel(level).filter((e) => !((e.t === "concha" || e.t === "beer") && e.x < x0));
       for (const e of ents) if (e.t === "flag" && e.x <= x0) e.done = true;
-      hero = { x: x0 + 8, y: -HERO_H, w: HERO_W, h: HERO_H, vy: 0, ground: true, jumps: 2, boost: 0, stumble: 0, inv: 0, frame: 0, health: HP };
-      camX = cam(hero.x); score = ckScore; parts = []; fx = []; msgT = 0; shake = 0;
+      hero = { x: x0 + 8, y: -HERO_H, w: HERO_W, h: HERO_H, vy: 0, ground: true, jumps: 2, boost: 0, stumble: 0, inv: 0, frame: 0, health: HP, shield: 0 };
+      camX = cam(hero.x); score = ckScore; parts = []; fx = []; msgT = 0; shake = 0; fueraT = 0;
     }
     function startLevel(n, keepScore) {
       if (n !== level) cache = {};
@@ -552,10 +667,12 @@
       }
       if (fx.length > 200) fx.splice(0, fx.length - 200);
     }
-    function oops() {
-      mode = "oops"; oopsMsg = OOPS[Math.floor(Math.random() * OOPS.length)]; SFX.oops(); if (!reduced()) shake = 0.3;
+    function oops(by) {   // out of health, or (v46) an agent caught up with him: a big "¡Ay no!", then back to the last 🚩
+      mode = "oops"; oopsMsg = by ? CAUGHT : OOPS[Math.floor(Math.random() * OOPS.length)]; SFX.oops(); if (!reduced()) shake = 0.3;
+      if (by) { caughtN++; caughtBy = by.t; by.st = "grab"; } fueraT = 0;
       st.best = Math.max(st.best, score); save(st); stats();
-      overlay(`<p class="sr-only">${oopsMsg}</p><p class="juan-oops">Juan's worn out. Try again from the ${ck ? "checkpoint 🚩" : "start"}.</p>`, "soft oops");
+      const where = ck ? "checkpoint 🚩" : "start";
+      overlay(`<p class="sr-only">${oopsMsg}</p><p class="juan-oops">${by ? `Caught! Juan tries again from the ${where}.` : `Juan's worn out. Try again from the ${where}.`}</p>`, "soft oops");
       setTimeout(() => { if (mode === "oops") { spawn(ck); mode = "run"; overlay(null); } }, 1400);
     }
     function ouch(e) {
@@ -572,7 +689,40 @@
       if (e.t === "concha") { score += 10; SFX.coin(); puff(e.x + 11, e.y + 8, 5, "spark"); }
       else if (e.t === "beer") { h.health = Math.min(HP, h.health + 8); score += 15; beersGot++; SFX.salud(); msg = "¡Salud! +8 health"; msgT = 1.1; puff(e.x + 12, e.y + 10, 10, "spark"); }
       else if (e.t === "coffee") { h.boost = 5; score += 50; SFX.power(); msg = "Coffee! Speed boost"; msgT = 1.5; puff(e.x + 11, e.y + 14, 14, "spark"); }
+      else if (e.t === "flipflops") { h.shield = 1; score += 50; SFX.power(); msg = "Flip-flops! Shield on"; msgT = 1.5; puff(e.x + 15, e.y + 9, 14, "spark"); }
       else if (e.t === "taco") { h.health = Math.min(HP, h.health + 30); score += 50; SFX.power(); msg = "Breakfast taco! +30 health"; msgT = 1.5; puff(e.x + 16, e.y + 10, 14, "spark"); }
+    }
+    // ---- v46: the ICE agents
+    function fuera(pts) { fueras++; fueraT = 1.1; score += pts; SFX.fuera(); puff(hero.x + 13, hero.y - 6, 10, "spark"); }
+    function escape(e) { if (e.away) return; e.away = true; fuera(100); }
+    function iceStep(e, h, dt) {   // true = Juan got caught
+      e.tt = Math.max(0, (e.tt || 0) - dt);
+      if (e.t === "agent") {
+        if (e.st === "walk") { e.x += e.vx * dt; if (e.x < e.home - 90) e.vx = Math.abs(e.vx); if (e.x > e.home + 10) e.vx = -Math.abs(e.vx);
+          const cone = ents.find((k) => k.t === "cone" && !k.down && Math.abs(k.x + 12 - (e.x + 15)) < 7);
+          if (cone) { e.st = "trip"; e.tt = 2.4; cone.down = true; SFX.bonk(); puff(e.x + 15, -4, 6, "dust"); } }
+        else if (e.tt === 0 && e.st !== "grab") e.st = "walk";
+      } else {   // the chaser who hopped out of an SUV
+        if (e.st === "chase") {
+          const sp = L().speed * (reduced() ? 0.88 : 1); e.x += sp * dt;   // as fast as Juan on a normal stride: a bump (a stumble) lets him gain, ☕ coffee leaves him behind
+          e.run = (e.run || 0) + sp * dt * 0.09;
+          e.vy = (e.vy || 0) + GRAV * dt; e.y += e.vy * dt; if (e.y >= -e.h) { e.y = -e.h; e.vy = 0; e.air = false; }
+          if (!e.air) {
+            const cone = ents.find((k) => k.t === "cone" && Math.abs(k.x + 12 - (e.x + 15)) < 7);
+            if (cone) { e.st = "trip"; cone.down = true; SFX.bonk(); puff(e.x + 15, -4, 6, "dust"); escape(e); }
+            else if (ents.some((k) => k !== e && !k.gone && (HAZ[k.t] || SOLID.includes(k.t) || k.t === "agent") && k.x - (e.x + e.w) > 0 && k.x - (e.x + e.w) < 34)) { e.vy = JUMP * 0.95; e.air = true; }
+          }
+          if (e.st === "chase" && (e.tt === 0 || h.x - (e.x + e.w) > 150)) { e.st = "tired"; e.y = -e.h; escape(e); }   // out of breath: Juan got away
+        }
+        else if (e.st === "dizzy" && e.tt === 0) e.st = "tired";
+      }
+      const danger = (e.t === "agent" && e.st === "walk") || (e.t === "chaser" && e.st === "chase");
+      if (danger && h.inv <= 0 && hit(h, e, 5)) {
+        if (h.shield > 0) { h.shield = 0; h.inv = 1.2; e.st = "dizzy"; e.tt = 2.5; SFX.shield(); msg = "Flip-flops! He's dizzy"; msgT = 1.3; score += 100; puff(e.x + 15, e.y + 6, 10, "spark"); if (e.t === "chaser") escape(e); }
+        else { oops(e); return true; }
+      }
+      if (e.t === "agent" && !e.passed && h.x > e.x + e.w) { e.passed = true; if (e.st === "walk") { e.st = "huh"; e.tt = 1.3; e.vx = Math.abs(e.vx); } fuera(50); }   // hopped right over him
+      return false;
     }
     function clear() {
       const name = L().name; score += 500; ckScore = score; st.best = Math.max(st.best, score);
@@ -596,7 +746,7 @@
       if (mode === "win") { for (const p of parts) { p.y += p.vy * dt; p.x += p.vx * dt; p.r += dt * 4; if (p.y > VH) p.y -= VH + 10; } return; }
       if (mode !== "run") return;
       const h = hero, vx = speed(), wasGround = h.ground;
-      h.boost = Math.max(0, h.boost - dt); h.stumble = Math.max(0, h.stumble - dt); h.inv = Math.max(0, h.inv - dt);
+      h.boost = Math.max(0, h.boost - dt); h.stumble = Math.max(0, h.stumble - dt); h.inv = Math.max(0, h.inv - dt); fueraT = Math.max(0, fueraT - dt);
       h.x += vx * dt; h.frame += vx * dt * 0.09;
       const prevBottom = h.y + h.h;
       h.vy += GRAV * dt; h.y += h.vy * dt; h.ground = false;
@@ -607,6 +757,11 @@
         else if (e.t === "chihuahua") { e.x += e.vx * dt; if (e.x < e.home - 70) e.vx = Math.abs(e.vx); if (e.x > e.home + 20) e.vx = -Math.abs(e.vx); }
         else if (e.t === "chancla") { e.y = -e.h - Math.abs(Math.sin(t * 3.2 + e.ph)) * 46; if (e.x - h.x < 520) e.x -= 28 * dt; }
         else if (e.t === "sprinkler") e.on = mod(t + e.ph, 2.4) < 1.3;
+        if (e.t === "agent" || e.t === "chaser") { if (iceStep(e, h, dt)) return; continue; }
+        if (e.t === "suv" && !e.out && h.x > e.x + e.w + 34) {   // an agent hops out and gives chase
+          e.out = true; ents.push({ t: "chaser", x: h.x - 74, y: -64, w: 30, h: 64, vy: 0, st: "chase", tt: 3.4, run: 0, sk: e.sk, st2: !!(e.sk % 2) });
+          msg = VAMONOS; msgT = 1.3; SFX.whistle();
+        }
         if (e.t === "flag") { if (!e.done && h.x >= e.x) { e.done = true; ck = CHECKS.indexOf(e.x); ckScore = score; SFX.check(); msg = "Checkpoint! 🚩"; msgT = 1.2; puff(e.x + 16, -60, 12, "spark"); } continue; }
         if (SOLID.includes(e.t)) {
           if (h.x + h.w - 3 > e.x && h.x + 3 < e.x + e.w) {
@@ -721,6 +876,8 @@
       else if (!h.ground) pose = h.vy < 0 ? "up" : "down";
       if (mode === "title" || mode === "clear") pose = "stand";
       g.save(); g.translate(fx0, h.y + h.h); juan(g, { outfit: L().outfit, pose, ph: h.frame, t }); g.restore();
+      if (h.shield > 0) { const pr = reduced() ? 0 : Math.sin(t * 6) * 2; g.strokeStyle = "rgba(62,232,235,.75)"; g.lineWidth = 2.2; g.beginPath(); g.ellipse(fx0 + 2, h.y + h.h / 2 - 6, 26 + pr, 44 + pr, 0, 0, Math.PI * 2); g.stroke();
+        g.fillStyle = "rgba(62,232,235,.10)"; g.fill(); }   // the 🩴 shield bubble
       if (h.boost > 0 && !reduced()) for (let i = 0; i < 4; i++) line(g, i % 2 ? "#3ee8eb" : "#ffffff", 1.6, [h.x - 8 - i * 6 - mod(t * 120, 10), h.y + 14 + i * 9, h.x - 26 - i * 6 - mod(t * 120, 10), h.y + 14 + i * 9]);
     }
     function drawFx() {
@@ -749,6 +906,8 @@
       box(g, on ? "#3ee8eb" : "#5a6078", cx - 6, 38, 11, 11, 2.5); g.strokeStyle = on ? "#3ee8eb" : "#5a6078"; g.lineWidth = 2; g.beginPath(); g.arc(cx + 5.5, 43.5, 3, -1.4, 1.4); g.stroke();
       if (on && !reduced()) line(g, "#ffffff", 1.2, [cx - 2, 35, cx - 1, 32, cx - 2, 29]);
       if (on) box(g, "#3ee8eb", cx - 7, 52.5, 14 * hero.boost / 5, 2, 1);
+      const sOn = hero.shield > 0, fx2 = 282;   // 🩴 shield slot
+      g.save(); g.translate(fx2, 43.5); g.rotate(-0.4); ell(g, sOn ? "#3ee8eb" : "#5a6078", 0, 0, 3.6, 6.2); line(g, sOn ? "#ff3d8b" : "#3a4058", 1.3, [-2.4, 1, 0, -3, 2.4, 1]); g.restore();
       say(g, `HI ${Math.max(st.best, score)}`, VW - 14, 45, 10.5, "#9aa3b5", { font: UI, weight: 800, align: "right" });
       if (msgT > 0) { g.font = `800 13px ${UI}`; const w = g.measureText(msg).width + 26; box(g, "rgba(13,15,26,.85)", (VW - w) / 2, 68, w, 26, 13); say(g, msg, VW / 2, 81.5, 13, "#3ee8eb", { font: UI, weight: 800 }); }
     }
@@ -766,11 +925,13 @@
       const dx = destX() - camX; if (dx < VW + 10) { g.setTransform(1, 0, 0, 1, Math.round((dx + sx) * S), 0); g.drawImage(cache.dest, 0, Math.round((GS - 12 - 360) * S)); }
       g.setTransform(S, 0, 0, S, (sx - camX) * S, GS * S);
       const rm = reduced();
-      for (const e of ents) if (!e.gone && e.x < camX + VW + 40 && e.x + e.w > camX - 90) drawEnt(g, e, t, rm);
+      for (const pass of [0, 1]) for (const e of ents) if (!e.gone && (e.t === "agent" || e.t === "chaser") === !!pass && e.x < camX + VW + 40 && e.x + e.w > camX - 90) drawEnt(g, e, t, rm);   // the agents on top
       drawJuanAt(); drawFx();
       if (mode === "win") { g.setTransform(S, 0, 0, S, 0, 0); for (const p of parts) { g.save(); g.translate(p.x, p.y); g.rotate(p.r); box(g, p.c, -3, -2, 6, 4); g.restore(); } }
       hud();
       if (mode === "oops") say(g, oopsMsg, VW / 2, VH * 0.34, 42, "#ff3d8b", { font: UI, weight: 900, stroke: "#111111", sw: 7, max: VW - 30 });
+      else if (fueraT > 0) { const pop = reduced() ? 1 : 1 + Math.max(0, fueraT - 0.9) * 2.2;   // v46: Juan got away
+        g.globalAlpha = Math.min(1, fueraT * 3); say(g, FUERA, VW / 2, VH * 0.3, 46 * pop, "#3ee8eb", { font: UI, weight: 900, stroke: "#111111", sw: 7, max: VW - 30 }); g.globalAlpha = 1; }
     }
     function fit() {
       let w, h;
@@ -790,10 +951,10 @@
     function title() {
       level = 1; cache = {}; spawn(0); hero.x = 140; camX = cam(hero.x); mode = "title"; fit();
       const cont = st.levelMax > 1 ? `<button type="button" class="lot-btn" data-act="cont">▶ Keep going: level ${st.levelMax}</button>` : "";
-      $("#juan-note").textContent = "Help Juan get through the day: 5 stops from Home Dehole to the cantina. Hop the cones, potholes and runaway carts, and grab a coffee.";
+      $("#juan-note").textContent = "Help Juan get through the day: 5 stops from Home Dehole to the cantina. Hop the cones, potholes and runaway carts, dodge the ICE agents, and grab a coffee.";
       overlay(`<p class="juan-big">The Juan That Got Away</p><p class="juan-story">Help Juan get through the day!</p>
         <ol class="juan-stops">${LEVELS.map((l, i) => `<li><span>${i + 1}</span>${l.name}</li>`).join("")}</ol>
-        <p class="juan-sub">Supplies, lunch, a truck part, home to change, then boots on for Noche Caliente. <span lang="es">¡Ándale!</span></p>
+        <p class="juan-sub">Supplies, lunch, a truck part, home to change, then the cantina. Dodge the ICE agents! <span lang="es">¡Ándale!</span></p>
         <p class="juan-btns"><button type="button" class="lot-btn lot-main" data-act="start">▶ Start at level 1</button>${cont}</p>${st.best ? `<p class="juan-score">Best score <b>${st.best}</b></p>` : ""}`, "title");
     }
     function loop() {
@@ -846,19 +1007,25 @@
       pause, resume, jump,
       fs, exitFullscreen: (quiet) => fs.exit(quiet),
       destroy() { fs.exit(true); cancelAnimationFrame(raf); document.removeEventListener("keydown", onKey); document.removeEventListener("keyup", onKeyUp); root.removeEventListener("resize", onWin); cache = {}; },
-      get state() { return { oopsMsg, msg, mode, level, name: L().name, outfit: L().outfit, x: hero.x, y: hero.y, ground: hero.ground, score, ck, best: st.best, muted: st.muted, boost: hero.boost, health: hero.health, beers: beersGot,
+      get state() { return { oopsMsg, msg, mode, level, name: L().name, outfit: L().outfit, x: hero.x, y: hero.y, ground: hero.ground, score, ck, best: st.best, muted: st.muted, boost: hero.boost, health: hero.health, beers: beersGot, shield: hero.shield, fuera: fueraT > 0, fueras, caught: caughtN, caughtBy,
+        chase: ents.some((e) => e.t === "chaser" && e.st === "chase"),
         levelMax: st.levelMax, parallax: !reduced(), overlay: ov.textContent.trim(), fullscreen: fs.on, W: VW, H: VH, dpr, cssW, backing: [cv.width, cv.height], fx: fx.length, fxMade }; },
       // test hooks: jump to a spot in a level (as if you'd run there), set the health bar
       warp(n, x) { if (n !== level || mode === "title" || mode === "win" || mode === "clear") startLevel(n, true); if (paused) resume(); hero.x = x; hero.y = -HERO_H; hero.vy = 0; camX = cam(x);
         for (const e of ents) if (e.t === "flag" && e.x <= x) { e.done = true; ck = CHECKS.indexOf(e.x); }
-        ents = ents.filter((e) => !(HAZARDS.includes(e.t) || SOLID.includes(e.t)) || e.x > x + 90 || e.x + e.w < x - 60); },
+        for (const e of ents) if (HAZARDS.includes(e.t) && e.x > x) { e.hit = false; e.down = false; }   // v46: the road ahead as new (an agent may have knocked a cone over)
+        ents = ents.filter((e) => !(HAZARDS.includes(e.t) || SOLID.includes(e.t)) || e.x > x + 90 || e.x + e.w < x - 60);
+        ents = ents.filter((e) => !ICE.includes(e.t) || e.t === "suv" && e.x + e.w < x - 60 || e.x > x + 320); },   // v46: no agent right on top of him either
+      air(y) { hero.y = y - HERO_H; hero.vy = 0; hero.ground = false; hero.jumps = 1; },   // test hooks: put Juan in the air…
+      clearAhead(d) { ents = ents.filter((e) => !(HAZARDS.includes(e.t) || SOLID.includes(e.t) || e.t === "agent") || e.x > hero.x + d || e.x + e.w < hero.x - 40); },   // …clear the road ahead…
+      stumble(s) { hero.stumble = s; },   // …or slow him down (so a chaser catches up)
       setHealth(v) { hero.health = Math.max(0, Math.min(HP, v)); },
-      ents: () => ents.filter((e) => !e.gone).map((e) => ({ t: e.t, x: e.x, y: e.y, st: e.hit ? "hit" : e.on ? "on" : "" })),
+      ents: () => ents.filter((e) => !e.gone).map((e) => ({ t: e.t, x: e.x, y: e.y, w: e.w, st: e.hit ? "hit" : e.on ? "on" : ICE.includes(e.t) ? e.st || (e.out ? "out" : "") : "" })),
     };
   }
 
   const game = { id: "juan", name: "The Juan That Got Away", emoji: "👢", blurb: "Help Juan get through the day: 5 stops, from Home Dehole to the cantina.", mount };
-  const api = { KEY, LEVELS, END, CHECKS, VW, HP, HAZ, buildLevel, load, save, reset, game };
+  const api = { KEY, LEVELS, END, CHECKS, VW, HP, HAZ, ICE, CAUGHT, FUERA, buildLevel, load, save, reset, game };
   if (typeof module === "object" && module.exports) module.exports = api;
   else { root.ChismeJuan = api; if (root.ChismeJuegos) root.ChismeJuegos.GAMES.push(game); }
 })(typeof window !== "undefined" ? window : this);
