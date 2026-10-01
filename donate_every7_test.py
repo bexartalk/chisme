@@ -34,7 +34,7 @@ CARD_JS = """(sel) => { const c = document.querySelector(sel); if (!c) return nu
   const a = [...c.querySelectorAll('a.donate-btn')], sh = c.querySelector('.share-chisme'), x = c.querySelector('.donate-x');
   const cols = [c, ...c.querySelectorAll('*')].flatMap((n) => { const s = getComputedStyle(n); return [s.backgroundColor, s.color, s.borderTopColor]; });
   return { text: c.querySelector('.donate-text').textContent, links: a.map((l) => [l.getAttribute('href'), l.target, l.rel]), share: sh ? sh.textContent.trim() : null,
-    shareH: sh ? sh.getBoundingClientRect().height : 0, x: x ? x.getAttribute('aria-label') : null, tag: (c.querySelector('.donate-tag') || {}).textContent, cols, w: r.width }; }"""
+    shareH: sh ? sh.getBoundingClientRect().height : 0, x: x ? x.getAttribute('aria-label') : null, tag: !c.querySelector('.donate-tag') && (c.querySelector('a.donate-btn.cashapp .ca-tag') || {}).textContent,   /* v47: inside the button */ cols, w: r.width }; }"""
 GO = "(i) => { const s = document.querySelector('#feed-scroll'); s.scrollTo({ top: i * s.clientHeight, behavior: 'instant' }); }"
 
 async def main():

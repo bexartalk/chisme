@@ -36,10 +36,10 @@ def contrast(a, b):
     la, lb = sorted([lum(a), lum(b)], reverse=True); return (la + 0.05) / (lb + 0.05)
 rgb = lambda s: tuple(int(float(x)) for x in s[s.index("(") + 1:s.index(")")].split(",")[:3])
 
-DONATE = """(id) => { const box = document.getElementById(id), a = box.querySelector('.donate-btn'), tag = box.querySelector('.donate-tag'), t = box.querySelector('.donate-text');
+DONATE = """(id) => { const box = document.getElementById(id), a = box.querySelector('.donate-btn'), tag = a.querySelector('.ca-tag'), t = box.querySelector('.donate-text');   // v47: the tag is inside the button
   const ra = a.getBoundingClientRect(), rt = tag.getBoundingClientRect(), cs = getComputedStyle(a), card = getComputedStyle(box.closest('.card, .settings-body, dialog') || box);
-  return { text: t.textContent, btn: a.textContent.replace(a.querySelector('.sr-only')?.textContent || '', '').trim(), href: a.getAttribute('href'), target: a.target, rel: a.rel,
-    tag: tag.textContent, below: rt.top >= ra.bottom - 1, h: Math.round(ra.height), bg: cs.backgroundColor, fg: cs.color,
+  return { text: t.textContent, btn: a.textContent.replace(a.querySelector('.sr-only')?.textContent || '', '').replace(/\s+/g, ' ').trim(), oldTag: !!box.querySelector('.donate-tag'), href: a.getAttribute('href'), target: a.target, rel: a.rel,
+    tag: tag.textContent, below: rt.left >= ra.left - 0.5 && rt.right <= ra.right + 0.5 && rt.top >= ra.top - 0.5 && rt.bottom <= ra.bottom + 0.5 && !!a.querySelector('.ca-main'), h: Math.round(ra.height), bg: cs.backgroundColor, fg: cs.color,
     textColor: getComputedStyle(t).color, cardBg: getComputedStyle(box).backgroundColor, inList: !!box.closest('.news-list, .food-list, #food-creators'),
     last: box.parentElement.lastElementChild === box, parent: box.parentElement.id }; }"""
 
@@ -53,8 +53,8 @@ async def webkit_part(p):
     await pg.goto(URL); await pg.wait_for_function("window.__chisme && __chisme.ready && document.querySelector('#near-list .story')", timeout=120000)
     d = await pg.evaluate(DONATE, "donate-news")
     check(d["text"] == TEXT, f"News donate card, exact text: '{d['text']}'")
-    check(d["btn"] == "💸 Donate on Cash App" and d["href"] == "https://cash.app/$Slurmkaos" and d["target"] == "_blank" and "noopener" in d["rel"], f"button '{d['btn']}' → {d['href']} (new tab, {d['rel']})")
-    check(d["tag"] == "$Slurmkaos" and d["below"], "$Slurmkaos shows under the button")
+    check(d["btn"] == "💸 Donate on Cash App · $Slurmkaos" and d["href"] == "https://cash.app/$Slurmkaos" and d["target"] == "_blank" and "noopener" in d["rel"], f"button '{d['btn']}' → {d['href']} (new tab, {d['rel']})")
+    check(d["tag"] == "$Slurmkaos" and d["below"] and not d["oldTag"], "v47: $Slurmkaos is inside the green button (no separate line under it)")
     check(d["last"] and d["parent"] == "view-news" and not d["inList"], "it's the last thing in News, not between stories")
     check(d["bg"] == "rgb(0, 214, 50)" and contrast(rgb(d["bg"]), rgb(d["fg"])) >= 7 and d["h"] >= 48, f"Cash App green button, black text (contrast {contrast(rgb(d['bg']), rgb(d['fg'])):.1f}:1), {d['h']} px tall")
     between = await pg.evaluate("[...document.querySelectorAll('#near-list > *, #city-list > *, #sa-list > *')].filter(n => n.querySelector && (n.matches('.donate') || n.querySelector('.donate'))).map(n => n.id)")
@@ -80,7 +80,7 @@ async def webkit_part(p):
     await pg.evaluate("__chisme.goView('news', { instant: true })")
     await pg.tap("#settings-btn"); await pg.wait_for_function("document.querySelector('#settings').open")
     d = await pg.evaluate(DONATE, "set-donate")
-    check(d["text"] == TEXT and d["btn"] == "💸 Donate on Cash App" and d["tag"] == "$Slurmkaos" and d["below"], "Settings: a 'Support Chisme' row with the same text, button and $Slurmkaos")
+    check(d["text"] == TEXT and d["btn"] == "💸 Donate on Cash App · $Slurmkaos" and d["tag"] == "$Slurmkaos" and d["below"] and not d["oldTag"], "Settings: a 'Support Chisme' row with the same text and button, $Slurmkaos inside it")
     st = await pg.evaluate("({ btn: document.querySelector('#set-push').disabled, status: document.querySelector('#set-push-status').textContent, pm: 'PushManager' in window })")
     if not st["pm"]:
         check(st["btn"] and "Add to Home Screen" in st["status"] and "16.4" in st["status"], f"iPhone in Safari (not the Home Screen app): alerts explain how: '{st['status'][:90]}…'")

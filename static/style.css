@@ -855,7 +855,17 @@ html.feed-open,html.feed-open body{overflow:hidden}
 .donate-btn.bmc:hover{background:#ff9a33}
 [data-theme="dark"] .donate-btn.bmc{border-color:var(--orange);box-shadow:0 4px 0 #9a4e00}
 [data-theme="dark"] .donate-btn.bmc:active{box-shadow:0 1px 0 #9a4e00}
-.donate-tag{margin:8px 0 0;font-weight:800;font-size:.95rem;letter-spacing:.02em;color:var(--muted)}
+/* v47: the Cash App tag lives inside the green button: "💸 Donate on Cash App · $Slurmkaos" on one line when it fits,
+   else $Slurmkaos on a 2nd line inside the button (container query on the button's own width; no support = it just wraps at the dot) */
+.donate-btns .donate-btn.cashapp{flex-basis:400px;max-width:500px;container-type:inline-size}
+.donate-btn .ca-lbl{text-align:center;line-height:1.15}
+.donate-btn .ca-main,.donate-btn .ca-tag{white-space:nowrap}
+.donate-btn .ca-tag{letter-spacing:.02em}
+@media (max-width:360px){ .donate-btns .donate-btn.cashapp{padding-inline:.65em;gap:.35em;font-size:1rem} }   /* 320 px phones: "Donate on Cash App" stays on one line */
+@container (max-width: 19.4em){
+  .donate-btn .ca-dot{display:none}
+  .donate-btn .ca-tag{display:block;font-size:.95em;margin-top:2px}
+}
 .set-donate{text-align:left}
 .set-donate .donate-text{font-size:.95rem;margin-bottom:10px}
 .reduce-motion .donate-btn:active{transform:none}
@@ -1097,7 +1107,6 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
 .vf-donate{display:flex;align-items:center;justify-content:center;padding:24px 16px}
 .vf-donate .donate-every{width:100%;max-width:420px;margin:0;background:#101320;color:#fff;border-color:var(--turq)}
 .vf-donate .donate-text{color:#fff;font-size:1.15rem}
-.vf-donate .donate-tag{color:#c9d0d8}
 .vf-donate .donate-x{color:#c9d0d8}
 
 /* ---------- v40: games play full screen in portrait (ChismeJuegos.fullscreen). A fixed overlay over the whole screen,

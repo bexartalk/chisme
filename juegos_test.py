@@ -10,6 +10,7 @@
    called card (an uncalled one shakes), tap again to take it off; ¡Lotería! checks the beans,
    confetti + a brag on a win, wins/streak/best in localStorage. The Juan That Got Away (v44, replaces Ice Ice Bebé): run, jump (tap / Space),
    a bump costs health, out of health → a random "¡Ay no!" / "¡Híjole!" / "¡Ándale, otra vez!" (kept in Spanish) and back to the checkpoint,
+   v47: caught by ICE → a random "¡Ay no!" / "¡Ay cabrón!" / "¡Chingao!" / "¡Pinche ICE!" / "¡Ay, vengo mamá!", never the same twice in a row; the longest fits 320 px,
    coffee boost, taco health, beers (+health) at night, level clear, the win at Noche Caliente ("¡Salud, Juan!"), English UI, best score, mute, pause.
    Reduce motion (no confetti, no parallax). No links and no outside requests in the games. Settings → default tab Juegitos.
 3. Chromium: offline (service worker), Juegitos still opens and both games run.
@@ -17,7 +18,7 @@
    v43: the tabla-app layout (picker + bean count in the top bar, the called-card strip, big vintage cards, Limpiar / Nueva tabla): see loteria_v43_test.py.
    v44: The Juan That Got Away full screen at 390×844 (level 1 at Hon Dipo, level 2 at The Job Site, Don Pedroes, level 6 at the cantina) and 320×640 (canvas + controls fit, no scrolling).
 Screenshots: juegos-tab.png, juegos-english.png, loteria-calls.png, loteria-win.png, loteria-tabla-big.png, loteria-cards.png, loteria-320.png,
-juan-intro.png, juan-l1.png, juan-job-site.png, juan-don-pedroes.png, juan-l5.png, juan-win.png, juan-320.png."""
+juan-intro.png, juan-l1.png, juan-job-site.png, juan-don-pedroes.png, juan-l5.png, juan-caught-cabron.png, juan-win.png, juan-320.png, juan-caught-320.png."""
 import asyncio, json, os, re, subprocess
 from urllib.parse import urlparse
 from playwright.async_api import async_playwright
@@ -48,6 +49,7 @@ SPANISH = ["Empezar", "Pausa", "Seguir", "Otra vez", "Nueva tabla", "Voz", "Lent
   "Ganaste", "Bienvenido", "Llegaste", "Qué", "fiesta", "Mamá", "Cafecito", "Taquería", "Tiendita", "Casa de", "La Plaza", "tabla", "ficha", "esquinas", "fila", "columna"]
 JUAN_LEVELS = ["Hon Dipo", "The Job Site", "Don Pedroes", "O'Reillees", "Juan's Casa", "Noche Caliente"]
 OOPS = {"¡Ay no!", "¡Híjole!", "¡Ándale, otra vez!"}
+CAUGHT = ["¡Ay no!", "¡Ay cabrón!", "¡Chingao!", "¡Pinche ICE!", "¡Ay, vengo mamá!"]   # v47: caught by ICE, the user's picks (+ the original)
 UNIT = r"""
 const J = require(process.argv[1]), I = require(process.argv[2]);
 const t = J.newTabla(), called = new Set(t), out = { n: J.CARDS.length, names: J.CARDS.map((c) => c.name), tabla: t.length, uniq: new Set(t).size, calls: J.CARDS.every((c) => c.verse && c.verse.length <= 100) };
@@ -74,7 +76,8 @@ out.callsText = J.CARDS.map((c) => c.verse);
 out.hints = I.LEVELS.map((l) => l.hint); out.game = [I.game.id, I.game.name, I.KEY];
 out.ice = [1, 2, 3, 4, 5, 6].map((n) => { const e = I.buildLevel(n); return [e.filter((x) => x.t === "agent").length, e.filter((x) => x.t === "suv").length, e.filter((x) => x.t === "flipflops").length]; });
 out.city = I.LEVELS.map((l) => !!l.city); out.sameOld = I.LEVELS.filter((l) => l.seed && l.seed === l.d).length === 5;
-out.iceLines = [I.CAUGHT, I.FUERA]; out.iceSafe = [1, 2, 3, 4, 5, 6].every((n) => I.buildLevel(n).every((e) => !I.ICE.includes(e.t) || I.CHECKS.every((c) => !c || e.x + e.w < c - 40 || e.x > c + 60)));
+out.iceLines = [I.CAUGHT, I.FUERA]; out.caughtSeq = Array.from({ length: 3000 }, () => I.pickCaught()); out.caughtEdge = [I.pickCaught("¡Ay no!", () => 0.9999), I.pickCaught("¡Chingao!", () => 0)]; out.iceSafe = [1, 2, 3, 4, 5, 6].every((n) => I.buildLevel(n).every((e) => !I.ICE.includes(e.t) || I.CHECKS.every((c) => !c || e.x + e.w < c - 40 || e.x > c + 60)));
+out.keepLines = ["¡Fuera!", "¡Vámonos, amigo!", "¡Ay no!", "¡Híjole!", "¡Ándale, otra vez!", "Flip-flops! He's dizzy", "Caught! Juan tries again"].filter((l) => !fs.readFileSync(process.argv[2], "utf8").includes(l));
 out.iceSrc = /weapon|gun|pistol|handcuff|taser|blood/i.test(fs.readFileSync(process.argv[2], "utf8").replace(/No weapons|no weapons/g, ""));
 console.log(JSON.stringify(out));
 """
@@ -113,7 +116,11 @@ def unit():
     check(o["ice"][1][0] > max(a for i, (a, v, f) in enumerate(o["ice"]) if i != 1) and o["ice"][1][1] >= 2 and o["city"] == [False, True, False, False, False, False],
           f"v47: The Job Site (downtown) has the most ICE agents of any level, and 2+ SUVs ({[a for a, v, f in o['ice']]})")
     check(o["sameOld"], "v47: the other 5 levels keep their old courses (seeded by the level, not its place in the list)")
-    check(o["iceLines"] == ["¡Ay no!", "¡Fuera!"] and o["iceSafe"], f"v46: '¡Ay no!' when caught, '¡Fuera!' when he gets away; no agents right at a checkpoint ({o['iceLines']})")
+    check(o["iceLines"] == [CAUGHT, "¡Fuera!"] and o["iceSafe"], f"v47: caught = one of {CAUGHT}, '¡Fuera!' when he gets away; no agents right at a checkpoint ({o['iceLines']})")
+    sq = o["caughtSeq"]; reps = sum(a == b for a, b in zip(sq, sq[1:])); cnt = {l: sq.count(l) for l in CAUGHT}
+    check(reps == 0 and set(sq) == set(CAUGHT) and min(cnt.values()) > 0.15 * len(sq) and "¡Chingao!" not in o["caughtEdge"][1:] and o["caughtEdge"][0] != "¡Ay no!",
+          f"v47: the caught line rotates at random, never the same twice in a row ({len(sq)} picks, {reps} repeats, {cnt}, edges {o['caughtEdge']})")
+    check(not o["keepLines"], f"v47: every existing line is still in the game (¡Fuera!, ¡Vámonos, amigo!, ¡Ay no!, ¡Híjole!, ¡Ándale, otra vez!…); the new caught lines are added, nothing replaced (missing {o['keepLines']})")
     check(not o["iceSrc"], "v46: cartoon agents, nothing violent in the game's code (no weapons, handcuffs, blood)")
     check(o["kinds"] == ["cart", "chancla", "chihuahua", "cone", "pallet", "pothole", "sprinkler", "tires"], f"cones, potholes, carts, chanclas, chihuahuas, sprinklers + pallets / tires to hop on ({o['kinds']})")
     check(o["hp"] == 100 and all(5 <= d <= 20 for d in o["dmg"].values()), f"a bump costs a little of the 100-point health bar ({o['dmg']})")
@@ -334,9 +341,16 @@ async def webkit(p):
     await pg.wait_for_timeout(2700)   # he shakes it off
     await to_agent(1)
     caught = await until(pg, G + ".state.mode === 'oops'", 5); s = await st(pg)
-    check(caught and s["oopsMsg"] == "¡Ay no!" and s["caughtBy"] == "agent" and "Caught!" in s["overlay"] and "tries again" in s["overlay"], f"v46: run into an agent → caught: a big '¡Ay no!' + 'Caught! Juan tries again…' ({s['oopsMsg']!r}, {s['overlay'][-50:]!r})")
+    check(caught and s["oopsMsg"] in CAUGHT and s["caughtBy"] == "agent" and "Caught!" in s["overlay"] and "tries again" in s["overlay"] and s["oopsMsg"] in s["overlay"], f"v46/v47: run into an agent → caught: a big {s['oopsMsg']!r} + 'Caught! Juan tries again…' ({s['overlay'][-50:]!r})")
     await until(pg, G + ".state.mode === 'run'", 3); s = await st(pg)
     check(s["mode"] == "run" and s["health"] == 100, "…then back to the last checkpoint, nobody hurt")
+    seen = [(await st(pg))["oopsMsg"]]   # v47: get caught a few more times: a different line each time
+    for _ in range(4):
+        await to_agent(1); await pg.evaluate(f"{G}.setHealth(100)")
+        if await until(pg, G + ".state.mode === 'oops'", 5): seen.append((await st(pg))["oopsMsg"])
+        await until(pg, G + ".state.mode === 'run'", 3)
+    check(len(seen) == 5 and all(m in CAUGHT for m in seen) and all(a != b for a, b in zip(seen, seen[1:])), f"v47: caught 5 times in a row: the line changes every time, never the same twice ({seen})")
+    last_caught = seen[-1]
     await to_agent(1); f0 = (await st(pg))["fueras"]
     for _ in range(160):   # hop over him: jump when he's close
         es = [e for e in await pg.evaluate(G + ".ents()") if e["t"] == "agent"]; x = (await st(pg))["x"]
@@ -365,7 +379,7 @@ async def webkit(p):
     if suv:
         await pg.evaluate(f"{G}.warp(1, {suv['x'] + suv['w'] + 62}); {G}.clearAhead(1400)"); await until(pg, G + ".state.chase", 2); await pg.evaluate(G + ".stumble(3)")
         got = await until(pg, G + ".state.mode === 'oops'", 4); s = await st(pg)
-        check(got and s["caughtBy"] == "chaser" and s["oopsMsg"] == "¡Ay no!", f"v46: slowed down while chased → the agent catches up: '¡Ay no!' ({s['caughtBy']})")
+        check(got and s["caughtBy"] == "chaser" and s["oopsMsg"] in CAUGHT and s["oopsMsg"] != last_caught, f"v46: slowed down while chased → the agent catches up: {s['oopsMsg']!r}, not {last_caught!r} again ({s['caughtBy']})")
         await until(pg, G + ".state.mode === 'run'", 3)
     await pg.evaluate(f"{G}.warp(1, 5900)")
     await until(pg, G + ".state.mode === 'clear'", 6)
@@ -490,6 +504,17 @@ async def fullscreen_shots(p):
     s = await st(pg); beers = [e for e in await pg.evaluate(G + ".ents()") if e["t"] == "beer"]
     check(s["level"] == 6 and s["outfit"] == "western" and not s["ground"] and len(beers) >= 3, f"390×844: level 6, cowboy Juan jumping for the cold ones by Noche Caliente ({len(beers)} beers left, {s['mode']})")
     await pg.screenshot(path=os.path.join(OUT, "juan-l5.png"))
+    # v47: caught by ICE, one of the new lines: "¡Ay cabrón!" (same big caption as "¡Ay no!")
+    async def caught_by(line, n=1):
+        await pg.evaluate(f"{G}.warp({n}, 100)"); await until(pg, G + ".state.mode === 'run'", 3); es = await pg.evaluate(G + ".ents()")
+        ag = next(e for e in es if e["t"] == "agent" and e["x"] > 900 and not any(k["t"] == "cone" and e["x"] - 160 < k["x"] < e["x"] + 30 for k in es))
+        await pg.evaluate(f"{G}.warp({n}, {ag['x'] - 330}); {G}.clearAhead(290); {G}.setHealth(100); {G}.caughtNext({json.dumps(line)})")
+        ok = await until(pg, G + ".state.mode === 'oops'", 5); await pg.wait_for_timeout(120)
+        return ok, await st(pg), await pg.evaluate(G + ".captionBox()")
+    ok, s, cap = await caught_by("¡Ay cabrón!")
+    check(ok and s["oopsMsg"] == "¡Ay cabrón!" and "Caught!" in s["overlay"] and cap["size"] == 42, f"v47 390×844: caught → a big '¡Ay cabrón!' in the '¡Ay no!' caption style ({cap})")
+    await pg.screenshot(path=os.path.join(OUT, "juan-caught-cabron.png"))
+    await until(pg, G + ".state.mode === 'run'", 3)
     await pg.click(".gfs-x"); await pg.wait_for_timeout(200)
     await pg.click('.game-pick[data-game="loteria"]'); await pg.wait_for_timeout(300)
     await pg.click("#lot-play"); await pg.wait_for_timeout(300); await pg.click("#lot-play")   # paused, so the called card stays put for the picture
@@ -556,6 +581,9 @@ async def fullscreen_shots(p):
     check(fs_ok(f) and sm["cw"] >= 0.95 * 320 and sm["ch"] >= 0.6 * 640 and sm["cbot"] <= sm["ktop"] + 1 and sm["kbot"] <= 641 and sm["btn"] and not sm["scroll"] and s["mode"] == "run",
           f"320×640: The Juan That Got Away fits: canvas {sm['cw']:.0f}×{sm['ch']:.0f}, the controls below it on screen, no scrolling {sm}")
     await pg.screenshot(path=os.path.join(OUT, "juan-320.png"))
+    longest = max(CAUGHT, key=len); ok, s, cap = await caught_by(longest)
+    check(ok and s["oopsMsg"] == longest and cap["w"] <= cap["max"] and cap["size"] >= 30 and cap["cssW"] <= 320, f"v47 320×640: the longest caught line {longest!r} fits the screen, still big ({cap})")
+    await pg.screenshot(path=os.path.join(OUT, "juan-caught-320.png"))
     await b.close()
 
 async def offline(p):

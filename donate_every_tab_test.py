@@ -64,7 +64,7 @@ def check(ok, what):
     print(("  ok   " if ok else "  FAIL ") + what); fails += not ok
 
 LAST = """(v) => { const view = document.getElementById('view-' + v), kids = [...view.children].filter(n => n.id !== 'donate-mid'), last = kids[kids.length - 1], a = last && last.querySelector('.donate-btn');
-  return { isDonate: !!(last && last.matches('.card.donate')), text: last && last.querySelector('.donate-text').textContent, href: a && a.href, target: a && a.target, tag: last && last.querySelector('.donate-tag').textContent }; }"""
+  return { isDonate: !!(last && last.matches('.card.donate')), text: last && last.querySelector('.donate-text').textContent, href: a && a.href, target: a && a.target, tag: last && !last.querySelector('.donate-tag') && (last.querySelector('a.donate-btn.cashapp .ca-tag') || {}).textContent }; }"""
 MIDINFO = """() => { const c = document.getElementById('donate-mid'); if (!c) return { n: 0 };
   const list = c.parentElement, prev = [...list.children].slice(0, [...list.children].indexOf(c));
   const a = c.querySelector('.donate-btn'), x = c.querySelector('.donate-x');
@@ -119,11 +119,11 @@ async def main():
         check(sorted(cards) == sorted(TABS) and sett == 1, f"exactly one per tab ({cards}); Settings still has just its own one ({sett})")
         print("\n== ☕ Buy Me a Coffee next to Cash App in every donate card")
         BTNS = """() => [...document.querySelectorAll('.donate:not(#donate-mid), #set-donate')].map((c) => { const bs = [...c.querySelectorAll('.donate-btns > a.donate-btn')];
-          return { id: c.id, btns: bs.map((a) => [a.className.replace('donate-btn', '').trim(), a.getAttribute('href'), a.target, a.rel, a.textContent.replace(a.querySelector('.sr-only')?.textContent || '', '').trim()]),
+          return { id: c.id, btns: bs.map((a) => [a.className.replace('donate-btn', '').trim(), a.getAttribute('href'), a.target, a.rel, a.textContent.replace(a.querySelector('.sr-only')?.textContent || '', '').replace(/\s+/g, ' ').trim()]),
             bg: bs[1] && getComputedStyle(bs[1]).backgroundColor, fg: bs[1] && getComputedStyle(bs[1]).color, h: bs[1] && Math.round(bs[1].getBoundingClientRect().height || 0) }; })"""
         cards = await pg.evaluate(BTNS)
         ids = sorted(c["id"] for c in cards)
-        want = [["cashapp", "https://cash.app/$Slurmkaos", "_blank", "noopener noreferrer", "💸 Donate on Cash App"], ["bmc", "https://buymeacoffee.com/Chismoso", "_blank", "noopener noreferrer", "☕ Buy Me a Coffee"]]
+        want = [["cashapp", "https://cash.app/$Slurmkaos", "_blank", "noopener noreferrer", "💸 Donate on Cash App · $Slurmkaos"], ["bmc", "https://buymeacoffee.com/Chismoso", "_blank", "noopener noreferrer", "☕ Buy Me a Coffee"]]
         check(len(cards) == 7 and all(c["btns"] == want for c in cards), f"every donate card (6 tabs + Settings: {ids}) has 💸 Cash App then ☕ Buy Me a Coffee → buymeacoffee.com/Chismoso")
         check(all(c["bg"] == "rgb(255, 130, 0)" and c["fg"] == "rgb(0, 0, 0)" for c in cards), f"BMC button: Fiesta orange with black text, not BMC yellow ({cards[0]['bg']} / {cards[0]['fg']})")
         # the in-app reader leaves both alone (they open outside Chisme); a story link is still caught

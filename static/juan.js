@@ -54,7 +54,14 @@
   const HAZ = { cone: [10, "Bonk! A cone"], pothole: [15, "¡Híjole! A pothole"], cart: [20, "Runaway cart!"], chancla: [10, "¡La chancla!"], chihuahua: [15, "Yap yap yap!"], sprinkler: [8, "Soaked!"] };
   const HAZARDS = Object.keys(HAZ), SOLID = ["pallet", "tires", "suv"], ICE = ["agent", "suv", "chaser"];   // v46: the ICE agents (not in HAZ: they don't cost health, they catch Juan)
   const OOPS = ["¡Ay no!", "¡Híjole!", "¡Ándale, otra vez!"];
-  const CAUGHT = "¡Ay no!", FUERA = "¡Fuera!", VAMONOS = "¡Vámonos, amigo!";   // v46: the old Ice Ice Bebé lines (kept in Spanish on purpose)
+  const FUERA = "¡Fuera!", VAMONOS = "¡Vámonos, amigo!";   // v46: the old Ice Ice Bebé lines (kept in Spanish on purpose)
+  // v47: caught by ICE → one of these, picked at random, never the same one twice in a row (the user's picks; the original "¡Ay no!" stays in)
+  const CAUGHT = ["¡Ay no!", "¡Ay cabrón!", "¡Chingao!", "¡Pinche ICE!", "¡Ay, vengo mamá!"];
+  let lastCaught = "";   // module-wide, so even a fresh game doesn't open with the last one again
+  function pickCaught(prev = lastCaught, rnd = Math.random) {
+    const pool = CAUGHT.filter((l) => l !== prev);
+    return (lastCaught = pool[Math.min(pool.length - 1, Math.floor(rnd() * pool.length))]);
+  }
   const SKINS = [["#e3b896", "#c3906c"], ["#c68a5e", "#a5683f"], ["#8d5a3b", "#6e4229"], ["#f2cdb0", "#d5a585"], ["#a8724a", "#87552f"]];
   const SKY = {
     morning: { sky: ["#3f9fe6", "#8fd0f7", "#d9f1ff"], far: ["#8eb3cc", "#b5d0e0"], tint: null, road: 0, sun: "sun" },
@@ -114,7 +121,8 @@
   function poly(c, fill, pts) { c.fillStyle = fill; c.beginPath(); c.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) c.lineTo(pts[i], pts[i + 1]); c.closePath(); c.fill(); }
   const sayText = (...a) => say(...a);
   function say(c, s, x, y, size, col, o = {}) {
-    c.font = `${o.italic ? "italic " : ""}${o.weight || 800} ${size}px ${o.font || SANS}`; c.textAlign = o.align || "center"; c.textBaseline = "middle";
+    c.font = `${o.italic ? "italic " : ""}${o.weight || 800} ${size}px ${o.font || SANS}`;
+    if (o.fit && o.max) { const w = c.measureText(s).width + (o.stroke ? o.sw || 3 : 0); if (w > o.max) { size = Math.max(12, Math.floor(size * o.max / w)); c.font = `${o.italic ? "italic " : ""}${o.weight || 800} ${size}px ${o.font || SANS}`; } } c.textAlign = o.align || "center"; c.textBaseline = "middle";
     if (o.glow) { c.shadowColor = o.glow; c.shadowBlur = o.blur || 8; }
     if (o.stroke) { c.lineWidth = o.sw || 3; c.strokeStyle = o.stroke; c.lineJoin = "round"; c.strokeText(s, x, y, o.max); }
     c.fillStyle = col; c.fillText(s, x, y, o.max);
@@ -738,7 +746,7 @@
     // ---- state
     let oopsMsg = OOPS[0], level = 1, ents = [], hero, camX = 0, score = 0, ckScore = 0, ck = 0, mode = "title", t = 0, raf = null, last = 0, shake = 0, parts = [], msgT = 0, msg = "";
     let bgIce = [], bgNext = 4, bgN = 0;   // v46: the ICE SUVs in the far lane (decor: not in ents, they never touch Juan)
-    let fx = [], fxMade = 0, dustT = 0, paused = false, beersGot = 0, fueraT = 0, fueras = 0, caughtN = 0, caughtBy = "";
+    let fx = [], fxMade = 0, dustT = 0, paused = false, beersGot = 0, fueraT = 0, fueras = 0, caughtN = 0, caughtBy = "", forceCaught = "";
     let S = 1, VH = 580, GS = VH - ROADH, dpr = 1, dprCap = 3, cssW = VW, cache = {}, perf = { n: 0, sum: 0 };
     const cam = (x) => Math.min(x - HERO_X, CAM_END);
     const L = () => LEVELS[level - 1], P = () => SKY[L().time], isNight = () => L().time === "night";
@@ -793,8 +801,8 @@
       }
       if (fx.length > 200) fx.splice(0, fx.length - 200);
     }
-    function oops(by) {   // out of health, or (v46) an agent caught up with him: a big "¡Ay no!", then back to the last 🚩
-      mode = "oops"; oopsMsg = by ? CAUGHT : OOPS[Math.floor(Math.random() * OOPS.length)]; SFX.oops(); if (!reduced()) shake = 0.3;
+    function oops(by) {   // out of health, or (v46) an agent caught up with him: a big "¡Ay no!" (v47: or ¡Ay cabrón! / ¡Chingao! / ¡Pinche ICE! / ¡Ay, vengo mamá!), then back to the last 🚩
+      mode = "oops"; oopsMsg = by ? (forceCaught ? (lastCaught = forceCaught) : pickCaught()) : OOPS[Math.floor(Math.random() * OOPS.length)]; forceCaught = ""; SFX.oops(); if (!reduced()) shake = 0.3;
       if (by) { caughtN++; caughtBy = by.t; by.st = "grab"; } fueraT = 0;
       st.best = Math.max(st.best, score); save(st); stats();
       const where = ck ? "checkpoint 🚩" : "start";
@@ -1057,7 +1065,7 @@
       drawJuanAt(); drawFx();
       if (mode === "win") { g.setTransform(S, 0, 0, S, 0, 0); for (const p of parts) { g.save(); g.translate(p.x, p.y); g.rotate(p.r); box(g, p.c, -3, -2, 6, 4); g.restore(); } }
       hud();
-      if (mode === "oops") say(g, oopsMsg, VW / 2, VH * 0.34, 42, "#ff3d8b", { font: UI, weight: 900, stroke: "#111111", sw: 7, max: VW - 30 });
+      if (mode === "oops") say(g, oopsMsg, VW / 2, VH * 0.34, 42, "#ff3d8b", { font: UI, weight: 900, stroke: "#111111", sw: 7, max: VW - 30, fit: true });   // v47: fit = the longest line ("¡Ay, vengo mamá!") shrinks a little instead of getting squished
       else if (fueraT > 0) { const pop = reduced() ? 1 : 1 + Math.max(0, fueraT - 0.9) * 2.2;   // v46: Juan got away
         g.globalAlpha = Math.min(1, fueraT * 3); say(g, FUERA, VW / 2, VH * 0.3, 46 * pop, "#3ee8eb", { font: UI, weight: 900, stroke: "#111111", sw: 7, max: VW - 30 }); g.globalAlpha = 1; }
     }
@@ -1150,12 +1158,14 @@
       bgIce: () => ({ n: bgN, next: bgNext, cars: bgIce.map((b) => ({ kind: b.kind, x: b.x, sx: b.x - camX, vx: b.vx, dir: b.dir, y: b.y })) }),   // v46: the far-lane ICE SUVs (scenery)…
       bgSpawn(kind, sx) { bgSpawn(kind); if (sx != null) bgIce[bgIce.length - 1].x = camX + sx; },   // …make one now (at a screen x)   // …or slow him down (so a chaser catches up)
       setHealth(v) { hero.health = Math.max(0, Math.min(HP, v)); },
+      caughtNext(line) { forceCaught = line; },   // v47 test hook: the next catch says this line (for a screenshot)
+      captionBox() { g.font = `900 42px ${UI}`; const w = g.measureText(oopsMsg).width + 7, sz = w > VW - 30 ? Math.max(12, Math.floor(42 * (VW - 30) / w)) : 42; g.font = `900 ${sz}px ${UI}`; return { size: sz, w: g.measureText(oopsMsg).width + 7, max: VW - 30, VW, cssW }; },
       ents: () => ents.filter((e) => !e.gone).map((e) => ({ t: e.t, x: e.x, y: e.y, w: e.w, st: e.hit ? "hit" : e.on ? "on" : ICE.includes(e.t) ? e.st || (e.out ? "out" : "") : "" })),
     };
   }
 
   const game = { id: "juan", name: "The Juan That Got Away", emoji: "👢", blurb: "¡Ya es viernes! Get Juan through his Friday shift and on to beers with the crew at Noche Caliente.", mount };
-  const api = { KEY, LEVELS, END, CHECKS, VW, HP, HAZ, ICE, CAUGHT, FUERA, buildLevel, load, save, reset, game };
+  const api = { KEY, LEVELS, END, CHECKS, VW, HP, HAZ, ICE, CAUGHT, pickCaught, FUERA, buildLevel, load, save, reset, game };
   if (typeof module === "object" && module.exports) module.exports = api;
   else { root.ChismeJuan = api; if (root.ChismeJuegos) root.ChismeJuegos.GAMES.push(game); }
 })(typeof window !== "undefined" ? window : this);
