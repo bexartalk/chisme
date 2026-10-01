@@ -1254,3 +1254,23 @@ html.a2hs-open .tia-fab,html.a2hs-open .news-pill{visibility:hidden}
 [data-theme="dark"] .push-ask[data-kind="ios"]{border-left-color:var(--orange);box-shadow:0 4px 0 #5f6368}
 [data-theme="dark"] .push-ask-tia{background:var(--card)}
 [data-theme="dark"] .push-ask-row button:not(.primary){background:var(--card);border-color:#a7a9ac}
+
+/* v47 game-day banner (Sports tab): black + silver with a turquoise / pink / orange papel-picado stripe; no yellow, no logos */
+.gameday{margin:0 0 12px;border:3px solid #000;border-radius:16px;overflow:hidden;background:#000;color:#fff;box-shadow:0 4px 0 var(--pink);
+  background-image:linear-gradient(90deg,var(--turq) 0 33.3%,var(--pink) 33.3% 66.6%,var(--orange) 66.6% 100%);background-size:100% 6px;background-repeat:no-repeat;padding:12px 10px 8px}
+.gameday[hidden]{display:none}
+.gd-kick{margin:2px 4px 6px;font-size:1.25rem;font-weight:900;color:var(--turq);letter-spacing:.01em}
+.gd-game{display:flex;align-items:center;gap:10px;width:100%;min-height:52px;margin:0 0 6px;padding:8px 10px;border:2px solid #c4ced4;border-radius:12px;
+  background:#111;color:#fff;font:inherit;text-align:left;cursor:pointer}
+.gd-game:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.gd-ico{font-size:1.5rem;line-height:1}
+.gd-txt{display:flex;flex-direction:column;flex:1;min-width:0}
+.gd-head{display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px}
+.gd-match{font-size:1rem;font-weight:900}
+.gd-line{color:#c4ced4;font-weight:700;font-size:.85rem}
+.gd-live,.gd-final{flex:none;display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:999px;font-weight:900;font-size:.72rem;letter-spacing:.04em}
+.gd-live{background:var(--pink);color:#000}
+.gd-final{background:#c4ced4;color:#000}
+.gd-in{border-color:var(--pink)}
+.gd-pre{border-color:var(--turq)}
+.gd-live .live-dot{background:#000}

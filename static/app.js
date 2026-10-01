@@ -2442,8 +2442,45 @@ window.CHISME_APP_BUILD = "47";
     missions: (d) => { const T = d.missions && d.missions.team; return !T || T.id === 510 ? "San Antonio's own: the Double-A Missions of the Texas League. 🌵"
       : `The home team: the ${d.missions.level || "Minor League"} ${T.name} of the ${T.league}. ⚾`; },
   };
+  // v47 game-day banner: "¡Hoy hay juego!" when your NBA team (the Spurs chip) or the Cowboys play today. No new
+  // requests: the games come from /api/sports (team schedules + the 2-min scoreboards, the fresher copy wins).
+  function gameDayGames(d) {
+    const today = dayKey(new Date()), out = [];
+    const teams = [["nba", "🏀", d.nba && d.nba.spurs, (d.nba && d.nba.games) || []], ["cowboys", "🏈", d.nfl && d.nfl.cowboys, (d.nfl && d.nfl.games) || []]];
+    for (const [lg, icon, blk, board] of teams) {
+      if (!blk || !blk.team) continue;
+      const ab = blk.team.abbr, has = (g) => g && g.date && [g.home, g.away].some((t) => t && t.abbr === ab);
+      const byId = new Map();
+      for (const g of [...(blk.live || []), ...(blk.last || []), ...(blk.upcoming || []), ...board]) if (has(g)) byId.set(g.id, g);   // the scoreboard copy goes last, so it wins
+      for (const g of byId.values()) if (g.state === "in" || dayKey(new Date(g.date)) === today) out.push({ lg, icon, team: blk.team, g });
+    }
+    return out.sort((a, b) => (a.g.state === "in" ? 0 : 1) - (b.g.state === "in" ? 0 : 1) || (a.g.date < b.g.date ? -1 : 1));
+  }
+  function renderGameDay(d) {
+    const box = $("#gameday"), list = d ? gameDayGames(d) : [];
+    box.hidden = !list.length;
+    if (!list.length) return box.replaceChildren();
+    box.replaceChildren(el("p", { class: "gd-kick" }, el("span", { "aria-hidden": "true", text: "🎉 " }), "¡Hoy hay juego!"),
+      ...list.map(({ lg, icon, team, g }) => {
+        const home = g.home && g.home.abbr === team.abbr, us = home ? g.home : g.away, opp = (home ? g.away : g.home) || {};
+        const w = gameWhen(new Date(g.date)), nm = team.short, on = opp.short || opp.name || "TBD";
+        const score = `${nm} ${us.score ?? 0}, ${on} ${opp.score ?? 0}`;
+        const status = g.state === "in" ? el("span", { class: "gd-live" }, el("span", { class: "live-dot", "aria-hidden": "true" }), "EN VIVO")
+          : g.state === "post" ? el("span", { class: "gd-final", text: "FINAL" }) : null;
+        const line = g.state === "pre" ? `${w.time} · ${home ? "Home" : "Away"}${g.tv ? " · " + g.tv : ""}`
+          : g.state === "in" ? `${score}${g.detail ? " · " + g.detail : ""}` : `${score}${g.detail && g.detail !== "Final" ? " · " + g.detail : ""}`;
+        const b = el("button", { type: "button", class: "gd-game gd-" + g.state, "data-lg": lg,
+            "aria-label": `${nm} ${home ? "vs." : "at"} ${on}. ${g.state === "pre" ? `Today ${w.time}, ${home ? "home" : "away"}` : g.state === "in" ? "Live: " + score : "Final: " + score}. Open the ${nm} page.` },
+          el("span", { class: "gd-ico", "aria-hidden": "true", text: icon }),
+          el("span", { class: "gd-txt" }, el("span", { class: "gd-head" }, el("b", { class: "gd-match", text: `${nm} ${home ? "vs" : "@"} ${on}` }), status),
+            el("span", { class: "gd-line", text: line })));
+        b.onclick = () => { spLg = lg; localStorage.setItem(SP_KEY, spLg); renderSports(); $("#sp-chips").scrollIntoView({ block: "nearest" }); };
+        return b;
+      }));
+  }
   function renderSports() {
     const d = spData;
+    renderGameDay(d);
     if (d && d.teams) {   // chips follow your teams: "NBA · Rockets", the local MiLB club (hidden if there isn't one)
       if (!d.missions && spLg === "missions") spLg = "nba";
       const nb = document.querySelector('#sp-chips [data-lg="nba"]'), mi = document.querySelector('#sp-chips [data-lg="missions"]');
