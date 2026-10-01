@@ -11,7 +11,9 @@ doc = json.load(open(os.path.join(HERE, "data", "recipe_videos.json")))
 V = doc["videos"]; ids = [v["id"] for v in V]
 check(len(V) >= 40 and len(set(ids)) == len(ids) and all(re.fullmatch(r"[\w-]{11}", i) for i in ids), f"{len(V)} recipe videos, unique YouTube ids")
 by = collections.Counter(v["creator"] for v in V)
-check(len(by) >= 35 and max(by.values()) <= 2, f"{len(by)} different cooks, at most {max(by.values())} videos each")
+FEATURED = {"ArnieTex": 10}   # v44: the one featured cook (Arnie Segovia, a Texas BBQ pitmaster); For You still shows one per cook per round
+others = {c: n for c, n in by.items() if c not in FEATURED}
+check(len(by) >= 35 and max(others.values()) <= 2 and all(by.get(c, 0) <= n for c, n in FEATURED.items()), f"{len(by)} different cooks, at most {max(others.values())} videos each (ArnieTex, featured: {by.get('ArnieTex', 0)})")
 topics = collections.Counter(v["topic"] for v in V)
 need = {"spaghetti", "tacos", "enchiladas", "dinner", "dessert", "hack"}
 check(need <= set(topics), f"topics: {dict(topics)}")

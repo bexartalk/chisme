@@ -191,7 +191,8 @@
   //    rotates with opts.rot so the lead creator changes; a phone that has learned: first 5 are 5 different creators
   //  • opts.lastLead: the creator who led last time doesn't lead again
   //  • after that it's score order (taste + freshness), and every 5th slot is exploration (least familiar third)
-  //  • the mix: every 3rd video is a cooking / recipe video (slots 3, 6, 9 …) while there are both kinds left
+  //  • the mix: every 3rd video is a cooking / recipe video (slots 3, 6, 9 …) while there are both kinds left; v44: a cook
+  //    with many videos (ArnieTex) is spread evenly through those slots, not bunched at the end
   //  • v43: a local creator leads (slot 1 is never a world reviewer or a recipe while a local video is left); after that
   //    the other slots take turns local → world → local … while both are left
   // If the rules can't all be met (a tiny feed), they relax in order: round-robin → caps → the mix / back-to-back creator.
@@ -215,15 +216,21 @@
     const crews = [...new Set(scored.map((x) => x.crew))].sort();
     for (let i = crews.length - 1; i > 0; i--) { const k = Math.floor(rand() * (i + 1)); [crews[i], crews[k]] = [crews[k], crews[i]]; }   // today's order
     // local creators and cooks each rotate in their own order (so every visit a different local creator leads)
-    const cooks = new Set(scored.filter((x) => isRecipe(x.it)).map((x) => x.crew)), pos = new Map();
+    const cooks = new Set(scored.filter((x) => isRecipe(x.it)).map((x) => x.crew)), pos = new Map(), frac = new Map();
     const globe = new Set(scored.filter((x) => isWorld(x.it)).map((x) => x.crew));
     const isLocal = (x) => !isRecipe(x.it) && !isWorld(x.it);
     for (const group of [crews.filter((c) => !cooks.has(c) && !globe.has(c)), crews.filter((c) => cooks.has(c)), crews.filter((c) => globe.has(c) && !cooks.has(c))]) {
       if (!group.length) continue;
       let off = ((opts.rot || 0) % group.length + group.length) % group.length;
       if (group.length > 1 && group[off] === opts.lastLead) off = (off + 1) % group.length;
-      group.forEach((c, i) => pos.set(c, (i - off + group.length) % group.length));
+      group.forEach((c, i) => { pos.set(c, (i - off + group.length) % group.length); frac.set(c, pos.get(c) / group.length); });
     }
+    // v44: a cook with many videos (ArnieTex has 8) is spread evenly through the cooking slots instead of all of them landing
+    // at the end once everyone else's single video is used up. A cook's k-th video is due at (k + phase) / its count, so n videos
+    // sit evenly 1/n apart; the phase comes from today's order (a cook with one video: just its place in today's order), so
+    // where the first one lands rotates from visit to visit
+    const total = new Map(); for (const x of scored) total.set(x.crew, (total.get(x.crew) || 0) + 1);
+    const due = (c) => { const n = total.get(c); return (cnt(c) + ((frac.get(c) * n) % 1)) / n; };
     const firstRound = Math.min(learned ? ROUND_LEARNED : ROUND_NEW, crews.length);
     const used = new Map(), out = [];
     const cnt = (c) => used.get(c) || 0;
@@ -248,8 +255,9 @@
     while (left.length) {
       const slot = out.length, explore = learned && slot % EXPLORE_EVERY === EXPLORE_EVERY - 1;
       let cands;
-      if (!learned) {   // round-robin: fewest shown first, then today's creator order, then that creator's best
-        cands = left.slice().sort((a, b) => cnt(a.crew) - cnt(b.crew) || pos.get(a.crew) - pos.get(b.crew) || b.score - a.score || a.j - b.j);
+      if (!learned) {   // round-robin: fewest shown first, then today's creator order, then that creator's best (cooks: the one most due)
+        const key = (x) => (isRecipe(x.it) ? due(x.crew) : cnt(x.crew) + frac.get(x.crew));
+        cands = left.slice().sort((a, b) => key(a) - key(b) || b.score - a.score || a.j - b.j);
       } else if (explore) {
         const byFam = left.slice().sort((a, b) => a.fam - b.fam || a.j - b.j);
         const third = byFam.slice(0, Math.max(1, Math.ceil(byFam.length / 3))).sort((a, b) => a.j - b.j);

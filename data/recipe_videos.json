@@ -1,5 +1,5 @@
 {
- "_about": "Cooking & recipe videos mixed into the Bigger the Pansa, Better the Chansa feed. Real, public YouTube Shorts; every id was checked on 2026-09-30 (YouTube oEmbed 200 = public + embeddable, and the watch page says playableInEmbed: true). The server re-checks them with oEmbed once a day and drops any that went private (404) or turned embedding off (401). Never add an id you haven't checked.",
+ "_about": "Cooking & recipe videos mixed into the Bigger the Pansa, Better the Chansa feed. Real, public YouTube Shorts; every id was checked on 2026-09-30 (YouTube oEmbed 200 = public + embeddable, and the watch page says playableInEmbed: true). The server re-checks them with oEmbed once a day and drops any that went private (404) or turned embedding off (401). Never add an id you haven't checked. v44: ArnieTex (Arnie Segovia, @ArnieTex, a Texas BBQ pitmaster, 1.33M subscribers) is the one featured cook, with 8 Shorts (brisket, red pollo asado marinade, carne asada, fajitas, burnt ends, Tex-Mex); every other cook has at most 2. For You's round-robin still shows one video per cook per round, so his are spread through the feed and never take it over. His were checked on 2026-10-01 the same way (oEmbed author ArnieTex, watch page channelId UCnxOJ_Un-QF_KYqbPRAfLNw, playableInEmbed true, status OK, /shorts/ID a Short).",
  "videos": [
   {
    "id": "DmB0SdC2mpE",
@@ -616,6 +616,110 @@
    "topic": "hack",
    "seconds": 60,
    "verified": "2026-09-30"
+  },
+  {
+   "id": "-QSjsjZBOUs",
+   "url": "https://www.youtube.com/shorts/-QSjsjZBOUs",
+   "title": "My Dad’s Brisket Recipe 🔥Grilled (and smoked) on the @recteq X Fire Pro. Happy Father’s Day, Dad!",
+   "creator": "ArnieTex",
+   "person": "Arnie Segovia",
+   "channel_url": "https://www.youtube.com/@ArnieTex",
+   "channel_id": "UCnxOJ_Un-QF_KYqbPRAfLNw",
+   "topic": "brisket",
+   "seconds": 119,
+   "published": "2026-06-21",
+   "verified": "2026-10-01"
+  },
+  {
+   "id": "13aQ7dXifi8",
+   "url": "https://www.youtube.com/shorts/13aQ7dXifi8",
+   "title": "RED Pollo Asado Marinade Recipe 🔥 so, juicy and and bursting with flavor",
+   "creator": "ArnieTex",
+   "person": "Arnie Segovia",
+   "channel_url": "https://www.youtube.com/@ArnieTex",
+   "channel_id": "UCnxOJ_Un-QF_KYqbPRAfLNw",
+   "topic": "marinade",
+   "seconds": 179,
+   "published": "2026-06-27",
+   "verified": "2026-10-01"
+  },
+  {
+   "id": "SrY6G5Few0Y",
+   "url": "https://www.youtube.com/shorts/SrY6G5Few0Y",
+   "title": "Hosting a carnita asada? Cook everything at once. You’ll thank yourself later.",
+   "creator": "ArnieTex",
+   "person": "Arnie Segovia",
+   "channel_url": "https://www.youtube.com/@ArnieTex",
+   "channel_id": "UCnxOJ_Un-QF_KYqbPRAfLNw",
+   "topic": "carne asada",
+   "seconds": 178,
+   "published": "2026-05-19",
+   "verified": "2026-10-01"
+  },
+  {
+   "id": "WHbhGUL642E",
+   "url": "https://www.youtube.com/shorts/WHbhGUL642E",
+   "title": "Trim pork belly and make a pork fajita 😂😎",
+   "creator": "ArnieTex",
+   "person": "Arnie Segovia",
+   "channel_url": "https://www.youtube.com/@ArnieTex",
+   "channel_id": "UCnxOJ_Un-QF_KYqbPRAfLNw",
+   "topic": "fajitas",
+   "seconds": 94,
+   "published": "2026-06-23",
+   "verified": "2026-10-01"
+  },
+  {
+   "id": "kEBFAGU4SOc",
+   "url": "https://www.youtube.com/shorts/kEBFAGU4SOc",
+   "title": "Squaring up some saucy burnt ends",
+   "creator": "ArnieTex",
+   "person": "Arnie Segovia",
+   "channel_url": "https://www.youtube.com/@ArnieTex",
+   "channel_id": "UCnxOJ_Un-QF_KYqbPRAfLNw",
+   "topic": "bbq",
+   "seconds": 99,
+   "published": "2026-06-06",
+   "verified": "2026-10-01"
+  },
+  {
+   "id": "Qmk7S9Ld41E",
+   "url": "https://www.youtube.com/shorts/Qmk7S9Ld41E",
+   "title": "Tex-Mex Style BISTEC RANCHERO Recipe",
+   "creator": "ArnieTex",
+   "person": "Arnie Segovia",
+   "channel_url": "https://www.youtube.com/@ArnieTex",
+   "channel_id": "UCnxOJ_Un-QF_KYqbPRAfLNw",
+   "topic": "tex-mex",
+   "seconds": 175,
+   "published": "2026-09-01",
+   "verified": "2026-10-01"
+  },
+  {
+   "id": "Qqsp5F2KGiU",
+   "url": "https://www.youtube.com/shorts/Qqsp5F2KGiU",
+   "title": "Frijoles Especiales Recipe 🫘 basically charro beans…but made better by taquerias in South Texas",
+   "creator": "ArnieTex",
+   "person": "Arnie Segovia",
+   "channel_url": "https://www.youtube.com/@ArnieTex",
+   "channel_id": "UCnxOJ_Un-QF_KYqbPRAfLNw",
+   "topic": "beans",
+   "seconds": 175,
+   "published": "2026-07-27",
+   "verified": "2026-10-01"
+  },
+  {
+   "id": "snOll5_RLk0",
+   "url": "https://www.youtube.com/shorts/snOll5_RLk0",
+   "title": "Easy Carne Guisada Recipe (in the slow cooker) 🥘",
+   "creator": "ArnieTex",
+   "person": "Arnie Segovia",
+   "channel_url": "https://www.youtube.com/@ArnieTex",
+   "channel_id": "UCnxOJ_Un-QF_KYqbPRAfLNw",
+   "topic": "guisada",
+   "seconds": 176,
+   "published": "2026-05-23",
+   "verified": "2026-10-01"
   }
  ]
 }
