@@ -944,7 +944,7 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
 .share-toast[hidden]{display:none}
 [data-theme="dark"] .share-pill{background:#101a1d;color:var(--ink);border-color:var(--ink)}
 
-/* ---------- 🎲 Juegos (static/juegos.js: the game list + Lotería Chismosa; static/icebebe.js: Ice Ice Bebé) */
+/* ---------- 🎲 Juegos (static/juegos.js: the game list + Lotería Chismosa; static/juan.js: Juan's Long Day) */
 .games-list{display:grid;gap:8px;margin-top:.6em}
 .game-pick{display:flex;align-items:center;gap:.7em;text-align:left;padding:.6em .8em;min-height:56px;border:2px solid var(--ink);border-radius:14px;background:var(--card);color:var(--ink);font:inherit}
 .game-pick .gp-emo{font-size:1.8em;line-height:1}
@@ -956,7 +956,7 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
 /* v43: Lotería Chismosa looks like a real tabla app: warm cream, a teal bar (the tabla picker + the bean count), the called card
    in a strip with ▶/⏸ and ¡Lotería!, a 4×4 tabla of big vintage cards (static/loteria/cards/NN.webp), then Limpiar and
    Nueva tabla. Fiesta colors only (turquoise, pink, orange, black), no yellow; the cream is a warm peachy cream. */
-.lot-controls,.ice-controls{display:flex;flex-wrap:wrap;gap:6px;margin:.4em 0 .7em}
+.lot-controls,.juan-controls{display:flex;flex-wrap:wrap;gap:6px;margin:.4em 0 .7em}
 .lot-btn{min-height:44px;padding:.3em .8em;border:2px solid var(--ink);border-radius:12px;background:var(--card);color:var(--ink);font:inherit;font-weight:800}
 .lot-btn[aria-pressed="true"].lot-main,.lot-main{background:var(--turq);border-color:#000;color:#000}
 .lot-app{--lc-cream:#f7e8df;--lc-ink:#1d1612;--lc-teal:#0f6d73;position:relative;background:var(--lc-cream);color:var(--lc-ink);border:2px solid var(--lc-ink);border-radius:16px;overflow:hidden}
@@ -1037,27 +1037,39 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
 .reduce-motion .lot-cell.marked .frijol,.reduce-motion .lot-cell.nope{animation:none}
 @media (prefers-reduced-motion:reduce){ .lot-confetti{display:none} .frijol{transition:none} .lot-cell.marked .frijol,.lot-cell.nope{animation:none} }
 .reduce-motion .lot-confetti{display:none}
-/* Ice Ice Bebé */
-.ice-wrap{position:relative;border:3px solid #000;border-radius:12px;overflow:hidden;background:#000}
-.ice-cv{display:block;margin:0 auto;width:auto;height:min(62vh,500px);max-width:100%;aspect-ratio:156/276;object-fit:contain;image-rendering:pixelated;image-rendering:crisp-edges;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
-.ice-ov{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:.3em;padding:.5em;color:#fff;font-size:.92em;
-  background:rgba(0,0,0,.62);font-weight:700;line-height:1.25}
-.ice-ov.on{display:flex}
-.ice-ov.soft{background:rgba(0,0,0,.42)}
-.ice-ov.win{background:none;justify-content:flex-start;padding-top:1.5em;pointer-events:none}
-.ice-ov.win .ice-big{background:rgba(0,0,0,.6);border-radius:10px;padding:.15em .5em}
-.ice-note .ice-score{display:block;margin:.3em 0}
-.ice-ov.win .ice-big{font-size:1.15em}
-.ice-ov p{margin:0}
-.ice-big{font-size:1.3em;line-height:1.1;font-weight:900;color:#3ee8eb;text-shadow:2px 2px 0 #000}
-.ice-btns{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:.3em!important}
-.ice-ov .lot-btn{border-color:#000}
-.ice-ov .lot-btn:not(.lot-main){background:#fff;color:#000}
-.ice-jump{flex:1 1 100%;min-height:56px;font-size:1.15em;touch-action:manipulation}
+/* Juan's Long Day (v44; static/juan.js): smooth vector art on a canvas sized to the screen × devicePixelRatio */
+.juan-wrap{position:relative;border:3px solid #000;border-radius:12px;overflow:hidden;background:#0d0f1a}
+.juan-cv{display:block;margin:0 auto;width:100%;height:auto;aspect-ratio:360/580;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+.juan-ov{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:.35em;padding:.6em;color:#fff;font-size:.95em;
+  background:rgba(0,0,0,.6);font-weight:700;line-height:1.25}
+.juan-ov.on{display:flex}
+.juan-ov.soft{background:rgba(0,0,0,.42)}
+.juan-ov p{margin:0}
+.juan-big{font-size:1.45em;line-height:1.1;font-weight:900;color:#3ee8eb;text-shadow:2px 2px 0 #000}
+.juan-ov.title{justify-content:flex-start;padding-top:max(4.2em,13%);background:linear-gradient(rgba(5,6,14,.82),rgba(5,6,14,.62) 55%,rgba(5,6,14,.2))}
+.juan-ov.title .juan-big{font-size:2em;letter-spacing:.01em}
+.juan-story{font-size:1.1em;font-weight:900}
+.juan-stops{list-style:none;margin:.2em 0;padding:0;display:flex;flex-direction:column;gap:5px;align-items:stretch;width:min(100%,250px)}
+.juan-stops li{display:flex;align-items:center;gap:.55em;background:rgba(255,255,255,.1);border:1.5px solid rgba(62,232,235,.5);border-radius:999px;padding:.22em .8em .22em .3em;font-weight:900;text-align:left}
+.juan-stops li span{flex:none;display:grid;place-items:center;width:1.6em;height:1.6em;border-radius:50%;background:#ff3d8b;color:#fff;font-size:.85em}
+.juan-stops li:last-child{border-color:#ff3d8b;background:rgba(255,61,139,.22)}
+.juan-sub{max-width:20em;font-size:.88em;opacity:.92}
+.juan-btns{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:.35em!important}
+.juan-ov .lot-btn{border-color:#000}
+.juan-ov .lot-btn:not(.lot-main){background:#fff;color:#000}
+.juan-ov.win{background:none;justify-content:flex-start;padding-top:5em;pointer-events:none}
+.juan-ov.win .juan-big,.juan-win-line{background:rgba(0,0,0,.6);border-radius:10px;padding:.15em .5em}
+.juan-ov.win .juan-big{font-size:1.5em}
+.juan-ov.win button{pointer-events:auto}
+.juan-win-score{font-weight:800;background:rgba(0,0,0,.6);border-radius:8px;padding:.1em .5em}
+.juan-ov.oops{justify-content:flex-end;padding-bottom:1.2em;background:none}
+.juan-oops{background:#000;border-radius:10px;padding:.25em .8em}
+.juan-ov.clear{justify-content:flex-start;padding-top:max(5.2em,15%);background:linear-gradient(rgba(0,0,0,.66),rgba(0,0,0,.35) 30%,rgba(0,0,0,0) 44%)}
+.juan-ov.clear .juan-big{font-size:1.25em}
+.juan-note .juan-score{display:block;margin:.3em 0}
+.juan-jump{flex:1 1 100%;min-height:56px;font-size:1.15em;touch-action:manipulation}
 [data-theme="dark"] .game-pick[aria-pressed="true"]{background:var(--turq);color:#000;border-color:var(--turq)}
-.ice-ov.caught{justify-content:flex-end;padding-bottom:1em;background:none}
-.ice-caught{background:#000;border-radius:10px;padding:.2em .7em}
-.ice-note{margin:.5em 0 0;font-weight:700;min-height:1.3em}
+.juan-note{margin:.5em 0 0;font-weight:700;min-height:1.3em}
 /* the once-per-launch "Enjoying the chisme?" card in the middle of a list (app.js placeMid) */
 .donate-mid{position:relative;margin:14px 0;background:var(--card)}
 .donate-mid .donate-text{padding:0 34px}
@@ -1078,21 +1090,23 @@ html.game-fs .track{transform:none!important;will-change:auto}   /* a transforme
 .gfs-badge{justify-self:center;display:flex;align-items:center;gap:.35em;min-width:0;max-width:100%}
 .gfs-x{width:44px;height:44px;min-height:0;padding:0;display:grid;place-items:center;border:2px solid #fff;border-radius:50%;background:#000;color:#fff;font:inherit;font-size:1.2rem;font-weight:900;line-height:1;cursor:pointer}
 .gfs-x:focus-visible{outline:4px solid var(--focus);outline-offset:2px}
-.gfs-ice-cv{display:block;width:150px;height:auto;aspect-ratio:60/15;image-rendering:pixelated;image-rendering:crisp-edges}
+.gfs-juan{display:flex;align-items:center;gap:.4em;padding:.2em .8em .25em .55em;border:2px solid #00b8b0;border-radius:999px;background:#000;color:#fff;box-shadow:0 3px 0 #ff3d8b;white-space:nowrap}
+.gfs-juan-hat{width:26px;height:16px;flex:none}
+.gfs-juan-t{font-size:clamp(.86rem,4vw,1.02rem);font-weight:900;letter-spacing:.02em}
+.gfs-juan-t b{color:#fff;background:#ff3d8b;border-radius:6px;padding:0 .3em;margin-left:.1em}
 .gfs-lot{padding:.2em .75em .25em;border:2px solid #00b8b0;border-radius:999px;background:#ff3d8b;color:#fff;box-shadow:0 3px 0 #000;white-space:nowrap}
 .gfs-lot-emo{font-size:1.05rem;line-height:1}
 .gfs-lot-t{font-size:clamp(.82rem,3.9vw,1rem);font-weight:900;letter-spacing:.02em;text-shadow:0 1px 0 rgba(0,0,0,.35)}
 .gfs-lot-t b{color:#000;background:#fff;border-radius:6px;padding:0 .25em;margin-left:.1em;text-shadow:none}
-/* Ice Ice Bebé, full screen: the canvas fills the space between the top bar and the controls */
-.gfs .ice-wrap{flex:1 1 0;min-height:0;border:0;border-radius:0;background:#0d0f1a}
-.gfs .ice-cv{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);margin:0;max-width:none;aspect-ratio:auto}
-.gfs .ice-note,.gfs .lot-rules,.gfs .lot-stats{display:none}
-.gfs .ice-controls{flex:none;flex-wrap:nowrap;margin:0;padding:8px 10px 10px;gap:8px}
-.gfs .ice-controls .lot-btn{flex:none;min-width:52px;min-height:52px;padding:0 .6em;background:#1b1f2e;color:#fff;border-color:#3a4058;font-size:1.15rem}
-.gfs .ice-controls .ice-jump{flex:1 1 auto;background:var(--turq);color:#000;border-color:#000;font-size:1.2rem}
-.gfs .ice-lbl{display:none}
-.ice-ov.win button{pointer-events:auto}
-.ice-win-score{font-weight:800;background:rgba(0,0,0,.6);border-radius:8px;padding:.1em .5em}
+/* Juan's Long Day, full screen: the canvas fills the space between the top bar and the controls */
+.gfs .juan-wrap{flex:1 1 0;min-height:0;border:0;border-radius:0;background:#0d0f1a}
+.gfs .juan-cv{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);margin:0;max-width:none;aspect-ratio:auto}
+.gfs .juan-note,.gfs .lot-rules,.gfs .lot-stats{display:none}
+.gfs .juan-controls{flex:none;flex-wrap:nowrap;margin:0;padding:8px 10px 10px;gap:8px}
+.gfs .juan-controls .lot-btn{flex:none;min-width:52px;min-height:52px;padding:0 .6em;background:#1b1f2e;color:#fff;border-color:#3a4058;font-size:1.15rem}
+.gfs .juan-controls .juan-jump{flex:1 1 auto;background:var(--turq);color:#000;border-color:#000;font-size:1.2rem}
+.gfs .juan-lbl{display:none}
+@media (max-height:700px){ .juan-ov.title{padding-top:3.9em;font-size:.88em} .juan-stops{gap:3px} .juan-ov.title .juan-big{font-size:1.7em} }
 /* Lotería Chismosa, full screen (v43): the teal bar (title badge · tabla picker · bean count · ✕) reaches under the notch,
    then the called-card strip, the 4×4 tabla as big as the space allows (cards 2:3, full width at 390×844), Limpiar + Nueva tabla.
    Fits 390×844 and 320×640 with no scrolling (the tabla shrinks with the height). */
@@ -1121,9 +1135,6 @@ html.game-fs .track{transform:none!important;will-change:auto}   /* a transforme
   .lot-actions{gap:6px;padding:4px 6px 8px} .lot-actions .lot-btn{min-height:48px;font-size:.9rem;letter-spacing:.02em} .lot-actions .lot-icon{flex-basis:48px}
 }
 @media (max-height:700px){ .gfs .lcard.big,.gfs .lot-card:empty{width:44px} .lot-now-btns{gap:4px} .lot-now-btns .lot-btn,.lot-now-btns .lot-claim{min-height:40px} .gfs .lot-actions .lot-btn{min-height:48px} }
-/* level cleared: the message sits up in the sky so the destination (Home Dehole's sign, the shop, Mom's house) stays in view */
-.ice-ov.clear{justify-content:flex-start;padding-top:max(3.6em,11%);background:linear-gradient(rgba(0,0,0,.62),rgba(0,0,0,.35) 32%,rgba(0,0,0,0) 48%)}
-.ice-ov.clear .ice-big{font-size:1.2em}
 /* v40: on narrow phones the feed's long name gets its own centered row under ‹ Back / 🔇 Muted instead of a skinny column */
 @media (max-width:360px){ .feed-top{flex-wrap:wrap;row-gap:2px} .feed-label{order:3;flex-basis:100%} .feed-label b{display:inline} }
 /* v41: the feed's sound is on by default; when the browser holds it until a touch, a small hint sits under the top bar */

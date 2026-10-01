@@ -32,8 +32,8 @@ for i, day in enumerate(days):
         k = stats.story_key(f"https://example.com/sample-story-{j}")
         d["stories"][k] = {"t": t, "s": s, "u": f"https://example.com/sample-story-{j}"}
         c["story:" + k] = max(0, int(n * (0.5 - j * 0.07) * rnd.uniform(0.6, 1.3)))
-    c["game:loteria"] = int(n * 0.22 * rnd.uniform(0.6, 1.4)); c["game:icebebe"] = int(n * 0.12 * rnd.uniform(0.5, 1.5))
-    c["game"] = c["game:loteria"] + c["game:icebebe"]
+    c["game:loteria"] = int(n * 0.22 * rnd.uniform(0.6, 1.4)); c["game:juan"] = int(n * 0.12 * rnd.uniform(0.5, 1.5))
+    c["game"] = c["game:loteria"] + c["game:juan"]
     c["food:yt"] = int(n * 1.6 * rnd.uniform(0.6, 1.4)); c["food:tt"] = int(c["food:yt"] * 0.12); c["food"] = c["food:yt"] + c["food:tt"]
     c["tia"] = int(n * 0.35 * rnd.uniform(0.5, 1.5))
     c["donate:cashapp"] = rnd.randint(0, 3); c["donate:bmc"] = rnd.randint(0, 2); c["donate"] = c["donate:cashapp"] + c["donate:bmc"]

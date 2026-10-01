@@ -1,7 +1,7 @@
 /* Chisme — frontend (location-aware) */
 // Build of this file. Must equal the number in sw.js VERSION ("chisme-v22"); the page compares it
 // with the build the HTML was served for and reloads once if an old cached app.js got mixed in.
-window.CHISME_APP_BUILD = "43";
+window.CHISME_APP_BUILD = "44";
 (() => {
   "use strict";
   const WEATHER_MS = 10 * 60 * 1000;
@@ -2363,7 +2363,7 @@ window.CHISME_APP_BUILD = "43";
 
   // ---------- views: News | Sports | Weather | ¿Cuál dieta? | Juegitos | Events (tap the fixed buttons, swipe sideways or ←/→ on the tabs)
   const VIEWS = ["news", "sports", "weather", "antojos", "juegos", "events"];
-  // 🎲 Juegos: mounted the first time the tab opens (static/juegos.js lists the games; icebebe.js adds game 2).
+  // 🎲 Juegos: mounted the first time the tab opens (static/juegos.js lists the games; juan.js adds game 2, Juan's Long Day).
   let juegos = null;
   function juegosOpen(game) {
     if (!juegos && window.ChismeJuegos) juegos = window.ChismeJuegos.mountTab($("#games-list"), $("#game-stage"), { reducedMotion });
@@ -2371,7 +2371,7 @@ window.CHISME_APP_BUILD = "43";
     return juegos;
   }
   const juegosPause = () => { if (juegos) juegos.pause(); };
-  window.addEventListener("chisme-game-play", (e) => Stats.ev("game", String(e.detail || "game").slice(0, 24)));   // juegos.js / icebebe.js: a game started
+  window.addEventListener("chisme-game-play", (e) => Stats.ev("game", String(e.detail || "game").slice(0, 24)));   // juegos.js / juan.js: a game started
   const juegosLeave = () => { if (juegos) (juegos.leave || juegos.pause)(); };   // another tab: drop full-screen play too
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") juegosPause(); });
   const GAP = 24;
@@ -2501,7 +2501,7 @@ window.CHISME_APP_BUILD = "43";
   const HASH_VIEW = { "#weather": ["weather"], "#forecast-sec": ["weather", "forecast-sec"], "#radar-sec": ["weather", "radar-sec"], "#radar": ["weather", "radar-sec"],
     "#alerts": ["weather", "alerts"], "#events": ["events"], "#antojos": ["antojos"], "#cual-dieta": ["antojos"], "#dieta": ["antojos"], "#food": ["antojos"], "#near": ["news", "near"], "#city": ["news", "city"],
     "#sports": ["sports"], "#spurs": ["sports"], "#nfl": ["sports"], "#mlb": ["sports"], "#missions": ["sports"], "#news": ["news"],
-    "#juegos": ["juegos"], "#juegitos": ["juegos"], "#games": ["juegos"], "#loteria": ["juegos", null, "loteria"], "#ice": ["juegos", null, "icebebe"], "#icebebe": ["juegos", null, "icebebe"] };
+    "#juegos": ["juegos"], "#juegitos": ["juegos"], "#games": ["juegos"], "#loteria": ["juegos", null, "loteria"], "#juan": ["juegos", null, "juan"], "#juans-long-day": ["juegos", null, "juan"] };
   pos(0); updateTabs();
 
   // ---------- settings sheet (tap the Chisme icon in the header)

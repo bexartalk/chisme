@@ -1,0 +1,864 @@
+/* Chisme · Juegitos game 2: "Juan's Long Day" (v44), a side-scrolling runner with smooth vector art on a canvas
+   (paths, gradients and anti-aliasing, drawn at the phone's devicePixelRatio so it stays crisp; no image files, no requests).
+   Help Juan get through the day, 5 levels: Home Dehole (the parody hardware store: beige building, orange sign, white
+   letters) → Don Pedroes (a Southside Mexican restaurant: cream stucco, red tile roofs, the tall pole sign with the
+   specials) → O'Reillees (a green-and-white parody auto-parts store, no real logo) → Juan's Casa (quitting time: wash up,
+   boots on) → Noche Caliente, the cantina. Work levels: neon safety-green shirt with orange/silver hi-vis stripes and a
+   white hard hat. Level 5: a beige cowboy hat, pearl-snap western shirt, jeans and boots, and floating cold ones to jump
+   for (each one gives a little health).
+   Nonviolent, neutral, funny obstacles: traffic cones, potholes, runaway shopping carts, a loose chancla, a barking
+   chihuahua, sprinklers; pallets and tire stacks to hop onto. Bumping one costs a bit of the health bar; at zero Juan's
+   worn out ("¡Ay no!" / "¡Híjole!" / "¡Ándale, otra vez!") and goes back to the last 🚩 checkpoint. ☕ coffee = speed
+   boost, breakfast taco = +health, conchas = points. Parallax: the San Antonio skyline far back (Tower of the Americas,
+   Tower Life, Frost Tower …), SE Military Dr storefronts in the middle (taquería, raspas, tire shop, pawn shop,
+   lavandería, a grocery, the Brooks water tower and arch, palms, power lines), the road up front. Static layers are
+   pre-rendered once per level into tiles, so a frame is a few image blits + the moving art (smooth on iPhone Safari).
+   Score + best in localStorage "chisme-juegos-juan". Reduce motion: no parallax, shake, particles or confetti, a bit slower.
+   UI chrome (HUD, overlays, badge) uses the Fiesta palette only: turquoise, pink, black, silver, white; no yellow. */
+(function (root) {
+  "use strict";
+  const KEY = "chisme-juegos-juan";
+  const VW = 360, ROADH = 176, END = 6000, CHECKS = [0, 2000, 4000], HERO_X = 84, TILE = 500, CAM_END = END - HERO_X - 150;   // the camera stops 150 before the end: the stop's building fills the screen and Juan runs up to its door
+  const GRAV = 1750, JUMP = -620, JUMP2 = -540, HP = 100, HERO_W = 26, HERO_H = 62;
+  const SANS = '"Avenir Next Condensed","Arial Narrow","Roboto Condensed","Helvetica Neue",Arial,sans-serif';
+  const UI = '-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif';
+  const WEST = 'Rockwell,"American Typewriter",Georgia,"Times New Roman",serif';
+  const LEVELS = [
+    { name: "Home Dehole", speed: 188, time: "morning", outfit: "work", hint: "Grab the supplies for the job. Watch out for runaway carts!",
+      mix: { cone: 3, cart: 3, pothole: 2, pallet: 2 }, power: [[900, "coffee"], [2700, "taco"], [4400, "coffee"]] },
+    { name: "Don Pedroes", speed: 198, time: "noon", outfit: "work", hint: "Lunch break! The alambre plate is calling.",
+      mix: { pothole: 3, chancla: 2, chihuahua: 2, cone: 2 }, power: [[1250, "taco"], [3100, "coffee"], [4700, "taco"]] },
+    { name: "O'Reillees", speed: 208, time: "afternoon", outfit: "work", hint: "The work truck needs a part. Mind the potholes.",
+      mix: { pothole: 3, tires: 2, cone: 2, cart: 1, chihuahua: 2 }, power: [[1000, "coffee"], [2600, "taco"], [4500, "coffee"]] },
+    { name: "Juan's Casa", speed: 216, time: "sunset", outfit: "work", hint: "Quitting time! Home to wash up and put on the boots.",
+      mix: { sprinkler: 3, chihuahua: 2, chancla: 2, pothole: 2, cone: 1 }, power: [[1300, "taco"], [3000, "coffee"], [4600, "taco"]] },
+    { name: "Noche Caliente", speed: 222, time: "night", outfit: "western", hint: "Boots on, hat on. Jump for the cold ones on the way to the cantina!",
+      mix: { pothole: 2, cone: 2, chihuahua: 2, chancla: 2, sprinkler: 1 }, power: [[1500, "coffee"], [3300, "taco"]], beers: true },
+  ];
+  const DEST_H = [210, 312, 150, 150, 232];   // how tall each stop's building is (units), so a short screen can shrink it to fit under the HUD
+  const DIM = { cone: [24, 32], pothole: [56, 8], cart: [52, 46], chancla: [30, 14], chihuahua: [36, 28], sprinkler: [18, 12], pallet: [70, 38], tires: [46, 48],
+    concha: [22, 16], beer: [24, 32], coffee: [22, 28], taco: [32, 20], flag: [10, 70] };
+  const HAZ = { cone: [10, "Bonk! A cone"], pothole: [15, "¡Híjole! A pothole"], cart: [20, "Runaway cart!"], chancla: [10, "¡La chancla!"], chihuahua: [15, "Yap yap yap!"], sprinkler: [8, "Soaked!"] };
+  const HAZARDS = Object.keys(HAZ), SOLID = ["pallet", "tires"];
+  const OOPS = ["¡Ay no!", "¡Híjole!", "¡Ándale, otra vez!"];
+  const SKY = {
+    morning: { sky: ["#3f9fe6", "#8fd0f7", "#d9f1ff"], far: ["#8eb3cc", "#b5d0e0"], tint: null, road: 0, sun: "sun" },
+    noon: { sky: ["#1f7fd8", "#5fb2f0", "#bfe4ff"], far: ["#86abc6", "#aac8dc"], tint: null, road: 0, sun: "sun" },
+    afternoon: { sky: ["#3a8fd6", "#8cc4ea", "#ffd2c2"], far: ["#9aa9c4", "#c4bfd0"], tint: "rgba(255,150,110,.10)", road: 0.05, sun: "low" },
+    sunset: { sky: ["#3b2e7a", "#c2548a", "#ff8a5c"], far: ["#6a4a7e", "#9a5a7e"], tint: "rgba(70,30,90,.30)", road: 0.22, sun: "set" },
+    night: { sky: ["#070a24", "#1c1648", "#46225e"], far: ["#1e1c46", "#2c2456"], tint: "rgba(8,8,36,.58)", road: 0.45, sun: "moon" },
+  };
+  const mod = (a, n) => ((a % n) + n) % n;
+  function rng(seed) { let s = seed >>> 0 || 1; return () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; }; }
+
+  // A level's layout is the same every time (seeded by the level number), so a checkpoint restarts the same course.
+  function buildLevel(n) {
+    const L = LEVELS[n - 1], r = rng(1000 + n * 7919), ents = [], bag = [];
+    for (const [k, w] of Object.entries(L.mix)) for (let i = 0; i < w; i++) bag.push(k);
+    const clearOf = (x) => CHECKS.some((c) => c && x + 140 > c - 100 && x - 80 < c + 170);   // nothing right at a 🚩
+    const add = (t, x, y, extra) => { const [w, h] = DIM[t]; const e = Object.assign({ t, x, y: y == null ? -h : y, w, h }, extra || {}); ents.push(e); return e; };
+    for (const [px, kind] of L.power) add(kind, px, -120);
+    let x = 620;
+    while (x < END - 420) {
+      x += 250 - n * 8 + Math.floor(r() * 180);
+      if (clearOf(x) || x > END - 460) continue;
+      const k = bag[Math.floor(r() * bag.length)];
+      if (k === "cart") add("cart", x, null, { vx: -75 });
+      else if (k === "chihuahua") add("chihuahua", x, null, { vx: -80, home: x, ph: r() * 6 });
+      else if (k === "chancla") add("chancla", x, null, { ph: r() * 6, home: x });
+      else if (k === "sprinkler") add("sprinkler", x, null, { ph: r() * 2.4 });
+      else add(k, x);
+      if (SOLID.includes(k)) for (let i = 0; i < 2; i++) add("concha", x + 10 + i * 28, -DIM[k][1] - 44);
+      else if (!L.beers && r() < 0.55) for (let i = 0; i < 3; i++) add("concha", x - 28 + i * 34, -104 - (i === 1 ? 26 : 0));
+    }
+    if (L.beers) { for (let bx = 680; bx < END - 420; bx += 210 + Math.floor(r() * 120)) if (!CHECKS.some((c) => c && Math.abs(bx - c) < 70)) add("beer", bx, -100 - Math.floor(r() * 70));
+      [[END - 150, -104], [END - 112, -132], [END - 74, -144], [END - 36, -128]].forEach(([bx, by]) => add("beer", bx, by)); }   // a last arc of cold ones by the cantina door
+    for (const c of CHECKS.slice(1)) add("flag", c, -70);
+    return ents;
+  }
+  const hit = (a, b, pad = 3) => a.x + pad < b.x + b.w && a.x + a.w - pad > b.x && a.y + pad < b.y + b.h && a.y + a.h - pad > b.y;
+  function load() { const d = { best: 0, muted: false, levelMax: 1, wins: 0, beers: 0 }; try { return Object.assign(d, JSON.parse(localStorage.getItem(KEY) || "{}")); } catch (e) { return d; } }
+  function save(s) { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) {} }
+  const reset = () => { try { localStorage.removeItem(KEY); } catch (e) {} };
+
+  // ================= drawing helpers (any 2D context, in game units) =================
+  function rr(c, x, y, w, h, r) { r = Math.max(0, Math.min(r, w / 2, h / 2)); c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
+  function lin(c, x0, y0, x1, y1, cols) { const g = c.createLinearGradient(x0, y0, x1, y1); cols.forEach((col, i) => g.addColorStop(i / Math.max(1, cols.length - 1), col)); return g; }
+  function box(c, fill, x, y, w, h, r) { c.fillStyle = fill; if (r) { rr(c, x, y, w, h, r); c.fill(); } else c.fillRect(x, y, w, h); }
+  function ell(c, fill, x, y, rx, ry, rot) { c.fillStyle = fill; c.beginPath(); c.ellipse(x, y, Math.max(0.1, rx), Math.max(0.1, ry), rot || 0, 0, Math.PI * 2); c.fill(); }
+  function line(c, col, w, pts, cap) { c.strokeStyle = col; c.lineWidth = w; c.lineCap = cap || "round"; c.lineJoin = "round"; c.beginPath(); c.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) c.lineTo(pts[i], pts[i + 1]); c.stroke(); }
+  function poly(c, fill, pts) { c.fillStyle = fill; c.beginPath(); c.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) c.lineTo(pts[i], pts[i + 1]); c.closePath(); c.fill(); }
+  function say(c, s, x, y, size, col, o = {}) {
+    c.font = `${o.italic ? "italic " : ""}${o.weight || 800} ${size}px ${o.font || SANS}`; c.textAlign = o.align || "center"; c.textBaseline = "middle";
+    if (o.glow) { c.shadowColor = o.glow; c.shadowBlur = o.blur || 8; }
+    if (o.stroke) { c.lineWidth = o.sw || 3; c.strokeStyle = o.stroke; c.lineJoin = "round"; c.strokeText(s, x, y, o.max); }
+    c.fillStyle = col; c.fillText(s, x, y, o.max);
+    if (o.glow) { c.shadowBlur = 0; c.shadowColor = "transparent"; }
+  }
+  function palm(c, x, h, lean = 0.12, s = 1) {   // a Texas palm: a curved ringed trunk and a crown of drooping fronds
+    const tx = x + h * lean, ty = -h;
+    c.fillStyle = lin(c, x - 4, 0, x + 4, 0, ["#6b4a2e", "#9a7048", "#6b4a2e"]);
+    c.beginPath(); c.moveTo(x - 4 * s, 0); c.quadraticCurveTo(x - 3 * s + h * lean * 0.2, -h * 0.55, tx - 2 * s, ty); c.lineTo(tx + 2 * s, ty); c.quadraticCurveTo(x + 3 * s + h * lean * 0.2, -h * 0.55, x + 4 * s, 0); c.closePath(); c.fill();
+    c.strokeStyle = "rgba(60,38,20,.45)"; c.lineWidth = 0.8;
+    for (let k = 1; k < 14; k++) { const f = k / 14, px = x + (tx - x) * f * f * 0.9 + h * lean * 0.1 * f, py = -h * f; c.beginPath(); c.moveTo(px - 3.5 * s, py); c.lineTo(px + 3.5 * s, py + 1); c.stroke(); }
+    const fronds = [[-2.7, 1], [-2.2, 1.1], [-1.6, 0.9], [-0.9, 0.8], [-0.2, 0.75], [0.5, 0.8], [1.2, 0.95], [1.9, 1.1], [2.5, 1]];
+    for (const [a, len] of fronds) {
+      const L = 30 * s * len, ex = tx + Math.sin(a) * L, ey = ty - Math.cos(a) * L * 0.55 + L * 0.35;
+      const mx = tx + Math.sin(a) * L * 0.55, my = ty - Math.cos(a) * L * 0.6 - 6 * s;
+      c.fillStyle = lin(c, tx, ty - 10, ex, ey, ["#3f9a52", "#2b7a3f", "#1f5e30"]);
+      c.beginPath(); c.moveTo(tx, ty); c.quadraticCurveTo(mx, my - 4 * s, ex, ey); c.quadraticCurveTo(mx, my + 3 * s, tx, ty + 2); c.fill();
+    }
+    ell(c, "#5a3d22", tx, ty + 1, 3.2 * s, 2.4 * s);
+  }
+  function shrub(c, x, w, h, col = "#2f8a46") {   // a fan palm / sago shrub
+    for (let i = 0; i < 9; i++) { const a = -1.3 + i * 0.32, L = h * (0.75 + 0.25 * Math.sin(i * 1.7));
+      c.fillStyle = i % 2 ? col : "#256f39"; c.beginPath(); c.moveTo(x - 2, 0); c.quadraticCurveTo(x + Math.sin(a) * L * 0.5 - 3, -Math.cos(a) * L * 0.7, x + Math.sin(a) * w * 0.6, -Math.cos(a) * L); c.quadraticCurveTo(x + Math.sin(a) * L * 0.5 + 3, -Math.cos(a) * L * 0.6, x + 2, 0); c.fill(); }
+  }
+  function pole(c, x, h) {   // a wooden power pole with a crossarm and insulators; returns the 3 wire points
+    box(c, lin(c, x - 3, 0, x + 3, 0, ["#5b4430", "#86664a", "#5b4430"]), x - 2.5, -h, 5, h);
+    box(c, "#5b4430", x - 22, -h + 8, 44, 4); box(c, "#5b4430", x - 2, -h + 22, 4, 0);
+    for (const dx of [-19, 0, 19]) { box(c, "#cfd8de", dx + x - 1.5, -h + 3, 3, 5, 1); }
+    ell(c, "#8a939c", x + 6, -h + 30, 4, 5); box(c, "#6c757d", x + 2, -h + 34, 8, 3);   // a transformer can
+    return [[x - 19, -h + 4], [x, -h + 4], [x + 19, -h + 4]];
+  }
+  function wires(c, a, b, col) { c.strokeStyle = col; c.lineWidth = 0.9; for (let i = 0; i < a.length; i++) { c.beginPath(); c.moveTo(a[i][0], a[i][1]); c.quadraticCurveTo((a[i][0] + b[i][0]) / 2, Math.max(a[i][1], b[i][1]) + 14, b[i][0], b[i][1]); c.stroke(); } }
+  function glass(c, x, y, w, h, lit) { box(c, lit ? lin(c, 0, y, 0, y + h, ["#ffd9a0", "#ffb46a"]) : lin(c, x, y, x + w, y + h, ["#bfe6f7", "#7fb6d6", "#a9d4ea"]), x, y, w, h); if (!lit) { c.fillStyle = "rgba(255,255,255,.45)"; c.beginPath(); c.moveTo(x + w * 0.15, y + h); c.lineTo(x + w * 0.45, y); c.lineTo(x + w * 0.6, y); c.lineTo(x + w * 0.3, y + h); c.fill(); } }
+  function awning(c, x, y, w, cols) { const n = Math.max(2, Math.round(w / 12)), sw = w / n; for (let i = 0; i < n; i++) { poly(c, cols[i % cols.length], [x + i * sw, y, x + (i + 1) * sw, y, x + (i + 1) * sw + 3, y + 14, x + i * sw + 3, y + 14]); c.fillStyle = cols[i % cols.length]; c.beginPath(); c.arc(x + i * sw + sw / 2 + 3, y + 14, sw / 2, 0, Math.PI); c.fill(); } }
+  function stucco(c, x, y, w, h, top, bot) { box(c, lin(c, 0, y, 0, y + h, [top, bot]), x, y, w, h); }
+  function tire(c, x, y, r) { ell(c, "#1d1f24", x, y, r, r * 0.42); ell(c, "#3a3d44", x, y, r * 0.58, r * 0.22); ell(c, "#14161a", x, y, r * 0.34, r * 0.13); }
+
+  // ---- the far layer: the San Antonio skyline (period 1400). Silhouettes in the haze color, little lit windows at night.
+  function farLayer(c, P, night) {
+    const [hz, hz2] = P.far, sil = lin(c, 0, -360, 0, 0, [hz, hz2]), win = night ? "rgba(255,214,150,.85)" : "rgba(255,255,255,.22)";
+    const r = rng(77), bldg = (x, w, h, top) => { box(c, sil, x, -h, w, h); if (top) top(x, w, h);
+      c.fillStyle = win; for (let yy = -h + 8; yy < -12; yy += 9) for (let xx = x + 3; xx < x + w - 3; xx += 6) if (!night || r() < 0.35) c.fillRect(xx, yy, 2.2, 3.4); };
+    c.fillStyle = sil;   // low hills + trees along the base
+    c.beginPath(); c.moveTo(0, 0); for (let x = 0; x <= 1400; x += 20) c.lineTo(x, -18 - 8 * Math.sin(x * 0.011) - 5 * Math.sin(x * 0.037)); c.lineTo(1400, 0); c.fill();
+    bldg(130, 34, 120); bldg(176, 26, 90); bldg(880, 40, 150); bldg(930, 30, 96);
+    // Tower Life Building: an octagonal brick tower with a stepped pyramid roof and a lantern
+    bldg(300, 44, 210, (x, w, h) => { poly(c, sil, [x - 2, -h, x + w + 2, -h, x + w - 6, -h - 22, x + 6, -h - 22]); poly(c, sil, [x + 8, -h - 22, x + w - 8, -h - 22, x + w / 2 + 3, -h - 50, x + w / 2 - 3, -h - 50]); box(c, sil, x + w / 2 - 1, -h - 62, 2, 14); box(c, sil, x - 4, -h + 30, w + 8, 4); });
+    // Weston Centre: a tall tower with a curved, stepped crown
+    bldg(368, 40, 250, (x, w, h) => { c.fillStyle = sil; c.beginPath(); c.moveTo(x, -h); c.quadraticCurveTo(x + w / 2, -h - 34, x + w, -h); c.fill(); });
+    bldg(414, 30, 160);
+    // Frost Tower: modern glass, a sliced/tilted crown
+    bldg(452, 38, 236, (x, w, h) => { poly(c, sil, [x, -h, x + w, -h, x + w, -h - 40, x + 6, -h - 8]); box(c, sil, x + w - 3, -h - 58, 2, 18); });
+    bldg(498, 52, 140); bldg(556, 28, 180, (x, w, h) => poly(c, sil, [x, -h, x + w, -h, x + w / 2, -h - 26]));   // a pointed-top hotel
+    // San Fernando–style cathedral towers + a mission dome
+    box(c, sil, 600, -96, 60, 96); box(c, sil, 604, -140, 14, 44); box(c, sil, 642, -140, 14, 44); poly(c, sil, [602, -140, 620, -140, 611, -158]); poly(c, sil, [640, -140, 658, -140, 649, -158]);
+    c.fillStyle = sil; c.beginPath(); c.arc(690, -84, 22, Math.PI, 0); c.fill(); box(c, sil, 668, -84, 44, 84); box(c, sil, 689, -114, 2, 10);
+    bldg(730, 36, 130); bldg(772, 30, 104);
+    // Tower of the Americas: a tall tapered shaft with the "top hat" observation pod and a mast
+    const tx = 236, th = 290;
+    poly(c, sil, [tx - 9, 0, tx + 9, 0, tx + 5.5, -th + 40, tx - 5.5, -th + 40]);
+    poly(c, sil, [tx - 6, -th + 40, tx + 6, -th + 40, tx + 22, -th + 26, tx - 22, -th + 26]);
+    box(c, sil, tx - 24, -th + 4, 48, 23, 4); box(c, sil, tx - 20, -th - 4, 40, 9, 3); box(c, sil, tx - 1.5, -th - 48, 3, 46);
+    c.fillStyle = night ? "rgba(255,200,140,.9)" : "rgba(255,255,255,.3)"; for (let i = 0; i < 9; i++) c.fillRect(tx - 21 + i * 4.8, -th + 12, 2.6, 5);
+    ell(c, "#ff4d5e", tx, -th - 49, 2, 2);
+    bldg(940, 46, 96); bldg(1000, 30, 70); bldg(1080, 40, 110); bldg(1150, 60, 64); bldg(1240, 34, 88);
+    // the Hemisfair dome / convention hall roof + far trees
+    c.fillStyle = sil; c.beginPath(); c.ellipse(1320, -40, 46, 24, 0, Math.PI, 0); c.fill();
+  }
+
+  // ---- the mid layer: SE Military Dr (period 2000). Each storefront; signs and windows glow again at night ("lights" pass).
+  function midLayer(c, P, night, pass) {
+    const lit = pass === "lights", L = (fn) => { if (!lit) fn(false); else fn(true); };
+    const sign = (x, y, w, h, bg, text, fg, o = {}) => { if (!lit) { box(c, "#1d1f26", x - 1.5, y - 1.5, w + 3, h + 3, 4); box(c, bg, x, y, w, h, 3); }
+      if (!lit || night) say(c, text, x + w / 2, y + h / 2 + 0.5, o.size || h * 0.62, fg, { max: w - 6, font: o.font, italic: o.italic, weight: o.weight, glow: lit ? o.glow || fg : null, blur: 10 }); };
+    const windows = (x, y, w, h, n) => { const gw = (w - (n + 1) * 4) / n; for (let i = 0; i < n; i++) { if (!lit) { box(c, "#2b2f38", x + 4 + i * (gw + 4) - 1, y - 1, gw + 2, h + 2); glass(c, x + 4 + i * (gw + 4), y, gw, h, false); } else if (night) { c.globalAlpha = 0.9; glass(c, x + 4 + i * (gw + 4), y, gw, h, true); c.globalAlpha = 1; } } };
+    // power poles every 400 with sagging wires
+    // taquería
+    if (!lit) { stucco(c, 30, -122, 230, 122, "#ff9a62", "#f07848"); box(c, "#c9563a", 26, -128, 238, 8, 2); awning(c, 40, -72, 210, ["#00b8b0", "#ffffff"]); box(c, "#7a3b2a", 196, -54, 30, 54, 2); }
+    sign(70, -114, 150, 30, "#111111", "TAQUERIA", "#ff8fbf", { size: 21, font: WEST });
+    windows(40, -54, 150, 40, 3);
+    if (!lit) { for (let i = 0; i < 16; i++) { const px = 34 + i * 14; poly(c, ["#ff3d8b", "#00b8b0", "#ff8a00", "#ffffff"][i % 4], [px, -84, px + 12, -84, px + 12, -78, px + 6, -74, px, -78]); } line(c, "#333", 0.8, [30, -84, 262, -84]); say(c, "TACOS · MENUDO · BARBACOA", 145, -92, 8, "#ffffff", { max: 180 }); }
+    if (!lit) palm(c, 280, 186, 0.1);
+    // raspa stand
+    if (!lit) { stucco(c, 300, -70, 110, 70, "#ffffff", "#e3e8ee"); poly(c, "#ff3d8b", [292, -70, 418, -70, 406, -88, 304, -88]); box(c, "#3a3f4a", 318, -50, 74, 26, 2);
+      for (let i = 0; i < 5; i++) { const cx = 326 + i * 14; poly(c, "#ffffff", [cx - 5, -32, cx + 5, -32, cx + 3, -24, cx - 3, -24]); ell(c, ["#ff3d8b", "#00b8b0", "#ff8a00", "#7a5cff", "#3ad07a"][i], cx, -34, 6, 4.5); } }
+    sign(320, -84, 70, 12, "#ffffff", "RASPAS", "#ff3d8b", { size: 11 });
+    // tire shop
+    if (!lit) { box(c, lin(c, 0, -112, 0, 0, ["#c7ced6", "#9aa3ad"]), 440, -112, 220, 112); c.strokeStyle = "rgba(0,0,0,.12)"; c.lineWidth = 1; for (let x = 444; x < 660; x += 6) { c.beginPath(); c.moveTo(x, -112); c.lineTo(x, 0); c.stroke(); }
+      box(c, "#22252c", 456, -68, 86, 68); box(c, "#3a3f4a", 456, -68, 86, 6); for (let k = 0; k < 4; k++) tire(c, 470 + k * 0, -6 - k * 9, 12); for (let k = 0; k < 3; k++) tire(c, 520, -6 - k * 9, 12);
+      for (let k = 0; k < 5; k++) tire(c, 620, -6 - k * 9, 13); }
+    sign(470, -104, 170, 28, "#ff3d8b", "TIRE SHOP · LLANTAS", "#ffffff", { size: 17 });
+    windows(552, -64, 52, 34, 1);
+    if (!lit) palm(c, 690, 168, -0.08);
+    // pawn shop
+    if (!lit) { box(c, lin(c, 0, -100, 0, 0, ["#a0522d", "#7d3f22"]), 720, -100, 170, 100); c.strokeStyle = "rgba(255,255,255,.12)"; c.lineWidth = 0.8;
+      for (let y = -96; y < 0; y += 6) { c.beginPath(); c.moveTo(720, y); c.lineTo(890, y); c.stroke(); } box(c, "#3c2a20", 840, -50, 30, 50, 2);
+      for (const bx of [744, 772, 800]) ell(c, lin(c, bx - 6, -96, bx + 6, -84, ["#e8edf2", "#8a939c"]), bx, -82, 6, 6); }
+    sign(820, -100, 64, 26, "#111111", "PAWN", "#3ee8eb", { size: 19 });
+    windows(728, -60, 104, 40, 2); if (!lit) { c.strokeStyle = "#2b2f38"; c.lineWidth = 1.4; for (let x = 734; x < 832; x += 7) { c.beginPath(); c.moveTo(x, -60); c.lineTo(x, -20); c.stroke(); } say(c, "GOLD · TOOLS · GUITARS", 805, -66, 7.5, "#ffffff", { max: 150 }); }
+    // lavandería
+    if (!lit) { stucco(c, 910, -96, 200, 96, "#8fd8e0", "#5fbcc8"); box(c, "#ffffff", 906, -100, 208, 6, 2); box(c, "#2a6f78", 1072, -52, 28, 52, 2); }
+    sign(930, -92, 160, 24, "#ffffff", "LAVANDERIA", "#0f6d73", { size: 18 });
+    windows(916, -60, 150, 44, 3);
+    if (!lit) { for (let i = 0; i < 6; i++) { const wx = 932 + i * 22; ell(c, "#e8edf2", wx, -28, 8, 8); ell(c, "#4a5a6a", wx, -28, 5.5, 5.5); ell(c, "rgba(255,255,255,.5)", wx - 2, -30, 2, 1.4); } say(c, "WASH & FOLD", 990, -66, 8, "#0f6d73"); }
+    if (!lit) palm(c, 1136, 196, 0.12);
+    // a big grocery (H-E-B-ish feel, generic): white block, red sign band, the entrance canopy, carts
+    if (!lit) { box(c, lin(c, 0, -140, 0, 0, ["#ffffff", "#e6e9ee"]), 1170, -140, 380, 140); box(c, "#d7262e", 1170, -140, 380, 12); box(c, "#d7262e", 1290, -84, 140, 10, 2);
+      for (let x = 1180; x < 1545; x += 40) box(c, "rgba(0,0,0,.05)", x, -128, 2, 128); box(c, "#3a3f4a", 1305, -74, 110, 74); for (let k = 0; k < 4; k++) box(c, "#c9d0d8", 1188 + k * 12, -18, 10, 14, 2); }
+    sign(1260, -124, 200, 32, "#ffffff", "SUPERMERCADO", "#d7262e", { size: 24, weight: 900 });
+    windows(1310, -70, 100, 60, 3); windows(1440, -72, 96, 40, 2); windows(1180, -72, 100, 40, 2);
+    // the Brooks water tower + the arch at the gate (a hint of Brooks City Base)
+    if (!lit) { for (const lx of [1588, 1632]) box(c, "#9aa3ad", lx, -150, 4, 150); line(c, "#9aa3ad", 1.4, [1590, -40, 1634, -110, 1590, -110, 1634, -40]);
+      c.fillStyle = lin(c, 1578, 0, 1646, 0, ["#cfd8de", "#ffffff", "#b9c2ca"]); rr(c, 1576, -208, 72, 60, 14); c.fill(); poly(c, "#b9c2ca", [1576, -196, 1648, -196, 1612, -224]); box(c, "#00b8b0", 1576, -170, 72, 7);
+      say(c, "BROOKS", 1612, -186, 13, "#0f6d73", { weight: 900 });
+      c.strokeStyle = lin(c, 1670, 0, 1800, 0, ["#8a939c", "#c9d0d8", "#8a939c"]); c.lineWidth = 7; c.beginPath(); c.moveTo(1672, 0); c.quadraticCurveTo(1736, -150, 1800, 0); c.stroke(); box(c, "#8a939c", 1690, -28, 92, 6, 2); }
+    if (lit && night) ell(c, "rgba(255,80,94,.9)", 1612, -226, 2.2, 2.2);
+    if (!lit) { palm(c, 1840, 178, -0.1); palm(c, 1900, 150, 0.14); shrub(c, 1960, 22, 26); }
+    // power poles and wires (on top, every 400)
+    if (!lit) { let prev = null; for (let x = 0; x <= 2000; x += 400) { const p = pole(c, x + 10, 210); if (prev) wires(c, prev, p, night ? "#3a3f55" : "#2b2f38"); prev = p; }
+      box(c, "#0f7a3a", 818, -176, 56, 12, 2); say(c, "SE MILITARY DR", 846, -170, 8, "#ffffff", { max: 52, weight: 900 }); }
+  }
+
+  // ---- each stop's building (drawn once per level into a cache, 360 units wide, ground at y 0)
+  function destination(c, n, night) {
+    if (n === 1) {   // Home Dehole: a parody big-box hardware store (beige block, orange sign band, white letters, no logo)
+      box(c, lin(c, 0, -196, 0, 0, ["#e6d7c1", "#d2bfa4"]), 0, -196, 360, 196); box(c, "#bba68a", 0, -196, 360, 8);
+      c.fillStyle = "rgba(120,96,70,.16)"; for (let x = 24; x < 360; x += 24) c.fillRect(x, -188, 1.2, 188);
+      box(c, "#7a5b3e", 34, -176, 292, 46, 6); box(c, lin(c, 0, -174, 0, -132, ["#ff8a1a", "#ee6a00"]), 36, -174, 288, 42, 5);
+      say(c, "HOME DEHOLE", 180, -152, 34, "#ffffff", { weight: 900, max: 270, stroke: "rgba(150,60,0,.55)", sw: 2.4 });
+      box(c, "#ee6a00", 40, -122, 280, 14, 3); say(c, "LUMBER · TOOLS · PAINT · GARDEN", 180, -115, 9, "#ffffff", { weight: 800, max: 270 });
+      box(c, lin(c, 0, -96, 0, -84, ["#ff8a1a", "#d85f00"]), 112, -96, 136, 12, 3); box(c, "#6c757d", 120, -84, 120, 84);
+      glass(c, 124, -80, 54, 80, false); glass(c, 182, -80, 54, 80, false); box(c, "#6c757d", 178, -80, 4, 80);
+      for (let k = 0; k < 3; k++) for (const cx of [26, 62, 270, 306]) { const y = -16 - k * 0; box(c, "#ff7a00", cx + k * 4, y - 22, 30, 4, 1); c.strokeStyle = "#ff7a00"; c.lineWidth = 1.2; rr(c, cx + k * 4, y - 20, 30, 18, 2); c.stroke(); for (let g = 4; g < 30; g += 5) { c.beginPath(); c.moveTo(cx + k * 4 + g, y - 20); c.lineTo(cx + k * 4 + g, y - 2); c.stroke(); } ell(c, "#111", cx + k * 4 + 5, -1, 2.5, 2.5); ell(c, "#111", cx + k * 4 + 26, -1, 2.5, 2.5); }
+      box(c, "#8a6a48", 254, -10, 0, 0); for (let k = 0; k < 3; k++) box(c, ["#c9b29a", "#b39b81", "#d6c2ab"][k], 92 - k * 2, -12 - k * 10, 22, 10, 3);
+      return;
+    }
+    if (n === 2) {   // Don Pedroes: low cream stucco, red Spanish-tile roofs, the arched block-pattern entry, the tall pole sign
+      const tiles = (x, y, w, h) => { poly(c, lin(c, 0, y, 0, y + h, ["#c8432c", "#9e2e1e"]), [x - 8, y + h, x + w + 8, y + h, x + w - 10, y, x + 10, y]);
+        c.strokeStyle = "rgba(90,20,10,.45)"; c.lineWidth = 1; for (let k = x - 4; k < x + w + 6; k += 5) { c.beginPath(); c.moveTo(k, y + h); c.lineTo(k + (x + w / 2 - k) * 0.25, y); c.stroke(); }
+        c.strokeStyle = "rgba(255,190,170,.35)"; for (let yy = y + 5; yy < y + h; yy += 5) { c.beginPath(); c.moveTo(x - 6 + (y + h - yy) * 0.2, yy); c.lineTo(x + w + 6 - (y + h - yy) * 0.2, yy); c.stroke(); } };
+      stucco(c, 0, -74, 250, 74, "#f3e6cf", "#e2d1b4"); tiles(0, -96, 104, 24); tiles(150, -92, 104, 22);
+      for (const wx of [14, 50, 176, 212]) { box(c, "#b9a07c", wx - 2, -58, 28, 40, 12); glass(c, wx, -56, 24, 36, night); box(c, "#c8432c", wx - 3, -18, 30, 4, 1); }
+      // the arched entry: a tall facade with a decorative block grid
+      c.fillStyle = lin(c, 0, -150, 0, 0, ["#efe1c6", "#dccaa8"]); c.beginPath(); c.moveTo(98, 0); c.lineTo(98, -118); c.quadraticCurveTo(126, -152, 154, -118); c.lineTo(154, 0); c.fill();
+      c.save(); c.beginPath(); c.moveTo(102, -10); c.lineTo(102, -116); c.quadraticCurveTo(126, -146, 150, -116); c.lineTo(150, -10); c.clip();
+      for (let y = -146; y < -10; y += 7) for (let x = 103 + ((y / 7) & 1) * 3; x < 150; x += 7) box(c, "rgba(150,120,80,.35)", x, y, 4.5, 4.5);
+      c.restore(); c.fillStyle = "#5a3a26"; c.beginPath(); c.moveTo(114, 0); c.lineTo(114, -40); c.quadraticCurveTo(126, -56, 138, -40); c.lineTo(138, 0); c.fill(); box(c, "#c9a46a", 125, -26, 2, 6);
+      shrub(c, 90, 22, 30); shrub(c, 164, 22, 30); shrub(c, 8, 18, 22); shrub(c, 240, 20, 26);
+      // the pole sign: a rounded orange-and-red top with the cowboy on his horse + a green banner, a white marquee of specials
+      const sx = 292; for (const px of [sx - 22, sx + 22]) box(c, lin(c, px - 3, 0, px + 3, 0, ["#8a939c", "#e1e6ea", "#8a939c"]), px - 3, -186, 6, 186);
+      box(c, "#2b2f38", sx - 46, -186, 92, 64, 3); box(c, "#ffffff", sx - 43, -183, 86, 58, 2);
+      ["TRY OUR", "ALAMBRE PLATE", "CABRITO PLATE", "COSTILLAS DE RES"].forEach((s, i) => say(c, s, sx, -174 + i * 14, 11, i ? "#1d1f26" : "#c8432c", { weight: 900, max: 80 }));
+      box(c, "#8a939c", sx - 4, -196, 8, 10);
+      c.fillStyle = "#2b2f38"; rr(c, sx - 38, -300, 76, 110, 36); c.fill(); c.fillStyle = lin(c, 0, -296, 0, -194, ["#ff8a1a", "#ff6a1a", "#d7262e"]); rr(c, sx - 35, -297, 70, 104, 33); c.fill();
+      c.fillStyle = "rgba(255,255,255,.18)"; rr(c, sx - 30, -292, 26, 70, 12); c.fill();
+      c.fillStyle = "#3a1d12";   // a simple cowboy-on-horse silhouette
+      c.beginPath(); c.ellipse(sx + 2, -242, 17, 8, -0.05, 0, Math.PI * 2); c.fill();
+      poly(c, "#3a1d12", [sx + 14, -246, sx + 26, -264, sx + 31, -260, sx + 22, -240]); ell(c, "#3a1d12", sx + 28, -262, 6, 4, -0.5);
+      for (const [lx, a] of [[-11, 0.15], [-6, -0.1], [9, 0.12], [14, -0.15]]) line(c, "#3a1d12", 3.2, [sx + lx, -238, sx + lx + a * 18, -222]);
+      line(c, "#3a1d12", 3, [sx - 14, -244, sx - 22, -230]);
+      ell(c, "#3a1d12", sx - 2, -258, 5, 8); ell(c, "#3a1d12", sx - 1, -270, 4, 4.2); ell(c, "#3a1d12", sx - 1, -274, 10, 2.2); box(c, "#3a1d12", sx - 5, -282, 8, 8, 3);
+      for (const k of [-1, 1]) { c.fillStyle = "#0a5a2a"; c.beginPath(); c.moveTo(sx + k * 34, -214); c.lineTo(sx + k * 48, -214); c.lineTo(sx + k * 43, -206); c.lineTo(sx + k * 48, -198); c.lineTo(sx + k * 34, -198); c.closePath(); c.fill(); }
+      box(c, "#0f7a3a", sx - 37, -218, 74, 20, 3); say(c, "DON PEDROES", sx, -207.5, 14, "#ffffff", { weight: 900, max: 68, font: WEST });
+      return;
+    }
+    if (n === 3) {   // O'Reillees: a green-and-white parody auto-parts store, no logo
+      box(c, lin(c, 0, -140, 0, 0, ["#ffffff", "#e9edf0"]), 10, -140, 340, 140); box(c, "#0b7a3e", 10, -140, 340, 40); box(c, "#ffffff", 10, -100, 340, 4); box(c, "#0b7a3e", 10, -96, 340, 6);
+      say(c, "O'REILLEES", 180, -122, 32, "#ffffff", { weight: 900, italic: true, max: 300 });
+      say(c, "AUTO PARTS", 180, -86, 10, "#0b7a3e", { weight: 900, max: 200 });
+      for (let x = 22; x < 340; x += 72) { if (x > 140 && x < 220) continue; box(c, "#2b2f38", x - 1, -71, 58, 50); glass(c, x, -70, 56, 48, night); }
+      box(c, "#0b7a3e", 150, -78, 60, 78); glass(c, 156, -72, 48, 72, night); box(c, "#0b7a3e", 179, -72, 2, 72);
+      for (let k = 0; k < 4; k++) { box(c, "#1d1f26", 30 + k * 12, -36, 10, 13, 1); box(c, "#d7262e", 32 + k * 12, -38, 2, 2); box(c, "#e1e6ea", 36 + k * 12, -38, 2, 2); }   // batteries in the window
+      for (let k = 0; k < 4; k++) tire(c, 300, -6 - k * 9, 14); box(c, "#ffffff", 232, -48, 40, 16, 3); say(c, "OPEN", 252, -40, 11, "#0b7a3e", { weight: 900 });
+      return;
+    }
+    if (n === 4) {   // Juan's Casa: a little house, a chain-link fence, the work truck with a ladder rack
+      poly(c, "#4a4f5e", [40, -96, 210, -96, 180, -136, 70, -136]); poly(c, lin(c, 0, -136, 0, -96, ["#5a6070", "#3a3f4c"]), [34, -96, 216, -96, 184, -140, 66, -140]);
+      box(c, lin(c, 0, -96, 0, 0, ["#9fe0e0", "#72c2c6"]), 44, -96, 162, 96); c.strokeStyle = "rgba(0,0,0,.08)"; c.lineWidth = 1; for (let y = -92; y < 0; y += 6) { c.beginPath(); c.moveTo(44, y); c.lineTo(206, y); c.stroke(); }
+      for (const wx of [56, 160]) { box(c, "#ffffff", wx - 3, -74, 40, 36, 2); glass(c, wx, -71, 34, 30, true); box(c, "#ffffff", wx + 16, -71, 2, 30); }
+      box(c, "#ffffff", 104, -66, 42, 66); box(c, "#7a3b2a", 110, -60, 30, 60, 2); ell(c, "#c9d0d8", 134, -30, 1.6, 1.6); box(c, "#e8edf2", 96, -70, 58, 5, 1);
+      ell(c, "rgba(255,220,170,.9)", 100, -54, 2.5, 2.5);
+      // the work truck
+      const tx = 232; box(c, lin(c, 0, -56, 0, -10, ["#ffffff", "#c9d0d8"]), tx, -46, 120, 34, 6); c.fillStyle = lin(c, 0, -76, 0, -46, ["#ffffff", "#dfe4ea"]); rr(c, tx + 70, -76, 44, 32, 7); c.fill();
+      glass(c, tx + 78, -72, 30, 18, false); line(c, "#8a939c", 2, [tx + 4, -66, tx + 66, -66]); line(c, "#8a939c", 2, [tx + 8, -66, tx + 8, -46]); line(c, "#8a939c", 2, [tx + 58, -66, tx + 58, -46]);
+      box(c, "#d9a066", tx - 2, -72, 90, 4, 1); for (let k = 0; k < 9; k++) box(c, "#b98048", tx + k * 10, -72, 2, 4);
+      for (const wx of [tx + 22, tx + 96]) { ell(c, "#1d1f24", wx, -10, 12, 12); ell(c, "#c9d0d8", wx, -10, 5, 5); }
+      box(c, "#ff7a00", tx + 116, -40, 4, 6, 1);
+      c.strokeStyle = "rgba(200,208,216,.8)"; c.lineWidth = 0.7; for (let x = 0; x < 232; x += 5) { c.beginPath(); c.moveTo(x, -24); c.lineTo(x + 5, 0); c.moveTo(x + 5, -24); c.lineTo(x, 0); c.stroke(); }
+      line(c, "#9aa3ad", 2, [0, -24, 230, -24]); for (let x = 0; x < 232; x += 46) line(c, "#9aa3ad", 2.4, [x, -26, x, 0]);
+      shrub(c, 24, 18, 24); box(c, "#5b6270", 18, -44, 3, 44); box(c, "#ff3d8b", 12, -52, 16, 10, 3);   // a mailbox
+      return;
+    }
+    // Noche Caliente: the cantina at night: plum adobe, a stepped parapet, string lights, the big neon sign, swinging doors
+    poly(c, lin(c, 0, -220, 0, 0, ["#6a2d5a", "#3e1c3c"]), [6, 0, 6, -182, 60, -182, 70, -200, 150, -200, 160, -220, 200, -220, 210, -200, 290, -200, 300, -182, 354, -182, 354, 0]);
+    c.fillStyle = "rgba(255,255,255,.05)"; for (let y = -176; y < 0; y += 9) for (let x = 10 + ((y / 9) & 1) * 9; x < 350; x += 18) c.fillRect(x, y, 14, 6);
+    rr(c, 24, -172, 312, 44, 10); c.fillStyle = "rgba(10,6,20,.85)"; c.fill();
+    say(c, "NOCHE CALIENTE", 180, -150, 32, "#ff5aa5", { weight: 900, font: WEST, max: 296, glow: "#ff3d8b", blur: 16 });
+    say(c, "NOCHE CALIENTE", 180, -150, 32, "#ffe3f0", { weight: 900, font: WEST, max: 296, glow: "#ff8fbf", blur: 4 });
+    c.strokeStyle = "#3ee8eb"; c.shadowColor = "#00b8b0"; c.shadowBlur = 10; c.lineWidth = 2; rr(c, 28, -168, 304, 36, 8); c.stroke(); c.shadowBlur = 0;
+    // a neon chile
+    c.shadowColor = "#ff3d3d"; c.shadowBlur = 12; c.fillStyle = "#ff4040"; c.beginPath(); c.moveTo(300, -200); c.quadraticCurveTo(326, -200, 318, -218); c.quadraticCurveTo(312, -208, 296, -208); c.fill(); c.shadowBlur = 0; line(c, "#3ad07a", 2.4, [318, -218, 322, -224]);
+    say(c, "CANTINA", 180, -208, 12, "#3ee8eb", { weight: 900, glow: "#00b8b0", blur: 8 });
+    // neon cowboy boots on both sides of the door
+    for (const bx of [58, 302]) { c.shadowColor = "#3ee8eb"; c.shadowBlur = 10; c.strokeStyle = "#3ee8eb"; c.lineWidth = 2.2; c.lineJoin = "round";
+      c.beginPath(); c.moveTo(bx - 8, -128); c.lineTo(bx + 4, -128); c.lineTo(bx + 4, -104); c.quadraticCurveTo(bx + 18, -102, bx + 20, -94); c.lineTo(bx - 4, -94); c.lineTo(bx - 4, -90); c.lineTo(bx - 9, -90); c.lineTo(bx - 9, -104); c.closePath(); c.stroke();
+      line(c, "#ff8fbf", 1.6, [bx - 6, -116, bx + 2, -112]); c.shadowBlur = 0; }
+    // the swinging doors with warm light behind
+    box(c, lin(c, 0, -70, 0, 0, ["#ffb46a", "#ff7a3a"]), 152, -70, 56, 70); for (const dx of [154, 181]) { box(c, "#7a3b2a", dx, -52, 25, 30, 3); line(c, "rgba(0,0,0,.35)", 1, [dx + 4, -46, dx + 21, -46, dx + 21, -28, dx + 4, -28, dx + 4, -46]); }
+    for (const wx of [40, 260]) { box(c, "#1d1020", wx - 3, -68, 66, 44, 4); glass(c, wx, -65, 60, 38, true); }
+    say(c, "COLD ONES", 70, -46, 11, "#4a1530", { weight: 900, max: 56 }); say(c, "LIVE CONJUNTO", 290, -46, 9.5, "#4a1530", { weight: 900, max: 56 });
+    // string lights along the parapet
+    c.strokeStyle = "#2b1d2b"; c.lineWidth = 0.8; c.beginPath(); c.moveTo(6, -184); for (let x = 6; x <= 354; x += 29) c.quadraticCurveTo(x + 14.5, -174, x + 29, -184); c.stroke();
+    for (let x = 12, i = 0; x < 352; x += 9.6, i++) { const col = ["#ff3d8b", "#3ee8eb", "#ff8a00", "#ffffff", "#7dff6a"][i % 5], y = -184 + Math.abs(Math.sin(((x - 6) / 29) * Math.PI)) * 9 * 0.9;
+      c.shadowColor = col; c.shadowBlur = 6; ell(c, col, x, y + 2, 2, 2.6); } c.shadowBlur = 0;
+    shrub(c, 140, 18, 26, "#2a6b46"); shrub(c, 222, 18, 26, "#2a6b46");
+    for (const bx of [16, 336]) { box(c, "#5b6270", bx, -62, 3, 62); ell(c, "rgba(255,214,160,.95)", bx + 1.5, -64, 4, 4); }
+  }
+
+  // ================= Juan himself (feet at 0,0, facing right) =================
+  function juan(c, o) {
+    const WEST_FIT = o.outfit === "western", SK = "#c68a5e", SK2 = "#a5683f", JE = "#2f5291", JE2 = "#22406f";
+    const shirt = WEST_FIT ? "#00a7a0" : "#a6ff2e", shirt2 = WEST_FIT ? "#007f7a" : "#78d41a", shirtB = WEST_FIT ? "#00807a" : "#86d424";
+    const q = o.ph || 0; let bob = 0, lean = 0, lf, lb, af, ab;
+    if (o.pose === "run") { lf = [0.75 * Math.sin(q), 0.25 + 1.1 * Math.max(0, Math.cos(q))]; lb = [0.75 * Math.sin(q + Math.PI), 0.25 + 1.1 * Math.max(0, Math.cos(q + Math.PI))];
+      af = [-0.85 * Math.sin(q), 1.35]; ab = [0.85 * Math.sin(q), 1.35]; bob = -Math.abs(Math.cos(q)) * 2.4; lean = 0.13; }
+    else if (o.pose === "up") { lf = [1.0, 1.5]; lb = [-0.3, 0.8]; af = [2.5, 0.4]; ab = [-0.9, -0.9]; lean = 0.06; }
+    else if (o.pose === "down") { lf = [0.5, 0.5]; lb = [-0.3, 0.4]; af = [1.9, 0.4]; ab = [-1.2, -0.6]; lean = 0.08; }
+    else if (o.pose === "cheer") { const w = Math.sin((o.t || 0) * 8); lf = [0.18, 0.1]; lb = [-0.18, 0.1]; af = [2.75 + w * 0.2, 0.3]; ab = [-2.75 + w * 0.2, -0.3]; bob = -Math.abs(w) * 3; }
+    else { lf = [0.12, 0.06]; lb = [-0.1, 0.05]; af = [0.18, 0.35]; ab = [-0.12, 0.35]; }
+    const hx = 0, hy = -30 + bob;
+    const leg = ([a, b], jean, bootCol) => {
+      const kx = hx + Math.sin(a) * 15, ky = hy + Math.cos(a) * 15, s = a - b, fx = kx + Math.sin(s) * 15, fy = ky + Math.cos(s) * 15;
+      line(c, jean, 8.5, [hx, hy, kx, ky, fx, fy]);
+      c.save(); c.translate(fx, fy); c.rotate(s * 0.55);
+      if (WEST_FIT) { c.fillStyle = bootCol; c.beginPath(); c.moveTo(-4.5, -5); c.lineTo(3.5, -5); c.lineTo(4, -1); c.quadraticCurveTo(10, -0.5, 12, 2.6); c.lineTo(-4.5, 2.6); c.closePath(); c.fill(); box(c, "#2a160c", -4.8, 2.2, 4.6, 2.6, 0.8); line(c, "rgba(255,255,255,.25)", 0.8, [-2, -3.5, 2, -3.5]); }
+      else { box(c, bootCol, -4.5, -4, 13.5, 6.6, 3); box(c, "#3a2414", -5, 1.8, 14.5, 2.6, 1); ell(c, "rgba(255,255,255,.18)", 3, -2, 3, 1.2); }
+      c.restore();
+    };
+    const sh = { x: hx + Math.sin(lean) * 21, y: hy - Math.cos(lean) * 21 };
+    const arm = ([a, b], sleeve, skin) => {
+      const ex = sh.x + Math.sin(a) * 11, ey = sh.y + Math.cos(a) * 11, s = a + b, wx = ex + Math.sin(s) * 10, wy = ey + Math.cos(s) * 10;
+      if (WEST_FIT) { line(c, sleeve, 6.5, [sh.x, sh.y, ex, ey, wx, wy]); line(c, "rgba(255,255,255,.85)", 1.2, [wx - Math.cos(s) * 3, wy + Math.sin(s) * 3, wx + Math.cos(s) * 3, wy - Math.sin(s) * 3], "butt"); }
+      else { line(c, skin, 5.5, [sh.x, sh.y, ex, ey, wx, wy]); line(c, sleeve, 7.5, [sh.x, sh.y, sh.x + Math.sin(a) * 6, sh.y + Math.cos(a) * 6]); }
+      ell(c, skin, wx + Math.sin(s) * 1.5, wy + Math.cos(s) * 1.5, 3.1, 3.1);
+    };
+    arm(ab, shirtB, SK2); leg(lb, JE2, WEST_FIT ? "#4e2a14" : "#8e6030"); leg(lf, JE, WEST_FIT ? "#6b3b1f" : "#b07a3e");
+    c.save(); c.translate(hx, hy); c.rotate(lean);
+    box(c, JE, -10, -4, 20, 8, 3);
+    c.fillStyle = lin(c, -10, -23, 10, 0, [shirt, shirt2]); rr(c, -10.5, -23.5, 21, 22.5, 6); c.fill();
+    if (WEST_FIT) {   // pearl-snap western shirt: a white-piped yoke, pearl snaps, flap pockets
+      line(c, "#ffffff", 1.3, [-10, -17.5, -4, -15, 0.5, -18.5, 5, -15, 10, -17.5]); line(c, "rgba(0,0,0,.18)", 0.8, [0.5, -21, 0.5, -2]);
+      for (const y of [-19.5, -14.5, -9.5, -4.5]) ell(c, "#f4f7fa", 0.5, y, 1.2, 1.2);
+      line(c, "#ffffff", 1, [-8, -13, -3, -12]); line(c, "#ffffff", 1, [3.5, -12, 8.5, -13]); ell(c, "#f4f7fa", -5.5, -12.4, 0.8, 0.8); ell(c, "#f4f7fa", 6, -12.4, 0.8, 0.8);
+      box(c, "#5a3218", -10, -3.5, 20.5, 3.4, 1); ell(c, lin(c, -2, -4, 4, 0, ["#ffffff", "#9aa3ad"]), 1, -1.8, 3.4, 2.3);
+    } else {   // the hi-vis work shirt: neon safety green, orange stripes with a silver reflective strip
+      for (const sx of [-6.5, 4]) { box(c, "#ff7a00", sx, -23.5, 3.6, 14.5); box(c, "#e8edf2", sx + 1.1, -23.5, 1.4, 14.5); }
+      box(c, "#ff7a00", -10.5, -10.5, 21, 4.6); box(c, "#e8edf2", -10.5, -9, 21, 1.6);
+      box(c, "#5a3a22", -10, -3.5, 20.5, 3.2, 1); box(c, "#c9d0d8", -1, -3.3, 3.4, 2.8, 0.6); box(c, "#7a5232", -13, -2, 5.5, 8, 1.5);   // belt + a tool pouch
+    }
+    // head
+    const X = 2.5, Y = -31.5;
+    box(c, SK2, -2, -26, 6, 5, 2);
+    ell(c, "#24160e", X - 2.2, Y - 0.5, 8, 8.2);
+    ell(c, lin(c, X - 6, Y - 6, X + 8, Y + 8, ["#d39a6c", SK, SK2]), X + 0.5, Y, 8, 8.6);
+    ell(c, SK2, X - 3.5, Y + 0.5, 1.8, 2.6); ell(c, "#1b120c", X + 4.4, Y - 1.2, 1.05, 1.4); line(c, "#24160e", 1.2, [X + 2.4, Y - 4, X + 6.4, Y - 4.3]);
+    ell(c, SK2, X + 8.2, Y + 1.2, 1.7, 1.9);
+    c.fillStyle = "#24160e"; c.beginPath(); c.moveTo(X + 2.8, Y + 3.7); c.quadraticCurveTo(X + 6, Y + 2, X + 9.4, Y + 3.8); c.quadraticCurveTo(X + 6.4, Y + 6, X + 2.8, Y + 3.7); c.fill();
+    line(c, "#7a3b2a", 0.9, [X + 4.6, Y + 6.6, X + 7, Y + 6.2]);
+    if (WEST_FIT) {   // a beige cowboy hat
+      c.fillStyle = lin(c, 0, Y - 16, 0, Y - 6, ["#efdcb4", "#cdb385"]); c.beginPath(); c.moveTo(X - 7.5, Y - 6.5); c.lineTo(X - 6.6, Y - 16); c.quadraticCurveTo(X + 0.5, Y - 12.5, X + 7.6, Y - 16); c.lineTo(X + 8.5, Y - 6.5); c.closePath(); c.fill();
+      box(c, "#5a3218", X - 7, Y - 9, 15, 2.6, 0.5);
+      c.fillStyle = lin(c, 0, Y - 9, 0, Y - 3, ["#e6d0a4", "#b99d6e"]); c.beginPath(); c.moveTo(X - 16, Y - 9.5); c.quadraticCurveTo(X + 1, Y - 1.5, X + 18, Y - 9.5); c.quadraticCurveTo(X + 1, Y - 5, X - 16, Y - 9.5); c.fill();
+    } else {   // a white construction hard hat
+      c.fillStyle = lin(c, X - 8, Y - 14, X + 8, Y - 3, ["#ffffff", "#e9eef2", "#c3ccd4"]); c.beginPath(); c.ellipse(X + 0.5, Y - 3.5, 9.6, 9.6, 0, Math.PI, 0); c.fill();
+      ell(c, "#dfe5ea", X + 4, Y - 3.4, 12.5, 2.1); line(c, "rgba(0,0,0,.12)", 1.6, [X + 0.5, Y - 13, X + 0.5, Y - 4]); ell(c, "rgba(255,255,255,.9)", X - 3, Y - 9.5, 2.6, 1.4, -0.6);
+    }
+    c.restore();
+    arm(af, shirt, SK);
+  }
+
+  // ================= obstacles & pickups (world units: x right, y up is negative, ground = 0) =================
+  function drawEnt(c, e, t, rm) {
+    const x = e.x, y = e.y, w = e.w;
+    switch (e.t) {
+      case "cone": {
+        if (e.down) { c.save(); c.translate(x + 12, -5); c.rotate(-1.45); }
+        else { c.save(); c.translate(x + 12, 0); }
+        ell(c, "rgba(0,0,0,.25)", 0, 0, 15, 3); box(c, "#1d1f24", -14, -4, 28, 4, 1.5);
+        const wAt = (yy) => 2.5 + (yy + 32) / 28 * 7;
+        poly(c, lin(c, -9, 0, 9, 0, ["#d95a00", "#ff8a1a", "#ff7a00", "#c44e00"]), [-9.5, -4, 9.5, -4, 2.5, -32, -2.5, -32]);
+        for (const [a, b] of [[-14, -19], [-23, -26.5]]) poly(c, "#f4f7fa", [-wAt(a), a, wAt(a), a, wAt(b), b, -wAt(b), b]);
+        c.restore(); break; }
+      case "pothole":
+        ell(c, "#4b4f58", x + 28, -1, 30, 6.5); ell(c, "#17191e", x + 28, -0.5, 26, 5); ell(c, "rgba(120,170,220,.35)", x + 24, 0.5, 14, 2.2);
+        line(c, "#2a2d34", 0.9, [x - 2, -1, x - 8, 2, x - 14, 1]); line(c, "#2a2d34", 0.9, [x + 56, -2, x + 63, -4]); break;
+      case "cart": {
+        c.save(); c.translate(x + 26, 0); if (e.bonk) c.rotate(Math.min(0.5, e.bonk * 0.4));
+        ell(c, "rgba(0,0,0,.25)", 0, 0, 26, 3);
+        const spin = (rm ? 0 : t * 12);
+        for (const wx of [-18, 18]) { ell(c, "#1d1f24", wx, -4, 4.2, 4.2); line(c, "#9aa3ad", 1, [wx - Math.cos(spin) * 3, -4 - Math.sin(spin) * 3, wx + Math.cos(spin) * 3, -4 + Math.sin(spin) * 3]); }
+        line(c, "#9aa3ad", 2, [-18, -8, -20, -20, 22, -20, 18, -8, -18, -8]);
+        c.fillStyle = "rgba(200,208,216,.14)"; poly(c, "rgba(200,208,216,.14)", [-26, -46, 26, -46, 20, -20, -20, -20]);
+        c.strokeStyle = "#c9d0d8"; c.lineWidth = 1.2; c.beginPath(); c.moveTo(-26, -46); c.lineTo(26, -46); c.lineTo(20, -20); c.lineTo(-20, -20); c.closePath(); c.stroke();
+        c.lineWidth = 0.7; for (let k = -20; k <= 20; k += 6) { c.beginPath(); c.moveTo(k * 1.2, -46); c.lineTo(k, -20); c.stroke(); } for (let yy = -40; yy < -20; yy += 6) { c.beginPath(); c.moveTo(-25 + (yy + 46) * 0.25, yy); c.lineTo(25 - (yy + 46) * 0.25, yy); c.stroke(); }
+        line(c, "#c9d0d8", 1.6, [26, -46, 32, -54]); line(c, "#ff3d8b", 3.4, [30, -55, 36, -52]);
+        c.restore();
+        if (!rm && !e.bonk && e.on) for (let k = 0; k < 3; k++) line(c, "rgba(255,255,255,.65)", 1.4, [x + 62 + k * 4, -36 + k * 10, x + 76 + k * 6, -36 + k * 10]);
+        break; }
+      case "chancla": {
+        c.save(); c.translate(x + 15, y + 7); c.rotate(rm ? 0.2 : Math.sin(t * 6 + e.ph) * 0.9);
+        ell(c, lin(c, -15, 0, 15, 0, ["#ff3d8b", "#ff6fa8"]), 0, 0, 15, 5.5); ell(c, "#ffffff", 0, -1.4, 13, 3.2); ell(c, "#ff8fbf", 0, -1.6, 12, 2.6);
+        line(c, "#00b8b0", 2, [-2, -1.5, 5, -6, 10, -1.5]); line(c, "#00b8b0", 2, [5, -6, 5, -1.5]);
+        c.restore(); if (!rm) ell(c, "rgba(0,0,0,.18)", x + 15, 0, 12, 2.4); break; }
+      case "chihuahua": {
+        const dir = e.vx > 0 ? 1 : -1, run = rm ? 0 : t * 16 + e.ph;
+        c.save(); c.translate(x + 18, 0); c.scale(-dir, 1);   // drawn facing left, flipped when it trots right
+        ell(c, "rgba(0,0,0,.22)", 0, 0, 16, 3);
+        for (const [lx, p] of [[-8, 0], [-4, Math.PI], [7, Math.PI], [11, 0]]) line(c, "#c48e5c", 2.6, [lx, -10, lx + Math.sin(run + p) * 3, -1]);
+        ell(c, lin(c, 0, -22, 0, -8, ["#e3b483", "#c48e5c"]), 2, -14, 13, 7); line(c, "#c48e5c", 2.2, [14, -15, 19, -22, 17, -25]);
+        ell(c, "#e3b483", -11, -22, 7.5, 6.5); poly(c, "#c48e5c", [-15, -26, -18, -38, -10, -27]); poly(c, "#c48e5c", [-8, -27, -4, -38, -3, -25]); poly(c, "#ff8fbf", [-14.5, -27, -16.5, -34, -11.5, -27.5]);
+        ell(c, "#e3b483", -17, -19, 4, 3); ell(c, "#1b120c", -20.5, -19.5, 1.4, 1.2); ell(c, "#1b120c", -12.5, -23.5, 1.6, 1.8); ell(c, "#ffffff", -12, -24, 0.5, 0.5);
+        box(c, "#ff3d8b", -9, -18, 4, 7, 1.5);
+        c.restore();
+        if (rm || mod(t * 1.4 + e.ph, 1) < 0.45) { box(c, "#ffffff", x - 8, -58, 38, 16, 7); poly(c, "#ffffff", [x + 4, -43, x + 12, -43, x + 6, -36]); say(c, "YAP!", x + 11, -50, 11, "#ff3d8b", { weight: 900 }); }
+        break; }
+      case "sprinkler": {
+        ell(c, "rgba(90,150,210,.28)", x + 9, 0, 36, 4);
+        box(c, "#2f8a46", x + 3, -9, 12, 9, 2); box(c, "#1d1f24", x + 7, -13, 4, 5, 1);
+        if (e.on) { c.strokeStyle = "rgba(170,225,255,.85)"; c.lineWidth = 1.5;
+          for (let k = -3; k <= 3; k++) { if (!k) continue; const dx = k * 11, sway = rm ? 0 : Math.sin(t * 5 + k) * 4; c.beginPath(); c.moveTo(x + 9, -13); c.quadraticCurveTo(x + 9 + dx * 0.4 + sway, -96 + Math.abs(k) * 8, x + 9 + dx + sway, -4); c.stroke(); }
+          c.fillStyle = "rgba(220,245,255,.9)"; for (let k = 0; k < 10; k++) { const a = (k * 0.7 + (rm ? 0 : t * 2)) % 1, dx = (k - 4.5) * 7; c.beginPath(); c.arc(x + 9 + dx * a * 1.4, -13 - Math.sin(a * Math.PI) * 70, 1.3, 0, Math.PI * 2); c.fill(); } }
+        break; }
+      case "pallet":
+        box(c, "#a8743f", x, -8, w, 8, 1); for (let k = 0; k < 4; k++) box(c, "#6b4a2e", x + 4 + k * 20, -6, 8, 6);
+        for (let row = 0; row < 2; row++) for (let k = 0; k < 2; k++) { const bx = x + 2 + k * 34 + row * 2, by = -8 - (row + 1) * 15;
+          box(c, lin(c, 0, by, 0, by + 15, ["#eef1f4", "#c9d0d8"]), bx, by, 32, 15, 5); say(c, "MIX", bx + 16, by + 8, 8, "#ff7a00", { weight: 900 }); }
+        break;
+      case "tires":
+        for (let k = 0; k < 4; k++) { const ty = -12 * (k + 1); box(c, lin(c, x, 0, x + w, 0, ["#14161a", "#3a3d44", "#1d1f24"]), x, ty, w, 12, 5); c.strokeStyle = "rgba(255,255,255,.12)"; c.lineWidth = 0.8; for (let s = x + 4; s < x + w - 2; s += 5) { c.beginPath(); c.moveTo(s, ty + 2); c.lineTo(s + 2, ty + 10); c.stroke(); } }
+        ell(c, "#2a2d34", x + w / 2, -48, w / 2, 5); ell(c, "#0d0e11", x + w / 2, -48, w / 4, 2.4); break;
+      case "flag": {
+        line(c, "#c9d0d8", 2.2, [x + 2, 0, x + 2, -70]); ell(c, "#ffffff", x + 2, -71, 2.4, 2.4);
+        const col = e.done ? "#00b8b0" : "#ff3d8b", wv = rm ? 0 : Math.sin(t * 5) * 3;
+        c.fillStyle = col; c.beginPath(); c.moveTo(x + 3, -68); c.quadraticCurveTo(x + 16, -66 + wv, x + 30, -60 + wv * 0.5); c.quadraticCurveTo(x + 16, -54 - wv, x + 3, -50); c.fill(); break; }
+      case "concha": {
+        const by = y + (rm ? 0 : Math.sin(t * 4 + x) * 2.5);
+        ell(c, "#d99a5e", x + 11, by + 10, 11, 5.5); c.fillStyle = lin(c, 0, by, 0, by + 10, ["#ffc2db", "#ff8fbf"]); c.beginPath(); c.ellipse(x + 11, by + 9, 10.5, 9, 0, Math.PI, 0); c.fill();
+        c.strokeStyle = "rgba(255,255,255,.75)"; c.lineWidth = 0.9; for (let k = -2; k <= 2; k++) { c.beginPath(); c.moveTo(x + 11, by + 1); c.quadraticCurveTo(x + 11 + k * 4, by + 4, x + 11 + k * 4.8, by + 9); c.stroke(); } break; }
+      case "beer": {   // a frosty mug of a cold one
+        const by = y + (rm ? 0 : Math.sin(t * 3 + x * 0.1) * 4);
+        if (!rm) { c.fillStyle = "rgba(255,190,90,.22)"; c.beginPath(); c.arc(x + 12, by + 17, 19 + Math.sin(t * 5 + x) * 1.5, 0, Math.PI * 2); c.fill(); }
+        c.strokeStyle = "rgba(235,245,250,.95)"; c.lineWidth = 3; c.beginPath(); c.arc(x + 20, by + 18, 6, -1.2, 1.2); c.stroke();
+        box(c, "rgba(230,245,255,.55)", x + 1, by + 6, 20, 26, 4); box(c, lin(c, 0, by + 9, 0, by + 30, ["#ffc94a", "#f0a020", "#d9831a"]), x + 3, by + 9, 16, 21, 3);
+        c.fillStyle = "rgba(255,255,255,.75)"; for (let k = 0; k < 5; k++) { c.beginPath(); c.arc(x + 6 + (k * 3.3) % 12, by + 27 - ((k * 7 + (rm ? 0 : t * 20)) % 16), 0.9, 0, Math.PI * 2); c.fill(); }
+        for (const [fx, fr] of [[4, 4.2], [9, 5], [15, 4.6], [19, 3.6]]) ell(c, "#fffdf6", x + fx, by + 7, fr, 3.8);
+        box(c, "rgba(255,255,255,.55)", x + 4, by + 11, 2, 16, 1); break; }
+      case "coffee": {
+        const by = y + (rm ? 0 : Math.sin(t * 4) * 3);
+        poly(c, "#ffffff", [x + 3, by + 8, x + 19, by + 8, x + 16.5, by + 28, x + 5.5, by + 28]); poly(c, "#00b8b0", [x + 4, by + 13, x + 18, by + 13, x + 17.2, by + 21, x + 4.8, by + 21]);
+        box(c, "#e1e6ea", x + 1.5, by + 4, 19, 5, 2); box(c, "#c9d0d8", x + 7, by + 1.5, 8, 3, 1);
+        if (!rm) { c.strokeStyle = "rgba(255,255,255,.7)"; c.lineWidth = 1.3; for (let k = 0; k < 2; k++) { const sx = x + 8 + k * 6, ph = t * 3 + k; c.beginPath(); c.moveTo(sx, by); c.bezierCurveTo(sx + 3 * Math.sin(ph), by - 5, sx - 3 * Math.sin(ph), by - 9, sx, by - 14); c.stroke(); } }
+        break; }
+      case "taco": {
+        const by = y + (rm ? 0 : Math.sin(t * 4 + 1) * 3);
+        ell(c, "#ffd27a", x + 16, by + 11, 12, 7); ell(c, "#ff6a3a", x + 10, by + 8, 4, 2.5); ell(c, "#3ad07a", x + 18, by + 7, 4.5, 2.2); ell(c, "#c8432c", x + 23, by + 9, 3.5, 2);
+        c.fillStyle = lin(c, 0, by, 0, by + 20, ["#f1d9a0", "#d9b46a"]); c.beginPath(); c.moveTo(x, by + 12); c.quadraticCurveTo(x + 16, by + 30, x + 32, by + 12); c.quadraticCurveTo(x + 16, by + 20, x, by + 12); c.fill();
+        break; }
+    }
+  }
+
+  function heart(c, x, y, r, col) { c.fillStyle = col; c.beginPath(); c.moveTo(x, y + r * 0.9); c.bezierCurveTo(x - r * 1.4, y - r * 0.1, x - r * 0.7, y - r * 1.25, x, y - r * 0.45); c.bezierCurveTo(x + r * 0.7, y - r * 1.25, x + r * 1.4, y - r * 0.1, x, y + r * 0.9); c.fill(); }
+  function lowrider(c, x, y, night) {   // a candy-pink lowrider cruising the other way (faces left)
+    c.fillStyle = lin(c, 0, y - 22, 0, y, ["#ff6fa8", "#ff3d8b", "#c21f66"]); rr(c, x, y - 16, 96, 14, 6); c.fill(); rr(c, x + 26, y - 28, 46, 14, 6); c.fill();
+    glass(c, x + 30, y - 26, 18, 10, false); glass(c, x + 51, y - 26, 18, 10, false); line(c, "#e8edf2", 1.4, [x + 4, y - 9, x + 92, y - 9]);
+    for (const wx of [x + 20, x + 76]) { ell(c, "#14161a", wx, y - 2, 9, 9); ell(c, lin(c, wx - 6, y - 8, wx + 6, y + 4, ["#ffffff", "#9aa3ad"]), wx, y - 2, 6, 6); ell(c, "#c9d0d8", wx, y - 2, 2, 2); }
+    if (night) { c.fillStyle = "rgba(255,240,210,.35)"; c.beginPath(); c.moveTo(x + 2, y - 12); c.lineTo(x - 70, y - 26); c.lineTo(x - 70, y + 4); c.closePath(); c.fill(); ell(c, "#fff6e0", x + 3, y - 12, 2.5, 2.5); }
+  }
+
+  function mount(el, ctx) {
+    const reduced = () => (ctx && ctx.reducedMotion ? ctx.reducedMotion() : matchMedia("(prefers-reduced-motion: reduce)").matches);
+    const st = load();
+    el.innerHTML = `
+      <div class="juan-wrap">
+        <canvas id="juan-cv" class="juan-cv no-swipe" width="${VW}" height="580" role="img" aria-label="Juan's Long Day game screen. Tap it, or press Space, to jump."></canvas>
+        <div id="juan-ov" class="juan-ov" aria-live="polite"></div>
+      </div>
+      <p class="juan-note" id="juan-note" aria-live="polite"></p>
+      <div class="juan-controls" role="group" aria-label="Game controls">
+        <button type="button" id="juan-jump" class="lot-btn lot-main juan-jump no-swipe">⤒ Jump</button>
+        <button type="button" id="juan-pause" class="lot-btn"></button>
+        <button type="button" id="juan-restart" class="lot-btn" aria-label="Restart level"><span aria-hidden="true">↺</span><span class="juan-lbl"> Restart level</span></button>
+        <button type="button" id="juan-sound" class="lot-btn" aria-pressed="true"></button>
+      </div>
+      <p class="lot-rules">Tap the game (or Space / ↑) to jump; tap again in the air for a double jump. Hop the cones, potholes, runaway carts, loose chanclas, yappy chihuahuas and sprinklers: every bump costs a little health. ☕ Coffee = speed boost · Breakfast taco = more health · Conchas = points. On the way to the cantina, jump for the cold ones: each gives a little health. Out of health? Back to the last 🚩 checkpoint. Nobody gets hurt.</p>
+      <p class="lot-stats" id="juan-stats"></p>`;
+    const cv = el.querySelector("#juan-cv"), g = cv.getContext("2d", { alpha: false }), ov = el.querySelector("#juan-ov"), wrap = el.querySelector(".juan-wrap"), $ = (s) => el.querySelector(s);
+    const HAT = `<svg class="gfs-juan-hat" viewBox="0 0 32 20" aria-hidden="true" focusable="false"><path d="M4 15a12 12 0 0 1 24 0z" fill="#fff"/><rect x="1" y="14" width="30" height="4" rx="2" fill="#e1e6ea"/><rect x="14.5" y="3.4" width="3" height="11" rx="1.2" fill="#c9d0d8"/></svg>`;
+    const FS = root.ChismeJuegos && root.ChismeJuegos.fullscreen;
+    const fs = FS ? FS(el, { title: "Juan's Long Day", badgeClass: "gfs-juan", badge: `${HAT}<span class="gfs-juan-t" aria-hidden="true">Juan's <b>Long Day</b></span>`,
+      onEnter: () => fit(), onResize: () => fit(), onExit: () => { pause(); fit(); }, onLeave: () => { pause(); fit(); } }) : { enter() {}, exit() {}, on: false };
+    // ---- sound: small WebAudio blips (🔇 mutes)
+    let ac = null;
+    const audio = () => { if (!ac) { const A = window.AudioContext || window.webkitAudioContext; if (A) try { ac = new A(); } catch (e) {} } if (ac && ac.state === "suspended") ac.resume(); return ac; };
+    function beep(f, d = 0.08, f2 = null, type = "square", vol = 0.04, at = 0) {
+      if (st.muted) return; const a = audio(); if (!a) return;
+      try { const o = a.createOscillator(), v = a.createGain(), t0 = a.currentTime + at;
+        o.type = type; o.frequency.setValueAtTime(f, t0); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t0 + d);
+        v.gain.setValueAtTime(vol, t0); v.gain.exponentialRampToValueAtTime(0.0008, t0 + d);
+        o.connect(v); v.connect(a.destination); o.start(t0); o.stop(t0 + d + 0.02); } catch (e) {}
+    }
+    const SFX = {
+      jump: () => beep(330, 0.11, 660, "triangle", 0.06), jump2: () => beep(520, 0.09, 900, "triangle", 0.05), coin: () => { beep(988, 0.05, null, "square", 0.03); beep(1319, 0.08, null, "square", 0.03, 0.05); },
+      power: () => [523, 659, 784, 1047].forEach((f, i) => beep(f, 0.07, null, "triangle", 0.06, i * 0.06)),
+      salud: () => { beep(1568, 0.06, null, "sine", 0.06); beep(2093, 0.12, null, "sine", 0.05, 0.06); },
+      ouch: () => beep(220, 0.14, 110, "sawtooth", 0.035), yap: () => { beep(1200, 0.04, 900, "square", 0.03); beep(1250, 0.04, 950, "square", 0.03, 0.09); },
+      splash: () => beep(900, 0.18, 200, "sawtooth", 0.02),
+      oops: () => [392, 330, 262, 196].forEach((f, i) => beep(f, 0.12, null, "triangle", 0.06, i * 0.1)),
+      clear: () => [523, 659, 784, 659, 784, 1047].forEach((f, i) => beep(f, 0.1, null, "triangle", 0.06, i * 0.09)),
+      check: () => { beep(784, 0.07, null, "triangle", 0.05); beep(1047, 0.1, null, "triangle", 0.05, 0.07); },
+    };
+    // ---- state
+    let oopsMsg = OOPS[0], level = 1, ents = [], hero, camX = 0, score = 0, ckScore = 0, ck = 0, mode = "title", t = 0, raf = null, last = 0, shake = 0, parts = [], msgT = 0, msg = "";
+    let fx = [], fxMade = 0, dustT = 0, paused = false, beersGot = 0;
+    let S = 1, VH = 580, GS = VH - ROADH, dpr = 1, dprCap = 3, cssW = VW, cache = {}, perf = { n: 0, sum: 0 };
+    const cam = (x) => Math.min(x - HERO_X, CAM_END);
+    const L = () => LEVELS[level - 1], P = () => SKY[L().time], isNight = () => L().time === "night";
+    const par = () => (reduced() ? 0 : 1);
+    function spawn(atCheck) {
+      const x0 = CHECKS[atCheck];
+      ents = buildLevel(level).filter((e) => !((e.t === "concha" || e.t === "beer") && e.x < x0));
+      for (const e of ents) if (e.t === "flag" && e.x <= x0) e.done = true;
+      hero = { x: x0 + 8, y: -HERO_H, w: HERO_W, h: HERO_H, vy: 0, ground: true, jumps: 2, boost: 0, stumble: 0, inv: 0, frame: 0, health: HP };
+      camX = cam(hero.x); score = ckScore; parts = []; fx = []; msgT = 0; shake = 0;
+    }
+    function startLevel(n, keepScore) {
+      if (n !== level) cache = {};
+      level = n; ck = 0; paused = false; if (!keepScore) ckScore = 0; if (n === 1 && !keepScore) beersGot = 0; spawn(0); mode = "run"; overlay(null); fs.enter(); fit();
+      $("#juan-note").textContent = `Level ${n}: ${L().name}. ${L().hint}`; loop(); ctrl();
+    }
+    function overlay(html, cls = "") { ov.className = "juan-ov" + (html ? " on " + cls : ""); ov.innerHTML = html || ""; }
+    const speed = () => L().speed * (reduced() ? 0.88 : 1) * (hero.boost > 0 ? 1.4 : 1) * (hero.stumble > 0 ? 0.55 : 1);
+    const played = () => { try { root.dispatchEvent(new CustomEvent("chisme-game-play", { detail: "juan" })); } catch (e) {} };   // v42: anonymous counts
+    function jump() {
+      if (mode === "title") { played(); startLevel(1); return; }
+      if (mode !== "run") return;
+      audio();
+      if (hero.ground) { hero.vy = JUMP; hero.ground = false; hero.jumps = 1; SFX.jump(); puff(hero.x + 10, 0 + (hero.y + hero.h), 4, "dust"); }
+      else if (hero.jumps > 0) { hero.vy = JUMP2; hero.jumps = 0; SFX.jump2(); puff(hero.x + 13, hero.y + hero.h, 6, "spark"); }
+    }
+    function release() { if (mode === "run" && hero.vy < -300) hero.vy *= 0.55; }   // a short tap = a short hop
+    // ---- particles (none with reduce motion)
+    function puff(x, y, n, kind) {
+      if (reduced()) return;
+      for (let i = 0; i < n; i++) {
+        fxMade++;
+        if (kind === "dust") fx.push({ k: kind, x: x + Math.random() * 8 - 4, y: y - 2 - Math.random() * 3, vx: -20 - Math.random() * 50, vy: -14 - Math.random() * 30, life: 0.35 + Math.random() * 0.3, r: 2 + Math.random() * 3 });
+        else if (kind === "drop") fx.push({ k: kind, x, y, vx: Math.random() * 80 - 40, vy: -60 - Math.random() * 80, life: 0.5, r: 1.6 });
+        else { const a = (i / n) * Math.PI * 2 + Math.random() * 0.6, sp = 50 + Math.random() * 90;
+          fx.push({ k: "spark", x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 20, life: 0.45 + Math.random() * 0.35, c: ["#ff3d8b", "#3ee8eb", "#ffffff", "#ff8a00"][i % 4] }); }
+      }
+      if (fx.length > 200) fx.splice(0, fx.length - 200);
+    }
+    function oops() {
+      mode = "oops"; oopsMsg = OOPS[Math.floor(Math.random() * OOPS.length)]; SFX.oops(); if (!reduced()) shake = 0.3;
+      st.best = Math.max(st.best, score); save(st); stats();
+      overlay(`<p class="sr-only">${oopsMsg}</p><p class="juan-oops">Juan's worn out. Try again from the ${ck ? "checkpoint 🚩" : "start"}.</p>`, "soft oops");
+      setTimeout(() => { if (mode === "oops") { spawn(ck); mode = "run"; overlay(null); } }, 1400);
+    }
+    function ouch(e) {
+      const h = hero, [dmg, label] = HAZ[e.t];
+      e.hit = true; if (e.t === "cone") e.down = true; if (e.t === "cart") e.bonk = 0.01; if (e.t === "chancla") e.gone = true;
+      if (e.t === "sprinkler") { SFX.splash(); for (let i = 0; i < 6; i++) puff(h.x + 13, h.y + 20, 1, "drop"); } else if (e.t === "chihuahua") SFX.yap(); else SFX.ouch();
+      if (h.inv > 0) return;   // still blinking from the last bump
+      h.health = Math.max(0, h.health - dmg); h.inv = 1.0; h.stumble = 0.45; msg = `${label} −${dmg}`; msgT = 1.3; if (!reduced()) shake = 0.12;
+      puff(h.x + 13, h.y + h.h - 4, 5, "dust");
+      if (h.health <= 0) oops();
+    }
+    function pickup(e) {
+      const h = hero; e.gone = true;
+      if (e.t === "concha") { score += 10; SFX.coin(); puff(e.x + 11, e.y + 8, 5, "spark"); }
+      else if (e.t === "beer") { h.health = Math.min(HP, h.health + 8); score += 15; beersGot++; SFX.salud(); msg = "¡Salud! +8 health"; msgT = 1.1; puff(e.x + 12, e.y + 10, 10, "spark"); }
+      else if (e.t === "coffee") { h.boost = 5; score += 50; SFX.power(); msg = "Coffee! Speed boost"; msgT = 1.5; puff(e.x + 11, e.y + 14, 14, "spark"); }
+      else if (e.t === "taco") { h.health = Math.min(HP, h.health + 30); score += 50; SFX.power(); msg = "Breakfast taco! +30 health"; msgT = 1.5; puff(e.x + 16, e.y + 10, 14, "spark"); }
+    }
+    function clear() {
+      const name = L().name; score += 500; ckScore = score; st.best = Math.max(st.best, score);
+      SFX.clear(); puff(hero.x + 13, hero.y + 10, 18, "spark");
+      if (level === 5) {
+        mode = "win"; st.wins++; st.levelMax = 5; st.beers = Math.max(st.beers || 0, beersGot); save(st); stats();
+        if (!reduced()) for (let i = 0; i < 120; i++) parts.push({ x: Math.random() * VW, y: -Math.random() * VH, vy: 40 + Math.random() * 70, vx: Math.random() * 30 - 15, r: Math.random() * 6, c: ["#00b8b0", "#ff3d8b", "#ff8a00", "#c9d0d8", "#ffffff"][i % 5] });
+        overlay(`<p class="juan-big">¡Salud, Juan!</p><p class="juan-win-line">He made it to Noche Caliente.</p><p class="juan-win-score">Final score <b>${score}</b></p><button type="button" class="lot-btn lot-main" data-act="again">▶ Play again</button>`, "win");
+        $("#juan-note").innerHTML = `🎉 What a long day! Juan made it to Noche Caliente for a cold one with the compas. <span class="juan-score">Final score <b>${score}</b> · Best <b>${st.best}</b></span> <button type="button" class="lot-btn lot-main" data-act="again">▶ Play again</button>`;
+        return;
+      }
+      st.levelMax = Math.max(st.levelMax, level + 1); save(st); stats();
+      mode = "clear";
+      overlay(`<p class="juan-big">You made it to ${name}!</p><p>+500 · Score <b>${score}</b></p><button type="button" class="lot-btn lot-main" data-act="next">▶ Level ${level + 1}: ${LEVELS[level].name}</button>`, "clear");
+      $("#juan-note").textContent = `Next up: ${LEVELS[level].name}. ${LEVELS[level].hint}`;
+    }
+    function update(dt) {
+      t += dt;
+      for (const p of fx) { p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += (p.k === "dust" ? 40 : 260) * dt; }
+      if (fx.length) fx = fx.filter((p) => p.life > 0);
+      if (mode === "win") { for (const p of parts) { p.y += p.vy * dt; p.x += p.vx * dt; p.r += dt * 4; if (p.y > VH) p.y -= VH + 10; } return; }
+      if (mode !== "run") return;
+      const h = hero, vx = speed(), wasGround = h.ground;
+      h.boost = Math.max(0, h.boost - dt); h.stumble = Math.max(0, h.stumble - dt); h.inv = Math.max(0, h.inv - dt);
+      h.x += vx * dt; h.frame += vx * dt * 0.09;
+      const prevBottom = h.y + h.h;
+      h.vy += GRAV * dt; h.y += h.vy * dt; h.ground = false;
+      if (h.y + h.h >= 0) { h.y = -h.h; h.vy = 0; h.ground = true; h.jumps = 2; }
+      for (const e of ents) {
+        if (e.gone || e.x > h.x + 760 || e.x + e.w < h.x - 260) continue;
+        if (e.t === "cart") { if (!e.on && e.x - h.x < 560) e.on = true; if (e.on) { e.x += (e.bonk ? 150 : e.vx) * dt; if (e.bonk) e.bonk += dt; } }
+        else if (e.t === "chihuahua") { e.x += e.vx * dt; if (e.x < e.home - 70) e.vx = Math.abs(e.vx); if (e.x > e.home + 20) e.vx = -Math.abs(e.vx); }
+        else if (e.t === "chancla") { e.y = -e.h - Math.abs(Math.sin(t * 3.2 + e.ph)) * 46; if (e.x - h.x < 520) e.x -= 28 * dt; }
+        else if (e.t === "sprinkler") e.on = mod(t + e.ph, 2.4) < 1.3;
+        if (e.t === "flag") { if (!e.done && h.x >= e.x) { e.done = true; ck = CHECKS.indexOf(e.x); ckScore = score; SFX.check(); msg = "Checkpoint! 🚩"; msgT = 1.2; puff(e.x + 16, -60, 12, "spark"); } continue; }
+        if (SOLID.includes(e.t)) {
+          if (h.x + h.w - 3 > e.x && h.x + 3 < e.x + e.w) {
+            if (h.vy >= 0 && prevBottom <= e.y + 6 && h.y + h.h >= e.y) { h.y = e.y - h.h; h.vy = 0; h.ground = true; h.jumps = 2; }   // landed on top
+            else if (h.y + h.h > e.y + 6 && h.x + h.w - 3 < e.x + 14) { h.x = e.x - h.w + 3; h.stumble = 0.35; }   // bumped the side: a stumble
+          }
+          continue;
+        }
+        if (HAZ[e.t]) {
+          if (e.hit) continue;
+          let touch;
+          if (e.t === "pothole") touch = h.ground && h.y + h.h >= -1 && h.x + h.w / 2 > e.x + 8 && h.x + h.w / 2 < e.x + e.w - 8;
+          else if (e.t === "sprinkler") touch = e.on && h.x + h.w - 4 > e.x - 22 && h.x + 4 < e.x + e.w + 22 && h.y + h.h > -88;
+          else if (e.t === "cone" && e.down) touch = false;
+          else touch = hit(h, e, 4);
+          if (touch) { ouch(e); if (mode !== "run") return; }
+          else if (!e.passed && h.x > e.x + e.w) { e.passed = true; score += 25; }   // a clean hop over it
+          continue;
+        }
+        if (hit(h, e, 0)) pickup(e);
+      }
+      if (h.ground && !wasGround) puff(h.x + 13, h.y + h.h, 6, "dust");
+      else if (h.ground) { dustT -= dt; if (dustT <= 0) { dustT = h.boost > 0 ? 0.06 : 0.14; puff(h.x + 4, h.y + h.h, 1, "dust"); } }
+      camX = cam(h.x);
+      if (h.x >= END) clear();
+      msgT = Math.max(0, msgT - dt); shake = Math.max(0, shake - dt);
+    }
+
+    // ================= rendering =================
+    function makeLayer(period, height, k, fn, tint, night, ls = 1) {   // ls: the layer's size on screen (1.3 = drawn 30% bigger)   // pre-render a repeating strip into tiles (≤ TILE units wide each)
+      const tiles = [];
+      for (let x0 = 0; x0 < period; x0 += TILE) {
+        const tw = Math.min(TILE, period - x0), c2 = document.createElement("canvas");
+        const kk = k * ls; c2.width = Math.ceil(tw * kk) + 2; c2.height = Math.ceil(height * kk);
+        const c = c2.getContext("2d");
+        const pass = (p) => { for (const off of [0, -period, period]) { c.setTransform(kk, 0, 0, kk, (off - x0) * kk, height * kk); fn(c, p); } };
+        pass("base");
+        if (tint) { c.setTransform(1, 0, 0, 1, 0, 0); c.globalCompositeOperation = "source-atop"; c.fillStyle = tint; c.fillRect(0, 0, c2.width, c2.height); c.globalCompositeOperation = "source-over"; if (night) pass("lights"); }
+        tiles.push({ cv: c2, x0 });
+      }
+      return { tiles, period, height, k: k * ls, ls };
+    }
+    function blit(Ly, f, baseY, start = 0) {
+      const ls = Ly.ls, per = Ly.period * ls, off = mod(start + camX * f * par(), per), y = Math.round((baseY - Ly.height * ls) * S), sc = S * ls / Ly.k;
+      for (let m = 0; m < 2; m++) for (const tl of Ly.tiles) {
+        const sx = tl.x0 * ls - off + m * per; if (sx > VW || sx + TILE * ls < 0) continue;
+        if (Math.abs(sc - 1) < 1e-6) g.drawImage(tl.cv, Math.round(sx * S), y); else g.drawImage(tl.cv, Math.round(sx * S), y, tl.cv.width * sc, tl.cv.height * sc);
+      }
+    }
+    function makeSky() {
+      const p = P(), c2 = document.createElement("canvas"); c2.width = cv.width; c2.height = Math.ceil(GS * S) + 2;
+      const c = c2.getContext("2d"); c.setTransform(S, 0, 0, S, 0, 0);
+      box(c, lin(c, 0, 0, 0, GS, p.sky), 0, 0, VW, GS + 2);
+      const glow = (x, y, r, col) => { const gr = c.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, col); gr.addColorStop(1, "rgba(255,255,255,0)"); c.fillStyle = gr; c.fillRect(x - r, y - r, r * 2, r * 2); };
+      if (p.sun === "sun") { glow(286, 110, 90, "rgba(255,255,240,.55)"); ell(c, "#fffdf2", 286, 110, 22, 22); }
+      else if (p.sun === "low") { glow(300, GS * 0.42, 110, "rgba(255,226,200,.6)"); ell(c, "#fff3e6", 300, GS * 0.42, 24, 24); }
+      else if (p.sun === "set") { glow(90, GS - 150, 160, "rgba(255,160,110,.65)"); ell(c, lin(c, 0, GS - 190, 0, GS - 110, ["#ffd9b0", "#ff8a5c"]), 90, GS - 150, 36, 36); }
+      else { const r = rng(9); for (let i = 0; i < 90; i++) { const a = 0.35 + r() * 0.65; ell(c, `rgba(255,255,255,${a.toFixed(2)})`, r() * VW, 70 + r() * (GS - 200), 0.5 + r() * 1.1, 0.5 + r() * 1.1); }
+        glow(280, 116, 70, "rgba(200,220,255,.35)"); ell(c, "#f2f5fa", 280, 116, 18, 18); ell(c, p.sky[0], 288, 110, 16, 16); }
+      return c2;
+    }
+    function makeCloud() {
+      const p = P(); if (p.sun === "moon") return null;
+      const k = Math.min(S, 2.5), c2 = document.createElement("canvas"); c2.width = Math.ceil(170 * k); c2.height = Math.ceil(70 * k);
+      const c = c2.getContext("2d"); c.setTransform(k, 0, 0, k, 0, 0);
+      const top = p.sun === "set" ? "#ffd6e2" : "#ffffff", bot = p.sun === "set" ? "#e88aa8" : p.sun === "low" ? "#f2d4cc" : "#d6e6f2";
+      c.fillStyle = lin(c, 0, 10, 0, 66, [top, top, bot]);
+      for (const [x, y, r] of [[40, 44, 22], [70, 32, 28], [104, 36, 26], [130, 46, 20], [86, 50, 22], [56, 52, 18]]) { c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fill(); }
+      return { cv: c2, k };
+    }
+    function makeDest() {
+      const c2 = document.createElement("canvas"); c2.width = Math.ceil(VW * S) + 2; c2.height = Math.ceil(360 * S);
+      const ds = Math.min(1, (GS - 12 - 70) / DEST_H[level - 1]), c = c2.getContext("2d");
+      c.setTransform(S * ds, 0, 0, S * ds, (VW * (1 - ds) / 2) * S, 360 * S); destination(c, level, isNight() || level === 4); return c2;
+    }
+    function caches() {
+      if (cache.level !== level || cache.S !== S) cache = { level, S };
+      if (cache.vh !== VH) { cache.sky = null; cache.dest = null; cache.vh = VH; }
+      const p = P(), night = isNight();
+      if (!cache.sky) cache.sky = makeSky();
+      if (cache.cloud === undefined) cache.cloud = makeCloud();
+      if (!cache.far) cache.far = makeLayer(1400, 400, Math.min(S, 2.2), (c) => farLayer(c, p, night), null);
+      if (!cache.mid) cache.mid = makeLayer(2000, 240, S, (c, pass) => midLayer(c, p, night, pass), p.tint, night, 1.1);
+      if (!cache.dest) cache.dest = makeDest();
+    }
+    const destX = () => CAM_END;
+    function road() {
+      const p = P(), nt = isNight(), bot = ROADH, lane = 58;
+      box(g, lin(g, 0, -30, 0, -10, ["#dfe3e8", "#c3c9d0"]), 0, -30, VW, 20);
+      g.strokeStyle = "rgba(0,0,0,.13)"; g.lineWidth = 1; for (let x = -mod(camX, 64); x < VW; x += 64) { g.beginPath(); g.moveTo(x, -30); g.lineTo(x - 6, -10); g.stroke(); }
+      box(g, "#a3a9b1", 0, -10, VW, 4); box(g, "#7d848e", 0, -6, VW, 3);
+      box(g, lin(g, 0, -3, 0, bot - 44, ["#4b4e56", "#3b3d44", "#34363c"]), 0, -3, VW, bot - 41);
+      const park = level === 1 || (level <= 3 && camX > END - 900);
+      if (park) { g.fillStyle = "rgba(240,244,248,.85)"; for (let x = -mod(camX, 74); x < VW; x += 74) { g.save(); g.translate(x, 0); g.transform(1, 0, -0.35, 1, 0, 0); g.fillRect(0, 10, 3, 34); g.fillRect(0, lane + 22, 3, 44); g.restore(); } g.fillRect(0, lane + 6, VW, 2.5); }
+      else { g.fillStyle = nt ? "rgba(220,226,234,.75)" : "#eef1f4"; for (let x = -mod(camX, 84); x < VW; x += 84) { rr(g, x, lane, 44, 4, 2); g.fill(); } }
+      for (let x = -mod(camX, 560) + 210; x < VW; x += 560) { ell(g, "#2a2c32", x, lane + 34, 16, 4.5); ell(g, "#4a4d55", x, lane + 33.5, 12, 3); }
+      if (!reduced()) { const cx = VW + 80 - mod(t * 90 + camX, VW + 300); lowrider(g, cx, lane + 70, nt); }
+      box(g, "#a3a9b1", 0, bot - 44, VW, 5); box(g, lin(g, 0, bot - 39, 0, bot, ["#d3d8de", "#b5bbc3"]), 0, bot - 39, VW, 39);
+      const fk = reduced() ? 1 : 1.25, fo = -mod(camX * fk, 48);
+      g.strokeStyle = "rgba(0,0,0,.14)"; for (let x = fo; x < VW; x += 48) { g.beginPath(); g.moveTo(x, bot - 39); g.lineTo(x + 10, bot); g.stroke(); }
+      for (let x = -mod(camX * fk, 130), i = Math.floor(camX * fk / 130); x < VW + 20; x += 130, i++) { const gx = x + (i % 3) * 14;
+        for (let k = 0; k < 5; k++) line(g, "#5a9a4a", 1.6, [gx + k * 3, bot - 38, gx + k * 3 + (k - 2) * 2.2, bot - 47 - (k % 2) * 4]); }
+      if (p.road) box(g, nt ? `rgba(8,8,36,${p.road})` : `rgba(70,30,90,${p.road})`, 0, -30, VW, bot + 30);
+    }
+    function drawJuanAt() {
+      const h = hero, fx0 = h.x + h.w / 2, air = Math.max(0, -(h.y + h.h)), sh = Math.max(0.35, 1 - air / 220);
+      const groundY = (() => { for (const e of ents) if (SOLID.includes(e.t) && fx0 > e.x && fx0 < e.x + e.w && h.y + h.h <= e.y + 1) return e.y; return 0; })();
+      ell(g, "rgba(0,0,0,.28)", fx0, groundY, 15 * sh, 3.5 * sh);
+      if (h.inv > 0 && !reduced() && Math.floor(t * 14) % 2) return;
+      let pose = "run";
+      if (mode === "win") pose = "cheer"; else if (mode === "title" || mode === "clear" || mode === "paused" && h.ground && false) pose = "stand";
+      else if (!h.ground) pose = h.vy < 0 ? "up" : "down";
+      if (mode === "title" || mode === "clear") pose = "stand";
+      g.save(); g.translate(fx0, h.y + h.h); juan(g, { outfit: L().outfit, pose, ph: h.frame, t }); g.restore();
+      if (h.boost > 0 && !reduced()) for (let i = 0; i < 4; i++) line(g, i % 2 ? "#3ee8eb" : "#ffffff", 1.6, [h.x - 8 - i * 6 - mod(t * 120, 10), h.y + 14 + i * 9, h.x - 26 - i * 6 - mod(t * 120, 10), h.y + 14 + i * 9]);
+    }
+    function drawFx() {
+      for (const p of fx) {
+        if (p.k === "dust") ell(g, `rgba(232,236,240,${Math.min(0.8, p.life * 1.8).toFixed(2)})`, p.x, p.y, p.r, p.r * 0.8);
+        else if (p.k === "drop") ell(g, "rgba(170,225,255,.9)", p.x, p.y, p.r, p.r * 1.3);
+        else { const r = p.life > 0.3 ? 3.2 : 1.8; g.fillStyle = p.c; g.beginPath(); g.moveTo(p.x, p.y - r); g.lineTo(p.x + r * 0.3, p.y - r * 0.3); g.lineTo(p.x + r, p.y); g.lineTo(p.x + r * 0.3, p.y + r * 0.3); g.lineTo(p.x, p.y + r); g.lineTo(p.x - r * 0.3, p.y + r * 0.3); g.lineTo(p.x - r, p.y); g.lineTo(p.x - r * 0.3, p.y - r * 0.3); g.fill(); }
+      }
+    }
+    function hud() {   // UI chrome: Fiesta colors only (pink, turquoise, white, silver on near-black)
+      g.setTransform(S, 0, 0, S, 0, 0);
+      g.fillStyle = "rgba(13,15,26,.94)"; rr(g, 6, 6, VW - 12, 54, 12); g.fill(); g.strokeStyle = "rgba(62,232,235,.4)"; g.lineWidth = 1; rr(g, 6.5, 6.5, VW - 13, 53, 12); g.stroke();
+      box(g, "#ff3d8b", 13, 12, 38, 18, 9); say(g, `LV ${level}`, 32, 21.5, 11.5, "#ffffff", { font: UI, weight: 900 });
+      const sc = String(score); g.font = `900 16px ${UI}`; const sw = g.measureText(sc).width;
+      say(g, sc, VW - 14, 21.5, 16, "#3ee8eb", { font: UI, weight: 900, align: "right" });
+      say(g, L().name, 58, 21.5, 13, "#eef1f4", { font: UI, weight: 800, align: "left", max: VW - 14 - sw - 70 });
+      const px = Math.min(1, Math.max(0, hero.x / END)), pw = 116;
+      box(g, "#3a4058", 13, 41, pw, 6, 3); box(g, "#00b8b0", 13, 41, Math.max(6, pw * px), 6, 3);
+      for (const c of CHECKS.slice(1)) box(g, hero.x >= c ? "#3ee8eb" : "#ff3d8b", 13 + pw * c / END - 1, 38, 2.4, 12, 1);
+      ell(g, "#ffffff", 13 + pw * px, 44, 4.5, 4.5);
+      heart(g, 143, 44.5, 6.5, "#ff3d8b");
+      const hp = hero.health / HP, hw = 92; box(g, "#3a4058", 153, 40, hw, 9, 4.5);
+      if (hp > 0) box(g, lin(g, 153, 0, 153 + hw, 0, ["#ff3d8b", "#ff8fbf"]), 153, 40, Math.max(9, hw * hp), 9, 4.5);
+      if (hp < 0.3 && !reduced() && Math.floor(t * 4) % 2) { g.strokeStyle = "#ffffff"; g.lineWidth = 1.2; rr(g, 153, 40, hw, 9, 4.5); g.stroke(); }
+      const on = hero.boost > 0, cx = 262;   // ☕ slot
+      box(g, on ? "#3ee8eb" : "#5a6078", cx - 6, 38, 11, 11, 2.5); g.strokeStyle = on ? "#3ee8eb" : "#5a6078"; g.lineWidth = 2; g.beginPath(); g.arc(cx + 5.5, 43.5, 3, -1.4, 1.4); g.stroke();
+      if (on && !reduced()) line(g, "#ffffff", 1.2, [cx - 2, 35, cx - 1, 32, cx - 2, 29]);
+      if (on) box(g, "#3ee8eb", cx - 7, 52.5, 14 * hero.boost / 5, 2, 1);
+      say(g, `HI ${Math.max(st.best, score)}`, VW - 14, 45, 10.5, "#9aa3b5", { font: UI, weight: 800, align: "right" });
+      if (msgT > 0) { g.font = `800 13px ${UI}`; const w = g.measureText(msg).width + 26; box(g, "rgba(13,15,26,.85)", (VW - w) / 2, 68, w, 26, 13); say(g, msg, VW / 2, 81.5, 13, "#3ee8eb", { font: UI, weight: 800 }); }
+    }
+    function draw() {
+      if (!hero) return;
+      caches();
+      const sx = shake > 0 && !reduced() ? (Math.random() - 0.5) * 6 : 0;
+      g.setTransform(1, 0, 0, 1, 0, 0); g.drawImage(cache.sky, 0, 0);
+      if (cache.cloud) { const cl = cache.cloud, big = L().time === "noon" ? 1.35 : 1, span = VW + 260;
+        [[20, 0.2], [190, 0.34], [330, 0.13], [470, 0.27]].forEach(([x0, fy], i) => { const x = mod(x0 - camX * 0.03 * par() - t * 5 * par(), span) - 200, s = (i % 2 ? 0.75 : 1) * big;
+          g.drawImage(cl.cv, Math.round(x * S), Math.round(fy * GS * S), cl.cv.width * S / cl.k * s, cl.cv.height * S / cl.k * s); }); }
+      blit(cache.far, 0.06, GS - 34, 60 + (level - 1) * 45);
+      blit(cache.mid, 0.4, GS - 26, (level - 1) * 520);
+      g.setTransform(S, 0, 0, S, sx * S, GS * S); road();
+      const dx = destX() - camX; if (dx < VW + 10) { g.setTransform(1, 0, 0, 1, Math.round((dx + sx) * S), 0); g.drawImage(cache.dest, 0, Math.round((GS - 12 - 360) * S)); }
+      g.setTransform(S, 0, 0, S, (sx - camX) * S, GS * S);
+      const rm = reduced();
+      for (const e of ents) if (!e.gone && e.x < camX + VW + 40 && e.x + e.w > camX - 90) drawEnt(g, e, t, rm);
+      drawJuanAt(); drawFx();
+      if (mode === "win") { g.setTransform(S, 0, 0, S, 0, 0); for (const p of parts) { g.save(); g.translate(p.x, p.y); g.rotate(p.r); box(g, p.c, -3, -2, 6, 4); g.restore(); } }
+      hud();
+      if (mode === "oops") say(g, oopsMsg, VW / 2, VH * 0.34, 42, "#ff3d8b", { font: UI, weight: 900, stroke: "#111111", sw: 7, max: VW - 30 });
+    }
+    function fit() {
+      let w, h;
+      const r = wrap.getBoundingClientRect();
+      if (fs.on) { w = r.width; h = r.height; if (w < 40 || h < 40) return;
+        if (h / w < 520 / VW) w = h * VW / 520;   // a wide screen (landscape, desktop): pillar-box
+        if (h / w > 900 / VW) h = w * 900 / VW; }
+      else { w = Math.min(r.width || VW, 440); h = w * 580 / VW; }
+      w = Math.max(200, Math.floor(w)); h = Math.floor(h); cssW = w;
+      cv.style.width = w + "px"; cv.style.height = h + "px";
+      let d = Math.min(root.devicePixelRatio || 1, dprCap); while (d > 1 && w * h * d * d > 3.4e6) d -= 0.25;
+      const bw = Math.round(w * d), bh = Math.round(h * d);
+      if (bw !== cv.width || bh !== cv.height) { cv.width = bw; cv.height = bh; }
+      dpr = d; S = bw / VW; VH = bh / S; GS = VH - ROADH;
+      if (!raf && hero) draw();
+    }
+    function title() {
+      level = 1; cache = {}; spawn(0); hero.x = 140; camX = cam(hero.x); mode = "title"; fit();
+      const cont = st.levelMax > 1 ? `<button type="button" class="lot-btn" data-act="cont">▶ Keep going: level ${st.levelMax}</button>` : "";
+      $("#juan-note").textContent = "Help Juan get through the day: 5 stops from Home Dehole to the cantina. Hop the cones, potholes and runaway carts, and grab a coffee.";
+      overlay(`<p class="juan-big">Juan's Long Day</p><p class="juan-story">Help Juan get through the day!</p>
+        <ol class="juan-stops">${LEVELS.map((l, i) => `<li><span>${i + 1}</span>${l.name}</li>`).join("")}</ol>
+        <p class="juan-sub">Supplies, lunch, a truck part, home to change, then boots on for Noche Caliente. <span lang="es">¡Ándale!</span></p>
+        <p class="juan-btns"><button type="button" class="lot-btn lot-main" data-act="start">▶ Start at level 1</button>${cont}</p>${st.best ? `<p class="juan-score">Best score <b>${st.best}</b></p>` : ""}`, "title");
+    }
+    function loop() {
+      cancelAnimationFrame(raf); last = performance.now();
+      const step = (now) => { const dt = Math.min(0.05, (now - last) / 1000); last = now; update(dt); draw();
+        if (mode === "run") { perf.n++; perf.sum += dt; if (perf.n >= 90) { const avg = perf.sum / perf.n; perf = { n: 0, sum: 0 };   // a slow phone: draw at a lower resolution
+          if (avg > 0.024 && dprCap > 1.5) { dprCap = dprCap > 2 ? 2 : 1.5; fit(); } } }
+        if (mode === "run" || mode === "oops" || (mode === "win" && parts.length) || fx.length) raf = requestAnimationFrame(step); else raf = null; };
+      raf = requestAnimationFrame(step);
+    }
+    function pause() {
+      if ((mode === "run" || mode === "oops") && !paused) {
+        if (mode === "oops") spawn(ck);
+        paused = true; mode = "paused"; cancelAnimationFrame(raf); raf = null; draw();
+        overlay(`<p class="juan-big">Paused</p><button type="button" class="lot-btn lot-main" data-act="resume">▶ Resume</button>`, "soft"); ctrl();
+      }
+    }
+    function resume() { if (paused) { paused = false; mode = "run"; overlay(null); fs.enter(); fit(); loop(); ctrl(); } }
+    function stats() { $("#juan-stats").innerHTML = `⭐ Best score <b>${st.best}</b> · 🤠 Made it to Noche Caliente <b>${st.wins}</b>× · Furthest level <b>${st.levelMax}</b>`; }
+    function ctrl() {
+      const p = $("#juan-pause");
+      p.innerHTML = paused ? '<span aria-hidden="true">▶</span><span class="juan-lbl"> Resume</span>' : '<span aria-hidden="true">⏸</span><span class="juan-lbl"> Pause</span>';
+      p.setAttribute("aria-label", paused ? "Resume" : "Pause");
+      const s = $("#juan-sound");
+      s.innerHTML = `<span aria-hidden="true">${st.muted ? "🔇" : "🔊"}</span><span class="juan-lbl"> Sound</span>`; s.setAttribute("aria-label", st.muted ? "Sound is off" : "Sound is on"); s.setAttribute("aria-pressed", st.muted ? "false" : "true");
+    }
+    // ---- input: tap / click the game, the Jump button, Space / ↑ / W
+    cv.addEventListener("pointerdown", (e) => { e.preventDefault(); jump(); });
+    cv.addEventListener("pointerup", release);
+    const jb = $("#juan-jump");
+    jb.addEventListener("pointerdown", (e) => { e.preventDefault(); jump(); }); jb.addEventListener("pointerup", release);
+    jb.addEventListener("click", (e) => { if (e.detail === 0) jump(); });   // keyboard activation
+    el.addEventListener("click", (e) => { const b = e.target.closest("[data-act]"); if (!b) return; const a = b.dataset.act; audio();
+      if (a === "start" || a === "cont" || a === "again") played();
+      if (a === "start") startLevel(1); else if (a === "cont") { ckScore = 0; startLevel(st.levelMax); } else if (a === "next") startLevel(level + 1, true); else if (a === "again") startLevel(1); else if (a === "resume") resume(); });
+    $("#juan-pause").onclick = () => (paused ? resume() : pause());
+    $("#juan-restart").onclick = () => { paused = false; ckScore = 0; startLevel(level); ctrl(); };
+    $("#juan-sound").onclick = () => { st.muted = !st.muted; save(st); ctrl(); if (!st.muted) SFX.coin(); };
+    const onKey = (e) => {
+      if (!el.isConnected || !el.closest(".view.active") || document.querySelector("dialog[open]") || e.target.closest && e.target.closest("input, textarea, select, dialog")) return;   // only while Juegitos is showing
+      if (e.code === "Space" || e.key === "ArrowUp" || e.key === "w" || e.key === "W") { if (e.target.closest && e.target.closest("button") && e.code === "Space" && e.target !== jb) return; e.preventDefault(); if (!e.repeat) jump(); }
+      else if (e.key === "p" || e.key === "P") paused ? resume() : pause();
+    };
+    const onKeyUp = (e) => { if (e.code === "Space" || e.key === "ArrowUp") release(); };
+    const onWin = () => { if (!fs.on) fit(); };
+    document.addEventListener("keydown", onKey); document.addEventListener("keyup", onKeyUp); root.addEventListener("resize", onWin);
+    stats(); ctrl(); title();
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { cache = {}; if (!raf) draw(); }).catch(() => {});
+    return {
+      pause, resume, jump,
+      fs, exitFullscreen: (quiet) => fs.exit(quiet),
+      destroy() { fs.exit(true); cancelAnimationFrame(raf); document.removeEventListener("keydown", onKey); document.removeEventListener("keyup", onKeyUp); root.removeEventListener("resize", onWin); cache = {}; },
+      get state() { return { oopsMsg, msg, mode, level, name: L().name, outfit: L().outfit, x: hero.x, y: hero.y, ground: hero.ground, score, ck, best: st.best, muted: st.muted, boost: hero.boost, health: hero.health, beers: beersGot,
+        levelMax: st.levelMax, parallax: !reduced(), overlay: ov.textContent.trim(), fullscreen: fs.on, W: VW, H: VH, dpr, cssW, backing: [cv.width, cv.height], fx: fx.length, fxMade }; },
+      // test hooks: jump to a spot in a level (as if you'd run there), set the health bar
+      warp(n, x) { if (n !== level || mode === "title" || mode === "win" || mode === "clear") startLevel(n, true); if (paused) resume(); hero.x = x; hero.y = -HERO_H; hero.vy = 0; camX = cam(x);
+        for (const e of ents) if (e.t === "flag" && e.x <= x) { e.done = true; ck = CHECKS.indexOf(e.x); }
+        ents = ents.filter((e) => !(HAZARDS.includes(e.t) || SOLID.includes(e.t)) || e.x > x + 90 || e.x + e.w < x - 60); },
+      setHealth(v) { hero.health = Math.max(0, Math.min(HP, v)); },
+      ents: () => ents.filter((e) => !e.gone).map((e) => ({ t: e.t, x: e.x, y: e.y, st: e.hit ? "hit" : e.on ? "on" : "" })),
+    };
+  }
+
+  const game = { id: "juan", name: "Juan's Long Day", emoji: "👢", blurb: "Help Juan get through the day: 5 stops, from Home Dehole to the cantina.", mount };
+  const api = { KEY, LEVELS, END, CHECKS, VW, HP, HAZ, buildLevel, load, save, reset, game };
+  if (typeof module === "object" && module.exports) module.exports = api;
+  else { root.ChismeJuan = api; if (root.ChismeJuegos) root.ChismeJuegos.GAMES.push(game); }
+})(typeof window !== "undefined" ? window : this);
