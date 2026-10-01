@@ -27,12 +27,13 @@ async def proxy(request):
         state["fail_news"] -= 1
         state["hits"].append(("502", time.time()))
         return Response('{"error":"HTTPStatusError: upstream 429"}', status_code=502, media_type="application/json")
-    r = await client.get(UP + path, headers={k: v for k, v in request.headers.items() if k.lower() in ("accept", "user-agent", "if-none-match")})
+    hh = {k: v for k, v in request.headers.items() if k.lower() in ("accept", "user-agent", "if-none-match", "content-type")}
+    r = await (client.post(UP + path, content=await request.body(), headers=hh) if request.method == "POST" else client.get(UP + path, headers=hh))   # POST: the v42 stats beacon
     if request.url.path == "/api/news": state["hits"].append((str(r.status_code), time.time()))
     hdrs = {k: v for k, v in r.headers.items() if k.lower() not in ("content-encoding", "content-length", "transfer-encoding", "connection")}
     return Response(r.content, status_code=r.status_code, headers=hdrs)
 
-app = Starlette(routes=[Route("/{p:path}", proxy)])
+app = Starlette(routes=[Route("/{p:path}", proxy, methods=["GET", "HEAD", "POST"])])
 srv = uvicorn.Server(uvicorn.Config(app, port=PORT, log_level="warning"))
 threading.Thread(target=srv.run, daemon=True).start()
 time.sleep(1.5)
@@ -52,6 +53,8 @@ with sync_playwright() as p:
     ctx = p.chromium.launch_persistent_context(tempfile.mkdtemp(), executable_path="/usr/bin/google-chrome", headless=True,
         viewport={"width": 390, "height": 844}, device_scale_factor=2, has_touch=True, is_mobile=True,
         args=["--no-sandbox"])
+    # the Home Screen tutorial (2nd open) has its own tests (a2hs_test, a2hs_v47_test); keep it out of the way here
+    ctx.add_init_script("if (!localStorage.getItem('chisme-a2hs')) localStorage.setItem('chisme-a2hs', JSON.stringify({done: true}));")
     page = ctx.pages[0] if ctx.pages else ctx.new_page()
     expected_net = [False]
     def on_console(m):

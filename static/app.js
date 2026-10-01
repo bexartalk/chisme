@@ -2730,10 +2730,10 @@ window.CHISME_APP_BUILD = "47";
       $("#push-ask-yes").textContent = "Sí, avísame 🔔"; $("#push-ask-no").textContent = "Ahorita no";
     }
   }
-  let askShown = false;
+  let askShown = false, a2Claim = false;   // v47 a2Claim: the Home Screen tutorial has this visit (no push card on the same visit)
   function maybeAsk() {
     const ask = $("#push-ask"), c = pushCfg;
-    if (!ask || askShown || !c || !c.enabled || pushPrefs().on || !engaged() || document.documentElement.classList.contains("a2hs-open")) return;
+    if (!ask || askShown || a2Claim || !c || !c.enabled || pushPrefs().on || !engaged() || document.documentElement.classList.contains("a2hs-open")) return;
     if (iosNeedsHome()) {
       if (lsGet(IOS_TIP)) return;
       pushAskFill("ios"); askShown = true; ask.hidden = false;
@@ -2906,39 +2906,72 @@ window.CHISME_APP_BUILD = "47";
     e.preventDefault();
     deferredPrompt = e;
     $("#install-btn").hidden = false;
-    if (!localStorage.getItem(INSTALL_KEY)) $("#install-card").hidden = false;
+    if (!localStorage.getItem(INSTALL_KEY) && !a2Claim) $("#install-card").hidden = false;   // (not on the visit the tutorial has)
+    if (typeof a2Refill === "function") a2Refill();   // v47: the tutorial gets its one-tap Install button
   });
   const doInstall = async () => {
-    if (!deferredPrompt) return;
+    if (!deferredPrompt) return null;
     deferredPrompt.prompt();
-    await deferredPrompt.userChoice.catch(() => null);
+    const ch = await deferredPrompt.userChoice.catch(() => null);
     deferredPrompt = null;
     hideInstall();
+    return ch && ch.outcome;
   };
   $("#install-btn").onclick = doInstall;
   $("#install-card-btn").onclick = doInstall;
   $("#install-card-close").onclick = () => { $("#install-card").hidden = true; localStorage.setItem(INSTALL_KEY, "1"); };
   window.addEventListener("appinstalled", () => { hideInstall(); deferredPrompt = null; });
-  // ---------- v41: the "Add to Home Screen" tutorial. iPhone / iPad Safari only (not the installed app, not Chrome/Firefox/
-  // Edge on iOS or in-app browsers; Android gets the install button above instead). It shows once the one-time
-  // location card is answered, starting with the 3rd open; "Maybe later" brings it back 3 opens later; it shows by itself at
-  // most twice. Settings reopens it.
+  // ---------- v41 → v47: the "Add to Home Screen" tutorial: one simple screen, 3 big steps at most, huge bold words.
+  // Shows on the 2nd open (the visit counter the push opt-in uses, chisme-visits), never in the installed app, never on a
+  // desktop. iPhone/iPad Safari: Share → Add to Home Screen → Add. iPhone in another browser: open it in Safari (📋 Copy
+  // link). Android: the one-tap 📲 Install when the browser offers it, else ⋮ → Install app → Install. "Got it" = never
+  // again; "Show me later" = the next open, once. It has the visit to itself (no push card or install card on the same
+  // visit). Settings reopens it.
   const UA = navigator.userAgent;
   const isIPad = /iPad/.test(UA) || (/Macintosh/.test(UA) && navigator.maxTouchPoints > 1);
   const isIOS = /iphone|ipod/i.test(UA) || isIPad;
   const isIOSSafari = isIOS && /Safari\//.test(UA) && !/CriOS|FxiOS|EdgiOS|OPiOS|OPT\/|GSA\/|YaBrowser|DuckDuckGo|Brave|FBAN|FBAV|FB_IAB|Instagram|Line\/|Twitter|Snapchat|TikTok|musical_ly|Pinterest|LinkedInApp|WhatsApp/i.test(UA);
+  const isAndroid = /Android/i.test(UA);
   const HINT_KEY = "chisme-ios-hint-dismissed", A2HS_KEY = "chisme-a2hs";   // HINT_KEY: the old one-line hint (dismissed = seen)
   const a2Load = () => { try { return Object.assign({ opens: 0, shows: 0, next: 0, done: false }, JSON.parse(localStorage.getItem(A2HS_KEY) || "{}")); } catch { return { opens: 0, shows: 0, next: 0, done: false }; } };
   const a2Save = (v) => { try { localStorage.setItem(A2HS_KEY, JSON.stringify(v)); } catch {} };
   let a2 = a2Load(), a2Auto = false, a2Opener = null;
   if (localStorage.getItem(HINT_KEY)) a2.done = true;
   const a2Sheet = $("#a2hs");
+  const a2Kind = () => isIOSSafari ? "ios" : isIOS ? "ios-other" : isAndroid ? (deferredPrompt ? "android-install" : "android") : "desktop";
+  const IC = {
+    share: '<svg class="a2hs-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 10H6.5A1.5 1.5 0 0 0 5 11.5v8A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5v-8a1.5 1.5 0 0 0-1.5-1.5H16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M12 14V3M8.5 6.5 12 3l3.5 3.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    plus: '<svg class="a2hs-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="4" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M12 8v8M8 12h8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>',
+    dots: '<svg class="a2hs-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="2.3" fill="currentColor"/><circle cx="12" cy="12" r="2.3" fill="currentColor"/><circle cx="12" cy="19" r="2.3" fill="currentColor"/></svg>',
+    phone: '<svg class="a2hs-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="2.5" width="12" height="19" rx="2.5" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M12 7v7M9 11l3 3 3-3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    copy: '<svg class="a2hs-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M16 8V5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h2" fill="none" stroke="currentColor" stroke-width="2.2"/></svg>',
+    safari: '<svg class="a2hs-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="m15.5 8.5-2.2 4.8-4.8 2.2 2.2-4.8z" fill="currentColor"/></svg>',
+    paste: '<svg class="a2hs-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4.5" width="14" height="17" rx="2" fill="none" stroke="currentColor" stroke-width="2.2"/><rect x="9" y="2.5" width="6" height="4" rx="1" fill="currentColor"/><path d="M9 12h6M9 16h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+  };
+  const STEP = (cls, icon, html, small) => `<li><span class="a2hs-badge ${cls}">${icon}</span><span class="a2hs-t">${html}${small ? `<small>${small}</small>` : ""}</span></li>`;
+  let a2Shown = "";
+  function a2Fill() {
+    const k = a2Kind(); a2Shown = k; a2Sheet.dataset.kind = k;
+    a2Sheet.classList.toggle("ipad", isIPad && k === "ios"); a2Sheet.classList.toggle("top", k === "android"); a2Sheet.classList.toggle("no-arrow", k === "ios-other" || k === "android-install" || k === "desktop");
+    const act = $("#a2hs-act"); act.hidden = true;
+    let title = "Put Chisme on your Home Screen", sub = "Tía wants to move in. 3 taps. ¡Ándale!", steps = "";
+    if (k === "ios") steps = STEP("share", IC.share, "Tap <b>Share</b>", `<span id="a2hs-where">${isIPad ? "at the top right of Safari" : "at the bottom of Safari"}</span> · or <b>•••</b> first`)
+      + STEP("plus", IC.plus, "Tap <b>Add to Home Screen</b>", "scroll down a little") + STEP("add", "Add", "Tap <b>Add</b>", "¡Listo!");
+    else if (k === "ios-other") { title = "Open Chisme in Safari"; sub = "Only Safari can put Tía on your Home Screen.";
+      steps = STEP("copy", IC.copy, "Tap <b>Copy link</b>") + STEP("share", IC.safari, "Open <b>Safari</b>") + STEP("add", IC.paste, "<b>Paste</b> it and go");
+      act.innerHTML = '<span aria-hidden="true">📋</span> Copy link'; act.hidden = false; }
+    else if (k === "android-install") { sub = "One tap. ¡Ándale!"; steps = STEP("plus", IC.phone, "Tap <b>Install</b>", "Tía moves in next to your apps");
+      act.innerHTML = '<span aria-hidden="true">📲</span> Install'; act.hidden = false; }
+    else if (k === "android") steps = STEP("share", IC.dots, "Tap <b>⋮</b>", "top right of Chrome") + STEP("plus", IC.plus, "Tap <b>Install app</b>", "or Add to Home screen") + STEP("add", "OK", "Tap <b>Install</b>", "¡Listo!");
+    else { title = "Install Chisme"; sub = "Look for the install icon in the address bar."; }
+    $("#a2hs-title").textContent = title; $("#a2hs-sub").textContent = sub; $("#a2hs-steps").innerHTML = steps;
+  }
+  function a2Refill() { if (!a2Sheet.hidden && a2Kind() !== a2Shown) a2Fill(); }
   function a2Open(auto) {
     a2Auto = !!auto; a2Opener = document.activeElement;
     Stats.ev("a2hs", auto ? "shown_auto" : "shown");
-    a2Sheet.classList.toggle("ipad", isIPad);
-    $("#a2hs-where").textContent = isIPad ? "at the top right of Safari" : "at the bottom of Safari";
-    a2Sheet.hidden = false; document.documentElement.classList.add("a2hs-open");
+    a2Fill();
+    a2Sheet.hidden = false; document.documentElement.classList.add("a2hs-open"); $("#install-card").hidden = true;
     $("#a2hs-title").focus({ preventScroll: true });
     if (auto) { a2.shows++; a2Save(a2); }
   }
@@ -2947,28 +2980,36 @@ window.CHISME_APP_BUILD = "47";
     a2Sheet.hidden = true; document.documentElement.classList.remove("a2hs-open");
     Stats.ev("a2hs", later ? "later" : "got_it");
     if (!later || (a2Auto && a2.shows >= 2)) a2.done = true;   // "Got it", or the second time it showed by itself
-    else if (a2Auto) a2.next = a2.opens + 3;                    // "Maybe later": again 3 opens from now
+    else if (a2Auto) a2.next = visits + 1;                      // "Show me later": the next open (once)
+    if (a2.done && isAndroid) localStorage.setItem(INSTALL_KEY, "1");   // and no inline install card after it
     a2Save(a2); a2Auto = false;
     if (a2Opener && a2Opener.isConnected && a2Opener !== document.body) a2Opener.focus({ preventScroll: true });
   }
   $("#a2hs-ok").onclick = () => a2Close(false);
   $("#a2hs-later").onclick = () => a2Close(true);
+  $("#a2hs-act").onclick = async () => {
+    if (a2Shown === "android-install") { Stats.ev("a2hs", "install"); const r = await doInstall(); if (r === "accepted" || r === null) a2Close(false); else a2Refill(); }
+    else if (a2Shown === "ios-other") { const url = location.origin + "/"; const ok = await copyLink(url); shareToast(ok ? "Link copied! Now open Safari." : url); }
+  };
   a2Sheet.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.preventDefault(); a2Close(true); } });
   $("#set-a2hs").onclick = () => { $("#settings").close(); a2Open(false); };
   if (standalone) { $("#set-a2hs").hidden = true; $("#set-a2hs-note").textContent = "You're already using Chisme from your Home Screen. ¡Eso!"; }
-  const A2HS_FIRST = 3;   // not on the first visits: the 3rd Safari open, so people get to like the app first
-  const a2Due = () => (a2.shows === 0 && a2.opens >= A2HS_FIRST) || (a2.shows === 1 && a2.opens >= a2.next);
+  const A2HS_FIRST = 2;   // v47: the 2nd open
+  const a2Eligible = !standalone && a2Kind() !== "desktop";
+  a2.opens = visits;
+  const a2Due = () => !a2.done && a2.shows < 2 && (a2.next ? visits >= a2.next : a2.shows === 0 && visits === A2HS_FIRST);
   function a2Try(delay) {   // show it once nothing else is on screen (the location card, a dialog, the feed, a full-screen game)
     setTimeout(() => {
       if (a2.done || !a2Sheet.hidden || !a2Due()) return;
+      if (askShown) { a2.next = visits + 1; a2Save(a2); a2Claim = false; return; }   // the push card got this visit first: the next open
       const busy = firstRun() || !$("#loc-panel").hidden || document.querySelector("dialog[open]") || document.documentElement.classList.contains("game-fs") || document.visibilityState !== "visible";
       if (busy) { if (!firstRun()) a2Try(2500); return; }   // (first run: chisme-setup-done calls again)
       a2Open(true);
     }, delay);
   }
-  if (isIOSSafari && !standalone && !a2.done) {
-    a2.opens++; a2Save(a2);
-    if (a2Due()) { if (firstRun()) document.addEventListener("chisme-setup-done", () => a2Try(1200), { once: true }); else a2Try(1500); }
+  if (a2Eligible && a2Due()) {
+    a2Claim = true; $("#install-card").hidden = true;
+    if (firstRun()) document.addEventListener("chisme-setup-done", () => a2Try(1200), { once: true }); else a2Try(1500);
   }
 
   // expose for testing
@@ -3184,7 +3225,7 @@ window.CHISME_APP_BUILD = "47";
     get ready() { return secs.weather.shownUrl === secs.weather.url() && secs.news.shownUrl === secs.news.url(); },
     get fresh() { return rendered.weather === q() && rendered.news === q(); },
     get newsReady() { return secs.news.shownUrl === secs.news.url(); }, get sportsReady() { return secs.sports.shownUrl === secs.sports.url(); }, get eventsReady() { return secs.events.shownUrl === secs.events.url(); }, get foodReady() { return !!foodData; },
-    get sync() { return { busy: [...Sync.busy], failed: [...Sync.failed.keys()], lastOk: Sync.lastOk }; }, refreshNow, get evCat() { return evCat; }, get view() { return VIEWS[cur]; }, radarColor: (r, g, b) => radarColor(r, g, b), get a2hs() { return { ...a2, open: !a2Sheet.hidden, ipad: isIPad, safari: isIOSSafari, standalone }; }, get donateMid() { const c = document.getElementById("donate-mid"); return { opens: midLaunch.opens, line: midLaunch.line, tab: midTab, where: midWhere, placed: !!(c && c.isConnected), dismissed: midGone() }; }, goView, get juegos() { return juegosOpen(); }, get forYou() { return { profile: FY && FY.load(), feed: feedList.map((r) => ({ url: r.item.url, title: r.item.title, creator: r.item.creator, crew: r.crew, place: r.place, why: r.why.text, explore: r.explore, recipe: !!r.item.recipe, world: !!r.item.world, where: r.item.where || null })), cur: feedCur, open: feed.open, sound: { wanted: soundWanted, muted: feedMuted, unlocks: feedUnlocks, held: feed.classList.contains("sound-held") }, get player() { const sl = slides(), c = YT.find((p) => p.slide && !p.warm && sl.indexOf(p.slide) === feedCur) || YT.find((p) => p.slide && !p.warm) || YT[0] || {}, w = YT.find((p) => p.warm && p.slide);
+    get sync() { return { busy: [...Sync.busy], failed: [...Sync.failed.keys()], lastOk: Sync.lastOk }; }, refreshNow, get evCat() { return evCat; }, get view() { return VIEWS[cur]; }, radarColor: (r, g, b) => radarColor(r, g, b), get a2hs() { return { ...a2, open: !a2Sheet.hidden, ipad: isIPad, safari: isIOSSafari, standalone, kind: a2Kind(), shown: a2Shown, claim: a2Claim, visits }; }, get donateMid() { const c = document.getElementById("donate-mid"); return { opens: midLaunch.opens, line: midLaunch.line, tab: midTab, where: midWhere, placed: !!(c && c.isConnected), dismissed: midGone() }; }, goView, get juegos() { return juegosOpen(); }, get forYou() { return { profile: FY && FY.load(), feed: feedList.map((r) => ({ url: r.item.url, title: r.item.title, creator: r.item.creator, crew: r.crew, place: r.place, why: r.why.text, explore: r.explore, recipe: !!r.item.recipe, world: !!r.item.world, where: r.item.where || null })), cur: feedCur, open: feed.open, sound: { wanted: soundWanted, muted: feedMuted, unlocks: feedUnlocks, held: feed.classList.contains("sound-held") }, get player() { const sl = slides(), c = YT.find((p) => p.slide && !p.warm && sl.indexOf(p.slide) === feedCur) || YT.find((p) => p.slide && !p.warm) || YT[0] || {}, w = YT.find((p) => p.warm && p.slide);
       return { made: YT.length > 0, ready: !!c.ready, vid: c.vid || null, st: c.st ?? -1, ytMuted: c.ytMuted ?? null, unlocked: !!c.unlocked, slide: c.slide ? sl.indexOf(c.slide) : -1, frames: document.querySelectorAll("iframe.vf-yt").length,
         players: YT.map((p) => ({ slide: p.slide ? sl.indexOf(p.slide) : -1, warm: p.warm, vid: p.vid, st: p.st, ready: p.ready, unlocked: p.unlocked, muted: p.ytMuted })), warm: w ? sl.indexOf(w.slide) : -1, ios: IOS_FEED }; }, cover: fyList.slice(0, 3).map((r) => r.item.url), coverCrews: fyList.slice(0, 3).map((r) => r.crew) }; }, openFeed, closeFeed,
     get sportsReady() { return !!rendered.sports; }, get spLg() { return spLg; } };

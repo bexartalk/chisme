@@ -68,6 +68,8 @@ async def one(p, old):
     dev = dict(p.devices["iPhone 13"]); dev.pop("default_browser_type", None)
     ctx = await p.webkit.launch_persistent_context(prof, **dev, permissions=["geolocation"],
                                                     geolocation={"latitude": 29.4241, "longitude": -98.4936})
+    # the Home Screen tutorial (2nd open) has its own tests (a2hs_test, a2hs_v47_test); keep it out of the way here
+    await ctx.add_init_script("if (!localStorage.getItem('chisme-a2hs')) localStorage.setItem('chisme-a2hs', JSON.stringify({done: true}));")
     errs = []
     pg = ctx.pages[0] if ctx.pages else await ctx.new_page()
     pg.on("pageerror", lambda e: errs.append(f"pageerror: {e}"))

@@ -119,20 +119,17 @@
     </div>
   </div>
 
-  <!-- v41: "Add to Home Screen" tutorial (iPhone / iPad Safari only, never in the installed app; app.js a2hs) -->
+  <!-- v41 / v47: the "Add to Home Screen" tutorial (iPhone Safari, iPhone in another browser, Android; never in the installed app or on a desktop; app.js a2hs) -->
   <div id="a2hs" class="a2hs" role="dialog" aria-modal="false" aria-labelledby="a2hs-title" aria-describedby="a2hs-sub" hidden>
     <div class="a2hs-sheet">
       <div class="a2hs-head">
         <img src="/static/icons/icon-192.png" alt="" width="52" height="52">
         <div><h2 id="a2hs-title" tabindex="-1">Put Chisme on your Home Screen</h2>
-        <p id="a2hs-sub">Three taps and the chisme is always one tap away: full screen, even offline. ¡Ándale!</p></div>
+        <p id="a2hs-sub">Tía wants to move in. ¡Ándale!</p></div>
       </div>
-      <ol class="a2hs-steps">
-        <li><span class="a2hs-n">1</span><span class="a2hs-badge share"><svg class="a2hs-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 10H6.5A1.5 1.5 0 0 0 5 11.5v8A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5v-8a1.5 1.5 0 0 0-1.5-1.5H16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M12 14V3M8.5 6.5 12 3l3.5 3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span>Tap the <b>Share</b> button <span id="a2hs-where">at the bottom of Safari</span>.<small>No Share button? Tap <b>•••</b> first.</small></span></li>
-        <li><span class="a2hs-n">2</span><span class="a2hs-badge plus"><svg class="a2hs-ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 8v8M8 12h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><span>Scroll down and tap <b>Add to Home Screen</b>.</span></li>
-        <li><span class="a2hs-n">3</span><span class="a2hs-badge add">Add</span><span>Tap <b>Add</b>. ¡Listo! La Tía moves in next to your other apps.</span></li>
-      </ol>
-      <div class="a2hs-btns"><button type="button" id="a2hs-later" class="a2hs-later">Maybe later</button><button type="button" id="a2hs-ok" class="a2hs-ok">Got it</button></div>
+      <ol class="a2hs-steps" id="a2hs-steps"></ol>
+      <button type="button" id="a2hs-act" class="a2hs-act" hidden></button>
+      <div class="a2hs-btns"><button type="button" id="a2hs-later" class="a2hs-later">Show me later</button><button type="button" id="a2hs-ok" class="a2hs-ok">Got it</button></div>
     </div>
     <div class="a2hs-arrow" aria-hidden="true"><svg viewBox="0 0 40 48"><path d="M20 4v34M8 28l12 14 12-14" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 4v34M8 28l12 14 12-14" fill="none" stroke="#ff3d8b" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
   </div>
