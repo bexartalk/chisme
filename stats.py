@@ -215,12 +215,22 @@ class UpstashStore:
         return {"per": per, "ranges": ranges, "stories": stories, "sample": False}
 
 
+def _clean_env(name: str) -> str:
+    """Forgiving read of a pasted env value: strips spaces, quotes, a leading NAME= / export NAME=, and stray ':'."""
+    v = (os.environ.get(name) or "").strip()
+    v = re.sub(r"^(export\s+)?" + re.escape(name) + r"\s*[=:]\s*", "", v, flags=re.I).strip()
+    v = v.strip("\"'`“”‘’ ").strip()
+    return "".join(v.split())
+
+
 _store = None
 
 
 def store():
     global _store
-    url, tok = os.environ.get("UPSTASH_REDIS_REST_URL"), os.environ.get("UPSTASH_REDIS_REST_TOKEN")
+    url, tok = _clean_env("UPSTASH_REDIS_REST_URL"), _clean_env("UPSTASH_REDIS_REST_TOKEN")
+    if url and not url.startswith(("http://", "https://")):
+        url = "https://" + url
     want = ("upstash", url, tok) if url and tok else ("file", os.environ.get("STATS_STORE_FILE", "/tmp/chisme-stats.json"))
     if _store is None or getattr(_store, "_want", None) != want:
         _store = UpstashStore(url, tok) if want[0] == "upstash" else FileStore(want[1])
