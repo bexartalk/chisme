@@ -680,9 +680,17 @@
       line(c, "#bfb8a8", 1.1, [-3.6, -24, -1.2, -10, -2.6, 0.4]); line(c, "#bfb8a8", 1.1, [6, -24, 3.4, -10, 5.2, 0.4]); box(c, "#ff8fbf", 7.4, -19, 3.4, 1.6, 0.6);   // lapels + a pink pocket square
       juanFace(c, X, Y, "#c68a5e", "#a5683f", "#d39a6c", true);
       c.save(); if (P) { c.translate(X, Y - 9 - P * 3.5); c.rotate(P * 0.28); c.translate(-X, -(Y - 9)); }   // jump: he tips the hat (a little lift + a forward tilt)
-      c.fillStyle = lin(c, 0, Y - 16, 0, Y - 6, ["#efdcb4", "#cdb385"]); c.beginPath(); c.moveTo(X - 7.5, Y - 6.5); c.lineTo(X - 6.6, Y - 16); c.quadraticCurveTo(X + 0.5, Y - 12.5, X + 7.6, Y - 16); c.lineTo(X + 8.5, Y - 6.5); c.closePath(); c.fill();
-      box(c, "#f2f0ea", X - 7, Y - 9, 15, 2.6, 0.5);   // a white band
-      c.fillStyle = lin(c, 0, Y - 9, 0, Y - 3, ["#e6d0a4", "#b99d6e"]); c.beginPath(); c.moveTo(X - 16, Y - 9.5); c.quadraticCurveTo(X + 1, Y - 1.5, X + 18, Y - 9.5); c.quadraticCurveTo(X + 1, Y - 5, X - 16, Y - 9.5); c.fill();
+      c.translate(X + 0.5, Y - 7); c.scale(1.22, 1.22); c.translate(-(X + 0.5), -(Y - 7));   // a big, readable cattleman hat
+      c.fillStyle = lin(c, 0, Y - 25, 0, Y - 8, ["#f0dfb8", "#d8bf8e", "#c4a676"]); c.beginPath();   // the tall crown: a center crease + a front pinch
+      c.moveTo(X - 7.6, Y - 8.5); c.lineTo(X - 7.2, Y - 20.5); c.quadraticCurveTo(X - 5.6, Y - 24.4, X - 2, Y - 23.6); c.quadraticCurveTo(X + 1, Y - 21, X + 3.6, Y - 23.4);
+      c.quadraticCurveTo(X + 7.4, Y - 23.6, X + 7.8, Y - 19.6); c.lineTo(X + 8.8, Y - 8.5); c.closePath(); c.fill();
+      line(c, "#a88a5a", 1, [X - 4.6, Y - 22.6, X + 0.8, Y - 20.6, X + 4.6, Y - 22.4]);   // the crease
+      c.fillStyle = "rgba(120,90,50,.35)"; c.beginPath(); c.ellipse(X + 6.2, Y - 17.6, 1.4, 3.6, 0.2, 0, Math.PI * 2); c.fill();   // the front pinch
+      box(c, "#4a2a12", X - 7.6, Y - 12.6, 16.4, 3.6, 0.6); box(c, "#c9a24a", X + 4.6, Y - 12.2, 2.2, 2.8, 0.6);   // a dark brown band + a little buckle
+      c.fillStyle = lin(c, 0, Y - 16, 0, Y - 5, ["#ead6aa", "#c9ad7c", "#b09062"]); c.beginPath();   // the wide brim, both sides curled up
+      c.moveTo(X - 19, Y - 16.5); c.quadraticCurveTo(X - 15, Y - 8.4, X - 7, Y - 8.2); c.quadraticCurveTo(X + 1, Y - 7.4, X + 9, Y - 8.2); c.quadraticCurveTo(X + 17, Y - 8.4, X + 21, Y - 16.5);
+      c.quadraticCurveTo(X + 19.6, Y - 6.6, X + 9, Y - 4.8); c.quadraticCurveTo(X + 1, Y - 3.6, X - 7, Y - 4.8); c.quadraticCurveTo(X - 17.6, Y - 6.6, X - 19, Y - 16.5); c.closePath(); c.fill();
+      c.strokeStyle = "#9c7c4e"; c.lineWidth = 0.8; c.stroke();
       c.restore();
       return;
     }
