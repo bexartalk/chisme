@@ -10,6 +10,7 @@ import ast, asyncio, copy, json, os
 from datetime import datetime, time as dtime, timezone
 from zoneinfo import ZoneInfo
 from playwright.async_api import async_playwright
+from popup_quiet import QUIET   # v49: the notifications card + Settings tip have their own tests
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 BASE = os.environ.get("CHISME_URL", "http://localhost:8211")
@@ -63,7 +64,7 @@ BANNER = """() => { const b = document.querySelector('#gameday'); return { shown
   rows: [...b.querySelectorAll('.gd-game')].map((r) => ({ lg: r.dataset.lg, text: r.innerText.replace(/\\s+/g, ' ').trim(), live: !!r.querySelector('.gd-live'), fin: !!r.querySelector('.gd-final'), h: r.getBoundingClientRect().height })) }; }"""
 
 async def page_for(b, dev, theme, payload):
-    ctx = await b.new_context(**dev, color_scheme=theme, timezone_id="America/Chicago", service_workers="block")
+    ctx = await b.new_context(**dev, color_scheme=theme, timezone_id="America/Chicago", service_workers="block"); await ctx.add_init_script(QUIET)
     await ctx.add_init_script(INIT + f"localStorage.setItem('chisme-theme', '{theme}');")
     async def fake(route): await route.fulfill(status=200, content_type="application/json", body=json.dumps(payload))
     await ctx.route("**/api/sports*", fake)

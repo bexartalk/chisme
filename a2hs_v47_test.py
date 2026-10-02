@@ -9,6 +9,7 @@
 Screenshots: a2hs-iphone.png, a2hs-android.png."""
 import asyncio, os, re
 from playwright.async_api import async_playwright
+from popup_quiet import QUIET   # v49: the notifications card + Settings tip have their own tests
 
 BASE = os.environ.get("CHISME_URL", "http://localhost:8211")
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "screenshots"); os.makedirs(OUT, exist_ok=True)
@@ -45,7 +46,7 @@ async def main():
     async with async_playwright() as p:
         print("== iPhone Safari (WebKit, iPhone 13)")
         b = await p.webkit.launch(); dev = dict(p.devices["iPhone 13"]); dev.pop("default_browser_type", None); dev["viewport"] = {"width": 390, "height": 844}; dev["device_scale_factor"] = 2
-        ctx = await b.new_context(**dev); await ctx.add_init_script("localStorage.setItem('chisme-location-setup','1'); localStorage.setItem('chisme-push-engage', JSON.stringify({ stories: 6 }));"); pg = await ctx.new_page()
+        ctx = await b.new_context(**dev); await ctx.add_init_script(QUIET); await ctx.add_init_script("localStorage.setItem('chisme-location-setup','1'); localStorage.setItem('chisme-push-engage', JSON.stringify({ stories: 6 }));"); pg = await ctx.new_page()
         errs = []; pg.on("pageerror", lambda e: errs.append(str(e)[:160]))
         s = await go(pg)
         check(not s["open"] and s["state"]["visits"] == 1, f"1st open: nothing (visit {s['state']['visits']})")
@@ -60,25 +61,25 @@ async def main():
         check(not await pg.evaluate("!document.querySelector('#push-ask').hidden"), "…and not after it's closed, either (the push card waits for another visit)")
         s = await again(pg); s2 = await again(pg)
         check(not s["open"] and not s2["open"] and s["state"]["done"], "Got it → never again")
-        check(s["push"] or s2["push"], f"…and the push card gets a later visit of its own (shown: {s['push']}, {s2['push']})")
+        # (v49: the notifications card has its own schedule, 1st open + every 5th, and wins its opens: notif_prompt_test)
         await ctx.close()
         # standalone, 320×568
-        ctx = await b.new_context(**dev); await ctx.add_init_script(VISIT1 + "Object.defineProperty(navigator, 'standalone', { get: () => true });"); pg = await ctx.new_page()
+        ctx = await b.new_context(**dev); await ctx.add_init_script(QUIET); await ctx.add_init_script(VISIT1 + "Object.defineProperty(navigator, 'standalone', { get: () => true });"); pg = await ctx.new_page()
         s = await go(pg); check(not s["open"] and s["state"]["standalone"], "installed Home Screen app (navigator.standalone): never")
         await ctx.close()
         d2 = dict(dev); d2["viewport"] = {"width": 320, "height": 568}
-        ctx = await b.new_context(**d2); await ctx.add_init_script(VISIT1); pg = await ctx.new_page()
+        ctx = await b.new_context(**d2); await ctx.add_init_script(QUIET); await ctx.add_init_script(VISIT1); pg = await ctx.new_page()
         s = await go(pg); check(s["open"] and s["fits"] and simple(s, 3), f"320×568: the whole thing fits, still big ({s['sheet']}, {s['stepPx']} px)")
         await ctx.close()
         # Show me later → the next open, once
-        ctx = await b.new_context(**dev); await ctx.add_init_script(VISIT1); pg = await ctx.new_page()
+        ctx = await b.new_context(**dev); await ctx.add_init_script(QUIET); await ctx.add_init_script(VISIT1); pg = await ctx.new_page()
         s = await go(pg); await pg.click("#a2hs-later"); await pg.wait_for_timeout(200)
         seen = [(await again(pg))["open"]]; await pg.click("#a2hs-later"); seen += [(await again(pg))["open"] for _ in range(2)]
         check(seen == [True, False, False], f"Show me later → back on the next open, at most once more ({seen})")
         await ctx.close()
         # Chrome on iPhone: open in Safari + Copy link
         d3 = dict(dev); d3["user_agent"] = re.sub(r"Version/[\d.]+", "CriOS/129.0.6668.46", dev["user_agent"])
-        ctx = await b.new_context(**d3); await ctx.add_init_script(VISIT1); await ctx.add_init_script(CLIP); pg = await ctx.new_page()
+        ctx = await b.new_context(**d3); await ctx.add_init_script(QUIET); await ctx.add_init_script(VISIT1); await ctx.add_init_script(CLIP); pg = await ctx.new_page()
         s = await go(pg)
         check(s["open"] and s["state"]["kind"] == "ios-other" and s["title"] == "Open Chisme in Safari" and simple(s, 3) and s["act"] == "📋 Copy link" and s["actH"] >= 50 and s["arrow"] == "none",
               f"iPhone, Chrome: 'Open Chisme in Safari' + a big 📋 Copy link ({s['steps']})")
@@ -89,7 +90,7 @@ async def main():
 
         print("\n== Android Chrome (Chromium, Pixel 7) / desktop")
         b = await p.chromium.launch(); pdev = {k: v for k, v in p.devices["Pixel 7"].items() if k != "default_browser_type"}
-        ctx = await b.new_context(**pdev); await ctx.add_init_script(VISIT1); await ctx.add_init_script(FAKE_BIP); pg = await ctx.new_page()
+        ctx = await b.new_context(**pdev); await ctx.add_init_script(QUIET); await ctx.add_init_script(VISIT1); await ctx.add_init_script(FAKE_BIP); pg = await ctx.new_page()
         s = await go(pg)
         check(s["open"] and s["state"]["kind"] == "android" and simple(s, 3) and s["steps"] == ["Tap ⋮", "Tap Install app", "Tap Install"] and s["arrow"] != "none" and not s["bad"],
               f"no install prompt from the browser: ⋮ → Install app → Install, arrow up at the menu ({s['steps']})")
@@ -101,7 +102,7 @@ async def main():
         st = await pg.evaluate("({ p: __prompted, open: !document.querySelector('#a2hs').hidden, done: __chisme.a2hs.done, key: localStorage.getItem('chisme-install-card-dismissed') })")
         check(st == {"p": 1, "open": False, "done": True, "key": "1"}, f"Install → the browser's install prompt, then the tutorial's done for good (no inline card later) {st}")
         await ctx.close()
-        ctx = await b.new_context(viewport={"width": 1280, "height": 800}); await ctx.add_init_script(VISIT1); pg = await ctx.new_page()
+        ctx = await b.new_context(viewport={"width": 1280, "height": 800}); await ctx.add_init_script(QUIET); await ctx.add_init_script(VISIT1); pg = await ctx.new_page()
         s = await go(pg); check(not s["open"] and s["state"]["kind"] == "desktop", "desktop: skipped")
         await ctx.close(); await b.close()
         check(not errs, f"no page errors ({errs[:2]})")

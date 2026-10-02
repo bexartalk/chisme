@@ -9,6 +9,7 @@ a pushed notification (CDP ServiceWorker.deliverPushMessage), and a notification
 import asyncio, base64, json, os, sys, threading, time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from playwright.async_api import async_playwright
+from popup_quiet import QUIET   # v49: the notifications card + Settings tip have their own tests
 from PIL import Image
 import http_ece
 from cryptography.hazmat.primitives import serialization
@@ -47,7 +48,7 @@ async def webkit_part(p):
     dev = dict(p.devices["iPhone 13"]); dev.pop("default_browser_type", None)
     b = await p.webkit.launch()
     # ---- light
-    ctx = await b.new_context(**dev); await ctx.add_init_script(INIT % "")
+    ctx = await b.new_context(**dev); await ctx.add_init_script(QUIET); await ctx.add_init_script(INIT % "")
     pg = await ctx.new_page(); errs = []
     pg.on("pageerror", lambda e: errs.append(str(e)[:160]))
     await pg.goto(URL); await pg.wait_for_function("window.__chisme && __chisme.ready && document.querySelector('#near-list .story')", timeout=120000)
@@ -91,7 +92,7 @@ async def webkit_part(p):
     check(not errs, f"no page errors ({errs[:2]})")
     await ctx.close()
     # ---- dark
-    ctx = await b.new_context(**dev, color_scheme="dark"); await ctx.add_init_script(INIT % "localStorage.setItem('chisme-theme','dark');")
+    ctx = await b.new_context(**dev, color_scheme="dark"); await ctx.add_init_script(QUIET); await ctx.add_init_script(INIT % "localStorage.setItem('chisme-theme','dark');")
     pg = await ctx.new_page()
     await pg.goto(URL); await pg.wait_for_function("window.__chisme && __chisme.ready && document.querySelector('#near-list .story')", timeout=120000)
     d = await pg.evaluate(DONATE, "donate-news")
@@ -109,7 +110,7 @@ async def webkit_part(p):
 
     # ---- New chisme ↑ (the list doesn't jump; new stories wait behind the pill). Service workers off here so the
     # test can stand in for the news server (WebKit doesn't route a service worker's own requests).
-    ctx = await b.new_context(**dev, service_workers="block"); await ctx.add_init_script(INIT % "")
+    ctx = await b.new_context(**dev, service_workers="block"); await ctx.add_init_script(QUIET); await ctx.add_init_script(INIT % "")
     mode = {"add": 0}; calls = {"n": 0}
     async def news_route(route):
         calls["n"] += 1
@@ -198,20 +199,21 @@ async def chromium_part(p):
         const s = await r.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: Uint8Array.from(atob(c.publicKey.replace(/-/g,'+').replace(/_/g,'/') + '='), ch => ch.charCodeAt(0)) });
         const j = s.toJSON(); await s.unsubscribe(); return 'real subscription ok: ' + new URL(j.endpoint).host; } catch (e) { return 'real subscribe: ' + e.name + ': ' + e.message; } })()""")
     print("   note:", real[:140])
-    ask1 = await pg.evaluate("!document.querySelector('#push-ask').hidden")
-    await pg.evaluate("localStorage.setItem('chisme-push-engage', JSON.stringify({ stories: 2 }))")   # v45: the prompt waits for a few opened stories
+    try: await pg.wait_for_function("!document.querySelector('#push-ask').hidden", timeout=10000); ask1 = True   # v49: the card comes on the 1st open
+    except Exception: ask1 = False
+    await pg.evaluate("localStorage.setItem('chisme-notif', JSON.stringify({ n: 5, shows: 1 }))")   # the next load = open 6: due again
     await pg.close()
     await ctx.add_init_script(STUB)
-    # 2. second visit (2 stories read): the soft prompt (inline, not a popup)
+    # 2. open 6: the notifications card again (a popup; every 5th open until alerts are on)
     pg = await ctx.new_page(); pg.on("pageerror", lambda e: errs.append(str(e)[:160]))
     await pg.goto(URL); await pg.wait_for_function("window.__chisme && __chisme.ready", timeout=120000)
     await pg.wait_for_function("!document.querySelector('#push-ask').hidden", timeout=15000)
     ask = await pg.evaluate("({ t: document.querySelector('#push-ask-t').textContent, yes: document.querySelector('#push-ask-yes').textContent, no: document.querySelector('#push-ask-no').textContent, dialogs: [...document.querySelectorAll('dialog')].filter(d => d.open).length })")
-    check(not ask1 and ask["yes"] == "Sí, avísame 🔔" and ask["no"] == "Ahorita no" and ask["dialogs"] == 0, f"soft prompt: not on the first visit, on the second after a few stories, inline ('{ask['t'][:50]}…', no dialog)")
+    check(ask1 and ask["yes"] == "Turn on" and ask["no"] == "Not now", f"notifications card: on the 1st open and again on open 6 ('{ask['t'][:50]}…')")
     await pg.tap("#push-ask-no"); hidden = await pg.evaluate("document.querySelector('#push-ask').hidden")
     await pg.reload(); await pg.wait_for_function("window.__chisme && __chisme.ready", timeout=120000); await pg.wait_for_timeout(2500)
     again = await pg.evaluate("!document.querySelector('#push-ask').hidden")
-    check(hidden and not again, "'Ahorita no' hides it, and it never comes back")
+    check(hidden and not again, "'Not now' hides it, and it stays away on open 7")
     # 3. Settings → the alerts switch (a tap)
     await pg.tap("#settings-btn"); await pg.wait_for_function("document.querySelector('#settings').open")
     before = await pg.evaluate("({ btn: document.querySelector('#set-push').checked, dis: document.querySelector('#set-push-news').disabled })")

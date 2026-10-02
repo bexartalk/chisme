@@ -1274,3 +1274,71 @@ html.a2hs-open .tia-fab,html.a2hs-open .news-pill{visibility:hidden}
 .gd-in{border-color:var(--pink)}
 .gd-pre{border-color:var(--turq)}
 .gd-live .live-dot{background:#000}
+
+/* ---------- v49: the Chisme bubble is the Settings button: a tiny ⚙️ badge on it + a one-time tip under the header */
+.gear-badge{position:absolute;right:4px;bottom:24px;width:36px;height:36px;border-radius:50%;background:var(--pink);border:3px solid #000;
+  display:grid;place-items:center;box-shadow:0 2px 0 rgba(0,0,0,.35);pointer-events:none}
+.gear-badge svg{width:24px;height:24px;display:block}
+.gear-teeth{fill:none;stroke:#fff;stroke-width:3.4}
+.gear-body{fill:#fff}
+.gear-hole{fill:var(--pink)}
+[data-theme="dark"] .gear-badge{border-color:#fff}
+@media (max-width:389px){ .gear-badge{right:1vw;bottom:6.2vw;width:9.2vw;height:9.2vw;border-width:.77vw} .gear-badge svg{width:6.2vw;height:6.2vw} }
+
+.stip-anchor{position:relative;height:0;z-index:40}
+.stip{position:absolute;left:50%;top:-4px;width:min(calc(100vw - 20px),380px);transform:translateX(-50%);
+  display:flex;align-items:center;gap:8px;padding:10px 8px 10px 10px;background:#fff;color:#000;border:3px solid #000;border-radius:20px;
+  box-shadow:0 6px 0 var(--pink),0 10px 24px rgba(0,0,0,.25);animation:stip-in .35s ease-out both, stip-bob 2.2s ease-in-out .5s 3}
+.stip[hidden]{display:none}
+/* the speech-bubble tail, pointing up at the emblem */
+.stip::before,.stip::after{content:"";position:absolute;left:50%;width:0;height:0;border-style:solid;transform:translateX(-50%)}
+.stip::before{top:-19px;border-width:0 15px 19px;border-color:transparent transparent #000}
+.stip::after{top:-14px;border-width:0 11px 15px;border-color:transparent transparent #fff}
+.stip-tia{flex:none;width:46px;height:46px;border-radius:50%;border:3px solid var(--turq);object-fit:cover;background:#000}
+.stip .stip-go{flex:1;min-width:0;min-height:0;margin:0;padding:2px 0;border:0;background:none;color:inherit;text-align:left;cursor:pointer;border-radius:10px;font:inherit}
+.stip-big{display:block;font-size:1.3rem;font-weight:900;line-height:1.15}
+.stip-sub{display:block;margin-top:3px;font-size:1rem;font-weight:800;line-height:1.2;color:#333}
+.stip .stip-x{flex:none;width:44px;height:44px;min-height:44px;padding:0;border-radius:50%;border:3px solid #000;background:#000;color:#fff;
+  font-size:1.25rem;font-weight:900;line-height:1;display:grid;place-items:center}
+.stip .stip-go:focus-visible,.stip .stip-x:focus-visible{outline:4px solid var(--focus);outline-offset:2px}
+[data-theme="dark"] .stip{background:#15171f;color:#fff;border-color:var(--turq)}
+[data-theme="dark"] .stip::before{border-bottom-color:var(--turq)}
+[data-theme="dark"] .stip::after{border-bottom-color:#15171f}
+[data-theme="dark"] .stip .stip-go{background:none;color:#fff;border:0}
+[data-theme="dark"] .stip-sub{color:#c9d0d8}
+[data-theme="dark"] .stip .stip-x{background:var(--turq);color:#000;border-color:var(--turq)}
+@keyframes stip-in{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}
+@keyframes stip-bob{50%{transform:translate(-50%,4px)}}
+.reduce-motion .stip{animation:none}
+@media (prefers-reduced-motion:reduce){ .stip{animation:none} }
+@media (max-width:360px){ .stip-big{font-size:1.15rem} .stip-sub{font-size:.92rem} .stip-tia{width:40px;height:40px} }
+
+/* v49: the Home Screen tutorial's buttons keep their colours in dark mode (the generic dark `button` rule turned "Got it" near-black) */
+[data-theme="dark"] .a2hs-ok{background:#ff3d8b;color:#fff;border-color:#000}
+[data-theme="dark"] .a2hs-act{background:#00b8b0;color:#000;border-color:#000}
+
+/* ---------- v49: the notifications card (a popup at the bottom, one per open) */
+.notif{position:fixed;inset:0;z-index:3900;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;
+  padding:0 10px calc(12px + env(safe-area-inset-bottom,0px));background:rgba(0,0,0,.55)}
+.notif[hidden]{display:none}
+html.notif-open .tia-fab,html.notif-open .news-pill{visibility:hidden}
+.notif-card{position:relative;width:100%;max-width:440px;box-sizing:border-box;overflow:hidden;background:#fff;color:#000;border:3px solid #000;border-radius:24px;
+  padding:26px 16px 14px;text-align:center;box-shadow:0 8px 0 var(--pink);animation:notif-up .3s ease-out both}
+.notif-stripe{position:absolute;left:0;right:0;top:0;height:10px;background:linear-gradient(90deg,var(--turq) 0 33.3%,var(--pink) 33.3% 66.6%,var(--orange) 66.6%)}
+.notif-tia{display:block;width:64px;height:64px;margin:0 auto 8px;border-radius:50%;border:3px solid var(--turq);object-fit:cover;background:#000}
+.notif-t{margin:0 0 8px;font-size:1.55rem;line-height:1.15;font-weight:900;outline:none}
+.notif-s{margin:0 0 14px;font-size:1.05rem;line-height:1.3;font-weight:800;color:#333}
+.notif-row{display:flex;flex-direction:column;gap:8px}
+.notif .notif-row button{width:100%;margin:0;min-height:58px;border-radius:16px;border:3px solid #000;font:inherit;font-weight:900;cursor:pointer;padding:0 10px}
+.notif .notif-row .notif-yes{background:var(--pink);color:#fff;font-size:1.4rem;box-shadow:inset 0 -5px 0 rgba(0,0,0,.22)}
+.notif .notif-row .notif-no{background:#fff;color:#000;font-size:1.1rem;min-height:50px}
+.notif .notif-row button:focus-visible{outline:4px solid var(--focus);outline-offset:2px}
+.notif .notif-row button[hidden]{display:none}
+[data-theme="dark"] .notif-card{background:#15171f;color:#fff;border-color:var(--turq)}
+[data-theme="dark"] .notif-s{color:#c9d0d8}
+[data-theme="dark"] .notif .notif-row .notif-yes{background:#ff3d8b;color:#fff;border-color:#000}
+[data-theme="dark"] .notif .notif-row .notif-no{background:#1f2330;color:#fff;border-color:#c9d0d8}
+@keyframes notif-up{from{transform:translateY(30px);opacity:0}to{transform:none;opacity:1}}
+.reduce-motion .notif-card{animation:none}
+@media (prefers-reduced-motion:reduce){ .notif-card{animation:none} }
+@media (max-width:360px){ .notif-t{font-size:1.32rem} .notif-s{font-size:.95rem} }

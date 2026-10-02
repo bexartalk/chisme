@@ -9,6 +9,7 @@ still render, the pick is remembered across reloads, #cowboys / #nba deep links,
 Screenshots (light, iPhone 13 width, 390×1700 so each shows the chips and the top of the page): sports-spurs.png, sports-nba.png, sports-cowboys.png, sports-nfl.png."""
 import ast, asyncio, json, os, time, urllib.request
 from playwright.async_api import async_playwright
+from popup_quiet import QUIET   # v49: the notifications card + Settings tip have their own tests
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 BASE = os.environ.get("CHISME_URL", "http://localhost:8211")
@@ -76,7 +77,7 @@ async def open_story(pg, label):
 
 async def run(b, dev, theme, d):
     print(f"\n== WebKit iPhone 13, {theme}")
-    ctx = await b.new_context(**dev, color_scheme=theme)
+    ctx = await b.new_context(**dev, color_scheme=theme); await ctx.add_init_script(QUIET)
     await ctx.add_init_script(INIT + f"localStorage.setItem('chisme-theme', '{theme}');")
     pg = await ctx.new_page(); errs, popups = [], []
     pg.on("pageerror", lambda e: errs.append(str(e)[:160])); ctx.on("page", lambda p: popups.append(p.url))

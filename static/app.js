@@ -1,7 +1,7 @@
 /* Chisme — frontend (location-aware) */
 // Build of this file. Must equal the number in sw.js VERSION ("chisme-v22"); the page compares it
 // with the build the HTML was served for and reloads once if an old cached app.js got mixed in.
-window.CHISME_APP_BUILD = "48";
+window.CHISME_APP_BUILD = "49";
 (() => {
   "use strict";
   const WEATHER_MS = 10 * 60 * 1000;
@@ -2762,17 +2762,18 @@ window.CHISME_APP_BUILD = "48";
     pushBusy = true;
     try {
       const perm = await Notification.requestPermission();
-      if (perm !== "granted") { pushNote(perm === "denied" ? "Alerts are blocked for Chisme. You can allow notifications for Chisme in your phone's or browser's settings." : "No problem: alerts stay off."); if (from === "ask") askDone("no"); return; }
+      if (perm !== "granted") { pushNote(perm === "denied" ? "Alerts are blocked for Chisme. You can allow notifications for Chisme in your phone's or browser's settings." : "No problem: alerts stay off."); if (from === "ask") notifClose(perm === "denied" ? "blocked" : "no"); return; }
       const reg = await navigator.serviceWorker.ready;
       const sub = (await reg.pushManager.getSubscription()) || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: u8key(pushCfg.publicKey) });
       savePushPrefs({ ...pushPrefs(), on: true });
       await pushPost("subscribe", pushBody(sub)); pushLocKey = q() + pushPrefs().news + pushPrefs().wx;
       pushNote(`Done: alerts are on for ${placeName()}. 🔔`);
       lsSet(PUSH_ASKED, "yes:" + Date.now());
-      if (from === "ask") { const a = $("#push-ask"); a.replaceChildren(el("p", { class: "push-ask-t", role: "status", text: "🔔 ¡Listo! I'll only buzz you for the big stuff. Change it anytime in Settings." })); setTimeout(() => { a.hidden = true; }, 6000); }
+      if (from === "ask") notifDoneOn();
     } catch (e) {
       savePushPrefs({ ...pushPrefs(), on: false });
       pushNote("Couldn't turn on alerts (" + e.message + "). Try again in a bit.");
+      if (from === "ask") { $("#push-ask-s").textContent = "Couldn't turn on alerts right now. Try again in a bit, or from Settings."; $("#push-ask-yes").textContent = "Try again"; }
     } finally { pushBusy = false; renderAlertsUI(); }
   }
   async function turnOffAlerts() {
@@ -2818,52 +2819,86 @@ window.CHISME_APP_BUILD = "48";
     try { await pushPost("test", { endpoint: sub.endpoint }); pushNote("Test sent: it should pop up in a few seconds."); }
     catch (e) { pushNote("Couldn't send a test (" + e.message + ")."); }
   };
-  // The soft prompt (inline card, never a popup, never on the first visit): only after some engagement — 2+ stories
-  // opened on a later visit, or 4+ stories in one go. "Ahorita no" is final (Settings still has the switch). On an
-  // iPhone outside the Home Screen app, a short "Add to Home Screen first" tip instead (also dismissable for good).
+  // v49: the notifications card (a popup, replaces v45's engagement-gated inline card). It shows on the 1st open (after the
+  // first-launch location card) and then every 5th open (6th, 11th, …) until alerts are on. Never once subscribed, never
+  // when notifications are blocked. On an iPhone outside the Home Screen app it explains "Add to Home Screen first" (Show me
+  // how → the tutorial). One popup per open: on its opens this card wins (the Home Screen tutorial and the Settings tip wait).
   const visits = (+lsGet(VISITS) || 0) + 1; lsSet(VISITS, String(visits));
   const engage = () => { try { return { stories: 0, ...JSON.parse(lsGet(PUSH_ENGAGE) || "{}") }; } catch { return { stories: 0 }; } };
-  const engaged = () => { const n = engage().stories; return (visits >= 2 && n >= 2) || n >= 4; };
+  const NOTIF_KEY = "chisme-notif", NOTIF_EVERY = 5;
+  const notifLoad = () => { try { return { n: 0, shows: 0, ...JSON.parse(lsGet(NOTIF_KEY) || "{}") }; } catch { return { n: 0, shows: 0 }; } };
+  const notif = notifLoad(); notif.n++; lsSet(NOTIF_KEY, JSON.stringify(notif));   // opens counted since v49 (the 1st = this card)
+  const notifBlocked = () => "Notification" in window && Notification.permission === "denied";
+  const notifDue = () => (notif.n - 1) % NOTIF_EVERY === 0;
+  // decided now, before the config arrives, so the tutorial / tip know this open may be taken ("pending" → "shown" | "none")
+  let notifPhase = notifDue() && !alertsOn() && !notifBlocked() && (iosNeedsHome() || pushCapable()) ? "pending" : "none";
+  let askShown = false, a2Claim = false;   // askShown: the card showed this open; a2Claim: the Home Screen tutorial is due this open
   function askDone(how) { lsSet(PUSH_ASKED, how + ":" + Date.now()); }
   function pushAskFill(kind) {
     const ask = $("#push-ask");
     ask.dataset.kind = kind;
+    $("#push-ask-yes").hidden = $("#push-ask-no").hidden = false;
     if (kind === "ios") {
       $("#push-ask-t").textContent = "Add Chisme to your Home Screen first 📲";
-      $("#push-ask-s").textContent = "On iPhone, Apple only lets me send alerts to the Home Screen app (iOS 16.4+). Tap Share → Add to Home Screen, open Chisme from there, and I'll ask you again.";
-      $("#push-ask-yes").textContent = "Show me how"; $("#push-ask-no").textContent = "Got it";
+      $("#push-ask-s").textContent = "To get the latest chisme 🔔 on iPhone, Apple needs Chisme on your Home Screen. Add it, open it from there, and turn on notifications.";
+      $("#push-ask-yes").textContent = "Show me how"; $("#push-ask-no").textContent = "Not now";
     } else {
-      $("#push-ask-t").textContent = "Psst… it's Tía. Want me to tell you when something big happens?";
-      $("#push-ask-s").textContent = "Only the real chisme: major local or breaking news and weather warnings. Two a day, tops, and never after 10 PM. I'm nosy, not rude.";
-      $("#push-ask-yes").textContent = "Sí, avísame 🔔"; $("#push-ask-no").textContent = "Ahorita no";
+      $("#push-ask-t").textContent = "Allow notifications 🔔 for the latest chisme 👀";
+      $("#push-ask-s").textContent = "Only the big stuff: breaking local news and weather warnings near you. Two a day, tops, and never after 10 PM. I'm nosy, not rude. 😉";
+      $("#push-ask-yes").textContent = "Turn on"; $("#push-ask-no").textContent = "Not now";
     }
   }
-  let askShown = false, a2Claim = false;   // v47 a2Claim: the Home Screen tutorial has this visit (no push card on the same visit)
-  function maybeAsk() {
-    const ask = $("#push-ask"), c = pushCfg;
-    if (!ask || askShown || a2Claim || !c || !c.enabled || pushPrefs().on || !engaged() || document.documentElement.classList.contains("a2hs-open")) return;
-    if (iosNeedsHome()) {
-      if (lsGet(IOS_TIP)) return;
-      pushAskFill("ios"); askShown = true; ask.hidden = false;
-      $("#push-ask-yes").onclick = () => { lsSet(IOS_TIP, "how:" + Date.now()); ask.hidden = true; a2Open(false); };
-      $("#push-ask-no").onclick = () => { lsSet(IOS_TIP, "ok:" + Date.now()); ask.hidden = true; };
-      return;
-    }
-    if (lsGet(PUSH_ASKED) || !pushCapable() || Notification.permission === "denied") return;
-    pushAskFill("ask"); askShown = true; ask.hidden = false;
-    const e = engage(); e.shown = (e.shown || 0) + 1; lsSet(PUSH_ENGAGE, JSON.stringify(e));
-    if (e.shown >= 3) askDone("ignored");   // shown on 3 visits without an answer: that's an answer too
-    $("#push-ask-yes").onclick = () => turnOnAlerts("ask");
-    $("#push-ask-no").onclick = () => { askDone("no"); ask.hidden = true; };
+  let notifOpener = null;
+  function notifOpen(kind) {
+    const ask = $("#push-ask");
+    pushAskFill(kind); askShown = true; notifPhase = "shown"; notif.shows++; notif.last = notif.n; lsSet(NOTIF_KEY, JSON.stringify(notif));
+    notifOpener = document.activeElement; ask.hidden = false; document.documentElement.classList.add("notif-open");
+    $("#push-ask-t").focus({ preventScroll: true });
   }
-  function pushEngaged() {   // a story was opened in the reader
+  function notifClose(how) {
+    const ask = $("#push-ask");
+    if (how) { notif.how = how; lsSet(NOTIF_KEY, JSON.stringify(notif)); askDone(how); }
+    if (ask.hidden) return;
+    ask.hidden = true; document.documentElement.classList.remove("notif-open");
+    if (notifOpener && notifOpener.isConnected && notifOpener !== document.body) notifOpener.focus({ preventScroll: true });
+  }
+  function notifDoneOn() {   // subscribed: say so for a moment, then it's gone for good (alertsOn() keeps it away)
+    notif.how = "on"; lsSet(NOTIF_KEY, JSON.stringify(notif));
+    $("#push-ask-t").textContent = "🔔 ¡Listo! You're on the list.";
+    $("#push-ask-s").textContent = "I'll only buzz you for the big stuff. Change it anytime in Settings (tap the Chisme bubble).";
+    $("#push-ask-yes").hidden = true; $("#push-ask-no").textContent = "Close"; $("#push-ask-no").hidden = false;
+    setTimeout(() => notifClose(), 4000);
+  }
+  $("#push-ask-yes").onclick = () => {
+    if ($("#push-ask").dataset.kind === "ios") { notifClose("how"); a2Open(false); return; }
+    turnOnAlerts("ask");   // the existing subscribe flow: the permission prompt straight from this tap
+  };
+  $("#push-ask-no").onclick = () => notifClose(alertsOn() ? null : "later");
+  $("#push-ask").addEventListener("keydown", (e) => { if (e.key === "Escape") { e.preventDefault(); notifClose(alertsOn() ? null : "later"); } });
+  async function notifTry(delay) {   // show it once the location card is done and nothing full screen is up
+    await new Promise((r) => setTimeout(r, delay));
+    if (notifPhase !== "pending") return;
+    const c = pushCfg;
+    if (!c || !c.enabled || alertsOn() || notifBlocked() || (!iosNeedsHome() && !pushCapable())) { notifPhase = "none"; return; }
+    if (!iosNeedsHome()) {   // already subscribed in this browser (e.g. storage was cleared): never ask
+      const sub = await pushSub();
+      if (sub && Notification.permission === "granted") { notifPhase = "none"; return; }
+    }
+    const html = document.documentElement;
+    if (firstRun() || !$("#loc-panel").hidden || html.classList.contains("a2hs-open") || document.querySelector("dialog[open]") || html.classList.contains("game-fs")
+      || document.getElementById("wake") || document.visibilityState !== "visible") { if (!firstRun()) notifTry(2000); return; }   // (first run: chisme-setup-done calls again)
+    notifOpen(iosNeedsHome() ? "ios" : "ask");
+  }
+  function pushEngaged() {   // a story was opened in the reader (still counted, for the record)
     const e = engage(); e.stories = (e.stories || 0) + 1; lsSet(PUSH_ENGAGE, JSON.stringify(e));
-    if (pushCfg) setTimeout(maybeAsk, 400);
   }
+  setTimeout(() => { if (notifPhase === "pending" && !pushCfg) notifPhase = "none"; }, 25000);   // a sleeping server: don't hold this open's other tips
   pushCfgReady.then(() => {
     renderAlertsUI();
     pushResync();
-    maybeAsk();
+    if (notifPhase === "pending") {
+      if (firstRun()) document.addEventListener("chisme-setup-done", () => notifTry(1200), { once: true }); else notifTry(1200);
+    }
   });
   // Tapping a notification: the story opens in Chisme's reader (or the weather alerts), never another app.
   function openFromAlert(href) {
@@ -3109,6 +3144,7 @@ window.CHISME_APP_BUILD = "48";
   function a2Try(delay) {   // show it once nothing else is on screen (the location card, a dialog, the feed, a full-screen game)
     setTimeout(() => {
       if (a2.done || !a2Sheet.hidden || !a2Due()) return;
+      if (notifPhase === "pending") { a2Try(1500); return; }   // v49: the notifications card decides first (it wins on its opens)
       if (askShown) { a2.next = visits + 1; a2Save(a2); a2Claim = false; return; }   // the push card got this visit first: the next open
       const busy = firstRun() || !$("#loc-panel").hidden || document.querySelector("dialog[open]") || document.documentElement.classList.contains("game-fs") || document.visibilityState !== "visible";
       if (busy) { if (!firstRun()) a2Try(2500); return; }   // (first run: chisme-setup-done calls again)
@@ -3118,6 +3154,41 @@ window.CHISME_APP_BUILD = "48";
   if (a2Eligible && a2Due()) {
     a2Claim = true; $("#install-card").hidden = true;
     if (firstRun()) document.addEventListener("chisme-setup-done", () => a2Try(1200), { once: true }); else a2Try(1500);
+  }
+
+  // ---------- v49: one-time tip "the Chisme bubble is the Settings button" (Tía's voice, under the header, pointing up at it).
+  // One popup per open: it shows on a normal open only, never on the first launch (location card), nor on an open the
+  // notifications card or the Home Screen tutorial took (it tries again next open), nor over a dialog / the food feed /
+  // a full-screen game. Tapping the bubble, the tip or ✕ ends it for good.
+  const TIP_KEY = "chisme-settings-tip", tipEl = $("#settings-tip"), tipFirstOpen = firstRun();
+  let tipTimer = 0, tipShownAt = 0;
+  const tipDone = () => !!lsGet(TIP_KEY);
+  function tipEnd(how) {
+    clearTimeout(tipTimer);
+    if (!tipDone()) lsSet(TIP_KEY, how + ":" + Date.now());
+    if (tipEl && !tipEl.hidden) { tipEl.hidden = true; document.documentElement.classList.remove("stip-open"); }
+  }
+  function tipBusy() {
+    const html = document.documentElement;
+    return firstRun() || !$("#loc-panel").hidden || html.classList.contains("a2hs-open") || html.classList.contains("notif-open") || notifPhase === "pending" || (a2Claim && a2Due())
+      || !!document.querySelector("dialog[open]") || html.classList.contains("game-fs") || !!document.getElementById("wake")
+      || document.visibilityState !== "visible" || window.scrollY > 60;
+  }
+  function tipTry(delay) {
+    clearTimeout(tipTimer);
+    tipTimer = setTimeout(() => {
+      if (!tipEl || tipDone() || !tipEl.hidden) return;
+      if (tipFirstOpen || notifPhase === "shown" || a2Shown) return;   // this open already had its popup: next open
+      if (tipBusy()) { tipTry(2500); return; }
+      tipEl.hidden = false; tipShownAt = Date.now(); document.documentElement.classList.add("stip-open");
+    }, delay);
+  }
+  $("#settings-btn").addEventListener("click", () => tipEnd("bubble"));   // they found it: no tip, ever
+  if (tipEl) {
+    $("#settings-tip-x").onclick = () => tipEnd("dismissed");
+    $("#settings-tip-go").onclick = () => { tipEnd("tip"); $("#settings-btn").click(); };
+    tipEl.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.preventDefault(); tipEnd("dismissed"); } });
+    if (!tipDone() && !tipFirstOpen) tipTry(1800);
   }
 
   // expose for testing
@@ -3333,7 +3404,7 @@ window.CHISME_APP_BUILD = "48";
     get ready() { return secs.weather.shownUrl === secs.weather.url() && secs.news.shownUrl === secs.news.url(); },
     get fresh() { return rendered.weather === q() && rendered.news === q(); },
     get newsReady() { return secs.news.shownUrl === secs.news.url(); }, get sportsReady() { return secs.sports.shownUrl === secs.sports.url(); }, get eventsReady() { return secs.events.shownUrl === secs.events.url(); }, get foodReady() { return !!foodData; },
-    get sync() { return { busy: [...Sync.busy], failed: [...Sync.failed.keys()], lastOk: Sync.lastOk }; }, refreshNow, get evCat() { return evCat; }, get view() { return VIEWS[cur]; }, radarColor: (r, g, b) => radarColor(r, g, b), get a2hs() { return { ...a2, open: !a2Sheet.hidden, ipad: isIPad, safari: isIOSSafari, standalone, kind: a2Kind(), shown: a2Shown, claim: a2Claim, visits }; }, get donateMid() { const c = document.getElementById("donate-mid"); return { opens: midLaunch.opens, line: midLaunch.line, tab: midTab, where: midWhere, placed: !!(c && c.isConnected), dismissed: midGone() }; }, goView, get juegos() { return juegosOpen(); }, get forYou() { return { profile: FY && FY.load(), feed: feedList.map((r) => ({ url: r.item.url, title: r.item.title, creator: r.item.creator, crew: r.crew, place: r.place, why: r.why.text, explore: r.explore, recipe: !!r.item.recipe, world: !!r.item.world, where: r.item.where || null })), cur: feedCur, open: feed.open, sound: { wanted: soundWanted, muted: feedMuted, unlocks: feedUnlocks, held: feed.classList.contains("sound-held") }, get player() { const sl = slides(), c = YT.find((p) => p.slide && !p.warm && sl.indexOf(p.slide) === feedCur) || YT.find((p) => p.slide && !p.warm) || YT[0] || {}, w = YT.find((p) => p.warm && p.slide);
+    get sync() { return { busy: [...Sync.busy], failed: [...Sync.failed.keys()], lastOk: Sync.lastOk }; }, refreshNow, get evCat() { return evCat; }, get view() { return VIEWS[cur]; }, radarColor: (r, g, b) => radarColor(r, g, b), get notif() { return { ...notif, phase: notifPhase, open: !$("#push-ask").hidden, kind: $("#push-ask").dataset.kind || null, due: notifDue() }; }, get settingsTip() { return { shown: !!tipEl && !tipEl.hidden, done: tipDone(), saved: lsGet(TIP_KEY), shownAt: tipShownAt }; }, get a2hs() { return { ...a2, open: !a2Sheet.hidden, ipad: isIPad, safari: isIOSSafari, standalone, kind: a2Kind(), shown: a2Shown, claim: a2Claim, visits }; }, get donateMid() { const c = document.getElementById("donate-mid"); return { opens: midLaunch.opens, line: midLaunch.line, tab: midTab, where: midWhere, placed: !!(c && c.isConnected), dismissed: midGone() }; }, goView, get juegos() { return juegosOpen(); }, get forYou() { return { profile: FY && FY.load(), feed: feedList.map((r) => ({ url: r.item.url, title: r.item.title, creator: r.item.creator, crew: r.crew, place: r.place, why: r.why.text, explore: r.explore, recipe: !!r.item.recipe, world: !!r.item.world, where: r.item.where || null })), cur: feedCur, open: feed.open, sound: { wanted: soundWanted, muted: feedMuted, unlocks: feedUnlocks, held: feed.classList.contains("sound-held") }, get player() { const sl = slides(), c = YT.find((p) => p.slide && !p.warm && sl.indexOf(p.slide) === feedCur) || YT.find((p) => p.slide && !p.warm) || YT[0] || {}, w = YT.find((p) => p.warm && p.slide);
       return { made: YT.length > 0, ready: !!c.ready, vid: c.vid || null, st: c.st ?? -1, ytMuted: c.ytMuted ?? null, unlocked: !!c.unlocked, slide: c.slide ? sl.indexOf(c.slide) : -1, frames: document.querySelectorAll("iframe.vf-yt").length,
         players: YT.map((p) => ({ slide: p.slide ? sl.indexOf(p.slide) : -1, warm: p.warm, vid: p.vid, st: p.st, ready: p.ready, unlocked: p.unlocked, muted: p.ytMuted })), warm: w ? sl.indexOf(w.slide) : -1, ios: IOS_FEED,
         warms: YT.filter((p) => p.warm && p.slide).map((p) => sl.indexOf(p.slide)).sort((a, b) => a - b), pool: ytPool(), ahead: aheadN(), slow: slowNet() }; }, cover: fyList.slice(0, 3).map((r) => r.item.url), coverCrews: fyList.slice(0, 3).map((r) => r.crew) }; }, openFeed, closeFeed,

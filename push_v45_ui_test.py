@@ -94,23 +94,17 @@ async def chromium_part(p):
         viewport={"width": 390, "height": 844}, device_scale_factor=2, is_mobile=True, has_touch=True)
     await ctx.grant_permissions(["notifications"], origin=BASE)
     await ctx.add_init_script(INIT % "")
+    await ctx.add_init_script("if (!localStorage.getItem('chisme-settings-tip')) localStorage.setItem('chisme-settings-tip', 'test:0');")   # v49 tip: settings_tip_test
     pg = ctx.pages[0] if ctx.pages else await ctx.new_page(); errs = []
     pg.on("pageerror", lambda e: errs.append(str(e)[:160]))
-    # 1. first visit: no prompt, even after 2 stories
-    await pg.goto(URL); await ready(pg); await pg.wait_for_timeout(1500)
-    first = await pg.evaluate("!document.querySelector('#push-ask').hidden")
-    await open_story(pg, 0); await open_story(pg, 1); await pg.wait_for_timeout(800)
-    after2 = await pg.evaluate("!document.querySelector('#push-ask').hidden")
-    check(not first and not after2, "first visit: no alerts prompt (not on load, not after 2 stories)")
-    # 2. second visit (2 stories read): the prompt, in Tía's voice
-    await pg.reload(); await ready(pg)
-    await pg.wait_for_function("!document.querySelector('#push-ask').hidden", timeout=15000)
+    # 1-2. v49: the notifications card (a popup) on the 1st open (then every 5th open until alerts are on: notif_prompt_test)
+    await pg.goto(URL); await ready(pg)
+    await pg.wait_for_function("!document.querySelector('#push-ask').hidden", timeout=15000); await pg.wait_for_timeout(500)
     ask = await pg.evaluate("({ t: document.querySelector('#push-ask-t').textContent, s: document.querySelector('#push-ask-s').textContent, yes: document.querySelector('#push-ask-yes').textContent, no: document.querySelector('#push-ask-no').textContent, dialogs: [...document.querySelectorAll('dialog')].filter(d => d.open).length, kind: document.querySelector('#push-ask').dataset.kind })")
-    check(ask["kind"] == "ask" and "Tía" in ask["t"] and ask["yes"] == "Sí, avísame 🔔" and ask["no"] == "Ahorita no" and ask["dialogs"] == 0, f"second visit after 2 stories: the inline prompt '{ask['t']}' [{ask['yes']}] [{ask['no']}]")
+    check(ask["kind"] == "ask" and ask["t"] == "Allow notifications 🔔 for the latest chisme 👀" and ask["yes"] == "Turn on" and ask["no"] == "Not now", f"1st open: the notifications card '{ask['t']}' [{ask['yes']}] [{ask['no']}]")
     y = await pg.evaluate(YELLOW, "#push-ask"); check(not y["bad"], f"prompt: no yellow ({y['n']} elements) {y['bad']}")
-    await pg.evaluate("document.querySelector('#push-ask').scrollIntoView({ block: 'center' })"); await pg.wait_for_timeout(600)
     await pg.screenshot(path=os.path.join(SHOTS, "1-optin-prompt-phone.png"))
-    # 3. Sí, avísame → a REAL push subscription, stored on the server
+    # 3. Turn on → a REAL push subscription, stored on the server
     await pg.tap("#push-ask-yes")
     await pg.wait_for_function("__chisme.pushPrefs.on", timeout=60000); await pg.wait_for_timeout(800)
     recs = list(subs().values()); ep = recs[0]["sub"]["endpoint"] if recs else ""
@@ -118,6 +112,7 @@ async def chromium_part(p):
     check(len(recs) == 1 and host.endswith(("googleapis.com", "push.services.mozilla.com")) and recs[0]["news"], f"subscribed for real: the server stored a {host} endpoint (news on)")
     done = await pg.evaluate("document.querySelector('#push-ask').textContent")
     check("¡Listo!" in done, f"the prompt says thanks: '{done[:60]}'")
+    await pg.wait_for_function("document.querySelector('#push-ask').hidden", timeout=8000)   # …and closes by itself
     # 4. Settings: the switch is on
     await pg.tap("#settings-btn"); await pg.wait_for_function("document.querySelector('#settings').open")
     st = await pg.evaluate("({ on: document.querySelector('#set-push').checked, role: document.querySelector('#set-push').getAttribute('role'), l: document.querySelector('#set-push-l').textContent, status: document.querySelector('#set-push-status').textContent, news: document.querySelector('#set-push-news').checked && !document.querySelector('#set-push-news').disabled })")
@@ -202,21 +197,21 @@ async def chromium_part(p):
 async def webkit_part(p):
     dev = dict(p.devices["iPhone 13"]); dev.pop("default_browser_type", None)
     b = await p.webkit.launch()
-    ctx = await b.new_context(**dev)
+    ctx = await b.new_context(**dev); await ctx.add_init_script("if (!localStorage.getItem('chisme-settings-tip')) localStorage.setItem('chisme-settings-tip', 'test:0');")
     await ctx.add_init_script(INIT % "localStorage.setItem('chisme-visits','1'); localStorage.setItem('chisme-push-engage', JSON.stringify({stories: 2}));")
     pg = await ctx.new_page(); errs = []; pg.on("pageerror", lambda e: errs.append(str(e)[:160]))
     await pg.goto(URL); await ready(pg)
     await pg.wait_for_function("!document.querySelector('#push-ask').hidden", timeout=15000)
     tip = await pg.evaluate("({ kind: document.querySelector('#push-ask').dataset.kind, t: document.querySelector('#push-ask-t').textContent, s: document.querySelector('#push-ask-s').textContent, yes: document.querySelector('#push-ask-yes').textContent, no: document.querySelector('#push-ask-no').textContent })")
-    check(tip["kind"] == "ios" and "Home Screen" in tip["t"] and "16.4" in tip["s"] and tip["yes"] == "Show me how" and tip["no"] == "Got it", f"iPhone Safari (not installed): '{tip['t']}' instead of the prompt")
+    check(tip["kind"] == "ios" and "Home Screen" in tip["t"] and "Home Screen" in tip["s"] and tip["yes"] == "Show me how" and tip["no"] == "Not now", f"iPhone Safari (not installed): '{tip['t']}' instead of the prompt (and it wins over the tutorial due this visit)")
     y = await pg.evaluate(YELLOW, "#push-ask"); check(not y["bad"], f"iOS tip: no yellow {y['bad']}")
-    await pg.evaluate("document.querySelector('#push-ask').scrollIntoView({ block: 'center' })"); await pg.wait_for_timeout(600)
+    await pg.wait_for_timeout(600)
     await pg.screenshot(path=os.path.join(SHOTS, "2-ios-add-to-home-screen-tip.png"))
     await pg.tap("#push-ask-yes"); await pg.wait_for_timeout(600)
     a2 = await pg.evaluate("({ a2: !document.querySelector('#a2hs').hidden, ask: !document.querySelector('#push-ask').hidden })")
     check(a2["a2"] and not a2["ask"], "'Show me how' opens the Add to Home Screen tutorial")
     await pg.tap("#a2hs-ok"); await pg.reload(); await ready(pg); await pg.wait_for_timeout(2500)
-    check(await pg.evaluate("document.querySelector('#push-ask').hidden"), "the tip doesn't come back after it was answered")
+    check(await pg.evaluate("document.querySelector('#push-ask').hidden"), "it doesn't come back on the next open (every 5th open)")
     await pg.tap("#settings-btn"); await pg.wait_for_function("document.querySelector('#settings').open")
     st = await pg.evaluate("({ dis: document.querySelector('#set-push').disabled, s: document.querySelector('#set-push-status').textContent })")
     check(st["dis"] and "Home Screen" in st["s"], f"Settings on iPhone Safari: switch disabled, '{st['s'][:70]}…'")

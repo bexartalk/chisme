@@ -22,6 +22,7 @@ juan-intro.png, juan-l1.png, juan-job-site.png, juan-don-pedroes.png, juan-l5.pn
 import asyncio, json, os, re, subprocess
 from urllib.parse import urlparse
 from playwright.async_api import async_playwright
+from popup_quiet import QUIET   # v49: the notifications card + Settings tip have their own tests
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 BASE = os.environ.get("CHISME_URL", "http://localhost:8211")
@@ -155,7 +156,7 @@ async def until(pg, js, secs):
 async def webkit(p):
     print("\n== WebKit iPhone 13: the 🎲 Juegitos tab")
     b = await p.webkit.launch(); dev = dict(p.devices["iPhone 13"]); dev.pop("default_browser_type", None)
-    ctx = await b.new_context(**dev); await ctx.add_init_script(INIT); await ctx.add_init_script(SPEECH)
+    ctx = await b.new_context(**dev); await ctx.add_init_script(QUIET); await ctx.add_init_script(INIT); await ctx.add_init_script(SPEECH)
     pg = await ctx.new_page(); errs, outside = [], []
     pg.on("pageerror", lambda e: errs.append(str(e)[:160]))
     watch = {"on": False}
@@ -443,7 +444,7 @@ async def webkit(p):
     check(not errs, f"no page errors ({errs[:3]})")
     await ctx.close()
     # reduce motion
-    ctx = await b.new_context(**dev, reduced_motion="reduce", service_workers="block"); await ctx.add_init_script(INIT); await ctx.add_init_script(SPEECH)
+    ctx = await b.new_context(**dev, reduced_motion="reduce", service_workers="block"); await ctx.add_init_script(QUIET); await ctx.add_init_script(INIT); await ctx.add_init_script(SPEECH)
     pg = await ctx.new_page()
     await pg.route("**/static/loteria/audio/**", lambda r: r.abort())   # v41: the recorded clips can't load → the phone's own Spanish voice
     await pg.goto(BASE + "/#loteria"); await pg.wait_for_function("window.__chisme && __chisme.ready", timeout=120000); await pg.wait_for_timeout(800)
@@ -475,7 +476,7 @@ async def webkit(p):
 async def fullscreen_shots(p):
     print("\n== WebKit 390×844: full-screen screenshots")
     b = await p.webkit.launch(); dev = dict(p.devices["iPhone 13"]); dev.pop("default_browser_type", None); dev["viewport"] = {"width": 390, "height": 844}; dev["device_scale_factor"] = 1   # screenshots exactly 390×844
-    ctx = await b.new_context(**dev); await ctx.add_init_script(INIT); await ctx.add_init_script(SPEECH)
+    ctx = await b.new_context(**dev); await ctx.add_init_script(QUIET); await ctx.add_init_script(INIT); await ctx.add_init_script(SPEECH)
     pg = await ctx.new_page(); errs = []; pg.on("pageerror", lambda e: errs.append(str(e)[:160]))
     for alias in ("#juan-that-got-away", "#juans-long-day"):   # the new title's link + the old one (#juan below)
         await pg.goto(BASE + "/" + alias); await pg.wait_for_function("window.__chisme && __chisme.ready", timeout=120000)
@@ -548,7 +549,7 @@ async def fullscreen_shots(p):
     await ctx.close()
     # v41: the small phone, 320×640
     dev["viewport"] = {"width": 320, "height": 640}
-    ctx = await b.new_context(**dev); await ctx.add_init_script(INIT); await ctx.add_init_script(SPEECH); pg = await ctx.new_page()
+    ctx = await b.new_context(**dev); await ctx.add_init_script(QUIET); await ctx.add_init_script(INIT); await ctx.add_init_script(SPEECH); pg = await ctx.new_page()
     await pg.goto(BASE + "/#loteria"); await pg.wait_for_function("window.__chisme && __chisme.ready", timeout=120000); await pg.wait_for_timeout(800)
     await pg.click("#lot-play"); await pg.wait_for_timeout(300); await pg.click("#lot-play")
     for _ in range(6): await pg.evaluate(G + ".callNext()")
@@ -588,7 +589,7 @@ async def fullscreen_shots(p):
 
 async def offline(p):
     print("\n== Chromium: offline")
-    b = await p.chromium.launch(); ctx = await b.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
+    b = await p.chromium.launch(); ctx = await b.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True); await ctx.add_init_script(QUIET)
     await ctx.add_init_script(INIT); pg = await ctx.new_page()
     await pg.goto(BASE + "/"); await pg.wait_for_function("window.__chisme && __chisme.ready", timeout=120000)
     await pg.wait_for_function("navigator.serviceWorker && navigator.serviceWorker.controller", timeout=60000)

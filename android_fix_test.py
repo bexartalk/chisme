@@ -14,7 +14,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 BASE = os.environ.get("CHISME_URL", "http://localhost:8211")
 OUT = os.path.join(HERE, "screenshots"); os.makedirs(OUT, exist_ok=True)
 INIT = """localStorage.setItem('chisme-location-setup','1'); localStorage.setItem('chisme-ios-hint-dismissed','1'); localStorage.setItem('chisme-swiped','1');
-localStorage.setItem('chisme-a2hs', JSON.stringify({ done: true })); localStorage.setItem('chisme-opens', '1');"""
+localStorage.setItem('chisme-a2hs', JSON.stringify({ done: true })); localStorage.setItem('chisme-opens', '1');
+localStorage.setItem('chisme-notif', JSON.stringify({ n: 1, shows: 1 }));   // v49: notif card + Settings tip have their own tests
+if (!localStorage.getItem('chisme-settings-tip')) localStorage.setItem('chisme-settings-tip', 'test:0');"""
+import re as _re
+VER = _re.search(r'const VERSION = "chisme-v(\d+)"', open(os.path.join(HERE, "static", "sw.js")).read()).group(1)   # the current build
 fails = 0
 def check(ok, what):
     global fails
@@ -43,7 +47,7 @@ async def main():
         await pg.goto(BASE + "/?source=pwa"); await pg.wait_for_function("window.__chisme && __chisme.ready", timeout=120000)
         await pg.wait_for_timeout(9000)
         s = await pg.evaluate(CHROME)
-        check(s["booted"] and s["tabs"] and not s["wake"] and not s["fs"] and s["build"] == "48", f"boots: header + tab bar, no waking-up card, build {s['build']}")
+        check(s["booted"] and s["tabs"] and not s["wake"] and not s["fs"] and s["build"] == VER, f"boots: header + tab bar, no waking-up card, build {s['build']}")
         check(await pg.evaluate("document.querySelectorAll('#view-news .story').length") > 5, "News stories render")
         try: await pg.wait_for_function("document.querySelector('#sync').hidden", timeout=12000)
         except Exception: pass
@@ -107,14 +111,14 @@ async def main():
         check("Chisme is waking up…" in w["text"] and "Tap to reload" in w["text"] and w["full"] and w["bh"] >= 48, f"friendly full-screen card with a big button ({w['text'][:80]})")
         check(not await pg.evaluate(SCAN, "#wake"), "no yellow on the card")
         await pg.screenshot(path=os.path.join(OUT, "android-wake-card.png"))
-        await pg.evaluate("caches.open('chisme-v48-shell').then((c) => c.put('/x-test', new Response('x')))")
+        await pg.evaluate("caches.open('chisme-v%s-shell')" % VER + ".then((c) => c.put('/x-test', new Response('x')))")
         hold.set()
         await pg.click("#wake-reload")
         await pg.wait_for_function("window.__chisme && __chisme.ready", timeout=120000); await pg.wait_for_timeout(1500)
         s = await pg.evaluate(CHROME)
         keys = await pg.evaluate("caches.keys()")
         check(s["booted"] and s["tabs"] and not s["wake"], "Tap to reload: the app starts and the card is gone")
-        check("chisme-v48-shell" not in keys, f"…and the saved app files were cleared first ({keys})")
+        check(f"chisme-v{VER}-shell" not in keys, f"…and the saved app files were cleared first ({keys})")
         await ctx.close(); await b.close()
     print("\n" + ("ALL PASS" if not fails else f"{fails} FAILED")); raise SystemExit(1 if fails else 0)
 

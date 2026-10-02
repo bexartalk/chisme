@@ -10,6 +10,7 @@ Writes screenshots/location-first-run.png, home-no-location.png, sports-fixed.pn
 """
 import asyncio, json, os, sys
 from playwright.async_api import async_playwright
+from popup_quiet import QUIET   # v49: the notifications card + Settings tip have their own tests
 
 URL = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8211/"
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "screenshots")
@@ -23,7 +24,7 @@ async def new(p, b, width=None, grant=None, init=None):
     if width: dev["viewport"] = {"width": width, "height": 700}; dev["screen"] = {"width": width, "height": 700}
     kw = {}
     if grant: kw = dict(permissions=["geolocation"], geolocation={"latitude": grant[0], "longitude": grant[1]})
-    ctx = await b.new_context(**dev, **kw)
+    ctx = await b.new_context(**dev, **kw); await ctx.add_init_script(QUIET)
     # v41: the Add to Home Screen tutorial (3rd Safari open) has its own test (a2hs_test.py); keep it out of these flows
     await ctx.add_init_script("if (!localStorage.getItem('chisme-a2hs')) localStorage.setItem('chisme-a2hs', JSON.stringify({ done: true }))")
     if init: await ctx.add_init_script(init)

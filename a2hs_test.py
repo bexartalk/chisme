@@ -8,6 +8,7 @@ on iOS get "Open Chisme in Safari" instead, Android its own steps. iPad: the arr
 Screenshot: a2hs-tutorial.png (+ a2hs-ipad.png)."""
 import asyncio, json, os, re
 from playwright.async_api import async_playwright
+from popup_quiet import QUIET   # v49: the notifications card + Settings tip have their own tests
 
 BASE = os.environ.get("CHISME_URL", "http://localhost:8211")
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "screenshots"); os.makedirs(OUT, exist_ok=True)
@@ -34,7 +35,7 @@ async def reopen(pg, wait=2300):
 async def iphone(p):
     print("== WebKit iPhone Safari, 390×844")
     b = await p.webkit.launch(); dev = dict(p.devices["iPhone 13"]); dev.pop("default_browser_type", None); dev["viewport"] = {"width": 390, "height": 844}; dev["device_scale_factor"] = 1
-    ctx = await b.new_context(**dev); pg = await ctx.new_page(); errs = []
+    ctx = await b.new_context(**dev); await ctx.add_init_script(QUIET); pg = await ctx.new_page(); errs = []
     pg.on("pageerror", lambda e: errs.append(str(e)[:160]))
     await pg.goto(BASE + "/"); await ready(pg); await pg.wait_for_timeout(2500)
     loc = await pg.evaluate("!document.querySelector('#loc-panel').hidden")
@@ -76,19 +77,19 @@ async def iphone(p):
     check(not errs, f"no page errors ({errs[:3]})")
     await ctx.close()
     # Got it on the first show → never again; the old one-line hint dismissed = already seen
-    ctx = await b.new_context(**dev); await ctx.add_init_script("localStorage.setItem('chisme-location-setup','1')"); pg = await ctx.new_page()
+    ctx = await b.new_context(**dev); await ctx.add_init_script(QUIET); await ctx.add_init_script("localStorage.setItem('chisme-location-setup','1')"); pg = await ctx.new_page()
     await pg.goto(BASE + "/"); await ready(pg); await pg.wait_for_timeout(2300)
     first = [await is_open(pg), await reopen(pg)]
     await pg.click("#a2hs-ok")
     seen = [await reopen(pg, 1800) for _ in range(4)]
     check(first == [False, True] and seen == [False] * 4, f"location already set: open 1 nothing, the 2nd shows it; 'Got it' → never again ({first}, then {seen})")
     await ctx.close()
-    ctx = await b.new_context(**dev); await ctx.add_init_script("localStorage.setItem('chisme-location-setup','1'); localStorage.setItem('chisme-ios-hint-dismissed','1'); if (!localStorage.getItem('chisme-visits')) localStorage.setItem('chisme-visits', '1')"); pg = await ctx.new_page()
+    ctx = await b.new_context(**dev); await ctx.add_init_script(QUIET); await ctx.add_init_script("localStorage.setItem('chisme-location-setup','1'); localStorage.setItem('chisme-ios-hint-dismissed','1'); if (!localStorage.getItem('chisme-visits')) localStorage.setItem('chisme-visits', '1')"); pg = await ctx.new_page()
     await pg.goto(BASE + "/"); await ready(pg); await pg.wait_for_timeout(2300)
     check(not await is_open(pg), "someone who dismissed the old one-line install hint doesn't get it again")
     await ctx.close()
     # the installed Home Screen app: never
-    ctx = await b.new_context(**dev); await ctx.add_init_script("localStorage.setItem('chisme-location-setup','1'); if (!localStorage.getItem('chisme-visits')) localStorage.setItem('chisme-visits', '1'); Object.defineProperty(navigator, 'standalone', { get: () => true });"); pg = await ctx.new_page()
+    ctx = await b.new_context(**dev); await ctx.add_init_script(QUIET); await ctx.add_init_script("localStorage.setItem('chisme-location-setup','1'); if (!localStorage.getItem('chisme-visits')) localStorage.setItem('chisme-visits', '1'); Object.defineProperty(navigator, 'standalone', { get: () => true });"); pg = await ctx.new_page()
     await pg.goto(BASE + "/"); await ready(pg); await pg.wait_for_timeout(2300)
     st = await pg.evaluate("__chisme.a2hs")
     await pg.click("#settings-btn"); await pg.wait_for_timeout(300)
@@ -98,7 +99,7 @@ async def iphone(p):
     # Chrome / Firefox on iPhone: not Safari → never
     for name, ua in (("Chrome on iPhone", re.sub(r"Version/[\d.]+", "CriOS/129.0.6668.46", dev["user_agent"])), ("Firefox on iPhone", re.sub(r"Version/[\d.]+", "FxiOS/131.0", dev["user_agent"])), ("Instagram's in-app browser", dev["user_agent"] + " Instagram 350.0.0")):
         d2 = dict(dev); d2["user_agent"] = ua
-        ctx = await b.new_context(**d2); await ctx.add_init_script("localStorage.setItem('chisme-location-setup','1'); if (!localStorage.getItem('chisme-visits')) localStorage.setItem('chisme-visits', '1')"); pg = await ctx.new_page()   # (its 2nd open)
+        ctx = await b.new_context(**d2); await ctx.add_init_script(QUIET); await ctx.add_init_script("localStorage.setItem('chisme-location-setup','1'); if (!localStorage.getItem('chisme-visits')) localStorage.setItem('chisme-visits', '1')"); pg = await ctx.new_page()   # (its 2nd open)
         await pg.goto(BASE + "/"); await ready(pg); await pg.wait_for_timeout(2300)
         s = await pg.evaluate(SHEET)
         check(("CriOS" in ua or "FxiOS" in ua or "Instagram" in ua) and s["open"] and not s["state"]["safari"] and s["state"]["kind"] == "ios-other" and s["title"] == "Open Chisme in Safari",
@@ -106,7 +107,7 @@ async def iphone(p):
         await ctx.close()
     # iPad Safari: the Share button is at the top right
     dev = dict(p.devices["iPad Pro 11"]); dev.pop("default_browser_type", None); dev["device_scale_factor"] = 1
-    ctx = await b.new_context(**dev); await ctx.add_init_script("localStorage.setItem('chisme-location-setup','1'); if (!localStorage.getItem('chisme-visits')) localStorage.setItem('chisme-visits', '1')"); pg = await ctx.new_page()   # its 2nd open
+    ctx = await b.new_context(**dev); await ctx.add_init_script(QUIET); await ctx.add_init_script("localStorage.setItem('chisme-location-setup','1'); if (!localStorage.getItem('chisme-visits')) localStorage.setItem('chisme-visits', '1')"); pg = await ctx.new_page()   # its 2nd open
     await pg.goto(BASE + "/"); await ready(pg); await pg.wait_for_timeout(2300)
     s = await pg.evaluate(SHEET)
     check(s["open"] and s["state"]["ipad"] and "top right of Safari" in s["steps"][0] and s["arrow"][1] < 70 and s["arrow"][2] > s["iw"] - 80 and s["arrowRot"] != "none",
@@ -118,7 +119,7 @@ async def others(p):
     print("\n== Android Chrome: its own steps (v47) / desktop: never")
     b = await p.chromium.launch()
     for name, kw in (("Android Chrome (Pixel 7)", {k: v for k, v in p.devices["Pixel 7"].items() if k != "default_browser_type"}), ("desktop Chrome", {"viewport": {"width": 1280, "height": 800}})):
-        ctx = await b.new_context(**kw); await ctx.add_init_script("localStorage.setItem('chisme-location-setup','1'); if (!localStorage.getItem('chisme-visits')) localStorage.setItem('chisme-visits', '1')"); pg = await ctx.new_page()
+        ctx = await b.new_context(**kw); await ctx.add_init_script(QUIET); await ctx.add_init_script("localStorage.setItem('chisme-location-setup','1'); if (!localStorage.getItem('chisme-visits')) localStorage.setItem('chisme-visits', '1')"); pg = await ctx.new_page()
         await pg.goto(BASE + "/"); await ready(pg); await pg.wait_for_timeout(2300)
         st = await pg.evaluate("__chisme.a2hs")
         if "Android" in name: check(await is_open(pg) and not st["safari"] and st["kind"] in ("android", "android-install"), f"v47 {name}: the Android version (⋮ → Install app, or one-tap Install) ({st['kind']})")
