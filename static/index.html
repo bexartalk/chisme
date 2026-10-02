@@ -99,7 +99,7 @@
   <!-- v49.3: one-time tip pointing at the floating Tía button (Settings live in her menu; app.js shows it once, then never again) -->
   <div class="stip-anchor"><div id="settings-tip" class="stip" role="status" aria-live="polite" hidden>
     <img class="stip-tia" src="/static/mascot/avatar-128.webp" alt="" width="46" height="46" decoding="async">
-    <button type="button" id="settings-tip-go" class="stip-go"><span class="stip-big">👆 Tap Tía for Settings ⚙️</span><span class="stip-sub">Alerts, location &amp; more.</span></button>
+    <button type="button" id="settings-tip-go" class="stip-go"><span class="stip-big">👆 Tap Tía for Settings ⚙️</span><span class="stip-sub">Notifications, location &amp; more.</span></button>
     <button type="button" id="settings-tip-x" class="stip-x" aria-label="Dismiss the Settings tip">✕</button>
   </div></div>
   <header class="topbar" id="topbar" data-skyline="sa">
@@ -415,7 +415,7 @@
     <span class="sr-only">Tía Chismosa: Settings and chat</span>
     <span class="tia-fab-badge" aria-hidden="true">⚙️</span>
   </button>
-  <!-- v49.3: tapping Tía opens her little menu: ⚙️ Settings (alerts, location & more) or 💬 chat with her -->
+  <!-- v49.3: tapping Tía opens her little menu: ⚙️ Settings (notifications, location & more) or 💬 chat with her -->
   <dialog id="tia-menu" class="tia-menu" aria-labelledby="tia-menu-title">
     <div class="tia-menu-in">
       <div class="tia-menu-head">
@@ -423,8 +423,8 @@
         <p class="tia-menu-hi" id="tia-menu-title" tabindex="-1">Hey, it's Tía 👋 What do you need?</p>
         <button type="button" id="tia-menu-x" class="tia-menu-x" aria-label="Close Tía's menu">✕</button>
       </div>
-      <button type="button" id="tia-menu-settings" class="tia-menu-btn tm-settings"><span class="tm-big">⚙️ Settings</span><span class="tm-sub">Alerts, location &amp; more</span></button>
-      <button type="button" id="tia-menu-chat" class="tia-menu-btn tm-chat"><span class="tm-big">💬 Chat with Tía</span><span class="tm-sub">Ask about today's chisme</span></button>
+      <button type="button" id="tia-menu-chat" class="tia-menu-btn tm-chat"><span class="tm-big">💬 Chat with Tía</span><span class="tm-sub">Ask about today's chisme</span></button>   <!-- v49.7: chat on top, Settings below -->
+      <button type="button" id="tia-menu-settings" class="tia-menu-btn tm-settings"><span class="tm-big">⚙️ Settings</span><span class="tm-sub">Notifications, location &amp; more</span></button>
     </div>
   </dialog>
   <dialog id="tia" class="settings player tia-sheet" aria-labelledby="tia-title">
@@ -534,13 +534,13 @@
         </div>
       </fieldset>
       <fieldset class="set-group set-alerts" id="set-alerts">
-        <legend>Alerts</legend>
+        <legend>Notifications</legend>
         <label class="switch push-switch"><input type="checkbox" role="switch" id="set-push" aria-describedby="set-push-status"><span id="set-push-l">Let Tía buzz you the big chisme 🔔</span></label>
         <p class="set-note" id="set-push-status">Only when it really matters: big local or breaking news and NWS warnings near you. Nothing is sent until you turn it on.</p>
         <label class="switch"><input type="checkbox" id="set-push-news" checked disabled><span>Big local &amp; breaking news</span></label>
         <label class="switch"><input type="checkbox" id="set-push-wx" checked disabled><span>NWS weather warnings &amp; watches for your location</span></label>
         <button type="button" id="set-push-test" hidden>Send a test</button>
-        <p class="set-note">News alerts: at most 2 a day, only for major San Antonio-area or breaking stories, and none from 10 PM to 7 AM. Weather watches wait for the morning too; warnings still come through. Chisme keeps your area (rounded to about 1 km) on its server so alerts match where you are; turning alerts off deletes it.</p>
+        <p class="set-note">News notifications: at most 2 a day, only for major San Antonio-area or breaking stories, and none from 10 PM to 7 AM. Weather watches wait for the morning too; warnings still come through. Chisme keeps your area (rounded to about 1 km) on its server so notifications match where you are; turning notifications off deletes it.</p>
         <p class="set-note" id="set-push-note" aria-live="polite"></p>
       </fieldset>
       <fieldset class="set-group">

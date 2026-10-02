@@ -29,7 +29,11 @@
   "use strict";
   const KEY = "chisme-juegos-juan";
   const VW = 360, ROADH = 176, END = 6000, CHECKS = [0, 2000, 4000], HERO_X = 84, TILE = 500, CAM_END = END - HERO_X - 150;   // the camera stops 150 before the end: the stop's building fills the screen and Juan runs up to its door
-  const GRAV = 1750, JUMP = -620, JUMP2 = -540, HP = 100, HERO_W = 32, HERO_H = 88;   // v49.5: Juan drawn 1.5× (JS); the box is the body (no hat), a bit forgiving at the sides
+  const GRAV = 1750, JUMP = -700, JUMP2 = -480, HP = 100, HERO_W = 32, HERO_H = 88;   // v49.7: a higher jump (was −620 / −540)
+  const HANG_V = 170, HANG = 0.5, REL_V = -400, REL = 0.82;   // v49.7: half gravity near the top (a slower hang, longer air time); a short tap trims the jump only a little (was ×0.55, which made a phone tap too low to clear an agent)
+  const fall = (vy, dt) => vy + (Math.abs(vy) < HANG_V ? GRAV * HANG : GRAV) * dt;   // one physics step of vertical speed (the game and the tests use this)
+  const trim = (vy) => (vy < REL_V ? vy * REL : vy);   // what letting go of the jump does   // v49.5: Juan drawn 1.5× (JS); the box is the body (no hat), a bit forgiving at the sides
+  const AG_TALL = 1.18, AGAP = 380, AMIN = 400, AWAY = 0.25;   // v49.7: agents are never back to back: a partner 380 on (was 130), and any agent at least 400 after the last one
   const JS = 1.5, ARCH_X = 196;   // ARCH_X: where Dice City's neon arch stands (Juan starts at 140 and runs under it)
   // v49.5 skins: classic is the default; the rest unlock for anyone who has ever made the Top 10 (original parodies, no real names or logos)
   const JSKINS = [["classic", "Classic Juan"], ["jefe", "El Jefe Presidente"], ["hierro", "Iron Juan"], ["joker", "El Joker"], ["ufo", "Juan UFO"], ["master", "Master Jefe"], ["armadura", "Armadura"], ["juanby", "Juanby"], ["vice", "Juan Vice"], ["cowboy", "Cocaine Cowboy"]];
@@ -51,7 +55,7 @@
     { name: "Noche Caliente", speed: 222, time: "night", outfit: "western", d: 5, seed: 5, hint: "¡Ya es viernes! The crew's saving him a seat. Jump for the cold ones on the way!",
       done: "Cold ones with the crew! Next stop: a vacation in Dice City VI. ¡Wepa!",
       mix: { pothole: 2, cone: 2, chihuahua: 2, chancla: 2, sprinkler: 1, agent: 3, suv: 2 }, power: [[1500, "coffee"], [2300, "flipflops"], [3300, "taco"]], beers: true },
-    { name: "Dice City VI", speed: 226, time: "neon", outfit: "western", d: 7, seed: 77, diff: 5, beach: true,   // v49.5: the celebration level, an original neon beach city at sunset
+    { name: "Dice City VI", speed: 226, time: "neon", outfit: "western", d: 7, seed: 78, diff: 5, beach: true,   // v49.5: the celebration level, an original neon beach city at sunset
       hint: "Vacation! Juan runs from his hotel to the beach at sunset, with ICE agents and cartoon gangsters on his tail. Martinis and tacos keep him going.", done: "¡A la playa!", martinis: true,
       mix: { lowcar: 2, sportscar: 2, cone: 3, pothole: 3, chihuahua: 1, agent: 2, suv: 1 }, power: [[1100, "coffee"], [2300, "flipflops"], [3000, "taco"], [4600, "taco"]] },
   ];
@@ -90,7 +94,7 @@
     for (const [px, kind] of L.power) add(kind, px, -120);
     const deal = [];   // v46: deal from a shuffled bag (refilled when it runs out), so every level gets its share of each kind (agents + an SUV too)
     const next = () => { if (!deal.length) { const d = bag.slice(); for (let i = d.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [d[i], d[j]] = [d[j], d[i]]; } deal.push(...d); } return deal.shift(); };
-    let x = 620, ag = 0;   // ag: Dice City VI's agents alternate with cartoon gangsters
+    let x = 620, ag = 0, lastA = -1e9;   // ag: Dice City VI's agents alternate with cartoon gangsters
     while (x < END - 420) {
       x += 250 - q * 8 + Math.floor(r() * 180);
       if (clearOf(x) || x > END - 460) continue;
@@ -100,9 +104,10 @@
       else if (k === "chancla") add("chancla", x, null, { ph: r() * 6, home: x });
       else if (k === "sprinkler") add("sprinkler", x, null, { ph: r() * 2.4 });
       else if (k === "agent") {   // a patrolling agent; sometimes a cone he'll trip over, sometimes a partner a bit further on
-        add("agent", x, null, { vx: -(34 + q * 4), home: x, st: "walk", tt: 0, ph: r() * 6, sk: Math.floor(r() * SKINS.length), st2: r() < 0.5, gang: !!L.beach && ag++ % 2 === 0 });
+        if (x - lastA < AMIN) { x = lastA + AMIN; if (clearOf(x) || x > END - 460) continue; }   // v49.7: never back to back: room to land and jump again
+        add("agent", x, null, { vx: -(34 + q * 4), home: x, st: "walk", tt: 0, ph: r() * 6, sk: Math.floor(r() * SKINS.length), st2: r() < 0.5, gang: !!L.beach && ag++ % 2 === 0 }); lastA = x;
         if (r() < 0.3) add("cone", x - 70);
-        if (q >= 3 && r() < (L.city ? 0.45 : 0.3) && x + 130 < END - 460) { x += 130; add("agent", x, null, { vx: -(34 + q * 4), home: x, st: "walk", tt: 0, ph: r() * 6, sk: Math.floor(r() * SKINS.length), st2: r() < 0.5, gang: !!L.beach && ag++ % 2 === 0 }); }
+        if (q >= 3 && r() < (L.city ? 0.2 : 0.1) && x + AGAP < END - 460) { x += AGAP; add("agent", x, null, { vx: -(34 + q * 4), home: x, st: "walk", tt: 0, ph: r() * 6, sk: Math.floor(r() * SKINS.length), st2: r() < 0.5, gang: !!L.beach && ag++ % 2 === 0 }); lastA = x; }
       }
       else if (k === "suv") add("suv", x, null, { sk: Math.floor(r() * SKINS.length), night: L.time === "night" });
       else add(k, x);
@@ -992,7 +997,7 @@
         break; }
       case "agent": case "chaser": {
         const pose = e.st === "walk" ? (rm ? "stand" : "walk") : e.st === "chase" ? (e.air ? "air" : "run") : e.st;
-        const flip = e.t === "agent" && e.vx < 0; c.save(); c.translate(x + 15, e.y + e.h); if (flip) c.scale(-1, 1);
+        const flip = e.t === "agent" && e.vx < 0; c.save(); c.translate(x + 15, e.y + e.h); if (flip) c.scale(-1, 1); c.scale(1.06, AG_TALL);   // v49.7: drawn a bit taller (the 30×64 hitbox stays inside the drawing)
         iceAgent(c, { pose, flip, ph: e.t === "chaser" ? e.run || 0 : t * 7 + (e.ph || 0), t, rm, sk: e.sk, st2: e.st2, gang: e.gang }); c.restore(); break; }
       case "suv": iceSuv(c, x, w, e.night, e.out); break;
       case "flipflops": flipflops(c, x, y, t, rm); break;
@@ -1215,7 +1220,7 @@
       h.landAt = t; h.landX = h.x + h.w / 2; h.landY = h.y + h.h;
       if (skinNow() === "armadura" && !reduced()) { shake = Math.max(shake, 0.16); puff(h.landX - 6, h.landY, 6, "dust"); }
     }
-    function release() { if (mode === "run" && hero.vy < -300) hero.vy *= 0.55; }   // a short tap = a short hop
+    function release() { if (mode === "run") hero.vy = trim(hero.vy); }   // a short tap = a slightly shorter hop (v49.7: still clears an agent)
     // ---- particles (none with reduce motion)
     function puff(x, y, n, kind) {
       if (reduced()) return;
@@ -1260,7 +1265,8 @@
     function iceStep(e, h, dt) {   // true = Juan got caught
       e.tt = Math.max(0, (e.tt || 0) - dt);
       if (e.t === "agent") {
-        if (e.st === "walk") { e.x += e.vx * dt; if (e.x < e.home - 90) e.vx = Math.abs(e.vx); if (e.x > e.home + 10) e.vx = -Math.abs(e.vx);
+        if (e.st === "walk") { e.x += e.vx * (e.vx > 0 ? AWAY : 1) * dt;   // v49.7: heading the same way as Juan he only ambles (¼ pace), so a jump still carries Juan past him
+          if (e.x < e.home - 90) e.vx = Math.abs(e.vx); if (e.x > e.home + 10) e.vx = -Math.abs(e.vx);
           const cone = ents.find((k) => k.t === "cone" && !k.down && Math.abs(k.x + 12 - (e.x + 15)) < 7);
           if (cone) { e.st = "trip"; e.tt = 2.4; cone.down = true; SFX.bonk(); puff(e.x + 15, -4, 6, "dust"); } }
         else if (e.tt === 0 && e.st !== "grab") e.st = "walk";
@@ -1313,7 +1319,7 @@
       h.boost = Math.max(0, h.boost - dt); h.stumble = Math.max(0, h.stumble - dt); h.inv = Math.max(0, h.inv - dt); fueraT = Math.max(0, fueraT - dt);
       h.x += vx * dt; h.frame += vx * dt * 0.09;
       const prevBottom = h.y + h.h;
-      h.vy += GRAV * dt; h.y += h.vy * dt; h.ground = false;
+      h.vy = fall(h.vy, dt); h.y += h.vy * dt; h.ground = false;
       if (h.y + h.h >= 0) { h.y = -h.h; h.vy = 0; h.ground = true; h.jumps = 2; if (!wasGround) landed(h); }
       for (const e of ents) {
         if (e.gone || e.x > h.x + 760 || e.x + e.w < h.x - 260) continue;
@@ -1780,7 +1786,7 @@
   }
 
   const game = { id: "juan", name: "The Juan That Got Away", emoji: "👢", blurb: "¡Ya es viernes! Get Juan through his Friday shift and on to beers with the crew at Noche Caliente.", mount };
-  const api = { KEY, LEVELS, END, CHECKS, VW, HP, HAZ, ICE, CAUGHT, pickCaught, FUERA, buildLevel, load, save, reset, game, drawJuan: juan, groundFx, JS, SKINS: JSKINS };   // v49.5: drawJuan/groundFx for the skin tests
+  const api = { GRAV, JUMP, JUMP2, fall, trim, DIM, drawAgent: iceAgent, AG_TALL, AWAY, KEY, LEVELS, END, CHECKS, VW, HP, HAZ, ICE, CAUGHT, pickCaught, FUERA, buildLevel, load, save, reset, game, drawJuan: juan, groundFx, JS, SKINS: JSKINS };   // v49.5: drawJuan/groundFx for the skin tests
   if (typeof module === "object" && module.exports) module.exports = api;
   else { root.ChismeJuan = api; if (root.ChismeJuegos) root.ChismeJuegos.GAMES.unshift(game); }   // v47: first in the list = the game Juegitos opens on
 })(typeof window !== "undefined" ? window : this);

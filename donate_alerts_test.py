@@ -222,7 +222,7 @@ async def chromium_part(p):
     await pg.wait_for_function("__chisme.pushPrefs.on && document.querySelector('#set-push-note').textContent.startsWith('Done')", timeout=20000)
     st = await pg.evaluate("({ btn: document.querySelector('#set-push').checked, status: document.querySelector('#set-push-status').textContent, note: document.querySelector('#set-push-note').textContent, news: !document.querySelector('#set-push-news').disabled && document.querySelector('#set-push-news').checked, wx: !document.querySelector('#set-push-wx').disabled && document.querySelector('#set-push-wx').checked, test: !document.querySelector('#set-push-test').hidden, opts: window.__subOpts, loc: __chisme.loc })")
     recs = list(json.load(open(STORE)).values())
-    check(before["btn"] is False and before["dis"] and st["btn"] is True and st["status"].startswith("Alerts are on for"), f"tap the alerts switch → '{st['note']}'")
+    check(before["btn"] is False and before["dis"] and st["btn"] is True and st["status"].startswith("Notifications are on for"), f"tap the alerts switch → '{st['note']}'")
     check(st["opts"] == {"user": True, "keyLen": 65}, f"subscribed with userVisibleOnly + Chisme's 65-byte VAPID key ({st['opts']})")
     check(st["news"] and st["wx"] and st["test"], "toggles on: Big local & breaking news, NWS warnings & watches; 'Send a test' appears")
     check(len(recs) == 1 and recs[0]["sub"]["endpoint"] == ENDPOINT and recs[0]["lat"] == round(st["loc"]["lat"], 2) and recs[0]["news"] and recs[0]["weather"],

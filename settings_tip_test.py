@@ -1,6 +1,6 @@
 """v49 → v49.3: the one-time Settings tip (WebKit iPhone 13, 390 + 320 px, light + dark).
   - v49.3: Settings live in Tía's menu (tap the floating Tía; tia_menu_test covers the menu). The tip floats right above
-    Tía: "👆 Tap Tía for Settings ⚙️ / Alerts, location & more.", its tail pointing down at her, big bold text, a ✕ (≥ 44 px),
+    Tía: "👆 Tap Tía for Settings ⚙️ / Notifications, location & more.", its tail pointing down at her, big bold text, a ✕ (≥ 44 px),
     Fiesta colours (no yellow), fits at 390 and 320 px. The v49.2 corner ⚙️ and the v49 badge are gone; the header's Chisme
     bubble still opens Settings. Screenshots: tia-tip.png (light), settings-tip-light.png, settings-tip-dark.png.
   - ✕, tapping Tía, the bubble, or tapping the tip (opens Tía's menu) ends it for good (localStorage chisme-settings-tip).
@@ -69,7 +69,7 @@ async def main():
             await pg.wait_for_function("__chisme.settingsTip.shown", timeout=8000)
             await pg.wait_for_timeout(700)   # past the slide-in
             s = await state(pg)
-            check(s["shown"] and s["text"].startswith("👆 Tap Tía for Settings ⚙️ Alerts, location & more.") and "mija" not in s["text"], f"the tip shows: {s['text']!r}")
+            check(s["shown"] and s["text"].startswith("👆 Tap Tía for Settings ⚙️ Notifications, location & more.") and "mija" not in s["text"], f"the tip shows: {s['text']!r}")
             check_tip(s, 390)
             check(s["big"] >= 19 and s["weight"] >= 800 and s["x"]["w"] >= 44 and s["x"]["h"] >= 44, f"big bold text ({s['big']} px, {s['weight']}), ✕ {s['x']['w']:.0f}×{s['x']['h']:.0f}")
             bad = await pg.evaluate(SCAN, "#settings-tip")

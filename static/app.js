@@ -1,7 +1,7 @@
 /* Chisme — frontend (location-aware) */
 // Build of this file. Must equal the number in sw.js VERSION ("chisme-v22"); the page compares it
 // with the build the HTML was served for and reloads once if an old cached app.js got mixed in.
-window.CHISME_APP_BUILD = "49.6";
+window.CHISME_APP_BUILD = "49.7";
 (() => {
   "use strict";
   const WEATHER_MS = 10 * 60 * 1000;
@@ -2793,17 +2793,17 @@ window.CHISME_APP_BUILD = "49.6";
     pushBusy = true;
     try {
       const perm = await Notification.requestPermission();
-      if (perm !== "granted") { pushNote(perm === "denied" ? "Alerts are blocked for Chisme. You can allow notifications for Chisme in your phone's or browser's settings." : "No problem: alerts stay off."); if (from === "ask") notifClose(perm === "denied" ? "blocked" : "no"); return; }
+      if (perm !== "granted") { pushNote(perm === "denied" ? "Notifications are blocked for Chisme. You can allow notifications for Chisme in your phone's or browser's settings." : "No problem: notifications stay off."); if (from === "ask") notifClose(perm === "denied" ? "blocked" : "no"); return; }
       const reg = await navigator.serviceWorker.ready;
       const sub = (await reg.pushManager.getSubscription()) || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: u8key(pushCfg.publicKey) });
       savePushPrefs({ ...pushPrefs(), on: true });
       await pushPost("subscribe", pushBody(sub)); pushLocKey = q() + pushPrefs().news + pushPrefs().wx;
-      pushNote(`Done: alerts are on for ${placeName()}. 🔔`);
+      pushNote(`Done: notifications are on for ${placeName()}. 🔔`);
       lsSet(PUSH_ASKED, "yes:" + Date.now());
       if (from === "ask") notifDoneOn();
     } catch (e) {
       savePushPrefs({ ...pushPrefs(), on: false });
-      pushNote("Couldn't turn on alerts (" + e.message + "). Try again in a bit.");
+      pushNote("Couldn't turn on notifications (" + e.message + "). Try again in a bit.");
       if (from === "ask") { $("#push-ask-s").textContent = "Couldn't turn on alerts right now. Try again in a bit, or from Settings."; $("#push-ask-yes").textContent = "Try again"; }
     } finally { pushBusy = false; renderAlertsUI(); }
   }
@@ -2813,7 +2813,7 @@ window.CHISME_APP_BUILD = "49.6";
       const sub = await pushSub();
       if (sub) { await pushPost("unsubscribe", { endpoint: sub.endpoint }).catch(() => {}); await sub.unsubscribe().catch(() => {}); }
       savePushPrefs({ ...pushPrefs(), on: false }); pushLocKey = null;
-      pushNote("Alerts are off, and your area was removed from the server. Tía will keep the chisme to herself.");
+      pushNote("Notifications are off, and your area was removed from the server. Tía will keep the chisme to herself.");
     } finally { pushBusy = false; renderAlertsUI(); }
   }
   const alertsOn = () => pushPrefs().on && pushCapable() && Notification.permission === "granted";
@@ -2824,17 +2824,17 @@ window.CHISME_APP_BUILD = "49.6";
     $("#set-push-news").disabled = $("#set-push-wx").disabled = !on;
     test.hidden = !on;
     sw.disabled = pushBusy; sw.checked = on; sw.setAttribute("aria-checked", String(on));
-    $("#set-push-l").textContent = on ? "Tía's alerts are on 🔔" : "Let Tía buzz you the big chisme 🔔";
+    $("#set-push-l").textContent = on ? "Tía's notifications are on 🔔" : "Let Tía buzz you the big chisme 🔔";
     if (!pushCapable() || iosNeedsHome()) {   // iPhone/iPad: push only exists in the Home Screen app (iOS 16.4+)
       sw.disabled = true;
       st.textContent = iosNeedsHome()
-        ? "On iPhone and iPad, alerts only work in the Home Screen app (iOS 16.4 or newer): tap Share → Add to Home Screen, open Chisme from your Home Screen, then turn this on."
-        : "This browser can't show push alerts. Try Chrome, Edge, Firefox or Safari on a computer or Android phone, or the Home Screen app on iPhone.";
+        ? "On iPhone and iPad, notifications only work in the Home Screen app (iOS 16.4 or newer): tap Share → Add to Home Screen, open Chisme from your Home Screen, then turn this on."
+        : "This browser can't show push notifications. Try Chrome, Edge, Firefox or Safari on a computer or Android phone, or the Home Screen app on iPhone.";
     } else if (pushCfg && !pushCfg.enabled) {
-      sw.disabled = true; st.textContent = "Alerts aren't switched on for this server yet.";
+      sw.disabled = true; st.textContent = "Notifications aren't switched on for this server yet.";
     } else if (Notification.permission === "denied") {
       sw.disabled = true; st.textContent = "Notifications are blocked for Chisme. Allow them for Chisme in your phone's or browser's settings, then come back here.";
-    } else st.textContent = on ? `Alerts are on for ${placeName()}.` : "Only when it really matters: big local or breaking news and NWS warnings near you. Nothing is sent until you turn it on.";
+    } else st.textContent = on ? `Notifications are on for ${placeName()}.` : "Only when it really matters: big local or breaking news and NWS warnings near you. Nothing is sent until you turn it on.";
   }
   $("#set-push").onchange = (e) => {
     const want = e.target.checked; e.target.checked = !want;   // the real state follows once it's done

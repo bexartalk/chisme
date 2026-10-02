@@ -64,7 +64,7 @@ async def main():
                 await pg.click("#tia-btn"); await pg.wait_for_timeout(450)
                 m = await pg.evaluate(MENU)
                 check(m["open"] and m["modal"] and not m["gear"], f"tapping Tía opens her menu (a modal; no corner ⚙️ in the header)")
-                check(m["settings"]["text"] == "⚙️ Settings Alerts, location & more" and m["chat"]["text"] == "💬 Chat with Tía Ask about today's chisme" and "Tía" in m["hi"],
+                check(m["settings"]["text"] == "⚙️ Settings Notifications, location & more" and m["chat"]["text"] == "💬 Chat with Tía Ask about today's chisme" and "Tía" in m["hi"],
                       f"⚙️ Settings first, then 💬 Chat with Tía ({m['settings']['text']!r} · {m['chat']['text']!r})")
                 check(m["emblem"] and m["emblem"]["w"] >= 55 and m["emblemWord"], f"the Chisme bubble is in it as branding ({m['emblem'] and round(m['emblem']['w'])} px)")
                 big = min(m["settings"]["px"], m["chat"]["px"])

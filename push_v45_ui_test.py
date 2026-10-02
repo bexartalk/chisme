@@ -116,7 +116,7 @@ async def chromium_part(p):
     # 4. Settings: the switch is on
     await pg.tap("#settings-btn"); await pg.wait_for_function("document.querySelector('#settings').open")
     st = await pg.evaluate("({ on: document.querySelector('#set-push').checked, role: document.querySelector('#set-push').getAttribute('role'), l: document.querySelector('#set-push-l').textContent, status: document.querySelector('#set-push-status').textContent, news: document.querySelector('#set-push-news').checked && !document.querySelector('#set-push-news').disabled })")
-    check(st["on"] and st["role"] == "switch" and st["news"] and st["status"].startswith("Alerts are on"), f"Settings: the switch is on ('{st['l']}'; {st['status'][:40]})")
+    check(st["on"] and st["role"] == "switch" and st["news"] and st["status"].startswith("Notifications are on"), f"Settings: the switch is on ('{st['l']}'; {st['status'][:40]})")
     y = await pg.evaluate(YELLOW, "#set-alerts"); check(not y["bad"], f"Settings alerts group: no yellow ({y['n']} elements) {y['bad']}")
     await pg.evaluate("""(() => { const g = document.querySelector('#set-alerts'); g.scrollIntoView({ block: 'start' });
       let sc = g.parentElement; while (sc && sc.scrollHeight <= sc.clientHeight + 1) sc = sc.parentElement; if (sc) sc.scrollTop -= 70; })()"""); await pg.wait_for_timeout(400)
