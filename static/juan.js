@@ -32,7 +32,7 @@
   const GRAV = 1750, JUMP = -620, JUMP2 = -540, HP = 100, HERO_W = 32, HERO_H = 88;   // v49.5: Juan drawn 1.5× (JS); the box is the body (no hat), a bit forgiving at the sides
   const JS = 1.5;
   // v49.5 skins: classic is the default; the rest unlock for anyone who has ever made the Top 10 (original parodies, no real names or logos)
-  const JSKINS = [["classic", "Classic Juan"], ["jefe", "El Jefe Presidente"], ["hierro", "Hierro Juan"], ["payaso", "El Payaso"], ["ufo", "Juan UFO"], ["master", "Master Jefe"], ["armadura", "Armadura"]];
+  const JSKINS = [["classic", "Classic Juan"], ["jefe", "El Jefe Presidente"], ["hierro", "Iron Juan"], ["payaso", "El Payaso"], ["ufo", "Juan UFO"], ["master", "Master Jefe"], ["armadura", "Armadura"]];
   const SANS = '"Avenir Next Condensed","Arial Narrow","Roboto Condensed","Helvetica Neue",Arial,sans-serif';
   const UI = '-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif';
   const WEST = 'Rockwell,"American Typewriter",Georgia,"Times New Roman",serif';

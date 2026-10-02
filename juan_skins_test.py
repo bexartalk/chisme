@@ -1,6 +1,6 @@
 """v49.5 Juan skins + a 1.5× Juan (static/juan.js + style.css).
   • Juan is drawn 1.5× bigger; his hitbox grows to match (32×88, the body without the hat, a bit forgiving at the sides)
-  • the title screen has a "👕 Skin" chip beside Start (🔒 while locked; aria-label "Skin: <name>") → a picker sheet: Classic Juan, El Jefe Presidente, Hierro Juan,
+  • the title screen has a "👕 Skin" chip beside Start (🔒 while locked; aria-label "Skin: <name>") → a picker sheet: Classic Juan, El Jefe Presidente, Iron Juan,
     El Payaso, Juan UFO, Master Jefe, Armadura (original parodies, no real names or logos)
   • Classic Juan is the default; the other six show 🔒 + "Make the Top 10 to unlock" until a score of yours posts into the
     Top 10 (then they're unlocked on this phone for good, localStorage chisme-juan-top10); tapping a locked one just says so
@@ -19,7 +19,7 @@ FILE = os.environ.get("JUAN_SCORES_FILE", "/tmp/chisme-juan-scores.json")
 SETUP = "if (!localStorage.getItem('chisme-location-setup')) { localStorage.setItem('chisme-location-setup','1'); localStorage.setItem('chisme-swiped','1'); localStorage.setItem('chisme-ios-hint-dismissed','1'); localStorage.setItem('chisme-a2hs', JSON.stringify({done:true})); }"
 G = "__chisme.juegos.game"
 SEVEN = [("Goonie", 12340, 6), ("La Tía", 10125, 6), ("Juanito", 7450, 5), ("Ictunis", 5800, 4), ("Mija", 4800, 4), ("Compa", 3950, 3), ("Chuy", 2600, 2)]
-NAMES = ["Classic Juan", "El Jefe Presidente", "Hierro Juan", "El Payaso", "Juan UFO", "Master Jefe", "Armadura"]
+NAMES = ["Classic Juan", "El Jefe Presidente", "Iron Juan", "El Payaso", "Juan UFO", "Master Jefe", "Armadura"]
 IDS = ["classic", "jefe", "hierro", "payaso", "ufo", "master", "armadura"]
 fails = 0
 def check(ok, what):
