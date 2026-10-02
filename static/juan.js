@@ -29,7 +29,10 @@
   "use strict";
   const KEY = "chisme-juegos-juan";
   const VW = 360, ROADH = 176, END = 6000, CHECKS = [0, 2000, 4000], HERO_X = 84, TILE = 500, CAM_END = END - HERO_X - 150;   // the camera stops 150 before the end: the stop's building fills the screen and Juan runs up to its door
-  const GRAV = 1750, JUMP = -620, JUMP2 = -540, HP = 100, HERO_W = 26, HERO_H = 62;
+  const GRAV = 1750, JUMP = -620, JUMP2 = -540, HP = 100, HERO_W = 32, HERO_H = 88;   // v49.5: Juan drawn 1.5× (JS); the box is the body (no hat), a bit forgiving at the sides
+  const JS = 1.5;
+  // v49.5 skins: classic is the default; the rest unlock for anyone who has ever made the Top 10 (original parodies, no real names or logos)
+  const JSKINS = [["classic", "Classic Juan"], ["jefe", "El Jefe Presidente"], ["hierro", "Hierro Juan"], ["payaso", "El Payaso"], ["ufo", "Juan UFO"], ["master", "Master Jefe"], ["armadura", "Armadura"]];
   const SANS = '"Avenir Next Condensed","Arial Narrow","Roboto Condensed","Helvetica Neue",Arial,sans-serif';
   const UI = '-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif';
   const WEST = 'Rockwell,"American Typewriter",Georgia,"Times New Roman",serif';
@@ -437,9 +440,130 @@
     for (const bx of [16, 336]) { box(c, "#5b6270", bx, -62, 3, 62); ell(c, "rgba(255,214,160,.95)", bx + 1.5, -64, 4, 4); }
   }
 
+  // ================= v49.5 skins: torso + head for each (inside juan()'s torso frame: hips at 0,0, facing right) =================
+  // Original parodies drawn from scratch, no real names, faces or logos. Colors and shapes follow the concept art in
+  // screenshots/skin-concepts/ loosely.
+  function juanFace(c, X, Y, sk, sk2, hi, mustache) {   // the classic face, re-used under open helmets
+    box(c, sk2, -2, -26, 6, 5, 2);
+    ell(c, lin(c, X - 6, Y - 6, X + 8, Y + 8, [hi, sk, sk2]), X + 0.5, Y, 8, 8.6);
+    ell(c, sk2, X - 3.5, Y + 0.5, 1.8, 2.6); ell(c, "#1b120c", X + 4.4, Y - 1.2, 1.05, 1.4); ell(c, sk2, X + 8.2, Y + 1.2, 1.7, 1.9);
+    if (mustache) { c.fillStyle = "#24160e"; c.beginPath(); c.moveTo(X + 2.8, Y + 3.7); c.quadraticCurveTo(X + 6, Y + 2, X + 9.4, Y + 3.8); c.quadraticCurveTo(X + 6.4, Y + 6, X + 2.8, Y + 3.7); c.fill(); line(c, "#7a3b2a", 0.9, [X + 4.6, Y + 6.6, X + 7, Y + 6.2]); }
+  }
+  function skinBody(c, k) {
+    const X = 2.5, Y = -31.5;
+    if (k === "jefe") {   // a generic cartoon politician: navy suit, white shirt, a long red tie, a big blond swoop (no real person)
+      c.fillStyle = lin(c, -11, -24, 11, 0, ["#2c3d7a", "#1c2a58"]); rr(c, -11.5, -24, 23, 23.5, 6.5); c.fill();
+      c.fillStyle = "#ffffff"; c.beginPath(); c.moveTo(-4.5, -24); c.lineTo(5.5, -24); c.lineTo(0.5, -12); c.closePath(); c.fill();
+      c.fillStyle = "#d7262e"; c.beginPath(); c.moveTo(-0.9, -21.5); c.lineTo(1.9, -21.5); c.lineTo(3, -2.5); c.lineTo(0.5, 0.6); c.lineTo(-2, -2.5); c.closePath(); c.fill(); box(c, "#a51d1d", -1.3, -23.2, 3.6, 2.6, 1);
+      line(c, "#13204a", 1.1, [-4.5, -24, -1.2, -13, -3, -5]); line(c, "#13204a", 1.1, [5.5, -24, 2.4, -13, 4.5, -5]); ell(c, "#ffffff", 7.2, -18.5, 1.6, 0.7);
+      juanFace(c, X, Y, "#efbb94", "#d39b72", "#f8d2b4", false);
+      line(c, "#8a4a3a", 1, [X + 3.6, Y + 4.6, X + 6.4, Y + 5.2, X + 8.2, Y + 4.2]); line(c, "#c99a3f", 1.2, [X + 2.4, Y - 4.4, X + 6.4, Y - 4.8]);
+      c.fillStyle = lin(c, X - 9, Y - 15, X + 12, Y - 4, ["#fdebb0", "#f2cc66", "#d9a640"]); c.beginPath(); c.moveTo(X - 8.6, Y + 1.5);
+      c.quadraticCurveTo(X - 11, Y - 9.5, X - 3, Y - 13); c.quadraticCurveTo(X + 6.5, Y - 16.5, X + 13, Y - 9.5); c.quadraticCurveTo(X + 9.5, Y - 10.2, X + 8, Y - 7.4);
+      c.quadraticCurveTo(X + 2.5, Y - 8.6, X - 1.5, Y - 5.2); c.quadraticCurveTo(X - 4.5, Y - 2.2, X - 5, Y + 2.2); c.closePath(); c.fill();
+      line(c, "rgba(170,115,30,.55)", 0.8, [X - 5, Y - 9.5, X + 3, Y - 13, X + 10.5, Y - 10.2]); line(c, "rgba(255,255,255,.6)", 0.9, [X - 3, Y - 11.6, X + 3.5, Y - 13.6]);
+      return;
+    }
+    if (k === "hierro") {   // an original red + silver robot suit: hexagon chest light, open-face helmet with ear pods and a red crest
+      c.fillStyle = lin(c, -11, -24, 11, 0, ["#ef3b33", "#a51d1d"]); rr(c, -11.5, -24, 23, 23.5, 6); c.fill();
+      box(c, "#d5dbe1", -11.5, -14, 4.5, 12, 2); box(c, "#d5dbe1", 7, -14, 4.5, 12, 2);
+      for (const y of [-9.5, -6, -2.5]) box(c, "#c9d0d8", -5.5, y, 13, 2.6, 1);
+      c.save(); c.shadowColor = "#5ff3ff"; c.shadowBlur = 7; c.fillStyle = "#8ff8ff"; c.beginPath();
+      for (let i = 0; i < 6; i++) { const a = Math.PI / 6 + i * Math.PI / 3; c.lineTo(-4 + Math.cos(a) * 3.9, -16.5 + Math.sin(a) * 3.9); } c.closePath(); c.fill(); c.restore(); ell(c, "#ffffff", -4, -16.5, 1.4, 1.4);
+      juanFace(c, X, Y, "#c68a5e", "#a5683f", "#d39a6c", true); line(c, "#24160e", 1.2, [X + 2.4, Y - 4, X + 6.4, Y - 4.3]);
+      c.fillStyle = lin(c, X - 9, Y - 12, X + 9, Y + 2, ["#f4f7fa", "#c9d0d8", "#8d96a0"]); c.beginPath(); c.ellipse(X + 0.5, Y - 1.5, 10.4, 10.8, 0, Math.PI * 0.94, Math.PI * 2.03); c.fill();
+      box(c, "#c9d0d8", X - 9.5, Y - 3, 5.5, 10, 2.2); ell(c, "#d7262e", X - 6.6, Y + 0.6, 3.3, 3.3); ell(c, "#e8edf2", X - 6.6, Y + 0.6, 1.4, 1.4);
+      line(c, "#d7262e", 2.4, [X - 7, Y - 10.5, X + 1.5, Y - 12.4, X + 8.5, Y - 9.6]); line(c, "#8d96a0", 1.4, [X + 4, Y - 6.3, X + 11.2, Y - 5]);
+      return;
+    }
+    if (k === "payaso") {   // an original villain clown: purple suit, orange vest, polka-dot bow tie, white face, red nose, wide grin, green hair
+      c.fillStyle = lin(c, -11, -24, 11, 0, ["#7d3cbc", "#55248a"]); rr(c, -11, -24, 22, 23.5, 6); c.fill();
+      c.fillStyle = "#ff8a00"; c.beginPath(); c.moveTo(-3.5, -21); c.lineTo(6, -21); c.lineTo(6.5, -2); c.lineTo(-3, -2); c.closePath(); c.fill();
+      for (const y of [-15, -10.5, -6]) ell(c, "#7a3f00", 1.5, y, 0.8, 0.8);
+      line(c, "#3e1a66", 1.1, [-3.5, -23, -3, -2]); line(c, "#3e1a66", 1.1, [6, -23, 6.5, -2]);
+      c.save(); c.translate(-3, 2.6); c.fillStyle = "#2fae2a"; c.beginPath(); c.moveTo(1.2, -21.5); c.lineTo(-5, -25); c.lineTo(-5, -18); c.closePath(); c.moveTo(1.2, -21.5); c.lineTo(7.5, -25); c.lineTo(7.5, -18); c.closePath(); c.fill();
+      for (const [x, y] of [[-3.5, -22.5], [-3.6, -19.8], [5.8, -22.6], [6, -19.8], [1.2, -21.5]]) ell(c, "#ffffff", x, y, 0.8, 0.8); c.restore();
+      box(c, "#e3e6ea", -2, -26, 6, 5, 2);
+      ell(c, lin(c, X - 6, Y - 6, X + 8, Y + 8, ["#ffffff", "#f6f2ee", "#ddd5cd"]), X + 0.5, Y, 8, 8.6);
+      ell(c, "#d9cfc6", X - 3.5, Y + 0.5, 1.8, 2.6);
+      ell(c, "#9b5fd6", X + 4.4, Y - 1.4, 2.2, 3, 0.2); ell(c, "#1b120c", X + 4.4, Y - 1.2, 1.05, 1.4); line(c, "#1b120c", 1.1, [X + 2.2, Y - 5, X + 4.4, Y - 6.2, X + 6.6, Y - 5.2]);
+      c.fillStyle = "#d7262e"; c.beginPath(); c.moveTo(X + 0.8, Y + 3); c.quadraticCurveTo(X + 6, Y + 9.4, X + 10.2, Y + 2); c.quadraticCurveTo(X + 6, Y + 5.2, X + 0.8, Y + 3); c.fill();
+      line(c, "#ffffff", 1, [X + 2.6, Y + 4.4, X + 6, Y + 5.6, X + 8.8, Y + 3.8]); ell(c, "#e0243a", X + 8.8, Y + 0.6, 2.4, 2.4); ell(c, "rgba(255,255,255,.7)", X + 8.2, Y - 0.2, 0.7, 0.6);
+      for (const [x, y, rx, ry] of [[-6, -6.5, 5, 4.4], [-0.5, -9.2, 6, 3.8], [5.5, -8.6, 4.2, 3], [-8.6, 0, 3.6, 5.2], [-9.4, 5, 3, 3.2]]) ell(c, "#4cc93a", X + x, Y + y, rx, ry);
+      for (const [x, y] of [[-9, -10], [-3, -13], [3.5, -12.6], [9, -10.5], [-12.5, -3]]) line(c, "#34a82a", 2, [X + x * 0.5, Y + y * 0.55, X + x, Y + y]);
+      return;
+    }
+    if (k === "master") {   // an original olive space-soldier: plated suit, bucket helmet with a center ridge, a flat gold/orange slab visor, a vented chin guard, an antenna
+      c.fillStyle = lin(c, -11, -24, 11, 0, ["#6d8a43", "#4a6230"]); rr(c, -11.5, -24, 23, 23.5, 6); c.fill();
+      box(c, "#2b2f2a", -11.5, -9, 23, 2.2); box(c, "#4a6230", -7, -21.5, 15, 10, 3); line(c, "#3c4f26", 1, [0.5, -21, 0.5, -12]);
+      box(c, "#ff8a00", -5.6, -18.6, 3, 1.5, 0.5); box(c, "#ff8a00", 4.4, -18.6, 3, 1.5, 0.5); box(c, "#3c4a2a", 4, -7, 5, 5, 1.2);
+      box(c, "#2b2f2a", -2, -26, 6, 5, 2);
+      c.fillStyle = lin(c, X - 9, Y - 12, X + 9, Y + 9, ["#86a655", "#5f7a3a", "#3f5428"]); rr(c, X - 9.5, Y - 11.5, 20, 20.5, 7.5); c.fill();
+      box(c, "#94b562", X - 1.6, Y - 13, 4, 9, 2);
+      c.fillStyle = lin(c, X + 1, Y - 5, X + 11, Y + 1, ["#ffc04a", "#ff9a1a", "#ff6a00"]); c.beginPath(); c.moveTo(X + 1.5, Y - 5.5); c.lineTo(X + 12, Y - 5.5); c.lineTo(X + 12, Y + 0.8); c.lineTo(X + 1.5, Y + 0.8); c.closePath(); c.fill();
+      line(c, "rgba(255,255,255,.75)", 0.9, [X + 3, Y - 4.4, X + 9.5, Y - 4.4]); line(c, "#2e3920", 1, [X + 1.5, Y - 5.5, X + 12, Y - 5.5, X + 12, Y + 0.8, X + 1.5, Y + 0.8, X + 1.5, Y - 5.5]);
+      box(c, "#4a6230", X + 2.5, Y + 1.8, 9, 6, 1.8); for (let i = 0; i < 3; i++) box(c, "#1f2516", X + 4 + i * 2.6, Y + 3.2, 1.2, 3.2, 0.4);
+      ell(c, "#3f5428", X - 4.2, Y + 0.5, 3, 3.6); line(c, "#2b2f2a", 1, [X - 6.5, Y - 6, X - 8.5, Y - 15.5]); ell(c, "#ff8a00", X - 8.5, Y - 15.5, 1.1, 1.1);
+      return;
+    }
+    if (k === "armadura") {   // original retro power armor: bulky riveted plates, olive + rust, "SA 210" hand-painted on the chest, a closed chunky helmet
+      c.fillStyle = lin(c, -13, -25, 13, 0, ["#848c50", "#6b7240", "#4c5230"]); rr(c, -13, -25, 26, 25, 7); c.fill();
+      ell(c, "rgba(154,90,46,.75)", -7.5, -6, 3.4, 2.2); ell(c, "rgba(154,90,46,.6)", 8.5, -19.5, 2.4, 1.6); ell(c, "rgba(122,74,42,.55)", 9, -4, 2.2, 1.4);
+      line(c, "#3a3328", 1.1, [-13, -11.5, 13, -11.5]); line(c, "#3a3328", 1, [-9.5, -25, -9.5, -11.5]); line(c, "#3a3328", 1, [10.5, -25, 10.5, -11.5]);
+      for (const [x, y] of [[-11.3, -22.5], [-11.3, -14], [11.6, -22.5], [11.6, -14], [-6, -9.8], [0.5, -9.8], [7, -9.8]]) ell(c, "#d8d0b4", x, y, 0.75, 0.75);
+      c.save(); c.translate(-6, -17.6); c.rotate(-0.07); c.font = "900 6px system-ui, -apple-system, sans-serif"; c.textAlign = "center"; c.textBaseline = "middle";
+      c.fillStyle = "#efe6cc"; c.fillText("SA", 0, -2.8); c.fillText("210", 0.3, 2.8); c.restore();
+      box(c, "#3a3328", -13, -3.8, 26, 3.6, 1); box(c, "#5e3820", -12.5, -2.6, 5, 5, 1.2); box(c, "#5e3820", 7.5, -2.6, 5, 5, 1.2);
+      box(c, "#3a3328", -3, -31, 8, 8, 2); box(c, "#565c33", -8.5, -28.4, 19, 5, 2);   // collar ring
+      const Y = -34.5;   // the helmet rides a little higher on its collar
+      // fully closed chunky helmet (no face): a wide riveted shell, a darker face plate, two round glowing lenses, a snout breathing grille, a side filter
+      c.fillStyle = lin(c, X - 12, Y - 14, X + 12, Y + 11, ["#9aa262", "#6b7240", "#4c5230"]); rr(c, X - 11.5, Y - 14, 24, 24, 9.5); c.fill();
+      box(c, "#565c33", X - 7, Y - 15.6, 13, 4, 2); ell(c, "rgba(154,90,46,.75)", X - 6, Y - 8, 3.2, 2); ell(c, "rgba(154,90,46,.55)", X - 7, Y + 4.5, 2.2, 1.6);
+      line(c, "#3a3328", 1, [X - 2, Y - 13.6, X - 3, Y + 9.6]);
+      c.fillStyle = "#565c33"; rr(c, X + 1, Y - 8.6, 13.6, 18.4, 4.5); c.fill();
+      for (const [lx, ly, r] of [[X + 5.6, Y - 3, 3.4], [X + 11.6, Y - 3, 2.7]]) { ell(c, "#2a2620", lx, ly, r + 1.2, r + 1.2); c.save(); c.shadowColor = "#5ff3e0"; c.shadowBlur = 7; ell(c, "#86fbe9", lx, ly, r, r); c.restore(); ell(c, "rgba(255,255,255,.85)", lx - r * 0.35, ly - r * 0.35, r * 0.32, r * 0.32); }
+      c.fillStyle = "#4a4f2c"; rr(c, X + 4.6, Y + 2.2, 11.4, 8, 3.6); c.fill(); line(c, "#2a2620", 1, [X + 4.6, Y + 2.2, X + 16, Y + 2.2]);
+      for (let i = 0; i < 4; i++) line(c, "#1f1c17", 1.05, [X + 6.9 + i * 2.4, Y + 3.6, X + 6.9 + i * 2.4, Y + 8.8]);
+      ell(c, "#7a4a2a", X + 1.6, Y + 6.4, 3.1, 3.1); ell(c, "#5e3820", X + 1.6, Y + 6.4, 2, 2); ell(c, "#2a2620", X + 1.6, Y + 6.4, 0.9, 0.9);
+      for (const [x, y] of [[-8.5, -10], [-9.6, -2.5], [-9.6, 5], [-4, -12.2], [2, -12.6], [8, -12]]) ell(c, "#d8d0b4", X + x, Y + y, 0.8, 0.8);
+    }
+  }
+  function juanUfo(c, o) {   // Juan UFO: a silver flying disk with a glass dome, Juan inside at the wheel, blinking rim lights, a soft beam
+    const t = o.t || 0, q = o.ph || 0; let bob = 0, tilt = 0;
+    if (o.pose === "run") { bob = Math.sin(q * 0.5) * 1.6; tilt = 0.05; } else if (o.pose === "up") tilt = -0.12; else if (o.pose === "down") tilt = 0.1;
+    else if (o.pose === "cheer") { tilt = Math.sin(t * 6) * 0.15; bob = -Math.abs(Math.sin(t * 6)) * 3; } else bob = Math.sin(t * 2.4) * 1.2;
+    c.fillStyle = lin(c, 0, -20, 0, 0, ["rgba(62,232,235,.5)", "rgba(62,232,235,0)"]); c.beginPath(); c.moveTo(-7, -19 + bob); c.lineTo(7, -19 + bob); c.lineTo(14, 0); c.lineTo(-14, 0); c.closePath(); c.fill();
+    c.save(); c.translate(1, -30 + bob); c.rotate(tilt);
+    c.fillStyle = "rgba(120,215,240,.35)"; c.beginPath(); c.ellipse(0, -2, 12.5, 13.5, 0, Math.PI, 0); c.fill();
+    box(c, "#2e9a45", -8, -8.5, 16, 9, 4); line(c, "#ffffff", 0.9, [-1, -8, -1.5, -4]); line(c, "#ffffff", 0.9, [1.5, -8, 2, -4]);
+    ell(c, "#a5683f", -0.5, -9.5, 2.4, 2); ell(c, lin(c, -5, -20, 6, -9, ["#d39a6c", "#c68a5e", "#a5683f"]), 0.5, -13.6, 5.6, 6);
+    ell(c, "#1b120c", 3.1, -14.6, 0.8, 1.05); c.fillStyle = "#24160e"; c.beginPath(); c.moveTo(1.6, -11.6); c.quadraticCurveTo(3.8, -12.8, 6, -11.5); c.quadraticCurveTo(3.8, -10, 1.6, -11.6); c.fill();
+    c.fillStyle = "#151515"; c.beginPath(); c.ellipse(0.3, -16.4, 6, 4.4, 0, Math.PI, 0); c.fill(); box(c, "#151515", 0, -17.4, 9.5, 1.8, 0.9); box(c, "#2e9a45", -1.6, -19.8, 3.4, 2, 0.6);
+    line(c, "#222222", 1.6, [-2.5, -4.5, 3, -6.5, 7.5, -4.5]); ell(c, "#c68a5e", -2, -4.8, 1.6, 1.4); ell(c, "#c68a5e", 7, -4.8, 1.6, 1.4);
+    c.fillStyle = "rgba(200,245,255,.22)"; c.beginPath(); c.ellipse(0, -2, 12.5, 13.5, 0, Math.PI, 0); c.fill();
+    c.strokeStyle = "#a8e4f0"; c.lineWidth = 1.2; c.beginPath(); c.ellipse(0, -2, 12.5, 13.5, 0, Math.PI, 0); c.stroke(); line(c, "rgba(255,255,255,.8)", 1.3, [-8, -9, -6, -12.5, -2.5, -14.5]);
+    c.fillStyle = lin(c, 0, -5, 0, 7, ["#f6f8fa", "#c9d0d8", "#7c858f"]); c.beginPath(); c.ellipse(0, 1, 26, 6.8, 0, 0, Math.PI * 2); c.fill();
+    line(c, "#9aa3ad", 1, [-25, 1.6, 25, 1.6]); ell(c, "#5b6270", 0, 5, 15, 3.4); c.save(); c.shadowColor = "#5ff3ff"; c.shadowBlur = 6; ell(c, "#8ff8ff", 0, 6.6, 7, 1.7); c.restore();
+    const cols = ["#ff3d8b", "#ff8a00", "#3ee8eb", "#7cc860", "#b36bff", "#ffffff", "#ff3d8b"];
+    for (let i = 0; i < 7; i++) { const on = Math.floor(t * 5 + i) % 3 !== 0; ell(c, on ? cols[i] : "#5b6270", -19.5 + i * 6.5, -0.2, 1.6, 1.6); }
+    c.restore();
+  }
+  function skinPreview(cv, id) {   // a little standing Juan in that skin, for the picker
+    const c = cv.getContext("2d"), d = Math.min(3, Math.max(1, root.devicePixelRatio || 1)), w = cv.clientWidth || 64, h = cv.clientHeight || 84;
+    cv.width = Math.round(w * d); cv.height = Math.round(h * d); c.setTransform(d, 0, 0, d, 0, 0); c.clearRect(0, 0, w, h);
+    const sc = Math.min(w / 58, h / 88); c.translate(w / 2 - 1.5 * sc, h - 4); c.scale(sc, sc); juan(c, { skin: id, pose: "stand", outfit: "work", t: 0.4 });
+  }
+
   // ================= Juan himself (feet at 0,0, facing right) =================
   function juan(c, o) {
-    const WEST_FIT = o.outfit === "western", SK = "#c68a5e", SK2 = "#a5683f", JE = "#2f5291", JE2 = "#22406f";
+    const SKN = o.skin || "classic";
+    if (SKN === "ufo") return juanUfo(c, o);
+    const KIT = { jefe: { jean: "#22305e", jean2: "#18234a", boot: "#151515", boot2: "#0b0b0b", legW: 8.5, sleeve: "#24336a", sleeveB: "#18234a", hand: "#efbb94", handB: "#d39b72", armW: 6.6, cuff: "#ffffff", dxF: 6, dxB: -4 },
+      hierro: { jean: "#c9d0d8", jean2: "#9aa3ad", boot: "#d7262e", boot2: "#a51d1d", legW: 10, sleeve: "#d7262e", sleeveB: "#a51d1d", hand: "#d5dbe1", handB: "#9aa3ad", armW: 8, knee: "#d7262e", shoulder: "#d5dbe1", dxF: 6.5, dxB: -5 },
+      payaso: { jean: "#6a2fa0", jean2: "#55248a", boot: "#ffffff", boot2: "#d9dde2", legW: 8.5, sleeve: "#6f32a8", sleeveB: "#55248a", hand: "#ffffff", handB: "#e3e6ea", armW: 6.6, cuff: "#ff8a00", sole: "#6a2fa0", dxF: 6, dxB: -4 },
+      master: { jean: "#5f7a3a", jean2: "#4a6230", boot: "#3c4a2a", boot2: "#2e3920", legW: 10, sleeve: "#5f7a3a", sleeveB: "#4a6230", hand: "#2b2f2a", handB: "#1f2320", armW: 8, knee: "#2b2f2a", shoulder: "#6d8a43" },
+      armadura: { jean: "#6b7240", jean2: "#565c33", boot: "#7a4a2a", boot2: "#5e3820", legW: 11.5, sleeve: "#6b7240", sleeveB: "#565c33", hand: "#4a4f2c", handB: "#3a3e22", armW: 9.5, knee: "#7a4a2a", dxF: 10, dxB: -8 } }[SKN];
+    const WEST_FIT = !KIT && o.outfit === "western", SK = "#c68a5e", SK2 = "#a5683f", JE = KIT ? KIT.jean : "#2f5291", JE2 = KIT ? KIT.jean2 : "#22406f";
     const shirt = WEST_FIT ? "#00a7a0" : "#a6ff2e", shirt2 = WEST_FIT ? "#007f7a" : "#78d41a", shirtB = WEST_FIT ? "#00807a" : "#86d424";
     const q = o.ph || 0; let bob = 0, lean = 0, lf, lb, af, ab;
     if (o.pose === "run") { lf = [0.75 * Math.sin(q), 0.25 + 1.1 * Math.max(0, Math.cos(q))]; lb = [0.75 * Math.sin(q + Math.PI), 0.25 + 1.1 * Math.max(0, Math.cos(q + Math.PI))];
@@ -451,22 +575,37 @@
     const hx = 0, hy = -30 + bob;
     const leg = ([a, b], jean, bootCol) => {
       const kx = hx + Math.sin(a) * 15, ky = hy + Math.cos(a) * 15, s = a - b, fx = kx + Math.sin(s) * 15, fy = ky + Math.cos(s) * 15;
-      line(c, jean, 8.5, [hx, hy, kx, ky, fx, fy]);
+      line(c, jean, KIT ? KIT.legW : 8.5, [hx, hy, kx, ky, fx, fy]);
+      if (KIT && KIT.knee) ell(c, KIT.knee, kx + 0.5, ky, KIT.legW * 0.55, KIT.legW * 0.5);
+      if (SKN === "hierro") line(c, "#d7262e", 6, [kx + (fx - kx) * 0.25, ky + (fy - ky) * 0.25, kx + (fx - kx) * 0.75, ky + (fy - ky) * 0.75]);
       c.save(); c.translate(fx, fy); c.rotate(s * 0.55);
-      if (WEST_FIT) { c.fillStyle = bootCol; c.beginPath(); c.moveTo(-4.5, -5); c.lineTo(3.5, -5); c.lineTo(4, -1); c.quadraticCurveTo(10, -0.5, 12, 2.6); c.lineTo(-4.5, 2.6); c.closePath(); c.fill(); box(c, "#2a160c", -4.8, 2.2, 4.6, 2.6, 0.8); line(c, "rgba(255,255,255,.25)", 0.8, [-2, -3.5, 2, -3.5]); }
+      if (KIT) { const big = KIT.legW >= 10; box(c, bootCol, big ? -6 : -4.5, big ? -6 : -4, big ? 16 : 13.5, big ? 8.6 : 6.6, 3); box(c, KIT.sole || "#22201c", big ? -6.5 : -5, 1.8, big ? 17 : 14.5, 2.8, 1); ell(c, "rgba(255,255,255,.2)", 3, -2.4, 3.4, 1.2); }
+      else if (WEST_FIT) { c.fillStyle = bootCol; c.beginPath(); c.moveTo(-4.5, -5); c.lineTo(3.5, -5); c.lineTo(4, -1); c.quadraticCurveTo(10, -0.5, 12, 2.6); c.lineTo(-4.5, 2.6); c.closePath(); c.fill(); box(c, "#2a160c", -4.8, 2.2, 4.6, 2.6, 0.8); line(c, "rgba(255,255,255,.25)", 0.8, [-2, -3.5, 2, -3.5]); }
       else { box(c, bootCol, -4.5, -4, 13.5, 6.6, 3); box(c, "#3a2414", -5, 1.8, 14.5, 2.6, 1); ell(c, "rgba(255,255,255,.18)", 3, -2, 3, 1.2); }
       c.restore();
     };
-    const sh = { x: hx + Math.sin(lean) * 21, y: hy - Math.cos(lean) * 21 };
-    const arm = ([a, b], sleeve, skin) => {
+    const sh0 = { x: hx + Math.sin(lean) * 21, y: hy - Math.cos(lean) * 21 };
+    const arm = ([a, b], sleeve, skin, dx) => {   // dx: skins sit the arms at the chest's edges so the chest art (tie, light, "SA 210") shows
+      const sh = dx ? { x: sh0.x + dx, y: sh0.y + (SKN === "armadura" ? 2.5 : 1) } : sh0;
       const ex = sh.x + Math.sin(a) * 11, ey = sh.y + Math.cos(a) * 11, s = a + b, wx = ex + Math.sin(s) * 10, wy = ey + Math.cos(s) * 10;
+      if (KIT) { line(c, sleeve, KIT.armW, [sh.x, sh.y, ex, ey, wx, wy]); if (KIT.cuff) line(c, KIT.cuff, KIT.armW * 0.9, [wx - Math.sin(s) * 1.2, wy - Math.cos(s) * 1.2, wx, wy], "butt");
+        if (SKN === "hierro") line(c, "#d5dbe1", KIT.armW * 0.82, [ex + (wx - ex) * 0.15, ey + (wy - ey) * 0.15, wx, wy]);
+        ell(c, skin, wx + Math.sin(s) * 1.8, wy + Math.cos(s) * 1.8, KIT.armW * 0.48, KIT.armW * 0.48);
+        if (SKN === "armadura") {   // bulky two-plate pauldron
+          ell(c, "#4c5230", sh.x + 0.5, sh.y + 5.5, 9.6, 5.2, -0.1); line(c, "#3a3328", 1, [sh.x - 8.6, sh.y + 6.6, sh.x + 9.4, sh.y + 5]);
+          ell(c, lin(c, sh.x - 9, sh.y - 8, sh.x + 9, sh.y + 6, ["#9aa262", sleeve, "#4c5230"]), sh.x + 0.5, sh.y + 0.5, 10.4, 7.6, -0.12); line(c, "#3a3328", 1.1, [sh.x - 9, sh.y + 3, sh.x + 9.6, sh.y + 1.2]);
+          ell(c, "rgba(154,90,46,.7)", sh.x + 3.5, sh.y - 2, 2.8, 1.7); for (const [rx, ry] of [[-6, -0.5], [0, -4.6], [6, -2], [-4, 6.2], [5, 5.4]]) ell(c, "#d8d0b4", sh.x + rx, sh.y + ry, 0.8, 0.8); }
+        else if (KIT.shoulder) ell(c, KIT.shoulder, sh.x + 0.5, sh.y + 1, KIT.armW * 0.75, KIT.armW * 0.6);
+        return; }
       if (WEST_FIT) { line(c, sleeve, 6.5, [sh.x, sh.y, ex, ey, wx, wy]); line(c, "rgba(255,255,255,.85)", 1.2, [wx - Math.cos(s) * 3, wy + Math.sin(s) * 3, wx + Math.cos(s) * 3, wy - Math.sin(s) * 3], "butt"); }
       else { line(c, skin, 5.5, [sh.x, sh.y, ex, ey, wx, wy]); line(c, sleeve, 7.5, [sh.x, sh.y, sh.x + Math.sin(a) * 6, sh.y + Math.cos(a) * 6]); }
       ell(c, skin, wx + Math.sin(s) * 1.5, wy + Math.cos(s) * 1.5, 3.1, 3.1);
     };
-    arm(ab, shirtB, SK2); leg(lb, JE2, WEST_FIT ? "#4e2a14" : "#8e6030"); leg(lf, JE, WEST_FIT ? "#6b3b1f" : "#b07a3e");
+    if (KIT) { arm(ab, KIT.sleeveB, KIT.handB, KIT.dxB || 0); leg(lb, JE2, KIT.boot2); leg(lf, JE, KIT.boot); }
+    else { arm(ab, shirtB, SK2); leg(lb, JE2, WEST_FIT ? "#4e2a14" : "#8e6030"); leg(lf, JE, WEST_FIT ? "#6b3b1f" : "#b07a3e"); }
     c.save(); c.translate(hx, hy); c.rotate(lean);
     box(c, JE, -10, -4, 20, 8, 3);
+    if (KIT) { skinBody(c, SKN); c.restore(); arm(af, KIT.sleeve, KIT.hand, KIT.dxF || 0); return; }
     c.fillStyle = lin(c, -10, -23, 10, 0, [shirt, shirt2]); rr(c, -10.5, -23.5, 21, 22.5, 6); c.fill();
     if (WEST_FIT) {   // pearl-snap western shirt: a white-piped yoke, pearl snaps, flap pockets
       line(c, "#ffffff", 1.3, [-10, -17.5, -4, -15, 0.5, -18.5, 5, -15, 10, -17.5]); line(c, "rgba(0,0,0,.18)", 0.8, [0.5, -21, 0.5, -2]);
@@ -1016,14 +1155,14 @@
     function drawJuanAt() {
       const h = hero, fx0 = h.x + h.w / 2, air = Math.max(0, -(h.y + h.h)), sh = Math.max(0.35, 1 - air / 220);
       const groundY = (() => { for (const e of ents) if (SOLID.includes(e.t) && fx0 > e.x && fx0 < e.x + e.w && h.y + h.h <= e.y + 1) return e.y; return 0; })();
-      ell(g, "rgba(0,0,0,.28)", fx0, groundY, 15 * sh, 3.5 * sh);
+      ell(g, "rgba(0,0,0,.28)", fx0, groundY, 22 * sh, 5 * sh);
       if (h.inv > 0 && !reduced() && Math.floor(t * 14) % 2) return;
       let pose = "run";
       if (mode === "win") pose = "cheer"; else if (mode === "title" || mode === "clear" || mode === "paused" && h.ground && false) pose = "stand";
       else if (!h.ground) pose = h.vy < 0 ? "up" : "down";
       if (mode === "title" || mode === "clear") pose = "stand";
-      g.save(); g.translate(fx0, h.y + h.h); juan(g, { outfit: L().outfit, pose, ph: h.frame, t }); g.restore();
-      if (h.shield > 0) { const pr = reduced() ? 0 : Math.sin(t * 6) * 2; g.strokeStyle = "rgba(62,232,235,.75)"; g.lineWidth = 2.2; g.beginPath(); g.ellipse(fx0 + 2, h.y + h.h / 2 - 6, 26 + pr, 44 + pr, 0, 0, Math.PI * 2); g.stroke();
+      g.save(); g.translate(fx0, h.y + h.h); g.scale(JS, JS); juan(g, { outfit: L().outfit, pose, ph: h.frame, t, skin: skinNow() }); g.restore();   // v49.5: 1.5× + the skin
+      if (h.shield > 0) { const pr = reduced() ? 0 : Math.sin(t * 6) * 2; g.strokeStyle = "rgba(62,232,235,.75)"; g.lineWidth = 2.2; g.beginPath(); g.ellipse(fx0 + 2, h.y + h.h / 2 - 10, 36 + pr, 62 + pr, 0, 0, Math.PI * 2); g.stroke();
         g.fillStyle = "rgba(62,232,235,.10)"; g.fill(); }   // the 🩴 shield bubble
       if (h.boost > 0 && !reduced()) for (let i = 0; i < 4; i++) line(g, i % 2 ? "#3ee8eb" : "#ffffff", 1.6, [h.x - 8 - i * 6 - mod(t * 120, 10), h.y + 14 + i * 9, h.x - 26 - i * 6 - mod(t * 120, 10), h.y + 14 + i * 9]);
     }
@@ -1101,7 +1240,7 @@
       $("#juan-note").textContent = "¡Ya es viernes! Get Juan through his Friday shift to cold beers at Noche Caliente.";
       overlay(`<p class="juan-big">The Juan That Got Away</p><p class="juan-story"><span lang="es">¡Ya es viernes!</span> One last shift, then cold ones.</p>
         ${howList("juan-how-ov")}
-        <p class="juan-btns"><button type="button" class="lot-btn lot-main" data-act="start">▶ Start at level 1</button>${cont}</p>${st.best ? `<p class="juan-score">Best score <b>${st.best}</b></p>` : ""}`, "title");
+        <p class="juan-btns${cont ? " has-cont" : ""}"><button type="button" class="lot-btn lot-main" data-act="start">▶ Start at level 1</button><button type="button" class="lot-btn juan-sk-btn" data-act="skins" aria-haspopup="dialog" aria-label="${skinAria()}">👕<span class="juan-sk-word"> Skin</span>${skinsOpen() ? "" : ' <span aria-hidden="true">🔒</span>'}</button>${cont}</p>`, "title");   // v49.5: a compact skin chip beside Start; the best score lives in the HUD (HI) and under the game
     }
     function loop() {
       cancelAnimationFrame(raf); last = performance.now();
@@ -1161,7 +1300,7 @@
     }
     async function flushPending() {
       const left = []; let last = null;
-      for (const p of lsGet(HS_PENDING, [])) { try { const d = await postScore(p); if (d.ok) last = d.id; else if (d.status === 429) left.push(p); } catch (e) { left.push(p); } }   // 400 = a bad score: dropped
+      for (const p of lsGet(HS_PENDING, [])) { try { const d = await postScore(p); if (d.ok) { last = d.id; if (d.rank && d.rank <= 10) unlockSkins(d); } else if (d.status === 429) left.push(p); } catch (e) { left.push(p); } }   // 400 = a bad score: dropped
       lsSet(HS_PENDING, left); if (last) hiId = last; return last;
     }
     const makes = (sc, rows) => sc > 0 && (rows.length < 10 || sc > rows[rows.length - 1].score);
@@ -1197,7 +1336,7 @@
         const entry = { name, score: sc, level: lvl, t: Math.floor(Date.now() / 1000) };
         btn.disabled = true; btn.textContent = "Saving…"; msgEl.textContent = "";
         let res = null; try { res = await postScore(entry); } catch (err) { res = null; }
-        if (res && res.ok) { run.sent = true; hiId = res.id; await loadBoard(); done(d, `You're <b>#${res.rank || "?"}</b> on the board!`); return; }
+        if (res && res.ok) { run.sent = true; hiId = res.id; if (res.rank && res.rank <= 10) unlockSkins(res); await loadBoard(); done(d, `You're <b>#${res.rank || "?"}</b> on the board!`); return; }
         if (!res) {   // offline / no network: keep it on the phone, it goes up later
           const q = lsGet(HS_PENDING, []); q.push(entry); lsSet(HS_PENDING, q.slice(-5)); run.sent = true; hiId = "pending-" + (Math.min(q.length, 5) - 1); drawBoard();
           done(d, "📴 Saved on this phone. It goes on the board when you're back online."); return; }
@@ -1218,6 +1357,40 @@
     root.addEventListener("online", onOnline);
     drawBoard(); (lsGet(HS_PENDING, []).length && navigator.onLine ? flushPending() : Promise.resolve()).then(() => loadBoard());
 
+    // ---- v49.5 skins: Classic Juan is the default; the others unlock (on this phone, for good) once a score of yours posts into
+    // the Top 10. The picker is a sheet from the title screen; locked skins show 🔒 and "Make the Top 10 to unlock".
+    const SK_UNLOCK = "chisme-juan-top10";
+    const skinsOpen = () => !!lsGet(SK_UNLOCK, null);
+    function unlockSkins(d) { if (!skinsOpen()) lsSet(SK_UNLOCK, { at: Date.now(), rank: d.rank, score: d.entry && d.entry.score }); }
+    const skinName = (id) => (JSKINS.find((k) => k[0] === id) || JSKINS[0])[1];
+    function skinNow() { const k = st.skin || "classic"; return k !== "classic" && (!skinsOpen() || !JSKINS.some((x) => x[0] === k)) ? "classic" : k; }
+    let skDlg = null;
+    function openSkins() {
+      if (skDlg) skDlg.remove();
+      const open = skinsOpen(), cur = skinNow(), d = document.createElement("dialog"); d.className = "juan-skins"; d.setAttribute("aria-labelledby", "juan-sk-t");
+      d.innerHTML = `<form method="dialog" class="juan-sk-card"><p class="juan-sk-t" id="juan-sk-t">👕 Pick your Juan</p>
+        <p class="juan-sk-sub">${open ? "🏆 You made the Top 10: every skin is yours." : "🔒 Make the Top 10 to unlock the skins."}</p>
+        <div class="juan-sk-grid">${JSKINS.map(([id, name]) => { const lock = id !== "classic" && !open;
+          return `<button type="button" class="juan-sk${lock ? " locked" : ""}${id === cur ? " on" : ""}" data-skin="${id}" aria-pressed="${id === cur}" aria-label="${name}${lock ? ", locked: make the Top 10 to unlock" : id === cur ? ", wearing it" : ""}">
+            <canvas class="juan-sk-cv" aria-hidden="true"></canvas><span class="juan-sk-tx"><span class="juan-sk-n">${name.replace("Presidente", "Presi\u00addente").replace("Armadura", "Arma\u00addura")}</span>${lock ? '<span class="juan-sk-why">Make the Top 10 to unlock</span>' : ""}</span>${lock ? '<span class="juan-sk-lock" aria-hidden="true">🔒</span>' : ""}</button>`; }).join("")}</div>
+        <button type="submit" class="juan-sk-done">Done</button></form>`;
+      document.body.appendChild(d); skDlg = d;
+      d.querySelectorAll(".juan-sk").forEach((b) => skinPreview(b.querySelector("canvas"), b.dataset.skin));
+      const close = () => { if (d.open) d.close(); d.remove(); if (skDlg === d) skDlg = null; };
+      d.addEventListener("cancel", (e) => { e.preventDefault(); close(); });
+      d.querySelector("form").addEventListener("submit", (e) => { e.preventDefault(); close(); });
+      d.querySelector(".juan-sk-grid").addEventListener("click", (e) => {
+        const b = e.target.closest(".juan-sk"); if (!b) return;
+        if (b.classList.contains("locked")) { const sub = d.querySelector(".juan-sk-sub"); sub.textContent = "🔒 Make the Top 10 to unlock " + skinName(b.dataset.skin) + "."; sub.classList.remove("nudge"); void sub.offsetWidth; sub.classList.add("nudge"); return; }
+        st.skin = b.dataset.skin; save(st);
+        d.querySelectorAll(".juan-sk").forEach((x) => { const on = x === b; x.classList.toggle("on", on); x.setAttribute("aria-pressed", String(on)); });
+        skinLabel(); if (!raf) draw();
+      });
+      d.showModal(); const onB = d.querySelector(".juan-sk.on"); if (onB) onB.focus({ preventScroll: true });   // not the first card
+    }
+    function skinAria() { return "Skin: " + skinName(skinNow()) + (skinsOpen() ? "" : ". Make the Top 10 to unlock more"); }
+    function skinLabel() { const b = $("#juan-ov [data-act=skins]"); if (b) b.setAttribute("aria-label", skinAria()); }
+
     // ---- input: tap / click the game, the Jump button, Space / ↑ / W
     cv.addEventListener("pointerdown", (e) => { e.preventDefault(); jump(); });
     cv.addEventListener("pointerup", release);
@@ -1228,7 +1401,7 @@
     // again), so a leftover handler from the old Juan would also "start" and put a 2nd full-screen bar on the stage
     const onAct = (e) => { const b = e.target.closest("[data-act]"); if (!b) return; const a = b.dataset.act; audio();
       if (a === "start" || a === "cont" || a === "again") played();
-      if (a === "start") startLevel(1); else if (a === "cont") { ckScore = 0; startLevel(st.levelMax); } else if (a === "next") startLevel(level + 1, true); else if (a === "again") startLevel(1); else if (a === "resume") resume(); };
+      if (a === "start") startLevel(1); else if (a === "cont") { ckScore = 0; startLevel(st.levelMax); } else if (a === "next") startLevel(level + 1, true); else if (a === "again") startLevel(1); else if (a === "resume") resume(); else if (a === "skins") openSkins(); };
     el.addEventListener("click", onAct);
     $("#juan-pause").onclick = () => (paused ? resume() : pause());
     $("#juan-restart").onclick = () => { paused = false; ckScore = 0; startLevel(level); ctrl(); };
@@ -1254,10 +1427,11 @@
       pause, resume, jump,
       fs, exitFullscreen: (quiet) => fs.exit(quiet),
       destroy() { fs.exit(true); cancelAnimationFrame(raf); document.removeEventListener("keydown", onKey); document.removeEventListener("keyup", onKeyUp); root.removeEventListener("resize", onWin); el.removeEventListener("click", onAct);
-        document.removeEventListener("visibilitychange", onShow); root.removeEventListener("pageshow", repaint); root.removeEventListener("online", onOnline); if (hsDlg) hsDlg.remove(); cache = {}; },
+        document.removeEventListener("visibilitychange", onShow); root.removeEventListener("pageshow", repaint); root.removeEventListener("online", onOnline); if (hsDlg) hsDlg.remove(); if (skDlg) skDlg.remove(); cache = {}; },
+      skins: { open: openSkins, get now() { return skinNow(); }, get unlocked() { return skinsOpen(); }, list: JSKINS.map((k) => k[0]) },   // v49.5 (tests)
       hs: { loadBoard, offer, flushPending, get rows() { return merged(); }, get live() { return boardLive; }, get hi() { return hiId; }, get run() { return { ...run }; } },   // v49.5 (tests)
       repaint,
-      get state() { return { oopsMsg, msg, mode, level, name: L().name, outfit: L().outfit, x: hero.x, y: hero.y, ground: hero.ground, score, ck, best: st.best, muted: st.muted, boost: hero.boost, health: hero.health, beers: beersGot, shield: hero.shield, fuera: fueraT > 0, fueras, caught: caughtN, caughtBy,
+      get state() { return { oopsMsg, msg, mode, level, name: L().name, outfit: L().outfit, x: hero.x, y: hero.y, hw: hero.w, hh: hero.h, skin: skinNow(), ground: hero.ground, score, ck, best: st.best, muted: st.muted, boost: hero.boost, health: hero.health, beers: beersGot, shield: hero.shield, fuera: fueraT > 0, fueras, caught: caughtN, caughtBy,
         chase: ents.some((e) => e.t === "chaser" && e.st === "chase"),
         levelMax: st.levelMax, parallax: !reduced(), overlay: ov.textContent.trim(), fullscreen: fs.on, W: VW, H: VH, dpr, cssW, backing: [cv.width, cv.height], fx: fx.length, fxMade }; },
       // test hooks: jump to a spot in a level (as if you'd run there), set the health bar

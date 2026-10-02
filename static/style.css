@@ -1174,6 +1174,37 @@ button.juan-hs-skip{min-height:44px;border:0;background:none;color:#000;font-siz
 @media (max-width:360px){.juan-hs-row{font-size:1rem;gap:.45em}.juan-hs-t{font-size:1.2rem}.juan-hs-big{font-size:1.5rem}.juan-hs-sub{font-size:1.08rem}}
 .reduce-motion .juan-hs-row.me{animation:none}
 @media (prefers-reduced-motion:reduce){.juan-hs-row.me{animation:none}}
+/* v49.5 Juan skins: a "👕 Skin" button on the title screen opens a picker sheet (Fiesta, big bold, light + dark) */
+.juan-ov .juan-sk-btn{min-height:44px;padding:.15em .8em;border:2px solid rgba(62,232,235,.8);border-radius:999px;background:rgba(255,255,255,.12);color:#fff;font-size:.95em;font-weight:900}
+.juan-ov .juan-sk-btn b{color:#3ee8eb}
+@media (max-width:360px){.juan-btns.has-cont .juan-sk-word{display:none}.juan-btns.has-cont .juan-sk-btn{min-width:44px;padding:.15em .55em}}
+[data-theme="dark"] .juan-ov .juan-sk-btn{background:rgba(255,255,255,.12);color:#fff;border-color:rgba(62,232,235,.8)}
+dialog.juan-skins{width:min(96vw,420px);max-width:calc(100vw - 8px);max-height:92dvh;margin:auto;padding:0;border:3px solid #000;border-radius:20px;background:#fff;color:#000;box-shadow:0 6px 0 #000;overflow:auto}
+dialog.juan-skins::backdrop{background:rgba(0,0,0,.6)}
+.juan-sk-card{display:flex;flex-direction:column;gap:.55em;padding:1em .85em .95em;text-align:center}
+.juan-sk-t{margin:0;font-size:1.6rem;font-weight:900;line-height:1.1;color:var(--pink);text-shadow:0 2px 0 #000;-webkit-text-stroke:.5px #000}
+.juan-sk-sub{margin:0;font-size:1.02rem;font-weight:900;line-height:1.25}
+.juan-sk-sub.nudge{animation:sk-nudge .4s ease-in-out}
+@keyframes sk-nudge{25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+.juan-sk-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+button.juan-sk{position:relative;display:flex;flex-direction:row;align-items:center;gap:6px;min-height:44px;padding:4px 6px 4px 4px;text-align:left;border:3px solid #000;border-radius:14px;background:linear-gradient(#d6f7f8,#fff 70%);color:#000;font:inherit;box-shadow:0 3px 0 #000}
+button.juan-sk.on{border-color:var(--pink);box-shadow:0 0 0 3px var(--pink),0 3px 0 #000;background:linear-gradient(#ffd6e4,#fff 70%)}
+button.juan-sk.locked{background:#eef0f2;box-shadow:0 3px 0 #9aa3ad;border-color:#7c858f}
+button.juan-sk.locked .juan-sk-cv{filter:grayscale(1) brightness(.75);opacity:.55}
+.juan-sk-cv{display:block;flex:none;width:46px;height:64px}
+.juan-sk-tx{display:flex;flex-direction:column;gap:3px;min-width:0}
+.juan-sk-n{font-size:.86rem;font-weight:900;line-height:1.12;overflow-wrap:anywhere;-webkit-hyphens:manual;hyphens:manual}
+.juan-sk-lock{position:absolute;top:50%;left:27px;transform:translate(-50%,-50%);font-size:1.5rem;line-height:1;filter:drop-shadow(0 2px 0 rgba(0,0,0,.35))}
+.juan-sk-why{font-size:.68rem;font-weight:800;line-height:1.15;color:#3d4650}
+button.juan-sk-done{width:100%;min-height:56px;border:3px solid #000;border-radius:16px;background:var(--turq);color:#000;font-size:1.35rem;font-weight:900;letter-spacing:.06em;text-transform:uppercase;box-shadow:0 4px 0 #000}
+[data-theme="dark"] dialog.juan-skins{background:#12161a;color:#fff;border-color:var(--turq);box-shadow:0 6px 0 #007f82}
+[data-theme="dark"] button.juan-sk{background:linear-gradient(#0d4446,#12161a 70%);color:#fff;border-color:#2c3a3e;box-shadow:0 3px 0 #000}
+[data-theme="dark"] button.juan-sk.on{border-color:var(--pink);background:linear-gradient(#5a1830,#12161a 70%);box-shadow:0 0 0 3px var(--pink),0 3px 0 #000}
+[data-theme="dark"] button.juan-sk.locked{background:#1b2226;border-color:#3a4a4f}
+[data-theme="dark"] .juan-sk-why{color:#b3c4c6}
+[data-theme="dark"] button.juan-sk-done{background:var(--turq);color:#000;border-color:#000}
+@media (max-width:360px){dialog.juan-skins{width:97vw}.juan-sk-grid{gap:6px}.juan-sk-card{padding:.85em .5em .8em;gap:.5em}button.juan-sk{gap:4px;padding:3px 4px 3px 3px}.juan-sk-cv{width:34px;height:52px}.juan-sk-n{font-size:.78rem}.juan-sk-t{font-size:1.35rem}.juan-sk-sub{font-size:.92rem}.juan-sk-why{font-size:.62rem}.juan-sk-lock{left:20px;font-size:1.2rem}}
+.reduce-motion .juan-sk-sub.nudge{animation:none}
 .juan-btns{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:.35em!important}
 .juan-ov .lot-btn{border-color:#000}
 .juan-ov .lot-btn:not(.lot-main){background:#fff;color:#000}
