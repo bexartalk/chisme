@@ -3,6 +3,7 @@ swipes (view swipe, swipe-down to close) and offline.
 Screens: cual-dieta-tab.png, food-desk-bottom.png, food-video-player.png, food-video-saved.png, nav-320.png, nav-order.png"""
 import asyncio, os, sys, tempfile
 from playwright.async_api import async_playwright
+import os as _os, sys as _sys; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__))); import pw_csp  # noqa: E401,F401  (v49.11: CSP-safe wait_for_function)
 URL = os.environ.get("URL", "http://localhost:8211/")
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "screenshots")
 fails = []
@@ -20,7 +21,7 @@ async def wk(p):
     b = await p.webkit.launch()
     dev = dict(p.devices["iPhone 13"]); dev.pop("default_browser_type", None)
     ctx = await b.new_context(**dev)
-    await ctx.add_init_script(INIT % "")
+    await ctx.add_init_script(QUIET + INIT % "")
     pg = await ctx.new_page(); errs = []; third = []; framed = {"on": False}
     # while a news site is framed in the reader, its own scripts' errors (ads, consent banners) surface on the page in WebKit
     sink = lambda msg: (third if framed["on"] else errs).append(msg)
@@ -150,7 +151,7 @@ async def wk(p):
     for w, font in ((320, 30), (320, None), (390, 30), (390, None)):
         dev2 = dict(dev); dev2["viewport"] = {"width": w, "height": 740}; dev2["screen"] = {"width": w, "height": 740}
         ctx = await b.new_context(**dev2)
-        await ctx.add_init_script(INIT % (f"localStorage.setItem('chisme-font-px','{font}');" if font else ""))
+        await ctx.add_init_script(QUIET + INIT % (f"localStorage.setItem('chisme-font-px','{font}');" if font else ""))
         pg = await ctx.new_page(); await pg.goto(URL)
         await pg.wait_for_function("() => window.__chisme && window.__chisme.ready", timeout=60000)
         if w == 390 and font is None:
@@ -184,7 +185,7 @@ async def vdrag(cdp, x, y0, dy, steps=16):
 async def chrome(p):
     ctx = await p.chromium.launch_persistent_context(tempfile.mkdtemp(prefix="chisme-fp-"), executable_path="/usr/bin/google-chrome", args=["--no-sandbox"],
         viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True, device_scale_factor=2, timezone_id="America/Chicago")
-    await ctx.add_init_script(INIT % "")
+    await ctx.add_init_script(QUIET + INIT % "")
     pg = ctx.pages[0]; errs = []
     pg.on("pageerror", lambda e: errs.append(str(e)))
     await pg.goto(URL, wait_until="networkidle"); await pg.reload(wait_until="networkidle")
@@ -230,3 +231,4 @@ async def main():
         await chrome(p)
     print("\nALL PASS" if not fails else f"\n{len(fails)} FAIL(S)"); sys.exit(1 if fails else 0)
 asyncio.run(main())
+from popup_quiet import QUIET   # v49: the notifications card + Settings tip have their own tests

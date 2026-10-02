@@ -263,8 +263,10 @@ r1 = c.post("/stats/push/auto", json={"on": True})
 check(r0.status_code == 401 and r1.status_code == 401, "send / switch without the admin cookie: 401")
 c.get("/stats?key=wrong"); r = c.get("/stats", follow_redirects=False)
 check(r.status_code == 401 and "Send a notification" not in r.text, "/stats with a wrong key: the gate page, no send box")
-c.get("/stats?key=unit-test-admin-token", follow_redirects=False)
-c.cookies.set(A.stats.COOKIE, A.stats.session_value(), path="/stats")
+r = c.get("/stats?key=unit-test-admin-token", follow_redirects=False)
+check(r.status_code == 303 and r.headers.get("location") == "/stats?link=old" and A.stats.COOKIE not in r.headers.get("set-cookie", ""),
+      "v49.11: /stats?key= never signs in; it drops the key from the address bar")
+c.post("/stats/login", data={"key": "unit-test-admin-token", "remember": "1"}, follow_redirects=False)   # the sign-in form
 r = c.get("/stats")
 check(r.status_code == 200 and "Send a notification" in r.text and "Auto-alerts are off" in r.text and "¡Órale, new chisme! 👀" in r.text and "<b>1</b> phone will get it" in r.text
       and "Off · nothing is sent automatically" in r.text,

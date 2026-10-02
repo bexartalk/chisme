@@ -20,6 +20,7 @@ import json
 import math
 import os
 import re
+import secrets
 import time
 import urllib.parse
 from calendar import timegm
@@ -36,7 +37,7 @@ from fastapi.staticfiles import StaticFiles
 
 import mascot as tia
 import reader as rdr
-from limits import RateLimit, client_ip
+from limits import RateLimit, SharedLimit, client_ip
 
 import autopush
 import juanscores
@@ -482,7 +483,7 @@ async def fetch_feed(feed: dict) -> dict:
                                            "ms": int((time.time() - t0) * 1000), "query": feed.get("query")}}
     except Exception as ex:  # keep going if one feed fails
         return {"items": [], "status": {"id": feed["id"], "name": feed["name"], "ok": False,
-                                        "error": f"{type(ex).__name__}: {ex}"[:200], "query": feed.get("query")}}
+                                        "error": _plain(ex), "query": feed.get("query")}}
 
 
 def _rx(term: str) -> re.Pattern:
@@ -798,7 +799,7 @@ async def build_weather(lat: float, lon: float) -> dict:
         try:
             return await coro
         except Exception as ex:
-            return {"_error": f"{type(ex).__name__}: {ex}"[:200]}
+            return {"_error": _plain(ex)}
 
     grid = f'{p.get("gridId")}/{p.get("gridX")},{p.get("gridY")}'
     forecast, hourly, alerts, current = await asyncio.gather(
@@ -1277,7 +1278,7 @@ async def event_source(sid: str, name: str, url: str, producer) -> dict:
                                            "ms": int((time.time() - t0) * 1000)}}
     except Exception as ex:
         return {"items": [], "status": {"id": sid, "name": name, "ok": False, "url": url,
-                                        "error": f"{type(ex).__name__}: {ex}"[:200]}}
+                                        "error": _plain(ex)}}
 
 
 # --- background detail enrichment (one worker per host, polite delay between requests)
@@ -1887,7 +1888,7 @@ async def build_food(lat: float, lon: float) -> dict:
                            "count": len(items), "ms": int((time.time() - t0) * 1000)}
         except Exception as ex:
             return [], {"id": src["id"], "name": src["name"], "kind": src["kind"], "home": src["home"], "ok": False,
-                        "error": f"{type(ex).__name__}: {ex}"[:200]}
+                        "error": _plain(ex)}
 
     sources = food_sources_for(metro, place)   # re-reads the TikTok list each build, so edits need no restart
     res = await asyncio.gather(*(one(s) for s in sources))
@@ -2027,7 +2028,7 @@ class SportsLog:
             self.sources.append({"name": name, "home": home, "ok": True, "count": n, "ms": int((time.time() - t0) * 1000)})
             return v
         except Exception as ex:
-            self.sources.append({"name": name, "home": home, "ok": False, "error": f"{type(ex).__name__}: {ex}"[:160]})
+            self.sources.append({"name": name, "home": home, "ok": False, "error": _plain(ex)})
             return default
 
 
@@ -2117,7 +2118,7 @@ async def spurs_block(log: SportsLog, tm: dict | None = None, metro: dict | None
             standings["final"] = True
         log.sources.append({"name": "ESPN: NBA standings", "home": "https://www.espn.com/nba/standings", "ok": True, "count": len(standings["rows"])})
     except Exception as ex:
-        log.sources.append({"name": "ESPN: NBA standings", "home": "https://www.espn.com/nba/standings", "ok": False, "error": f"{type(ex).__name__}: {ex}"[:160]})
+        log.sources.append({"name": "ESPN: NBA standings", "home": "https://www.espn.com/nba/standings", "ok": False, "error": _plain(ex)})
     news = await log.run(f"ESPN: {nm} news", espn_home, espn_news("basketball/nba", TEAM_ID, 16), [])
     fan_feeds = _nba_fan_feeds(tm, metro)
     feeds = await asyncio.gather(*(log.run(f["name"], f["home"], feed_items(f), []) for f in fan_feeds))
@@ -2189,7 +2190,7 @@ async def cowboys_block(log: SportsLog) -> dict:
         standings = {"season": div["standings"].get("seasonDisplayName") or (str(season) if season else None), "division": div["name"], "rows": rows}
         log.sources.append({"name": "ESPN: NFC East standings", "home": "https://www.espn.com/nfl/standings", "ok": True, "count": len(rows)})
     except Exception as ex:
-        log.sources.append({"name": "ESPN: NFC East standings", "home": "https://www.espn.com/nfl/standings", "ok": False, "error": f"{type(ex).__name__}: {ex}"[:160]})
+        log.sources.append({"name": "ESPN: NFC East standings", "home": "https://www.espn.com/nfl/standings", "ok": False, "error": _plain(ex)})
     news, *feeds = await asyncio.gather(log.run(f"ESPN: {nm} news", espn_home, espn_news("football/nfl", TEAM_ID, 16), []),
                                         *(log.run(f["name"], f["home"], feed_items(f), []) for f in COWBOYS_FEEDS))
     by = {f["id"]: items for f, items in zip(COWBOYS_FEEDS, feeds)}
@@ -2267,7 +2268,7 @@ async def missions_block(log: SportsLog, tm: dict | None = None) -> dict:
                 standings = {"division": (rec.get("division") or {}).get("name") or tm["league"], "season": str(year), "rows": rows}
         log.sources.append({"name": f"MLB Stats API: {tm['league']} standings", "home": "https://www.milb.com/standings", "ok": bool(standings), "count": len(standings["rows"]) if standings else 0})
     except Exception as ex:
-        log.sources.append({"name": f"MLB Stats API: {tm['league']} standings", "home": "https://www.milb.com/standings", "ok": False, "error": f"{type(ex).__name__}: {ex}"[:160]})
+        log.sources.append({"name": f"MLB Stats API: {tm['league']} standings", "home": "https://www.milb.com/standings", "ok": False, "error": _plain(ex)})
     gn = MISSIONS_GN if TID == MISSIONS_ID else gnews("gn-milb", f"Google News: {tm['name']}", f'"{tm["name"]}" baseball when:60d')
     news = await log.run(gn["name"], "https://news.google.com/", feed_items(gn), []) or []
     news = [n for n in news if not (TID == MISSIONS_ID and MISSIONS_NOT.search(n["title"]))][:10]
@@ -2356,8 +2357,19 @@ async def build_sports(lat: float = DEFAULT_LAT, lon: float = DEFAULT_LON, place
 
 
 # ---------------------------------------------------------------- routes
+def _plain(ex: Exception) -> str:
+    """v49.11: what a feed's status line may say on the phone: the kind of error (and the HTTP status), never the
+    upstream URL or its query string (some carry API keys). The full text goes to the server log."""
+    print("feed error:", type(ex).__name__, str(ex)[:300])
+    code = getattr(getattr(ex, "response", None), "status_code", None)
+    return type(ex).__name__ + (f" {code}" if code else "")
+
+
 def _err(ex: Exception, code: int = 502) -> JSONResponse:
-    return JSONResponse({"error": f"{type(ex).__name__}: {ex}"[:300]}, status_code=code)
+    """v49.11: the details go to the server log only; the phone gets a plain message (no internals, URLs or keys)."""
+    print("api error:", type(ex).__name__, str(ex)[:300])
+    msg = "That place doesn't look right." if isinstance(ex, ValueError) and code == 400 else "Couldn't load this right now. Try again in a minute."
+    return JSONResponse({"error": msg}, status_code=code)
 
 
 def _coords(lat, lon):
@@ -2489,7 +2501,7 @@ async def api_reader(request: Request, url: str = Query(..., min_length=8, max_l
             return {"url": url, "final_url": url, "host": host.removeprefix("www."), "frame": bool(fv and fv[1]),
                     "why": "busy", "limited": True, "retry_after": wait}
     try:
-        info = await cached("reader:" + url, READER_TTL, lambda: rdr.inspect(client(), url))
+        info = await cached("reader:" + url, READER_TTL, lambda: rdr.inspect(rdr.safe_client(UA), url))
     except rdr.Blocked as ex:
         return JSONResponse({"error": str(ex)}, status_code=400)
     except Exception:
@@ -2499,7 +2511,7 @@ async def api_reader(request: Request, url: str = Query(..., min_length=8, max_l
     return info
 
 
-MASCOT_LIMIT = RateLimit(int(os.environ.get("MASCOT_PER_HOUR", "30")), 3600)   # messages per phone (IP) per hour
+MASCOT_LIMIT = SharedLimit("tia", int(os.environ.get("MASCOT_PER_HOUR", "30")), 3600)   # messages per phone (IP) per hour
 
 
 @app.get("/api/mascot/config")
@@ -2532,11 +2544,14 @@ async def tia_knowledge(body: dict) -> dict:
     return {k: v for k, v in zip(names, got) if v}
 
 
+TIA_MAX_BODY = 32_000   # v49.11 (was 96 KB): the app sends ≈10–25 KB (12 messages + clipped story/event/food lines)
+
+
 @app.post("/api/mascot/chat")
 async def api_mascot_chat(request: Request):
     """Tía Chismosa. Grounded only in the app's current feeds (server-side) + what the phone shows; nothing is stored. See mascot.py."""
     raw = await request.body()
-    if len(raw) > 96_000:
+    if len(raw) > TIA_MAX_BODY:
         return JSONResponse({"error": "message too big"}, status_code=413)
     try:
         body = json.loads(raw or b"{}")
@@ -2544,7 +2559,7 @@ async def api_mascot_chat(request: Request):
             raise ValueError
     except ValueError:
         return JSONResponse({"error": "bad request"}, status_code=400)
-    ok, wait = MASCOT_LIMIT.check(client_ip(request))
+    ok, wait = await MASCOT_LIMIT.hit(client_ip(request))
     if not ok:
         return JSONResponse({"reply": f"Ay, mija, that's a lot of chisme for one hour! Give me about {max(1, round(wait / 60))} "
                                       "minutes to refill my cafecito and I'm all yours.",
@@ -2605,10 +2620,16 @@ async def api_push_key():
     return JSONResponse({"publicKey": push.conf()["public"]}, headers={"Cache-Control": "no-store"})
 
 
+SUB_LIMIT = SharedLimit("sub", int(os.environ.get("SUB_PER_DAY", "30")), 86400)   # a phone re-subscribes on area changes; 30/day/IP is plenty
+
 @app.post("/api/push/subscribe")
 async def api_push_subscribe(request: Request):
+    """v49.11: at most SUB_PER_DAY sign-ups / updates per IP a day (kept in Upstash), and only real push services."""
     if not push.enabled():
         return JSONResponse({"ok": False, "error": "push isn't set up on this server"}, status_code=503)
+    ok, wait = await SUB_LIMIT.hit(client_ip(request))
+    if not ok:
+        return JSONResponse({"ok": False, "error": "too many sign-ups from here, try again later", "retry_after": wait}, status_code=429)
     r = await push.subscribe(await _body(request))
     return JSONResponse(r, status_code=200 if r["ok"] else 400)
 
@@ -2669,19 +2690,21 @@ async def api_stats(request: Request):
 STATS_HEADERS = {"Cache-Control": "no-store", "X-Robots-Tag": "noindex, nofollow", "Referrer-Policy": "no-referrer"}
 
 
-ADMIN_REMEMBER = 400 * 86400   # v49.5: "keep me signed in" (400 days: the longest a browser keeps a cookie)
-LOGIN_LIMIT = RateLimit(int(os.environ.get("ADMIN_LOGIN_TRIES", "8")), 900)   # sign-in tries per IP per 15 min
+ADMIN_REMEMBER = stats.SESSION_DAYS * 86400   # v49.11: "keep me signed in" = a 30-day session (was a fixed 400-day cookie)
+LOGIN_LIMIT = SharedLimit("login", int(os.environ.get("ADMIN_LOGIN_TRIES", "8")), 900)   # sign-in tries per IP per 15 min
 
 
 def _https(request: Request) -> bool:
     return request.url.scheme == "https" or request.headers.get("x-forwarded-proto", "").startswith("https")
 
 
-def _sign_in(resp: Response, request: Request, remember: bool = True) -> Response:
-    """The session cookie (HttpOnly, path=/stats, an HMAC of the token, never the token) + a harmless marker the app
-    can read (chisme_admin=1, path=/) so Settings can show the Admin button. Only the first one opens anything."""
-    age = ADMIN_REMEMBER if remember else None
-    resp.set_cookie(stats.COOKIE, stats.session_value(), max_age=age, path="/stats", httponly=True, secure=_https(request), samesite="strict")
+async def _sign_in(resp: Response, request: Request, remember: bool = True) -> Response:
+    """The session cookie (HttpOnly, path=/stats: a random session id, revocable, 30 days or 12 h; see stats.new_session)
+    + a harmless marker the app can read (chisme_admin=1, path=/) so Settings can show the Admin button. Only the first
+    one opens anything."""
+    sid, ttl = await stats.new_session(remember)
+    age = ttl if remember else None
+    resp.set_cookie(stats.COOKIE, sid, max_age=age, path="/stats", httponly=True, secure=_https(request), samesite="strict")
     resp.set_cookie(ADMIN_MARK, "1", max_age=age, path="/", httponly=False, secure=_https(request), samesite="lax")
     return resp
 
@@ -2689,20 +2712,24 @@ def _sign_in(resp: Response, request: Request, remember: bool = True) -> Respons
 ADMIN_MARK = "chisme_admin"
 
 
-def _signed_in(request: Request) -> bool:
-    return stats.cookie_ok(request.cookies.get(stats.COOKIE))
+def _gate(request: Request, error: str = "") -> str:
+    return stats.gate_page(error, nonce=_nonce(request))
+
+
+async def _signed_in(request: Request) -> bool:
+    return await stats.session_ok(request.cookies.get(stats.COOKIE))
 
 
 @app.get("/stats", include_in_schema=False)
 async def stats_page(request: Request, key: str | None = None):
     if not stats.admin_token():
         return Response("Not Found", status_code=404)
-    if key is not None:   # the admin link, once: trade the key for a cookie and drop it from the address bar
-        if not stats.key_ok(key):
-            return HTMLResponse(stats.gate_page("That admin link's key didn't match."), status_code=401, headers=STATS_HEADERS)
-        return _sign_in(RedirectResponse("/stats", status_code=303, headers=STATS_HEADERS), request)
-    if not _signed_in(request):
-        return HTMLResponse(stats.gate_page(), status_code=401, headers=STATS_HEADERS)
+    if key is not None:   # v49.11: an old admin link with the key in it: never signs in; drop the key from the address bar right away
+        return RedirectResponse("/stats?link=old", status_code=303, headers=STATS_HEADERS)
+    if not await _signed_in(request):
+        old = request.query_params.get("link") == "old"
+        return HTMLResponse(_gate(request, "Admin links with the key in them don't sign in anymore (a key in a link ends up in "
+                                            "your history). Paste the key below instead." if old else ""), status_code=401, headers=STATS_HEADERS)
     st = stats.store()
     try:
         data = await st.read(stats.last_days(30))
@@ -2720,7 +2747,7 @@ async def stats_page(request: Request, key: str | None = None):
     except Exception:
         scores = None
     rf = await refresh_state()
-    return HTMLResponse(stats.page(data, st.name, info=info, info_error=err, scores=scores, refresh=rf), headers=STATS_HEADERS)
+    return HTMLResponse(stats.page(data, st.name, info=info, info_error=err, scores=scores, refresh=rf, nonce=_nonce(request)), headers=STATS_HEADERS)
 
 
 @app.post("/stats/login", include_in_schema=False)
@@ -2730,23 +2757,43 @@ async def stats_login(request: Request):
         return Response("Not Found", status_code=404)
     origin = request.headers.get("origin")
     if origin and origin != "null" and urllib.parse.urlsplit(origin).netloc != request.headers.get("host", urllib.parse.urlsplit(str(request.base_url)).netloc):
-        return HTMLResponse(stats.gate_page("Please sign in from this page."), status_code=403, headers=STATS_HEADERS)
-    ok, wait = LOGIN_LIMIT.check(stats.anon("login:" + client_ip(request)))
+        return HTMLResponse(_gate(request, "Please sign in from this page."), status_code=403, headers=STATS_HEADERS)
+    ok, wait = await LOGIN_LIMIT.hit("login:" + client_ip(request))
     if not ok:
-        return HTMLResponse(stats.gate_page(f"Too many tries. Wait about {max(1, round(wait / 60))} min and try again."), status_code=429, headers=STATS_HEADERS)
+        return HTMLResponse(_gate(request, f"Too many tries. Wait about {max(1, round(wait / 60))} min and try again."), status_code=429, headers=STATS_HEADERS)
     try:
         form = urllib.parse.parse_qs((await request.body())[:4000].decode("utf-8", "replace"))
     except Exception:
         form = {}
     key = (form.get("key") or [""])[0].strip()
     if not stats.key_ok(key):
-        return HTMLResponse(stats.gate_page("That key didn't match. Check it and try again."), status_code=401, headers=STATS_HEADERS)
-    return _sign_in(RedirectResponse("/stats", status_code=303, headers=STATS_HEADERS), request, remember=(form.get("remember") or [""])[0] == "1")
+        return HTMLResponse(_gate(request, "That key didn't match. Check it and try again."), status_code=401, headers=STATS_HEADERS)
+    try:
+        return await _sign_in(RedirectResponse("/stats", status_code=303, headers=STATS_HEADERS), request, remember=(form.get("remember") or [""])[0] == "1")
+    except Exception as ex:
+        print("admin sign-in storage:", type(ex).__name__)
+        return HTMLResponse(_gate(request, "Couldn't sign in right now (storage). Try again in a minute."), status_code=503, headers=STATS_HEADERS)
 
 
 @app.post("/stats/logout", include_in_schema=False)
 async def stats_logout(request: Request):
+    await stats.end_session(request.cookies.get(stats.COOKIE))   # v49.11: the session itself ends, not just this cookie
     r = RedirectResponse("/stats", status_code=303, headers=STATS_HEADERS)
+    r.delete_cookie(stats.COOKIE, path="/stats", secure=_https(request), httponly=True, samesite="strict")
+    r.delete_cookie(ADMIN_MARK, path="/", secure=_https(request), samesite="lax")
+    return r
+
+
+@app.post("/stats/logout-all", include_in_schema=False)
+async def stats_logout_all(request: Request):
+    """v49.11: Sign out everywhere (owner only, JSON): every admin session on every device ends, this one included."""
+    if not await _admin_ok(request):
+        return _nope()
+    try:
+        await stats.end_all_sessions()
+    except Exception as ex:
+        return JSONResponse({"ok": False, "error": f"couldn't save ({type(ex).__name__} from the storage)"}, status_code=503, headers=STATS_HEADERS)
+    r = JSONResponse({"ok": True}, headers=STATS_HEADERS)
     r.delete_cookie(stats.COOKIE, path="/stats", secure=_https(request), httponly=True, samesite="strict")
     r.delete_cookie(ADMIN_MARK, path="/", secure=_https(request), samesite="lax")
     return r
@@ -2759,10 +2806,10 @@ async def stats_manifest():
     return JSONResponse(admin.manifest(), media_type="application/manifest+json", headers={"Cache-Control": "no-cache", "X-Robots-Tag": "noindex"})
 
 
-def _admin_ok(request: Request) -> bool:
+async def _admin_ok(request: Request) -> bool:
     """The /stats cookie (path=/stats, HttpOnly, SameSite=Strict) and a JSON body (no cross-site form posts)."""
-    return (bool(stats.admin_token()) and _signed_in(request)
-            and (request.headers.get("content-type") or "").split(";")[0].strip() == "application/json")
+    return (bool(stats.admin_token()) and (request.headers.get("content-type") or "").split(";")[0].strip() == "application/json"
+            and await _signed_in(request))
 
 
 def _nope():
@@ -2773,7 +2820,7 @@ def _nope():
 async def stats_push_info(request: Request):
     """v49.5: the page's numbers after an action (counts, switch, plain-English status). No secrets."""
     import admin
-    if not stats.admin_token() or not _signed_in(request):
+    if not stats.admin_token() or not await _signed_in(request):
         return _nope()
     try:
         return JSONResponse(admin.info_json(await autopush.admin_info()), headers=STATS_HEADERS)
@@ -2784,7 +2831,7 @@ async def stats_push_info(request: Request):
 @app.post("/stats/push/send", include_in_schema=False)
 async def stats_push_send(request: Request):
     import admin
-    if not _admin_ok(request):
+    if not await _admin_ok(request):
         return _nope()
     r = await autopush.admin_send(await _body(request, 8000))
     return JSONResponse({**r, "text": admin.send_result(r)}, status_code=200 if r["ok"] else 400, headers=STATS_HEADERS)
@@ -2792,7 +2839,7 @@ async def stats_push_send(request: Request):
 
 @app.post("/stats/push/auto", include_in_schema=False)
 async def stats_push_auto(request: Request):
-    if not _admin_ok(request):
+    if not await _admin_ok(request):
         return _nope()
     b = await _body(request)
     if not isinstance(b.get("on"), bool):
@@ -2806,17 +2853,19 @@ async def stats_push_auto(request: Request):
 @app.post("/stats/push/check", include_in_schema=False)
 async def stats_push_check(request: Request):
     import admin
-    if not _admin_ok(request):
+    if not await _admin_ok(request):
         return _nope()
     r = await autopush.check(_auto_stories, reason="owner")
     return JSONResponse({**r, "plain": admin.plain_result(r)}, headers=STATS_HEADERS)
 
 
 # ---------------------------------------------------------------- v49.5: The Juan That Got Away high scores (juanscores.py)
-_juan_posts: dict[str, list[float]] = {}
+_juan_posts: dict[str, tuple] = {}   # v49.11: recent entries (fingerprint → (time, answer)), for the double-post check
+HS_LIMIT = SharedLimit("hs", 6, 60)
+HS_DAY = SharedLimit("hsday", int(os.environ.get("JUAN_SCORES_PER_DAY", "60")), 86400)
 
 
-def _juan_admin(request: Request, json_only: bool = True) -> bool:
+async def _juan_admin(request: Request, json_only: bool = True) -> bool:
     """Owner only, the same sign-in as /stats: the /stats cookie (sent to the /stats/juan/... aliases; JSON body, so no
     cross-site form posts) or `Authorization: Bearer <ADMIN_TOKEN>` (for the /api/juan/... endpoints from a script)."""
     tok = stats.admin_token()
@@ -2825,7 +2874,7 @@ def _juan_admin(request: Request, json_only: bool = True) -> bool:
     auth = request.headers.get("authorization") or ""
     if auth.lower().startswith("bearer ") and stats.key_ok(auth[7:].strip()):
         return True
-    return _admin_ok(request) if json_only else _signed_in(request)
+    return await _admin_ok(request) if json_only else await _signed_in(request)
 
 
 @app.get("/api/juan/scores")
@@ -2838,20 +2887,31 @@ async def juan_scores(n: int = Query(10, ge=1, le=50)):
 
 @app.post("/api/juan/scores")
 async def juan_score_add(request: Request):
-    ip = (request.headers.get("x-forwarded-for") or (request.client.host if request.client else "")).split(",")[-1].strip()   # (the proxy appends the real one)
-    now = time.time(); recent = [t for t in _juan_posts.get(ip, []) if now - t < 60]
-    if len(recent) >= 6:
-        return JSONResponse({"ok": False, "error": "slow down"}, status_code=429)
-    _juan_posts[ip] = recent + [now]
-    if len(_juan_posts) > 5000:
-        _juan_posts.clear()
-    r = await juanscores.add(await _body(request, 2000))
+    """v49.11: the phone's real IP (limits.client_ip: Cloudflare's header on Render, not the last X-Forwarded-For hop),
+    6 a minute and 60 a day per IP (in Upstash, so a sleep/deploy doesn't reset it); the same score twice in 10 minutes
+    from the same IP is the same entry (a double tap / retry), not a second row."""
+    ip = client_ip(request)
+    for lim in (HS_LIMIT, HS_DAY):
+        ok, wait = await lim.hit(ip)
+        if not ok:
+            return JSONResponse({"ok": False, "error": "slow down", "retry_after": wait}, status_code=429)
+    body = await _body(request, 2000)
+    e = juanscores.clean_entry(body)
+    if e:
+        now = time.time(); fp = hashlib.sha256(f"{ip}|{e['name']}|{e['score']}|{e['level']}".encode()).hexdigest()[:20]
+        for k in [k for k, (t, _) in _juan_posts.items() if now - t > 600]:
+            _juan_posts.pop(k, None)
+        if fp in _juan_posts:
+            return JSONResponse(_juan_posts[fp][1])
+    r = await juanscores.add(body)
+    if r["ok"] and e:
+        _juan_posts[fp] = (time.time(), r)
     return JSONResponse(r, status_code=200 if r["ok"] else 400)
 
 
 @app.get("/stats/juan/scores", include_in_schema=False)
 async def juan_scores_all(request: Request):
-    if not _juan_admin(request, json_only=False):
+    if not await _juan_admin(request, json_only=False):
         return _nope()
     return JSONResponse({"ok": True, "scores": await juanscores.everything()}, headers=STATS_HEADERS)
 
@@ -2859,7 +2919,7 @@ async def juan_scores_all(request: Request):
 @app.post("/api/juan/scores/clear", include_in_schema=False)
 @app.post("/stats/juan/scores/clear", include_in_schema=False)
 async def juan_scores_clear(request: Request):
-    if not _juan_admin(request):
+    if not await _juan_admin(request):
         return _nope()
     if (await _body(request)).get("confirm") != "CLEAR":
         return JSONResponse({"ok": False, "error": 'send {"confirm": "CLEAR"} to clear the board'}, status_code=400, headers=STATS_HEADERS)
@@ -2891,7 +2951,8 @@ async def refresh_state() -> dict:
 async def refresh_token(request: Request):
     t = str((await refresh_state()).get("t") or "0")
     h = {"Cache-Control": "no-cache", "ETag": f'"r{t}"'}
-    if request.headers.get("if-none-match") == h["ETag"]:
+    # v49.11: Render's proxy makes the tag weak (W/"r…") when it compresses, so compare without the W/ (and any list)
+    if h["ETag"] in [x.strip().removeprefix("W/") for x in (request.headers.get("if-none-match") or "").split(",")]:
         return Response(status_code=304, headers=h)
     return JSONResponse({"t": t}, headers=h)
 
@@ -2900,7 +2961,7 @@ async def refresh_token(request: Request):
 async def stats_refresh(request: Request):
     """Owner only (the /stats cookie + a JSON body, like the other admin actions)."""
     import admin
-    if not _admin_ok(request):
+    if not await _admin_ok(request):
         return _nope()
     now = int(time.time())
     v = {"t": f"{now:x}{os.urandom(2).hex()}", "ts": now}
@@ -2915,7 +2976,7 @@ async def stats_refresh(request: Request):
 @app.delete("/api/juan/scores/{sid}", include_in_schema=False)
 @app.delete("/stats/juan/scores/{sid}", include_in_schema=False)
 async def juan_score_delete(sid: str, request: Request):
-    if not _juan_admin(request):
+    if not await _juan_admin(request):
         return _nope()
     if not await juanscores.remove(sid):
         return JSONResponse({"ok": False, "error": "no such score"}, status_code=404, headers=STATS_HEADERS)
@@ -2925,7 +2986,7 @@ async def juan_score_delete(sid: str, request: Request):
 @app.patch("/api/juan/scores/{sid}", include_in_schema=False)
 @app.patch("/stats/juan/scores/{sid}", include_in_schema=False)
 async def juan_score_rename(sid: str, request: Request):
-    if not _juan_admin(request):
+    if not await _juan_admin(request):
         return _nope()
     row = await juanscores.rename(sid, (await _body(request)).get("name"))
     if not row:
@@ -2962,10 +3023,43 @@ def app_build() -> str:
 
 
 @app.get("/")
-async def index():
+async def index(request: Request):
     # app.js / style.css are requested with ?v=<build>, so the page never runs with an older cached script
-    page = (BASE / "static" / "index.html").read_text().replace("__BUILD__", app_build())
+    # v49.11: the page's own two inline scripts get this response's CSP nonce (the file itself has no user content)
+    page = (BASE / "static" / "index.html").read_text().replace("__BUILD__", app_build()).replace("<script>", f'<script nonce="{_nonce(request)}">')
     return HTMLResponse(page, headers={"Cache-Control": "no-cache"})
+
+
+# ---------------------------------------------------------------- v49.11: security headers
+# CSP: scripts only from us (+ the nonce for the few inline scripts our own templates write); styles may be inline
+# (style attributes everywhere, Leaflet); images/media from any https site (news photos, map tiles); iframes: any https
+# page (the in-app reader frames the story's own site, YouTube/TikTok players); fetch()/XHR only to us (the server
+# proxies every feed and Upstash); no plugins; nobody else may frame Chisme.
+def _nonce(request: Request) -> str:
+    return getattr(request.state, "csp_nonce", "") or ""
+
+
+def csp(nonce: str) -> str:
+    return ("default-src 'self'; "
+            "script-src 'self'" + (" 'nonce-" + nonce + "'" if nonce else "") + "; "
+            "style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; "
+            "font-src 'self' data:; connect-src 'self'; frame-src 'self' https:; worker-src 'self'; manifest-src 'self'; "
+            "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'")
+
+
+PERMISSIONS = "camera=(), microphone=(), payment=(), usb=(), browsing-topics=(), geolocation=(self)"
+
+
+def _security_headers(request: Request, resp: Response) -> None:
+    h = resp.headers
+    h.setdefault("X-Content-Type-Options", "nosniff")
+    h.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    h.setdefault("Permissions-Policy", PERMISSIONS)
+    h.setdefault("X-Frame-Options", "SAMEORIGIN")
+    if _https(request):
+        h.setdefault("Strict-Transport-Security", "max-age=31536000")
+    if (h.get("content-type") or "").startswith("text/html"):
+        h["Content-Security-Policy"] = csp(_nonce(request))
 
 
 @app.middleware("http")
@@ -2973,8 +3067,10 @@ async def cache_headers(request, call_next):
     """Code/styles/data must revalidate (cheap 304s via ETag) so phones never run a stale app.js;
     images can be cached for a day. Without this, browsers cache /static/* heuristically."""
     autopush.kick(_auto_stories)   # big-news check: throttled, in the background, never awaited (the free server sleeps)
+    request.state.csp_nonce = secrets.token_urlsafe(18)
     resp = await call_next(request)
     resp.headers["X-Chisme"] = "1"   # lets the service worker tell our responses from a host "waking up" page
+    _security_headers(request, resp)
     path = request.url.path
     if path.startswith("/static/") and "cache-control" not in resp.headers:
         resp.headers["Cache-Control"] = ("public, max-age=86400" if re.search(r"\.(png|webp|jpe?g|ico|svg)$", path)

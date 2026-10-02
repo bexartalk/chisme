@@ -5,6 +5,7 @@ import io, json, os, sys, tempfile, urllib.request
 from pathlib import Path
 from PIL import Image
 from playwright.sync_api import sync_playwright
+import os as _os, sys as _sys; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__))); import pw_csp  # noqa: E401,F401  (v49.11: CSP-safe wait_for_function)
 
 URL = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8211/"
 OUT = Path(__file__).parent / "screenshots"; OUT.mkdir(exist_ok=True)

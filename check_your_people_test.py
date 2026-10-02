@@ -4,8 +4,10 @@
 - the location line ("Closest first: …") is at the BOTTOM of the section: after its last story, above the next section,
   smaller and quieter than the stories; the "Updated … CDT" stamp stays by the heading
 Screenshots: check-your-people.png (the heading), check-your-people-bottom.png (the location line at the section's bottom)."""
+from popup_quiet import QUIET   # v49: the notifications card + Settings tip have their own tests
 import asyncio, json, os, sys, urllib.request
 from playwright.async_api import async_playwright
+import os as _os, sys as _sys; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__))); import pw_csp  # noqa: E401,F401  (v49.11: CSP-safe wait_for_function)
 
 HERE = os.path.dirname(os.path.abspath(__file__)); OUT = os.path.join(HERE, "screenshots"); BASE = os.environ.get("BASE", "http://localhost:8211")
 FAILS = []
@@ -36,7 +38,7 @@ async def main():
         b = await p.webkit.launch()
         dev = dict(p.devices["iPhone 13"]); dev.pop("default_browser_type", None); dev["viewport"] = {"width": 390, "height": 844}; dev["screen"] = {"width": 390, "height": 844}
         ctx = await b.new_context(**dev, permissions=["geolocation"], geolocation={"latitude": LAT, "longitude": LON})
-        await ctx.add_init_script(INIT); pg = await ctx.new_page()
+        await ctx.add_init_script(QUIET + INIT); pg = await ctx.new_page()
         errs = []; pg.on("pageerror", lambda e: errs.append(str(e)[:160]))
         await pg.goto(BASE + "/")
         await pg.wait_for_function("() => window.__chisme && window.__chisme.ready", timeout=120000)

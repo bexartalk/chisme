@@ -17,6 +17,8 @@ import os
 import secrets
 import time
 
+import unicodedata
+
 import stats
 
 KEY = "chisme:juan:scores"
@@ -36,7 +38,8 @@ TOP = 10
 
 def clean_name(v) -> str:
     """Trim + at most 12 characters. No word filter (the owner moderates from /stats)."""
-    s = " ".join(str(v or "").split())
+    s = "".join(c for c in str(v or "") if c == "\u200d" or unicodedata.category(c) not in ("Cc", "Cf", "Co", "Cs"))   # v49.11: no control,
+    s = " ".join(s.split())                                                                          # invisible or bidi-flip characters
     return s[:NAME_MAX].strip()
 
 

@@ -1,7 +1,7 @@
 /* Chisme — frontend (location-aware) */
 // Build of this file. Must equal the number in sw.js VERSION ("chisme-v22"); the page compares it
 // with the build the HTML was served for and reloads once if an old cached app.js got mixed in.
-window.CHISME_APP_BUILD = "49.10";
+window.CHISME_APP_BUILD = "49.11";
 (() => {
   "use strict";
   const WEATHER_MS = 10 * 60 * 1000;
@@ -3390,6 +3390,7 @@ window.CHISME_APP_BUILD = "49.10";
     h.push({ role: "tia", text, cites: top.map(citeOf), daily: today, t: Date.now() });
     tiaSave(h);
   }
+  const tiaSlim = (list) => list.map((x) => ({ ...x, raw: undefined, summary: String(x.summary || "").slice(0, 280), line: x.line == null ? x.line : String(x.line).slice(0, 280) }));
   async function tiaSend(text) {
     text = (text || "").trim().slice(0, 500);
     if (!text || tiaBusy) return;
@@ -3403,10 +3404,11 @@ window.CHISME_APP_BUILD = "49.10";
     let reply;
     try {
       const r = await fetch("/api/mascot/chat", { method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: h.slice(-12).map((m) => ({ role: m.role, text: m.text })), hour: new Date().getHours(),
+        body: JSON.stringify({ messages: h.slice(-12).map((m) => ({ role: m.role, text: String(m.text || "").slice(0, 800) })), hour: new Date().getHours(),
           // v39: the server adds everything it has for this spot (all news sections, sports, weather, events, food)
           loc: { lat: +(+loc.lat).toFixed(3), lon: +(+loc.lon).toFixed(3) }, tz: (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return null; } })(),
-          context: { stories: items.stories, weather: items.weather, events: items.events, sports: items.sports.map((s) => ({ ...s, raw: undefined })), food: items.food.map((f) => ({ ...f, raw: undefined })) } }) });
+          // v49.11: summaries clipped, so the whole request stays well under the server's 32 KB cap
+          context: { stories: tiaSlim(items.stories), weather: items.weather, events: tiaSlim(items.events), sports: tiaSlim(items.sports), food: tiaSlim(items.food) } }) });
       const j = await r.json();
       const src = new Map((j.sources || []).map((s) => [s.id, s]));
       let wx = 0;   // one weather chip is enough (they all open the Weather tab)

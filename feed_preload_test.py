@@ -8,8 +8,10 @@ still exactly 4 player iframes and none of them more than 2 videos from the one 
 Slow connection (effectiveType 3g): 3 players, only 1 video ahead, thumbnails 2 ahead. Data saver: no autoplay, no players.
 WebKit (iPhone 13): 3 players (memory), all made before Start so that one tap unlocks sound in every one (v41 fix kept):
 the next 2 videos warm, 5 swipes each playing with sound."""
+from popup_quiet import QUIET   # v49: the notifications card + Settings tip have their own tests
 import asyncio, json, os, statistics, sys, time
 from playwright.async_api import async_playwright
+import os as _os, sys as _sys; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__))); import pw_csp  # noqa: E401,F401  (v49.11: CSP-safe wait_for_function)
 URL = os.environ.get("URL", "http://localhost:8211/")
 INIT = "localStorage.setItem('chisme-location-setup','1'); localStorage.setItem('chisme-ios-hint-dismissed','1'); localStorage.setItem('chisme-swiped','1'); localStorage.setItem('chisme-a2hs', JSON.stringify({ done: true }));"
 NET = """(() => { const c = { effectiveType: '%s', saveData: %s, downlink: 1, rtt: 300, addEventListener() {}, removeEventListener() {} };
@@ -44,7 +46,7 @@ async def open_feed(p, eng, init=""):
         b = await p.webkit.launch(); dev = dict(p.devices["iPhone 13"]); dev.pop("default_browser_type", None); ctx = await b.new_context(**dev)
     else:
         b = await p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"]); ctx = await b.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
-    await ctx.add_init_script(INIT); 
+    await ctx.add_init_script(QUIET + INIT); 
     if init: await ctx.add_init_script(init)
     pg = await ctx.new_page(); errs = []
     pg.on("pageerror", lambda e: errs.append(str(e)[:140]) if "localhost" in (e.stack or "") else None)

@@ -11,6 +11,7 @@ Screenshot: screenshots/admin-highscores.png. Seeds the local server's file stor
 import asyncio, json, os, time
 import httpx
 from playwright.async_api import async_playwright
+import os as _os, sys as _sys; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__))); import pw_csp  # noqa: E401,F401  (v49.11: CSP-safe wait_for_function)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 BASE = os.environ.get("CHISME_URL", "http://localhost:8211")
@@ -80,7 +81,7 @@ async def main():
             print(f"== the admin page ({width} px)")
             dev = dict(p.devices["iPhone 13"]); dev.pop("default_browser_type", None); dev["viewport"] = {"width": width, "height": 844 if width == 390 else 640}; dev["device_scale_factor"] = 2
             ctx = await b.new_context(**dev); pg = await ctx.new_page(); pg.on("pageerror", lambda e: errs.append(str(e)[:200]))
-            await pg.goto(f"{BASE}/stats?key={TOKEN}"); await pg.wait_for_selector("#f-scores")
+            await pw_csp.admin_sign_in(pg, BASE, TOKEN)
             summ = await pg.text_content("#f-scores summary")
             check("🏆 Juan High Scores" in summ and "6 scores" in summ and not await pg.evaluate("document.querySelector('#f-scores').open"), f"a folded '🏆 Juan High Scores' section ({summ.strip()!r})")
             await pg.click("#f-scores summary"); await pg.wait_for_timeout(300)

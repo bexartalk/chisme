@@ -10,8 +10,10 @@
    at most once in the top 20 and spread out evenly (never two of his within 8 slides; foryou.js spreads a cook's
    videos 1/n apart through the cooking slots, so they don't bunch up at the end). Then every one of his slides plays in the feed
    (YouTube player state 1). Screenshot: food-arnietex.png."""
+from popup_quiet import QUIET   # v49: the notifications card + Settings tip have their own tests
 import asyncio, json, os, re, sys, time, urllib.request, urllib.error, urllib.parse
 from playwright.async_api import async_playwright
+import os as _os, sys as _sys; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__))); import pw_csp  # noqa: E401,F401  (v49.11: CSP-safe wait_for_function)
 
 HERE = os.path.dirname(os.path.abspath(__file__)); OUT = os.path.join(HERE, "screenshots"); os.makedirs(OUT, exist_ok=True)
 URL = os.environ.get("URL", "http://127.0.0.1:8211/")
@@ -67,7 +69,7 @@ def api():
 async def ui(p):
     print("\n== For You, WebKit 390×844")
     b = await p.webkit.launch(); dev = dict(p.devices["iPhone 13"]); dev.pop("default_browser_type", None); dev["viewport"] = {"width": 390, "height": 844}; dev["device_scale_factor"] = 1
-    ctx = await b.new_context(**dev); await ctx.add_init_script(INIT); pg = await ctx.new_page()
+    ctx = await b.new_context(**dev); await ctx.add_init_script(QUIET + INIT); pg = await ctx.new_page()
     await pg.goto(URL + "#cual-dieta")
     seen = []
     for visit in range(4):
@@ -84,7 +86,7 @@ async def ui(p):
         await pg.tap("#feed-close"); await pg.wait_for_function("!document.querySelector('#feed').open", timeout=5000); await pg.wait_for_timeout(400)
     await ctx.close()
     # a fresh phone: open the feed, let the first video start, then go to his first slide: it plays
-    ctx = await b.new_context(**dev); await ctx.add_init_script(INIT); pg = await ctx.new_page()
+    ctx = await b.new_context(**dev); await ctx.add_init_script(QUIET + INIT); pg = await ctx.new_page()
     await pg.goto(URL + "#cual-dieta")
     await pg.wait_for_function("() => window.__chisme && window.__chisme.foodReady && !document.querySelector('#foryou-card').hidden", timeout=120000)
     await pg.tap("#fy-start"); await pg.wait_for_function("document.querySelector('#feed').open", timeout=8000)

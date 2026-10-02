@@ -12,6 +12,7 @@ from pathlib import Path
 
 import httpx
 from playwright.async_api import async_playwright
+import os as _os, sys as _sys; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__))); import pw_csp  # noqa: E401,F401  (v49.11: CSP-safe wait_for_function)
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -122,9 +123,25 @@ def access():
     check(httpx.get(B + "/stats?key=wrong").status_code == 401 and httpx.get(B + "/stats", cookies={stats.COOKIE: TOKEN}).status_code == 401,
           "a wrong key, or the token itself as the cookie: 401")
     r = httpx.get(B + "/stats?key=" + TOKEN)
-    sc = r.headers.get("set-cookie", "")
+    check(r.status_code == 303 and r.headers.get("location") == "/stats?link=old" and "set-cookie" not in r.headers,
+          "v49.11: /stats?key= (an old admin link) never signs in: 303 that drops the key, no cookie")
+    g = httpx.get(B + "/stats?link=old"); check(g.status_code == 401 and "don&#x27;t sign in anymore" in g.text.replace("'", "&#x27;"), "…and the sign-in page says why")
+    r = httpx.post(B + "/stats/login", data={"key": TOKEN, "remember": "1"})
+    sc = r.headers.get("set-cookie", ""); sid = r.cookies.get(stats.COOKIE)
     check(r.status_code == 303 and r.headers.get("location") == "/stats" and "HttpOnly" in sc and "SameSite=strict" in sc.replace("Strict", "strict")
-          and "Path=/stats" in sc and TOKEN not in sc, f"?key= once: 303 to /stats (key out of the address bar), HttpOnly SameSite=Strict cookie that isn't the token")
+          and "Path=/stats" in sc and TOKEN not in sc and sid and len(sid) >= 40 and "Max-Age=2592000" in sc,
+          "the sign-in form: 303 to /stats, an HttpOnly SameSite=Strict random session cookie (not the token), 30 days")
+    r2 = httpx.post(B + "/stats/login", data={"key": TOKEN}); sid2 = r2.cookies.get(stats.COOKIE)
+    check(sid2 and sid2 != sid and "Max-Age" not in r2.headers.get("set-cookie", ""), "without 'Keep me signed in': a different session, a browser-session cookie (12 h on the server)")
+    ok = lambda v: httpx.get(B + "/stats", cookies={stats.COOKIE: v}).status_code
+    check(ok(sid) == 200 and ok(sid2) == 200 and ok(sid[:-2] + "xx") == 401 and ok(stats.session_value()) == 401,
+          "each session opens /stats; a changed id or the old fixed (v49.5) cookie doesn't")
+    httpx.post(B + "/stats/logout", cookies={stats.COOKIE: sid2})
+    check(ok(sid2) == 401 and ok(sid) == 200, "Sign out ends that session on the server (a copied cookie stops working), the other one stays")
+    sid3 = httpx.post(B + "/stats/login", data={"key": TOKEN, "remember": "1"}).cookies.get(stats.COOKIE)
+    r = httpx.post(B + "/stats/logout-all", cookies={stats.COOKIE: sid3}, headers={"Content-Type": "application/json"}, content="{}")
+    check(r.status_code == 200 and r.json().get("ok") and ok(sid) == 401 and ok(sid3) == 401, "Sign out everywhere: every session ends at once (this one too)")
+    check(httpx.post(B + "/stats/logout-all", headers={"Content-Type": "application/json"}, content="{}").status_code == 401, "…and nobody signed out can trigger it")
     r = httpx.post(B + "/api/stats", content=json.dumps({"d": "D" * 22, "e": [["open", "web"]]}), headers={"DNT": "1", "Content-Type": "text/plain"})
     check(r.status_code == 204, "DNT: 1 → 204 and nothing kept")
     check(httpx.post(B + "/api/stats", content=b"x" * 20000).status_code == 204 and httpx.post(B + "/api/stats", content=b"{nope").status_code == 204,
@@ -208,9 +225,9 @@ async def dashboard(p):
     await pg.wait_for_function("() => navigator.serviceWorker && navigator.serviceWorker.controller", timeout=30000)
     await pg.goto("http://127.0.0.1:8213/stats")
     check("Private page" in await pg.content() and not await pg.evaluate("!!window.__chisme"), "with the app's service worker running, /stats is the server's page (not the app)")
-    await pg.goto("http://127.0.0.1:8213/stats?key=" + TOKEN)
+    await pw_csp.admin_sign_in(pg, "http://127.0.0.1:8213", TOKEN, "")
     ck = [c for c in await ctx.cookies() if c["name"] == stats.COOKIE]
-    check(pg.url.endswith("/stats") and "key=" not in pg.url and ck and ck[0]["httpOnly"] and ck[0]["value"] != TOKEN, f"?key= once → /stats, cookie set ({pg.url})")
+    check(pg.url.endswith("/stats") and "key=" not in pg.url and ck and ck[0]["httpOnly"] and ck[0]["value"] != TOKEN, f"the sign-in form → /stats, session cookie set ({pg.url})")
     txt = await pg.inner_text("body")
     n = await pg.evaluate("[...document.querySelectorAll('#p1 .stat')].map(s => [s.querySelector('.l').textContent, s.querySelector('.n').textContent])")
     nd = dict(n)
@@ -226,7 +243,7 @@ async def dashboard(p):
     await pg.tap("#t7"); await pg.wait_for_timeout(200)
     vis = await pg.evaluate("[...document.querySelectorAll('[role=tabpanel]')].filter(x => x.offsetHeight > 0).map(x => x.id)")
     check(vis == ["p7"], f"7 days / 30 days switch: only that period's numbers show ({vis})")
-    await pg.goto("http://127.0.0.1:8214/stats?key=" + TOKEN)   # the sample-data server
+    await pw_csp.admin_sign_in(pg, "http://127.0.0.1:8214", TOKEN, "")   # the sample-data server
     await pg.wait_for_timeout(300)
     txt = await pg.inner_text("body")
     check("TEST DATA" in txt and "made-up sample numbers" in txt, "sample data: labeled 🧪 TEST DATA")

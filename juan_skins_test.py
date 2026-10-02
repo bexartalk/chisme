@@ -18,6 +18,7 @@ juan-juanby.png (Juanby dribbling in the game), dice-city-start.png + dice-city-
 Seeds the local server's file store (JUAN_SCORES_FILE), so run it against a local server only (CHISME_URL, default :8211)."""
 import asyncio, base64, json, os, random, sys, time
 from playwright.async_api import async_playwright
+import os as _os, sys as _sys; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__))); import pw_csp  # noqa: E401,F401  (v49.11: CSP-safe wait_for_function)
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 from popup_quiet import QUIET
 BASE = os.environ.get("CHISME_URL", "http://localhost:8211")

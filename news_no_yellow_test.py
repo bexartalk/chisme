@@ -11,6 +11,7 @@ the game art itself may use yellow, e.g. the beer and the taco). WebKit, iPhone 
 Screenshots, light | dark side by side: no-yellow-news.png, no-yellow-loteria.png, no-yellow-juan.png."""
 import asyncio, io, os, sys
 from playwright.async_api import async_playwright
+import os as _os, sys as _sys; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__))); import pw_csp  # noqa: E401,F401  (v49.11: CSP-safe wait_for_function)
 from PIL import Image
 
 HERE = os.path.dirname(os.path.abspath(__file__)); OUT = os.path.join(HERE, "screenshots"); BASE = os.environ.get("BASE", "http://localhost:8211")

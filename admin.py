@@ -4,7 +4,7 @@ Top to bottom: a sticky header (‹ App, ↻, Sign out) → "Send a notification
 live lock-screen preview, a confirm sheet, a toast with the result) → "Auto-alerts for big news" (one big switch, a
 plain-English status line, Run a check now) → "At a glance" cards (today, this week, subscribers, installed) and the
 week's top stories → everything else folded into <details> (all the numbers, the chart, tabs/games/cities, the logs,
-technical details). Sign-in is a simple form (login_page) that remembers the phone for 400 days; the old
+technical details). Sign-in is a simple form (login_page) that remembers the phone for 30 days (v49.11: a revocable session, Sign out everywhere in Technical details); the old
 /stats?key=… link still works. Fiesta palette (turquoise, pink, orange, black, silver), no yellow.
 The data comes from stats.py (anonymous counts) and autopush.admin_info (push); this module only renders."""
 from __future__ import annotations
@@ -309,7 +309,7 @@ def _scores(scores: list | None, now: float) -> str:
             '<div class="two"><button type="button" class="big" id="hs-no">Cancel</button><button type="button" class="big go" id="hs-yes">Yes, clear it</button></div></div></dialog>')
 
 
-def page(r: dict, store_name: str, info: dict | None = None, now: float | None = None, info_error: str = "", extra: str = "", scores: list | None = None, refresh: dict | None = None) -> str:
+def page(r: dict, store_name: str, info: dict | None = None, now: float | None = None, info_error: str = "", extra: str = "", scores: list | None = None, refresh: dict | None = None, nonce: str = "") -> str:
     now = now or time.time()
     days = stats.last_days(30, stats.day_of(now))
     S = stats.summarize(r, days)
@@ -433,7 +433,10 @@ def page(r: dict, store_name: str, info: dict | None = None, now: float | None =
             f'<dt>Outside timer</dt><dd>{"PUSH_TICK_SECRET set: a cron can call /api/push/tick" if i.get("secret") else "not set: checks only run when someone opens the app"}</dd>'
             f'<dt>Last check (raw)</dt><dd><code>{e(str((last or {}).get("result") or "—"))}</code></dd></dl>'
             '<p class="sub">The free server sleeps when nobody visits, so automatic checks can be late until the next visit (or the outside timer). '
-            'Signing out only signs out this phone; changing ADMIN_TOKEN on Render signs out every device.</p>')
+            'Signing out only signs out this phone. A sign-in lasts 30 days (12 hours without "Keep me signed in").</p>'
+            '<button type="button" class="big" id="out-all"><span aria-hidden="true">🚪</span> Sign out everywhere</button>'
+            '<p class="sub">Ends every admin sign-in on every phone and computer, this one too (use it if a phone was lost or shared). '
+            'Then sign in again with the key.</p>')
     folds = "".join([
         _fold("📈 All the numbers", f'<div class="seg" role="tablist" aria-label="Period">{tab_btns}</div>{panels}', "f-all", "today · 7 · 30 days"),
         _fold("📅 Visitors per day", _chart(r, days), "f-chart", "30 days"),
@@ -455,12 +458,19 @@ def page(r: dict, store_name: str, info: dict | None = None, now: float | None =
             f'<h2 class="sec">More</h2>{folds}'
             '<footer>Chisme counts anonymous visits: no names, no IPs, no ads, no third parties. Visitors are counted from a random ID on each phone, hashed on the server and never stored as-is.</footer>'
             '</main><div class="toast" id="toast" role="status" aria-live="polite"></div>')
-    return (HEAD.replace("%%TITLE%%", "Chisme Admin") + body + "<script>" + SCRIPT.replace("%%TPL%%", tpl_js).replace("%%WHERE%%", where_js)
-            .replace("%%N%%", str(n_news)) + "</script><script>" + SCORES_JS + "</script><script>" + REFRESH_JS + "</script></body></html>")
+    sc = f'<script nonce="{e(nonce)}">' if nonce else "<script>"
+    return (HEAD.replace("%%TITLE%%", "Chisme Admin") + body + sc + SCRIPT.replace("%%TPL%%", tpl_js).replace("%%WHERE%%", where_js)
+            .replace("%%N%%", str(n_news)) + "</script>" + sc + SCORES_JS + "</script>" + sc + REFRESH_JS + "</script></body></html>")
 
 
 
 REFRESH_JS = r"""(function(){
+var oa=document.getElementById('out-all');if(oa)oa.onclick=function(){if(!confirm('Sign out everywhere? Every phone and computer signed in to Chisme Admin (this one too) will need the key again.'))return;
+  oa.disabled=true;fetch('/stats/logout-all',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:'{}'})
+  .then(function(r){return r.json().catch(function(){return {ok:false}})}).then(function(j){if(j.ok)location.href='/stats';else{oa.disabled=false;alert('Couldn\'t sign out everywhere: '+(j.error||'try again'))}})
+  .catch(function(){oa.disabled=false;alert('No connection. Try again.')})};
+})();
+(function(){
 var $=function(id){return document.getElementById(id)},go=$('rf-go'),dlg=$('rf-confirm'),res=$('rf-res');if(!go)return;
 function toast(m,bad){var t=$('toast');t.textContent=m;t.className='toast show'+(bad?' bad':'');setTimeout(function(){t.className='toast'},bad?7000:4500)}
 go.onclick=function(){$('toast').className='toast';if(dlg.showModal)dlg.showModal();else if(confirm('Refresh everyone\'s Chisme?'))push()};
@@ -540,7 +550,7 @@ upd();
 })();"""
 
 
-def login_page(error: str = "", status: int = 401) -> str:
+def login_page(error: str = "", status: int = 401, nonce: str = "") -> str:
     err = f'<p class="err" role="alert">{e(error)}</p>' if error else ""
     return (HEAD.replace("%%TITLE%%", "Chisme Admin · Sign in") + header("Private page", signed_in=False) +
             f"""<main class="login"><section class="card"><h2>Sign in</h2>
@@ -550,10 +560,10 @@ def login_page(error: str = "", status: int = 401) -> str:
 <label class="f" for="key">Admin key</label>
 <div class="row"><input class="inp" type="password" id="key" name="key" autocomplete="current-password" autocapitalize="off" autocorrect="off" spellcheck="false" required enterkeyhint="go">
 <button type="button" class="chip" id="show" aria-pressed="false" aria-controls="key">Show</button></div>
-<label class="chk"><input type="checkbox" name="remember" value="1" checked> Keep me signed in on this phone</label>
+<label class="chk"><input type="checkbox" name="remember" value="1" checked> Keep me signed in on this phone (30 days)</label>
 {err}<button type="submit" class="big go" id="login-go">Sign in</button></form>
 <p class="sub" style="margin-top:14px">Your admin key is the <code>ADMIN_TOKEN</code> value in Render → chisme → Environment. Your phone can save it as a password.</p></section></main>
-<script>(function(){{var k=document.getElementById('key'),s=document.getElementById('show');s.onclick=function(){{var v=k.type==='password';k.type=v?'text':'password';s.textContent=v?'Hide':'Show';s.setAttribute('aria-pressed',v)}};k.focus()}})();</script></body></html>""")
+<script{f' nonce="{e(nonce)}"' if nonce else ''}>(function(){{var k=document.getElementById('key'),s=document.getElementById('show');s.onclick=function(){{var v=k.type==='password';k.type=v?'text':'password';s.textContent=v?'Hide':'Show';s.setAttribute('aria-pressed',v)}};k.focus()}})();</script></body></html>""")
 
 
 def manifest() -> dict:

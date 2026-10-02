@@ -6,9 +6,11 @@ v34: never next to a serious story (crime, death, crashes, fires, missing, urgen
 neighbors, else the end of the tab just above the bottom donate card.
 Screenshots: donate-every-tab.png (the bottom of all 6 tabs), donate-midfeed.png (News, mid-list card),
 donate-lines.png (4 opens, 4 different lines)."""
+from popup_quiet import QUIET   # v49: the notifications card + Settings tip have their own tests
 import asyncio, io, json, os, re, subprocess
 from PIL import Image, ImageDraw, ImageFont
 from playwright.async_api import async_playwright
+import os as _os, sys as _sys; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__))); import pw_csp  # noqa: E401,F401  (v49.11: CSP-safe wait_for_function)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 BASE = os.environ.get("CHISME_URL", "http://localhost:8211")
@@ -102,7 +104,7 @@ async def main():
         check(ex in LINES, f"example line in the set: {ex!r}")
     async with async_playwright() as p:
         b = await p.webkit.launch(); dev = dict(p.devices["iPhone 13"]); dev.pop("default_browser_type", None)
-        ctx = await b.new_context(**dev); await ctx.add_init_script(INIT)
+        ctx = await b.new_context(**dev); await ctx.add_init_script(QUIET + INIT)
         pg = await ctx.new_page(); errs = []
         pg.on("pageerror", lambda e: errs.append(str(e)[:160]))
         await pg.goto(BASE + "/"); await ready(pg)
@@ -165,7 +167,7 @@ async def main():
 
         await ctx.close()
         print("\n== the mid-list card: every 5th open, a different line each time")
-        ctx = await b.new_context(**dev); await ctx.add_init_script(INIT); await ctx.add_init_script(OPENS_INIT)
+        ctx = await b.new_context(**dev); await ctx.add_init_script(QUIET + INIT); await ctx.add_init_script(OPENS_INIT)
         pg = await ctx.new_page(); pg.on("pageerror", lambda e: errs.append(str(e)[:160]))
         seen = []
         for n in range(1, 5):
@@ -224,7 +226,7 @@ async def main():
                                                 ((4, 5), False, 7, "5th & 6th serious → the nearest light pair: after the 7th"),
                                                 ((3, 4, 5, 6), False, 8, "4th–7th serious → after the 2nd and after the 8th are equally near; the tie goes later: the 8th"),
                                                 ((), True, 0, "every story serious → the end, just above the bottom donate card")]:
-            c2 = await b.new_context(**dev, service_workers="block"); await c2.add_init_script(INIT); await c2.add_init_script(OPENS_INIT)
+            c2 = await b.new_context(**dev, service_workers="block"); await c2.add_init_script(QUIET + INIT); await c2.add_init_script(OPENS_INIT)
             await news_route(c2, near_titles(heavy_at, all_heavy))
             p2 = await c2.new_page(); p2.on("pageerror", lambda e: errs.append(str(e)[:160]))
             await p2.goto(BASE + "/?t_opens=4"); await ready(p2)
@@ -242,7 +244,7 @@ async def main():
             await c2.close()
 
         # a 5th open that starts on Events → the card goes in the Events list
-        ctx = await b.new_context(**dev); await ctx.add_init_script(INIT); await ctx.add_init_script(OPENS_INIT); await ctx.add_init_script("localStorage.setItem('chisme-default-tab', 'events')")
+        ctx = await b.new_context(**dev); await ctx.add_init_script(QUIET + INIT); await ctx.add_init_script(OPENS_INIT); await ctx.add_init_script("localStorage.setItem('chisme-default-tab', 'events')")
         pg = await ctx.new_page(); pg.on("pageerror", lambda e: errs.append(str(e)[:160]))
         await pg.goto(BASE + "/?t_opens=4"); await ready(pg, "#events-list .ev")
         m = await pg.evaluate(MIDINFO)
@@ -251,7 +253,7 @@ async def main():
         check(await pg.evaluate("!document.querySelector('#view-news #donate-mid')"), "…and not in News after switching")
         await ctx.close()
         # a 5th open on Weather (#weather) → between the radar and the forecast
-        ctx = await b.new_context(**dev); await ctx.add_init_script(INIT); await ctx.add_init_script(OPENS_INIT); pg = await ctx.new_page(); pg.on("pageerror", lambda e: errs.append(str(e)[:160]))
+        ctx = await b.new_context(**dev); await ctx.add_init_script(QUIET + INIT); await ctx.add_init_script(OPENS_INIT); pg = await ctx.new_page(); pg.on("pageerror", lambda e: errs.append(str(e)[:160]))
         await pg.goto(BASE + "/?t_opens=4#weather"); await ready(pg)
         where = await pg.evaluate("(() => { const c = document.getElementById('donate-mid'); return c && [c.previousElementSibling.id, c.nextElementSibling.id]; })()")
         check(where == ["radar-sec", "forecast-sec"], f"a 5th open on Weather: between the radar and the 7-day forecast ({where})")

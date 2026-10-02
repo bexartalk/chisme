@@ -8,6 +8,7 @@ Screenshots: screenshots/admin-refresh.png, screenshots/refresh-toast.png.
 OWNER_URL (default :8212) = a local server started with ADMIN_TOKEN=$OWNER_TOKEN (its own PUSH_STORE_FILE)."""
 import asyncio, json, os, sys
 from playwright.async_api import async_playwright
+import os as _os, sys as _sys; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__))); import pw_csp  # noqa: E401,F401  (v49.11: CSP-safe wait_for_function)
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 from popup_quiet import QUIET
 URL = os.environ.get("OWNER_URL", "http://localhost:8212")
@@ -48,7 +49,7 @@ async def main():
 
         print("== the owner's /stats card")
         own = await ctx_of(b, p); ap = await own.new_page()
-        await ap.goto(f"{URL}/stats?key={TOKEN}"); await ap.wait_for_selector("#rf-go", timeout=30000)
+        await pw_csp.admin_sign_in(ap, URL, TOKEN, "#rf-go")
         rr = await own.request.post(URL + "/stats/refresh", headers={"Content-Type": "text/plain"}, data="{}")
         check(rr.status == 401 and await token(anon) == t0, f"signed in but not a JSON post (a cross-site form) → {rr.status}")
         lp = (await ap.text_content("#rf-last")).strip()

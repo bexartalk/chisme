@@ -4,8 +4,10 @@ outside the app, never in the in-app reader), a Share Chisme button (navigator.s
 https://chisme.onrender.com/; without it the link is copied and a "Link copied!" toast shows), the X hides them for the
 session, never next to a serious story, no yellow. WebKit iPhone 13.
 Screenshots: donate-news.png, donate-events.png, donate-food.png."""
+from popup_quiet import QUIET   # v49: the notifications card + Settings tip have their own tests
 import asyncio, colorsys, os, re
 from playwright.async_api import async_playwright
+import os as _os, sys as _sys; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__))); import pw_csp  # noqa: E401,F401  (v49.11: CSP-safe wait_for_function)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 BASE = os.environ.get("CHISME_URL", "http://localhost:8211")
@@ -40,7 +42,7 @@ GO = "(i) => { const s = document.querySelector('#feed-scroll'); s.scrollTo({ to
 async def main():
     async with async_playwright() as p:
         b = await p.webkit.launch(); dev = dict(p.devices["iPhone 13"]); dev.pop("default_browser_type", None)
-        ctx = await b.new_context(**dev, service_workers="block"); await ctx.add_init_script(INIT); await ctx.add_init_script(FAKE)
+        ctx = await b.new_context(**dev, service_workers="block"); await ctx.add_init_script(QUIET + INIT); await ctx.add_init_script(FAKE)
         await ctx.route(re.compile(r"https://(cash\.app|buymeacoffee\.com)/.*"), lambda r: r.fulfill(status=200, content_type="text/html", body="<p>donate page</p>"))
         pg = await ctx.new_page(); errs = []; pg.on("pageerror", lambda e: errs.append(str(e)))
         await pg.goto(BASE + "/"); await pg.wait_for_function("window.__chisme && __chisme.ready && __chisme.newsReady", timeout=120000); await pg.wait_for_timeout(800)
@@ -113,7 +115,7 @@ async def main():
         await pg.keyboard.press("Escape"); await pg.wait_for_timeout(400)
         await pg.reload(); await pg.wait_for_function("window.__chisme && __chisme.ready && __chisme.newsReady", timeout=120000); await pg.wait_for_timeout(800)
         check(await pg.evaluate("document.querySelectorAll('.donate-every').length") == 0, "...still hidden after a reload in the same session")
-        c2 = await b.new_context(**dev, service_workers="block"); await c2.add_init_script(INIT); pg2 = await c2.new_page()
+        c2 = await b.new_context(**dev, service_workers="block"); await c2.add_init_script(QUIET + INIT); pg2 = await c2.new_page()
         await pg2.goto(BASE + "/"); await pg2.wait_for_function("window.__chisme && __chisme.ready && __chisme.newsReady", timeout=120000); await pg2.wait_for_timeout(800)
         check(await pg2.evaluate("document.querySelectorAll('#view-news .donate-every').length") >= 1, "...and back in a new session")
         check(not errs, f"no page errors ({errs[:2]})")

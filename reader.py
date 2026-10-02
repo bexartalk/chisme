@@ -11,6 +11,7 @@ GET /api/reader?url=...  ->  {url, final_url, host, frame, why, title, descripti
 """
 import asyncio, html, ipaddress, re, socket, time, urllib.parse
 
+import httpcore
 import httpx
 
 MAX_BYTES = 512 * 1024
@@ -23,17 +24,62 @@ class Blocked(Exception):
     pass
 
 
-async def _public(host: str) -> None:
+async def _public(host: str) -> str:
+    """Every address the name resolves to must be public; returns the first one (the one we then connect to)."""
+    host = (host or "").strip("[]").rstrip(".").lower()
     if not host or host == "localhost" or host.endswith((".local", ".internal", ".localhost")):
         raise Blocked("private host")
     try:
         infos = await asyncio.get_running_loop().getaddrinfo(host, None, type=socket.SOCK_STREAM)
     except socket.gaierror:
         raise Blocked("unknown host")
+    ips = []
     for info in infos:
-        ip = ipaddress.ip_address(info[4][0])
+        ip = ipaddress.ip_address(info[4][0].split("%")[0])
         if not ip.is_global or ip.is_multicast:
             raise Blocked("private address")
+        ips.append(str(ip))
+    if not ips:
+        raise Blocked("unknown host")
+    return ips[0]
+
+
+class _PinnedBackend(httpcore.AsyncNetworkBackend):
+    """v49.11: closes the DNS-rebinding gap. The connection goes to the very address _public() just checked (one
+    lookup, then connect to that IP), never to a second lookup that could answer 127.0.0.1. TLS still checks the real
+    hostname (httpcore passes it as the SNI / certificate name), so https stays verified."""
+    def __init__(self):
+        self._real = httpcore.AnyIOBackend()
+
+    async def connect_tcp(self, host, port, timeout=None, local_address=None, socket_options=None):
+        ip = await _public(host)
+        return await self._real.connect_tcp(ip, port, timeout=timeout, local_address=local_address, socket_options=socket_options)
+
+    async def connect_unix_socket(self, path, timeout=None, socket_options=None):
+        raise Blocked("not a web link")
+
+    async def sleep(self, seconds):
+        await self._real.sleep(seconds)
+
+
+class _PinnedTransport(httpx.AsyncHTTPTransport):
+    def __init__(self):
+        super().__init__(trust_env=False)   # no proxy from the environment: we connect straight to the checked address
+        self._pool = httpcore.AsyncConnectionPool(ssl_context=httpx.create_ssl_context(), max_connections=20,
+                                                  max_keepalive_connections=5, keepalive_expiry=5.0, http1=True, http2=False,
+                                                  network_backend=_PinnedBackend())
+
+
+_safe: httpx.AsyncClient | None = None
+
+
+def safe_client(ua: str = "Mozilla/5.0 (compatible; Chisme)") -> httpx.AsyncClient:
+    """The reader's own client: public addresses only, pinned per connection (see _PinnedBackend)."""
+    global _safe
+    if _safe is None:
+        _safe = httpx.AsyncClient(transport=_PinnedTransport(), headers={"User-Agent": ua}, timeout=httpx.Timeout(8.0),
+                                  follow_redirects=False, trust_env=False)
+    return _safe
 
 
 def _check_url(url: str) -> urllib.parse.SplitResult:

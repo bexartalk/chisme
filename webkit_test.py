@@ -10,6 +10,7 @@ Writes screenshots/location-first-run.png, home-no-location.png, sports-fixed.pn
 """
 import asyncio, json, os, sys
 from playwright.async_api import async_playwright
+import os as _os, sys as _sys; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__))); import pw_csp  # noqa: E401,F401  (v49.11: CSP-safe wait_for_function)
 from popup_quiet import QUIET   # v49: the notifications card + Settings tip have their own tests
 
 URL = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8211/"

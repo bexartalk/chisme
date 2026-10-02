@@ -5,8 +5,10 @@ It reads "💸 Donate on Cash App · $Slurmkaos" on one line when the button is 
 Checked at 390×844 and 320×640 (WebKit iPhone) and 1280×900 (Chromium desktop): the text never overflows the button,
 the button stays 48+ px tall, black on Cash App green, and it still opens https://cash.app/$Slurmkaos outside the app.
 Screenshot: donate-cashapp-btn.png (the News donate card at 390×844)."""
+from popup_quiet import QUIET   # v49: the notifications card + Settings tip have their own tests
 import asyncio, os, re
 from playwright.async_api import async_playwright
+import os as _os, sys as _sys; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__))); import pw_csp  # noqa: E401,F401  (v49.11: CSP-safe wait_for_function)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 BASE = os.environ.get("CHISME_URL", "http://localhost:8211")
@@ -76,12 +78,12 @@ async def main():
         b = await p.webkit.launch(); dev = dict(p.devices["iPhone 13"]); dev.pop("default_browser_type", None)
         for vw, vh, shot in ((390, 844, "donate-cashapp-btn.png"), (320, 640, "donate-cashapp-btn-320.png")):
             d = dict(dev); d["viewport"] = {"width": vw, "height": vh}
-            ctx = await b.new_context(**d, service_workers="block"); await ctx.add_init_script(INIT); pg = await ctx.new_page()
+            ctx = await b.new_context(**d, service_workers="block"); await ctx.add_init_script(QUIET + INIT); pg = await ctx.new_page()
             bs = await run(pg, f"WebKit iPhone {vw}×{vh}", vw, shot)
             if vw == 320: check(all(x["line"] == 2 for x in bs), f"320px: it doesn't fit on one line there, so $Slurmkaos is on a 2nd line inside every button ({sorted({x['w'] for x in bs})} px wide)")
             await ctx.close()
         await b.close()
-        b = await p.chromium.launch(); ctx = await b.new_context(viewport={"width": 1280, "height": 900}, service_workers="block"); await ctx.add_init_script(INIT); pg = await ctx.new_page()
+        b = await p.chromium.launch(); ctx = await b.new_context(viewport={"width": 1280, "height": 900}, service_workers="block"); await ctx.add_init_script(QUIET + INIT); pg = await ctx.new_page()
         bs = await run(pg, "Chromium desktop 1280×900", 1280)
         await b.close()
     print("\nALL PASS" if not fails else f"\n{fails} FAILED"); raise SystemExit(1 if fails else 0)

@@ -20,6 +20,7 @@ import httpx
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from playwright.async_api import async_playwright
+import os as _os, sys as _sys; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__))); import pw_csp  # noqa: E401,F401  (v49.11: CSP-safe wait_for_function)
 
 BASE = os.environ.get("CHISME_URL", "http://localhost:8275")
 env = dict(os.environ)
@@ -106,8 +107,8 @@ async def main():
         ck = {c["name"]: c for c in await ctx.cookies()}
         sess, mark = ck.get("chisme_stats"), ck.get("chisme_admin")
         import time as _t
-        check(bool(sess) and sess["httpOnly"] and sess["value"] != TOKEN and sess["path"] == "/stats" and sess["expires"] > _t.time() + 360 * 86400,
-              f"signed in: HttpOnly session cookie (path /stats, not the token) kept a year or more (400 days asked; the browser may cap it) ({round((sess['expires'] - _t.time()) / 86400) if sess else '-'} d)")
+        check(bool(sess) and sess["httpOnly"] and sess["value"] != TOKEN and sess["path"] == "/stats" and 29 * 86400 < sess["expires"] - _t.time() <= 30 * 86400 + 60,
+              f"signed in: HttpOnly session cookie (path /stats, not the token) v49.11: a revocable 30-day session ({round((sess['expires'] - _t.time()) / 86400) if sess else '-'} d)")
         check(bool(mark) and mark["value"] == "1" and mark["path"] == "/" and not mark["httpOnly"], "…plus the chisme_admin=1 marker the app can see (nothing secret)")
         check(pg.url.rstrip("/").endswith("/stats") and "key" not in pg.url, f"back on /stats, no key in the address ({pg.url})")
         # reset the switch to off through the page's own API

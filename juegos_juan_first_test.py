@@ -4,6 +4,7 @@ Juan, then Lotería; #juan-that-got-away (and #juan) still open Juan, #loteria s
 list still works, and Juan → Lotería → Juan → ▶ Start shows one full-screen bar (the first Juan's click handler is removed). Screenshot: juegos-juan-first.png (Juegitos as it opens, 390×844)."""
 import asyncio, os
 from playwright.async_api import async_playwright
+import os as _os, sys as _sys; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__))); import pw_csp  # noqa: E401,F401  (v49.11: CSP-safe wait_for_function)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 BASE = os.environ.get("CHISME_URL", "http://localhost:8211")

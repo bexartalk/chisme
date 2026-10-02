@@ -1528,3 +1528,5 @@ dialog.tia-menu::after{bottom:-15px;right:18px;border-width:15px 11px 0;border-c
 .reduce-motion dialog.tia-menu[open]{animation:none}
 @media (prefers-reduced-motion:reduce){ dialog.tia-menu[open]{animation:none} }
 @media (max-width:360px){ .tm-big{font-size:1.28rem} .tm-sub{font-size:.92rem} .tia-menu-hi{font-size:1.02rem} .tia-menu-emblem{width:62px;height:48px} }
+/* v49.11: the map's + / − were 30×30 px (Leaflet's touch size); 44×44 like every other control */
+.leaflet-touch .leaflet-bar a { width: 44px; height: 44px; line-height: 44px; font-size: 24px; }

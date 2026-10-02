@@ -20,6 +20,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 import httpx
 from playwright.async_api import async_playwright
+import os as _os, sys as _sys; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__))); import pw_csp  # noqa: E401,F401  (v49.11: CSP-safe wait_for_function)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 BASE = os.environ.get("CHISME_URL", "http://localhost:8211"); URL = BASE + "/"
@@ -125,7 +126,7 @@ async def chromium_part(p):
     # 5. the owner's send box on /stats → a real push through FCM
     adm = await ctx.new_page(); adm.on("pageerror", lambda e: errs.append("stats: " + str(e)[:160]))
     await adm.set_viewport_size({"width": 430, "height": 932})
-    await adm.goto(BASE + "/stats?key=" + urllib.parse.quote(env["ADMIN_TOKEN"]))
+    await pw_csp.admin_sign_in(adm, BASE, env["ADMIN_TOKEN"], "")
     info = await adm.evaluate("({ count: document.querySelector('#push-count b').textContent, msg: document.querySelector('#pf-msg').value, url: location.href })")
     check(info["count"] == "1" and info["msg"] == "¡Órale, new chisme! 👀" and "key=" not in info["url"], f"/stats: {info['count']} subscriber, default message '{info['msg']}', key dropped from the address")
     await adm.fill("#pf-title", "Chisme"); await adm.select_option("#pf-where", "link"); await adm.fill("#pf-link", "https://www.ksat.com/news/local/")

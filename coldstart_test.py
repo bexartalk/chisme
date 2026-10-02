@@ -12,6 +12,7 @@ from starlette.applications import Starlette
 from starlette.responses import Response
 from starlette.routing import Route
 from playwright.sync_api import sync_playwright
+import os as _os, sys as _sys; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__))); import pw_csp  # noqa: E401,F401  (v49.11: CSP-safe wait_for_function)
 
 UP = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8211"
 PORT = 8213

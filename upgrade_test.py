@@ -7,6 +7,7 @@ Also checks the next deploy (current build -> build+1 with the app open): the pa
 """
 import asyncio, json, os, re, shutil, subprocess, sys, tempfile, time, urllib.request
 from playwright.async_api import async_playwright
+import os as _os, sys as _sys; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__))); import pw_csp  # noqa: E401,F401  (v49.11: CSP-safe wait_for_function)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PY = os.path.join(HERE, "venv", "bin", "python")

@@ -217,6 +217,11 @@ sid_of = lambda endpoint: hashlib.sha256(endpoint.encode()).hexdigest()[:32]
 story_id = lambda link: hashlib.sha1((link or "").encode()).hexdigest()[:14]
 
 
+# Chrome/Android/Samsung (FCM), Safari (Apple), Firefox (Mozilla), Edge (Windows), Opera/others ride on FCM too
+PUSH_HOSTS = re.compile(r"^(fcm\.googleapis\.com|android\.googleapis\.com|([a-z0-9-]+\.)*push\.apple\.com|"
+                        r"([a-z0-9-]+\.)*push\.services\.mozilla\.com|([a-z0-9-]+\.)*notify\.windows\.com)$", re.I)
+
+
 def clean_sub(s) -> dict | None:
     """A browser PushSubscription.toJSON(), checked: https endpoint, the two keys, sane sizes."""
     if not isinstance(s, dict):
@@ -225,6 +230,8 @@ def clean_sub(s) -> dict | None:
     local_ok = conf()["test"] and isinstance(ep, str) and ep.startswith("http://localhost")
     if not isinstance(ep, str) or len(ep) > 1200 or not (ep.startswith("https://") or local_ok):
         return None
+    if not conf()["test"] and not PUSH_HOSTS.search(urllib.parse.urlsplit(ep).hostname or ""):
+        return None   # v49.11: only the real browser push services (we POST to this address, so never anywhere else)
     p, a = keys.get("p256dh"), keys.get("auth")
     if not (isinstance(p, str) and isinstance(a, str) and 40 <= len(p) <= 200 and 10 <= len(a) <= 64):
         return None

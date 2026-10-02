@@ -12,6 +12,7 @@ Screenshots: inapp-reader-framed.png, inapp-reader-card.png (+ inapp-map-sheet.p
 import asyncio, io, json, os, urllib.parse, urllib.request
 from PIL import Image
 from playwright.async_api import async_playwright
+import os as _os, sys as _sys; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__))); import pw_csp  # noqa: E401,F401  (v49.11: CSP-safe wait_for_function)
 
 BASE = os.environ.get("CHISME_URL", "http://localhost:8211")
 URL = BASE + "/"

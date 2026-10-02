@@ -8,6 +8,7 @@ Screenshot: screenshots/start-over.png (Paused: ▶ Resume, 🔄 Start over, �
 BASE (default :8211) for the game; OWNER_URL (default :8212) = a local server started with ADMIN_TOKEN=$OWNER_TOKEN."""
 import asyncio, os, sys
 from playwright.async_api import async_playwright
+import os as _os, sys as _sys; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__))); import pw_csp  # noqa: E401,F401  (v49.11: CSP-safe wait_for_function)
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 from popup_quiet import QUIET
 BASE = os.environ.get("CHISME_URL", "http://localhost:8211")
@@ -74,7 +75,7 @@ async def main():
             await ctx.add_cookies([{"name": "chisme_admin", "value": "1", "url": OWNER_URL}]); await pg.reload()
             await pg.wait_for_function(G + " && " + G + ".skins", timeout=120000); await pg.wait_for_timeout(1500)
             check(not await pg.evaluate(G + ".skins.unlocked") and not await pg.evaluate(G + ".skins.owner"), "a forged chisme_admin=1 cookie alone: still locked (the server says no)")
-            await pg.goto(f"{OWNER_URL}/stats?key={TOKEN}"); await pg.wait_for_selector("#f-scores", timeout=30000)
+            await pw_csp.admin_sign_in(pg, OWNER_URL, TOKEN)
             await pg.goto(OWNER_URL + "/#juan"); await pg.wait_for_function(G + " && " + G + ".skins && " + G + ".skins.owner", timeout=30000)
             await pg.evaluate("() => { const t = document.querySelector('#game-stage'); window.scrollTo(0, t.getBoundingClientRect().top + scrollY - 60); }"); await pg.wait_for_timeout(400)
             txt = await pg.text_content("#juan-ov [data-act=skins]")

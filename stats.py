@@ -301,7 +301,76 @@ def key_ok(key: str | None) -> bool:
 
 
 def cookie_ok(val: str | None) -> bool:
-    return bool(admin_token()) and bool(val) and hmac.compare_digest(val.encode(), session_value().encode())
+    """(v49.5 fixed cookie: no longer accepted since v49.11; kept for the tests that check it's refused.)"""
+    return False
+
+
+# ---------------------------------------------------------------- v49.11: revocable admin sessions
+# Signing in makes a random session id (the cookie); the store (Upstash via push.store(), so it survives redeploys)
+# keeps only its SHA-256, with an expiry (30 days with "keep me signed in", else 12 hours). Each session also carries
+# the current "epoch" (Sign out everywhere bumps it, so every session ends at once) and a tag of ADMIN_TOKEN (changing
+# the token on Render still signs out every device). A copied cookie can be revoked without touching the token.
+SESSION_DAYS = 30
+SESSION_SHORT = 12 * 3600
+EPOCH_KEY = "chisme:adm:epoch"
+_sess_ok: dict[str, float] = {}   # verified session hash → until when (a 60 s memo; cleared on any sign-out)
+
+
+def _sess_key(sid: str) -> str:
+    return "chisme:adm:sess:" + hashlib.sha256(sid.encode()).hexdigest()[:40]
+
+
+def _tok_tag() -> str:
+    return hmac.new(admin_token().encode(), b"chisme-stats-session-v2", hashlib.sha256).hexdigest()[:24]
+
+
+def _kv():
+    import push   # (late: push imports stats)
+    return push.store()
+
+
+async def _epoch() -> int:
+    return int(await _kv().kv_get(EPOCH_KEY) or 0)
+
+
+async def new_session(remember: bool = True) -> tuple[str, int]:
+    sid, ttl = secrets.token_urlsafe(32), SESSION_DAYS * 86400 if remember else SESSION_SHORT
+    await _kv().kv_set(_sess_key(sid), {"e": await _epoch(), "k": _tok_tag(), "t": int(time.time())}, ex=ttl)
+    return sid, ttl
+
+
+async def session_ok(sid: str | None) -> bool:
+    if not admin_token() or not sid or len(sid) > 128:
+        return False
+    k, now = _sess_key(sid), time.time()
+    if _sess_ok.get(k, 0) > now:
+        return True
+    try:
+        rec, ep = await _kv().kv_get(k), await _epoch()
+    except Exception as ex:
+        print("admin session storage:", type(ex).__name__)
+        return False
+    ok = isinstance(rec, dict) and hmac.compare_digest(str(rec.get("k") or ""), _tok_tag()) and int(rec.get("e", -1)) == ep
+    if ok:
+        if len(_sess_ok) > 200:
+            _sess_ok.clear()
+        _sess_ok[k] = now + 60
+    return ok
+
+
+async def end_session(sid: str | None) -> None:
+    if sid and len(sid) <= 128:
+        _sess_ok.pop(_sess_key(sid), None)
+        try:
+            await _kv().kv_set(_sess_key(sid), None, ex=1)
+        except Exception:
+            pass
+
+
+async def end_all_sessions() -> int:
+    """Sign out everywhere: every session made before now stops working (this one too)."""
+    _sess_ok.clear()
+    return int(await _kv().kv_incr(EPOCH_KEY))
 
 
 # ---------------------------------------------------------------- the dashboard
@@ -321,13 +390,13 @@ def _top(c: dict, prefix: str, n: int = 8) -> list[tuple[str, int]]:
     return sorted(((k[len(prefix):], v) for k, v in c.items() if k.startswith(prefix)), key=lambda x: (-x[1], x[0]))[:n]
 
 
-def page(r: dict, store_name: str, now: float | None = None, extra: str = "", info: dict | None = None, info_error: str = "", scores: list | None = None, refresh: dict | None = None) -> str:
+def page(r: dict, store_name: str, now: float | None = None, extra: str = "", info: dict | None = None, info_error: str = "", scores: list | None = None, refresh: dict | None = None, nonce: str = "") -> str:
     """The dashboard (v49.5: rendered by admin.py, phone-first). `info`: autopush.admin_info() for the push cards."""
     import admin
-    return admin.page(r, store_name, info=info, now=now, info_error=info_error, extra=extra, scores=scores, refresh=refresh)
+    return admin.page(r, store_name, info=info, now=now, info_error=info_error, extra=extra, scores=scores, refresh=refresh, nonce=nonce)
 
 
-def gate_page(error: str = "") -> str:
+def gate_page(error: str = "", nonce: str = "") -> str:
     """v49.5: a simple sign-in form (admin.login_page) instead of 'open the link with ?key='."""
     import admin
-    return admin.login_page(error)
+    return admin.login_page(error, nonce=nonce)

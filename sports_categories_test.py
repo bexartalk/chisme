@@ -9,6 +9,7 @@ still render, the pick is remembered across reloads, #cowboys / #nba deep links,
 Screenshots (light, iPhone 13 width, 390×1700 so each shows the chips and the top of the page): sports-spurs.png, sports-nba.png, sports-cowboys.png, sports-nfl.png."""
 import ast, asyncio, json, os, time, urllib.request
 from playwright.async_api import async_playwright
+import os as _os, sys as _sys; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__))); import pw_csp  # noqa: E401,F401  (v49.11: CSP-safe wait_for_function)
 from popup_quiet import QUIET   # v49: the notifications card + Settings tip have their own tests
 
 HERE = os.path.dirname(os.path.abspath(__file__))

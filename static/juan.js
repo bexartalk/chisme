@@ -27,6 +27,8 @@
    "!?"), and the 🩴 flip-flops power-up is a shield: the next agent who reaches Juan just gets dizzy (stars). */
 (function (root) {
   "use strict";
+  // v49.11: anything that isn't our own fixed text goes into innerHTML only through num() (numbers) or escH() (text)
+  const num = (n) => (Number.isFinite(+n) ? +n : 0).toLocaleString("en-US");
   const KEY = "chisme-juegos-juan";
   const VW = 360, ROADH = 176, END = 6000, CHECKS = [0, 2000, 4000], HERO_X = 84, TILE = 500, CAM_END = END - HERO_X - 150;   // the camera stops 150 before the end: the stop's building fills the screen and Juan runs up to its door
   const GRAV = 1750, JUMP = -700, JUMP2 = -480, HP = 100, HERO_W = 32, HERO_H = 88;   // v49.7: a higher jump (was −620 / −540)
@@ -1298,15 +1300,15 @@
       if (level === LEVELS.length) {
         mode = "win"; st.levelMax = LEVELS.length; st.beers = Math.max(st.beers || 0, beersGot); save(st); stats();
         if (!reduced()) for (let i = 0; i < 120; i++) parts.push({ x: Math.random() * VW, y: -Math.random() * VH, vy: 40 + Math.random() * 70, vx: Math.random() * 30 - 15, r: Math.random() * 6, c: ["#00b8b0", "#ff3d8b", "#ff8a00", "#c9d0d8", "#ffffff"][i % 5] });
-        overlay(`<p class="juan-big">¡Salud, Juan!</p><p class="juan-win-line">From Noche Caliente to the beach at Dice City VI: the Juan That Got Away made it to his vacation. <span lang="es">¡A la playa!</span></p><p class="juan-win-score">Final score <b>${score}</b></p><button type="button" class="lot-btn lot-main" data-act="again">▶ Play again</button><p class="juan-btns">${skinBtn()}${skinHint()}</p>`, "win");
+        overlay(`<p class="juan-big">¡Salud, Juan!</p><p class="juan-win-line">From Noche Caliente to the beach at Dice City VI: the Juan That Got Away made it to his vacation. <span lang="es">¡A la playa!</span></p><p class="juan-win-score">Final score <b>${num(score)}</b></p><button type="button" class="lot-btn lot-main" data-act="again">▶ Play again</button><p class="juan-btns">${skinBtn()}${skinHint()}</p>`, "win");
         const final = score; setTimeout(() => { if (el.isConnected) offer(final, LEVELS.length); }, reduced() ? 600 : 1800);   // v49.5: the run's done → the board?
-        $("#juan-note").innerHTML = `🎉 <span lang="es">¡Órale!</span> Friday shift done, cold ones at Noche Caliente, then a vacation in Dice City VI, from the hotel to the beach. <span lang="es">¡Salud!</span> <span class="juan-score">Final score <b>${score}</b> · Best <b>${st.best}</b></span> <button type="button" class="lot-btn lot-main" data-act="again">▶ Play again</button>`;
+        $("#juan-note").innerHTML = `🎉 <span lang="es">¡Órale!</span> Friday shift done, cold ones at Noche Caliente, then a vacation in Dice City VI, from the hotel to the beach. <span lang="es">¡Salud!</span> <span class="juan-score">Final score <b>${num(score)}</b> · Best <b>${num(st.best)}</b></span> <button type="button" class="lot-btn lot-main" data-act="again">▶ Play again</button>`;
         return;
       }
       if (level === 6) st.wins++;   // v49.5: made it to Noche Caliente (Dice City is the celebration after)
       st.levelMax = Math.max(st.levelMax, level + 1); save(st); stats();
       mode = "clear";
-      overlay(`<p class="juan-big">You made it to ${name}!</p><p class="juan-story">${L().done}</p><p>+500 · Score <b>${score}</b></p><button type="button" class="lot-btn lot-main" data-act="next">▶ Level ${level + 1}: ${LEVELS[level].name}</button><p class="juan-btns">${OVER}${skinBtn()}${skinHint()}</p>`, "clear");
+      overlay(`<p class="juan-big">You made it to ${name}!</p><p class="juan-story">${L().done}</p><p>+500 · Score <b>${num(score)}</b></p><button type="button" class="lot-btn lot-main" data-act="next">▶ Level ${level + 1}: ${LEVELS[level].name}</button><p class="juan-btns">${OVER}${skinBtn()}${skinHint()}</p>`, "clear");
       $("#juan-note").textContent = `Next up: ${LEVELS[level].name}. ${LEVELS[level].hint}`;
     }
     function update(dt) {
@@ -1593,7 +1595,7 @@
     }
     function title() {
       level = 1; cache = {}; spawn(0); hero.x = 140; camX = cam(hero.x); mode = "title"; fit();
-      const cont = st.levelMax > 1 ? `<button type="button" class="lot-btn" data-act="cont">▶ Keep going: level ${st.levelMax}</button>` : "";
+      const cont = st.levelMax > 1 ? `<button type="button" class="lot-btn" data-act="cont">▶ Keep going: level ${num(st.levelMax)}</button>` : "";
       $("#juan-note").textContent = "¡Ya es viernes! Get Juan through his Friday shift to cold beers at Noche Caliente.";
       overlay(`<p class="juan-big">The Juan That Got Away</p><p class="juan-story"><span lang="es">¡Ya es viernes!</span> One last shift, then cold ones.</p>
         ${howList("juan-how-ov")}
@@ -1616,7 +1618,7 @@
       }
     }
     function resume() { if (paused) { paused = false; mode = "run"; overlay(null); fs.enter(); fit(); loop(); ctrl(); } }
-    function stats() { $("#juan-stats").innerHTML = `⭐ Best score <b>${st.best}</b> · 🤠 Made it to Noche Caliente <b>${st.wins}</b>× · Furthest level <b>${st.levelMax}</b>`; }
+    function stats() { $("#juan-stats").innerHTML = `⭐ Best score <b>${num(st.best)}</b> · 🤠 Made it to Noche Caliente <b>${num(st.wins)}</b>× · Furthest level <b>${num(st.levelMax)}</b>`; }
     function ctrl() {
       const p = $("#juan-pause");
       p.innerHTML = paused ? '<span aria-hidden="true">▶</span><span class="juan-lbl"> Resume</span>' : '<span aria-hidden="true">⏸</span><span class="juan-lbl"> Pause</span>';
@@ -1677,7 +1679,7 @@
       d.innerHTML = `<form method="dialog" class="juan-hs-card" novalidate>
         <p class="juan-hs-big" id="juan-hs-big"><span aria-hidden="true">🏆</span> New high score!</p>
         <p class="juan-hs-sub">Put your name on the board</p>
-        <p class="juan-hs-score"><b>${fmt(sc)}</b> points · <span class="juan-hs-rank">#${rank}</span></p>
+        <p class="juan-hs-score"><b>${fmt(sc)}</b> points · <span class="juan-hs-rank">#${num(rank)}</span></p>
         <label class="juan-hs-lbl" for="juan-hs-name">Your name <small>(12 max)</small></label>
         <input id="juan-hs-name" class="juan-hs-in" type="text" maxlength="12" autocomplete="nickname" autocapitalize="words" enterkeyhint="done" spellcheck="false" placeholder="Your name" value="${escH(lsGet(HS_NAME, ""))}">
         <button type="submit" class="juan-hs-save" value="save">Save</button>
@@ -1737,7 +1739,7 @@
         <p class="juan-sk-sub">${owner && !lsGet(SK_UNLOCK, null) ? "👑 Owner: every skin is unlocked on this phone." : open ? "🏆 You made the Top 10: every skin is yours." : "🔒 Make the Top 10 to unlock the skins."}</p>
         <div class="juan-sk-grid">${JSKINS.map(([id, name]) => { const lock = id !== "classic" && !open;
           return `<button type="button" class="juan-sk${lock ? " locked" : ""}${id === cur ? " on" : ""}" data-skin="${id}" aria-pressed="${id === cur}" aria-label="${name}${lock ? ", locked: make the Top 10 to unlock" : id === cur ? ", wearing it" : ""}">
-            <canvas class="juan-sk-cv" aria-hidden="true"></canvas><span class="juan-sk-tx"><span class="juan-sk-n">${name.replace("Presidente", "Presi\u00addente").replace("Armadura", "Arma\u00addura")}</span>${lock ? '<span class="juan-sk-why">Make the Top 10 to unlock</span>' : ""}</span>${lock ? '<span class="juan-sk-lock" aria-hidden="true">🔒</span>' : ""}</button>`; }).join("")}</div>
+            <canvas class="juan-sk-cv" aria-hidden="true"></canvas><span class="juan-sk-tx"><span class="juan-sk-n">${escH(name).replace("Presidente", "Presi\u00addente").replace("Armadura", "Arma\u00addura")}</span>${lock ? '<span class="juan-sk-why">Make the Top 10 to unlock</span>' : ""}</span>${lock ? '<span class="juan-sk-lock" aria-hidden="true">🔒</span>' : ""}</button>`; }).join("")}</div>
         <button type="submit" class="juan-sk-done">Done</button></form>`;
       document.body.appendChild(d); skDlg = d;
       d.querySelectorAll(".juan-sk").forEach((b) => skinPreview(b.querySelector("canvas"), b.dataset.skin));

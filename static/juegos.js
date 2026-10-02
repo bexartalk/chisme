@@ -188,7 +188,7 @@
     }
     const talking = () => !!cur || queue.length > 0 || (!!au && !au.paused && !au.ended);
     const hush = () => { queue = []; cur = null; if (au) try { au.pause(); } catch (e) {} if (hasVoice) try { speechSynthesis.cancel(); } catch (e) {} };
-    function stats() { $("#lot-stats").innerHTML = `🏆 Wins <b>${st.wins}</b> · 🔥 Streak <b>${st.streak}</b> · ⭐ Best streak <b>${st.best}</b>`; }
+    function stats() { $("#lot-stats").innerHTML = `🏆 Wins <b>${+st.wins || 0}</b> · 🔥 Streak <b>${+st.streak || 0}</b> · ⭐ Best streak <b>${+st.best || 0}</b>`; }
     function controls() {
       $("#lot-play").textContent = over ? "▶ Play again" : running ? "⏸ Pause" : started ? "▶ Resume" : "▶ Start";
       $("#lot-play").setAttribute("aria-pressed", running ? "true" : "false");

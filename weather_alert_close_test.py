@@ -9,6 +9,7 @@ Alerts are injected into /api/weather (the real response, alerts replaced). Scre
 import ast, asyncio, json, os, time
 from datetime import datetime, timedelta, timezone
 from playwright.async_api import async_playwright
+import os as _os, sys as _sys; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__))); import pw_csp  # noqa: E401,F401  (v49.11: CSP-safe wait_for_function)
 from popup_quiet import QUIET
 
 HERE = os.path.dirname(os.path.abspath(__file__))
