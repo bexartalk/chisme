@@ -1,7 +1,7 @@
 """v43 Lotería Chismosa redesign: laid out like a real tabla app, with our own vintage card art.
 
 1. Files: 54 finished card pictures (static/loteria/cards/01–54.webp, drawn by tools/make_loteria_cards.py) in bright flat
-   vintage-print colors with a white border; golden yellow only in the art of the 5 cards the classic decks have it in
+   vintage-print colors with a white border (v49.5: the classic-deck look, solid pastel backgrounds, bold black outlines, a cream border); golden yellow only in the art of the 5 cards the classic decks have it in
    (El Diablito, La Estrella, El Alacrán, El Sol, La Corona; the user asked for it), none anywhere else; #26 is El Chocolate,
    #38 is the huaraches card; the service worker precaches them. The app's UI stays yellow-free.
 2. WebKit 390×844 full screen: the teal top bar holds the title badge, the "Pick your tabla" picker, the "x / 16" bean count and ✕;
@@ -19,7 +19,7 @@ from playwright.async_api import async_playwright
 HERE = os.path.dirname(os.path.abspath(__file__))
 BASE = os.environ.get("CHISME_URL", "http://127.0.0.1:8211")
 OUT = os.path.join(HERE, "screenshots"); os.makedirs(OUT, exist_ok=True)
-INIT = "if (!localStorage.getItem('chisme-location-setup')) { localStorage.setItem('chisme-location-setup','1'); localStorage.setItem('chisme-ios-hint-dismissed','1'); localStorage.setItem('chisme-swiped','1'); }"
+INIT = "if (!localStorage.getItem('chisme-location-setup')) { localStorage.setItem('chisme-location-setup','1'); localStorage.setItem('chisme-ios-hint-dismissed','1'); localStorage.setItem('chisme-swiped','1'); localStorage.setItem('chisme-notif','{\"n\":1}'); }"
 SPEECH = """(() => { window.__spoken = []; const fake = { speak(u) { __spoken.push({ text: u.text, lang: u.lang }); setTimeout(() => u.onend && u.onend(), 60); }, cancel() {}, getVoices() { return [{ lang: 'es-MX', name: 'T' }]; }, addEventListener() {} };
   try { Object.defineProperty(window, 'speechSynthesis', { value: fake, configurable: true }); } catch (e) {} window.SpeechSynthesisUtterance = function (t) { this.text = t; }; })()"""
 G = "__chisme.juegos.game"
@@ -44,7 +44,7 @@ def files():
     sizes = [os.path.getsize(f) for f in fs]
     check(all(3000 < z < 80000 for z in sizes), f"small files ({sum(sizes) // 1024} KB total, biggest {max(sizes) // 1024} KB)")
     GOLD = {2, 35, 40, 46, 47}
-    worst = 0; gold = {}; dims = set(); sat = []; border = []
+    worst = 0; gold = {}; dims = set(); sat = []; border = []; ink = []
     for i, f in enumerate(fs, 1):
         im = Image.open(f).convert("RGB"); dims.add(im.size); sm = im.resize((100, 150))
         px = list(sm.get_flattened_data() if hasattr(sm, "get_flattened_data") else sm.getdata())
@@ -52,12 +52,14 @@ def files():
         else: worst = max(worst, sum(yellowish(*p) for p in px) / 15000)
         field = [p for k, p in enumerate(px) if 8 <= k % 100 <= 92 and 8 <= k // 100 <= 120]
         sat.append(sum(colorsys.rgb_to_hsv(*(c / 255 for c in p))[1] for p in field) / len(field))
+        ink.append(sum(max(p) < 60 for p in field) / len(field))
         border.append(min(im.getpixel((im.width // 2, 6)) + im.getpixel((6, im.height // 2))))   # the white border, top and side
     check(len(dims) == 1 and abs(list(dims)[0][1] / list(dims)[0][0] - 1.5) < 0.01, f"all the same 2:3 portrait size ({dims})")
     check(worst < 0.002, f"no yellow in the other 49 cards' art (worst {worst:.3%} yellow-ish pixels, anti-aliasing)")
     check(all(v > 0.03 for v in gold.values()), f"golden yellow in El Diablito, La Estrella, El Alacrán, El Sol, La Corona ({ {k: f'{v:.0%}' for k, v in gold.items()} })")
-    check(sum(sat) / len(sat) > 0.4 and min(sat) > 0.2, f"bright, saturated print colors, not muddy (mean saturation {sum(sat) / len(sat):.2f}, lowest {min(sat):.2f})")
-    check(min(border) >= 235, f"a crisp white card border on every card (darkest border pixel {min(border)})")
+    check(sum(sat) / len(sat) > 0.22 and min(sat) > 0.12, f"v49.5 classic-deck colors: solid pastel backgrounds + flat print art, not grey or muddy (mean saturation {sum(sat) / len(sat):.2f}, lowest {min(sat):.2f})")
+    check(min(ink) > 0.02, f"v49.5 bold black outlines on every card (least ink {min(ink):.1%} of the picture)")
+    check(min(border) >= 215, f"a clean cream/white card border on every card (darkest border pixel {min(border)})")
     sw = open(os.path.join(HERE, "static", "sw.js")).read()
     check("/static/loteria/cards/" in sw and re.search(r'VERSION = "chisme-v\d+(?:\.\d+)?"', sw), "the service worker precaches the pictures (offline tabla)")
     gen = open(os.path.join(HERE, "tools", "make_loteria_cards.py")).read()

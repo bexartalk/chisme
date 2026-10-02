@@ -91,7 +91,7 @@ def unit():
     check("El Negrito" not in o["names"] and o["names"][25] == "El Chocolate", "#26 is El Chocolate (the racist 'El Negrito' is left out)")
     check(o["art"] == 54 and o["artUniq"] == 54, f"every card has its own original SVG drawing ({o['art']} drawn, {o['artUniq']} different)")
     cards_dir = os.path.join(HERE, "static", "loteria", "cards")
-    okimg = [u == f"/static/loteria/cards/{i:02d}.webp" and os.path.getsize(os.path.join(cards_dir, f"{i:02d}.webp")) > 5000 for i, u in enumerate(o["imgs"], 1) if u]
+    okimg = [u == f"/static/loteria/cards/{i:02d}.webp" and os.path.getsize(os.path.join(cards_dir, f"{i:02d}.webp")) > 3000 for i, u in enumerate(o["imgs"], 1) if u]
     check(len(okimg) == 54 and all(okimg), f"v43: every card has its finished vintage picture (static/loteria/cards/01–54.webp, made by tools/make_loteria_cards.py from our drawings) ({sum(okimg)})")
     check(len(o["presets"]) >= 4 and all(n == 16 and u == 16 for _, n, u in o["presets"]), f"v43: ready-made tablas of 16 different cards each ({o['presets']})")
     check(o["calls"] and o["call1"] == "El que le cantó a San Pedro no le volverá a cantar. ¡El Gallo!", f"each call is the traditional verse, then the name ({o['call1']!r})")

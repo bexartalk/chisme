@@ -1,4 +1,4 @@
-"""v43: renders the 54 Lotería Chismosa cards as vintage lithograph-style images (static/loteria/cards/01.webp … 54.webp).
+"""v43 (v49.5: classic-deck style, see CLASSIC below): renders the 54 Lotería Chismosa cards as vintage lithograph-style images (static/loteria/cards/01.webp … 54.webp).
 
 Our OWN art (nothing copied or traced from a published deck): the original drawings from static/loteria_cards.js, re-inked
 and re-colored in an old painted-print style: a painted scene behind each one (sky, water, desert, night, sunburst or a
@@ -17,7 +17,7 @@ from playwright.async_api import async_playwright
 HERE = Path(__file__).resolve().parent.parent
 OUT = HERE / "static" / "loteria" / "cards"
 W, H = 200, 300          # card units (2:3)
-PX = 300                 # output width in pixels (≈ 3× the card's size on an iPhone tabla)
+PX = 300                 # output width in pixels (≈ 3× the card's size on an iPhone tabla; flat art stays crisp)
 
 # the drawings' Fiesta colors → bright, flat vintage-print inks
 REMAP = {"#111": "#161616", "#fff": "#ffffff", "#00b8b0": "#159f8c", "#3ee8eb": "#6fd3e0", "#ff3d8b": "#ec4f7c", "#c2185b": "#b3244f",
@@ -94,7 +94,44 @@ def scene(kind: str, bg: str, n: int) -> str:
     return "".join(out)
 
 
+# v49.5: the classic-deck look: flat solid backgrounds in the old lotería print colors (card art, not app UI), a cream
+# border, a small number top-left, the NAME in caps at the bottom, bold black outlines, no gradients / halftone / grain.
+CLASSIC = {"sky": "#8fcbee", "pink": "#f6c3d0", "cream": "#f6ead2", "mint": "#bfe7cf", "yellow": "#f8e7a4", "tan": "#e3c99c"}
+CREAM = "#f7f0de"
+
+
+def classic_bg(n: int) -> str:
+    kind, bg = SCENE[n]
+    if bg in ("sky", "royal", "night"): return "sky"
+    if bg in ("pink", "red"): return "pink"
+    if bg == "green": return "mint"
+    if bg == "gold": return "yellow"
+    return "cream" if kind == "room" else "tan"   # orange
+
+
 def card_svg(c: dict) -> str:
+    n = c["id"]
+    inner = re.sub(r"^<svg[^>]*>|</svg>$", "", recolor(c["svg"], n).strip())
+    if n == 2:   # El Diablito's trident in gold (the classic decks' gold), outlined in black like the rest of the print
+        inner = re.sub(r'<path d="([^"]+)" fill="none" stroke="#6f7983"/>',
+                       r'<path d="\1" fill="none" stroke="#161616" stroke-width="8"/><path d="\1" fill="none" stroke="#f2b705" stroke-width="4.6"/>', inner)
+    name = c["name"].upper()
+    fs = 22 if len(name) <= 10 else 19 if len(name) <= 13 else 17
+    bg = CLASSIC[classic_bg(n)]
+    return f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}">
+<rect x=".5" y=".5" width="{W - 1}" height="{H - 1}" rx="10" fill="{CREAM}" stroke="#b9ae93" stroke-width="1"/>
+<clipPath id="field{n}"><rect x="9" y="9" width="{W - 18}" height="{H - 18}" rx="3"/></clipPath>
+<g clip-path="url(#field{n})">
+  <rect x="9" y="9" width="{W - 18}" height="{H - 18}" fill="{bg}"/>
+  <g class="fig" transform="translate(14 40) scale(1.72)"><g class="figin" stroke-linejoin="round">{inner}</g></g>
+</g>
+<rect x="9" y="9" width="{W - 18}" height="{H - 18}" rx="3" fill="none" stroke="#161616" stroke-width="2"/>
+<text x="17" y="29" font-family="Oswald" font-weight="600" font-size="15" fill="#161616">{n}</text>
+<text x="100" y="281" text-anchor="middle" font-family="Oswald" font-weight="700" font-size="{fs}" letter-spacing="1" fill="#161616" textLength="{min(170, 10 + len(name) * fs * .52):.0f}" lengthAdjust="spacingAndGlyphs">{name}</text>
+</svg>"""
+
+
+def card_svg_v43(c: dict) -> str:
     n, (kind, bg) = c["id"], SCENE[c["id"]]
     lite, dark = BG[bg]
     inner = re.sub(r"^<svg[^>]*>|</svg>$", "", recolor(c["svg"], n).strip())
@@ -147,15 +184,15 @@ async def render(cs: list, sheet: str | None):
         pg = await b.new_page(viewport={"width": 1200, "height": 900}, device_scale_factor=PX / W)
         for c in cs:
             svg = card_svg(c)
-            bad = [h for h in re.findall(r"#[0-9a-fA-F]{6}\b", svg) if yellowish(h)]
+            bad = [h for h in re.findall(r"#[0-9a-fA-F]{6}\b", svg) if yellowish(h) and h.lower() not in {v.lower() for v in (*CLASSIC.values(), CREAM)}]
             if bad and c["id"] not in GOLD:   # golden yellow only where the classic decks have it
                 raise SystemExit(f"card {c['id']}: yellow colors {bad}")
             await pg.set_content(f'<html><body style="margin:0;background:transparent">{svg}</body></html>')
             await pg.evaluate("document.fonts.ready")
             # fit the figure to the painted field (each drawing uses its 100×100 box differently)
             await pg.evaluate("""() => { const g = document.querySelector('.figin'), b = g.getBBox();
-              const s = Math.min(160 / b.width, 196 / b.height, 2.35), cx = b.x + b.width / 2, cy = b.y + b.height / 2;
-              const tx = 100 - cx * s, ty = Math.min(146 - cy * s, 246 - (b.y + b.height) * s);
+              const s = Math.min(164 / b.width, 214 / b.height, 2.45), cx = b.x + b.width / 2, cy = b.y + b.height / 2;
+              const tx = 100 - cx * s, ty = Math.min(148 - cy * s, 258 - (b.y + b.height) * s);
               document.querySelectorAll('.fig').forEach(f => f.setAttribute('transform', `translate(${tx.toFixed(2)} ${ty.toFixed(2)}) scale(${s.toFixed(3)})`)); }""")
             png = OUT / f"{c['id']:02d}.png"
             await pg.locator("svg").first.screenshot(path=str(png), omit_background=True)

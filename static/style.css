@@ -1024,11 +1024,12 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
 .lot-claim{display:block;background:var(--pink);color:#fff;font:inherit;text-shadow:0 1px 0 rgba(0,0,0,.3);cursor:pointer}
 .won .lot-claim{background:var(--turq);color:#000;text-shadow:none}
 .lot-fit{padding:8px;container-type:inline-size}
-.lot-tabla{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;margin:0 auto}
-.lot-cell{position:relative;display:block;padding:0;border:0;background:none;border-radius:8px;min-width:0;cursor:pointer;box-shadow:0 2px 0 rgba(29,22,18,.4);-webkit-tap-highlight-color:transparent}
-.lot-cell:focus-visible{outline:4px solid var(--pink);outline-offset:1px}
+/* v49.5 the tabla: a clean white printed grid with thin lines, like a real lotería board (same in light and dark) */
+.lot-tabla{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;margin:0 auto;background:#2b2320;border:1px solid #2b2320;border-radius:3px;overflow:hidden}
+.lot-cell{position:relative;display:block;padding:2px;border:0;background:#fff;border-radius:0;min-width:0;cursor:pointer;box-shadow:none;-webkit-tap-highlight-color:transparent}
+.lot-cell:focus-visible{outline:3px solid var(--pink);outline-offset:-2px;z-index:2}
 .lcard{display:block;position:relative;aspect-ratio:2/3;border-radius:7px;overflow:hidden;background:#f7e8df}
-.lot-cell .lcard{height:100%}
+.lot-cell .lcard{height:100%;border-radius:4px}
 .lc-img{display:block;width:100%;height:100%;object-fit:cover;transition:filter .2s ease}
 .lcard.big{width:52px}
 .gfs .lcard.big{width:64px} .gfs .lot-card:empty{width:64px}
@@ -1048,8 +1049,14 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
   100%{opacity:1;transform:translate(calc(-50% + var(--dx,0%)),calc(-50% + var(--dy,0%))) rotate(var(--r,0deg)) scale(1)}}
 .lot-cell.nope{animation:card-nope .4s ease-in-out}
 @keyframes card-nope{0%,100%{transform:translateX(0)}20%{transform:translateX(-4px) rotate(-1.5deg)}45%{transform:translateX(4px) rotate(1.5deg)}70%{transform:translateX(-2px)}85%{transform:translateX(2px)}}
-.lot-cell.win .lcard{box-shadow:0 0 0 3px var(--turq),0 0 0 6px var(--pink)}
+.lot-cell.win .lcard{box-shadow:0 0 0 2px var(--turq),0 0 0 3px var(--pink)}   /* fits the white cell's 2px padding; the pink sits on the grid line */
 .lot-cell.win{z-index:1}
+[data-theme="dark"] .lot-cell{background:#fff;color:#161616;border:0}   /* the printed tabla stays white in dark mode */
+/* v49.5 full screen keeps its cream page in dark mode, so its strip buttons + the bar picker keep their light-mode colors (the generic dark `button` rule made them near-black) */
+[data-theme="dark"] .gfs .lot-now-btns .lot-main{background:#00c9cd;color:#000;border-color:#1d1612}
+[data-theme="dark"] .gfs .lot-now-btns .lot-claim{background:#ef426f;color:#fff;border-color:#1d1612}
+[data-theme="dark"] .gfs .won .lot-claim{background:var(--turq);color:#000}
+[data-theme="dark"] .gfs-bar .lot-pick{background:none;color:#fff;border-color:#fff}
 .lot-actions{display:flex;flex-wrap:nowrap;gap:8px;margin:0;padding:6px 8px 10px}
 .lot-actions .lot-btn{min-height:54px;border:3px solid #1d1612;border-radius:14px;font-weight:900;font-size:1.05rem;letter-spacing:.05em;text-transform:uppercase;box-shadow:0 4px 0 #1d1612;white-space:nowrap;padding:0 .4em}
 .lot-actions .lot-clear{flex:1 1 0;min-width:0;background:#1f7f86;color:#fff}
@@ -1187,7 +1194,7 @@ html.game-fs .track{transform:none!important;will-change:auto}   /* a transforme
 .juan-ov.title{overflow-y:auto}
 @media (max-width:380px){ .gfs-juan{gap:.25em;padding:.2em .45em .25em .4em} .gfs-juan-hat{width:16px;height:10px} .gfs-juan-t{font-size:.74rem;letter-spacing:0} .gfs-juan-t b{padding:0 .22em;margin-left:.05em} }
 @media (max-width:360px){ .juan-ov.title{padding-top:3.3em;gap:.26em} .juan-ov.title .juan-big{font-size:1.55em;line-height:1.05} .juan-story{font-size:1em} .juan-stops li{padding:.12em .7em .12em .3em} .juan-sub{font-size:.8em} }
-@media (max-width:340px){ .gfs-juan-hat{display:none} .gfs-juan-t{font-size:.72rem} } }
+@media (max-width:340px){ .gfs-juan-hat{display:none} .gfs-juan-t{font-size:.72rem} }
 /* Lotería Chismosa, full screen (v43): the teal bar (title badge · tabla picker · bean count · ✕) reaches under the notch,
    then the called-card strip, the 4×4 tabla as big as the space allows (cards 2:3, full width at 390×844), Limpiar + Nueva tabla.
    Fits 390×844 and 320×640 with no scrolling (the tabla shrinks with the height). */
@@ -1204,7 +1211,7 @@ html.game-fs .track{transform:none!important;will-change:auto}   /* a transforme
 .gfs .lot-head{display:none}
 .gfs .lot-now{flex:none}
 .gfs .lot-fit{flex:1 1 0;min-height:0;padding:6px 8px;container-type:size;display:flex;align-items:center;justify-content:center}
-.gfs .lot-tabla{--w:min(calc((100cqw - 15px) / 4),calc((100cqh - 15px) / 6));grid-template-columns:repeat(4,var(--w));grid-auto-rows:calc(var(--w) * 1.5);gap:5px}
+.gfs .lot-tabla{--w:min(calc((100cqw - 5px) / 4),calc((100cqh - 5px) / 6));grid-template-columns:repeat(4,var(--w));grid-auto-rows:calc((var(--w) - 4px) * 1.5 + 4px);gap:1px}
 .gfs .lot-cell .lcard{width:100%;height:100%;aspect-ratio:auto}
 .gfs .lot-actions{flex:none}
 .gfs .lot-rules,.gfs .lot-stats,.gfs .lot-hist-wrap{display:none}

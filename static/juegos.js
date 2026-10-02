@@ -112,6 +112,9 @@
   const cardHTML = (c, cls = "") => `<span class="lcard ${cls}"><img class="lc-img" src="${c.img}" alt="" decoding="async" draggable="false" width="200" height="300"><span class="lc-name sr-only" lang="es">${esc(c.name)}</span></span>`;
 
   function mountLoteria(el, ctx) {
+    // v49.5: warm all 54 card pictures (~400 KB total, the service worker also precaches them) when the browser is idle, so each called card shows instantly
+    const warm = () => { for (const c of CARDS) { const im = new Image(); im.decoding = "async"; im.src = c.img; } };
+    if ("requestIdleCallback" in window) requestIdleCallback(warm, { timeout: 2500 }); else setTimeout(warm, 600);
     const reduced = () => (ctx && ctx.reducedMotion ? ctx.reducedMotion() : matchMedia("(prefers-reduced-motion: reduce)").matches);
     const st = load();
     let tabla, deck, called, marks, timer = null, running = false, over = false, started = false;
