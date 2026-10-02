@@ -578,6 +578,12 @@
         <button type="button" id="set-refresh" class="primary">↻ Refresh now</button>
         <p class="set-note" id="set-refresh-note" aria-live="polite"></p>
       </fieldset>
+      <!-- v49.5: the owner's way to /stats; only shown on a phone that's signed in there (the chisme_admin=1 cookie) -->
+      <fieldset class="set-group" id="set-admin" hidden>
+        <legend>Owner</legend>
+        <button type="button" id="set-admin-open" class="primary">🛠️ Open the Admin page</button>
+        <p class="set-note">Send a notification, turn auto-alerts on or off, and see how Chisme is doing. Only you see this.</p>
+      </fieldset>
       <fieldset class="set-group" id="set-privacy">
         <legend>Privacy</legend>
         <p class="set-note" id="set-privacy-note">Chisme counts anonymous visits to improve the app. No names, no ads.</p>

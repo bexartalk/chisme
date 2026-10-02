@@ -2668,18 +2668,39 @@ async def api_stats(request: Request):
 STATS_HEADERS = {"Cache-Control": "no-store", "X-Robots-Tag": "noindex, nofollow", "Referrer-Policy": "no-referrer"}
 
 
+ADMIN_REMEMBER = 400 * 86400   # v49.5: "keep me signed in" (400 days: the longest a browser keeps a cookie)
+LOGIN_LIMIT = RateLimit(int(os.environ.get("ADMIN_LOGIN_TRIES", "8")), 900)   # sign-in tries per IP per 15 min
+
+
+def _https(request: Request) -> bool:
+    return request.url.scheme == "https" or request.headers.get("x-forwarded-proto", "").startswith("https")
+
+
+def _sign_in(resp: Response, request: Request, remember: bool = True) -> Response:
+    """The session cookie (HttpOnly, path=/stats, an HMAC of the token, never the token) + a harmless marker the app
+    can read (chisme_admin=1, path=/) so Settings can show the Admin button. Only the first one opens anything."""
+    age = ADMIN_REMEMBER if remember else None
+    resp.set_cookie(stats.COOKIE, stats.session_value(), max_age=age, path="/stats", httponly=True, secure=_https(request), samesite="strict")
+    resp.set_cookie(ADMIN_MARK, "1", max_age=age, path="/", httponly=False, secure=_https(request), samesite="lax")
+    return resp
+
+
+ADMIN_MARK = "chisme_admin"
+
+
+def _signed_in(request: Request) -> bool:
+    return stats.cookie_ok(request.cookies.get(stats.COOKIE))
+
+
 @app.get("/stats", include_in_schema=False)
 async def stats_page(request: Request, key: str | None = None):
     if not stats.admin_token():
         return Response("Not Found", status_code=404)
     if key is not None:   # the admin link, once: trade the key for a cookie and drop it from the address bar
         if not stats.key_ok(key):
-            return HTMLResponse(stats.gate_page(), status_code=401, headers=STATS_HEADERS)
-        r = RedirectResponse("/stats", status_code=303, headers=STATS_HEADERS)
-        https = request.url.scheme == "https" or request.headers.get("x-forwarded-proto", "").startswith("https")
-        r.set_cookie(stats.COOKIE, stats.session_value(), max_age=90 * 86400, path="/stats", httponly=True, secure=https, samesite="strict")
-        return r
-    if not stats.cookie_ok(request.cookies.get(stats.COOKIE)):
+            return HTMLResponse(stats.gate_page("That admin link's key didn't match."), status_code=401, headers=STATS_HEADERS)
+        return _sign_in(RedirectResponse("/stats", status_code=303, headers=STATS_HEADERS), request)
+    if not _signed_in(request):
         return HTMLResponse(stats.gate_page(), status_code=401, headers=STATS_HEADERS)
     st = stats.store()
     try:
@@ -2688,31 +2709,85 @@ async def stats_page(request: Request, key: str | None = None):
         code = getattr(getattr(ex, "response", None), "status_code", "")
         hint = " (Upstash rejected the token: re-copy UPSTASH_REDIS_REST_TOKEN, not the read-only one)" if code in (401, 403) else ""
         return HTMLResponse(f"<p style='font:600 18px system-ui;padding:16px'>Stats storage error: {html.escape(type(ex).__name__)} {code}{html.escape(hint)}<br><br>{html.escape(stats.upstash_diag())}</p>", status_code=503, headers=STATS_HEADERS)
+    info, err = None, ""
     try:
-        extra = autopush.admin_html(await autopush.admin_info())
+        info = await autopush.admin_info()
     except Exception as ex:
-        extra = f'<div class="ban warn" role="note"><b>Alerts panel unavailable:</b> {html.escape(type(ex).__name__)} (push storage). {html.escape(stats.upstash_diag())}</div>'
-    return HTMLResponse(stats.page(data, st.name, extra=extra), headers=STATS_HEADERS)
+        err = f"{type(ex).__name__} from the push storage"
+    return HTMLResponse(stats.page(data, st.name, info=info, info_error=err), headers=STATS_HEADERS)
+
+
+@app.post("/stats/login", include_in_schema=False)
+async def stats_login(request: Request):
+    """v49.5: the sign-in form (a normal form post). Same-site only, a few tries per 15 minutes."""
+    if not stats.admin_token():
+        return Response("Not Found", status_code=404)
+    origin = request.headers.get("origin")
+    if origin and origin != "null" and urllib.parse.urlsplit(origin).netloc != request.headers.get("host", urllib.parse.urlsplit(str(request.base_url)).netloc):
+        return HTMLResponse(stats.gate_page("Please sign in from this page."), status_code=403, headers=STATS_HEADERS)
+    ok, wait = LOGIN_LIMIT.check(stats.anon("login:" + client_ip(request)))
+    if not ok:
+        return HTMLResponse(stats.gate_page(f"Too many tries. Wait about {max(1, round(wait / 60))} min and try again."), status_code=429, headers=STATS_HEADERS)
+    try:
+        form = urllib.parse.parse_qs((await request.body())[:4000].decode("utf-8", "replace"))
+    except Exception:
+        form = {}
+    key = (form.get("key") or [""])[0].strip()
+    if not stats.key_ok(key):
+        return HTMLResponse(stats.gate_page("That key didn't match. Check it and try again."), status_code=401, headers=STATS_HEADERS)
+    return _sign_in(RedirectResponse("/stats", status_code=303, headers=STATS_HEADERS), request, remember=(form.get("remember") or [""])[0] == "1")
+
+
+@app.post("/stats/logout", include_in_schema=False)
+async def stats_logout(request: Request):
+    r = RedirectResponse("/stats", status_code=303, headers=STATS_HEADERS)
+    r.delete_cookie(stats.COOKIE, path="/stats", secure=_https(request), httponly=True, samesite="strict")
+    r.delete_cookie(ADMIN_MARK, path="/", secure=_https(request), samesite="lax")
+    return r
+
+
+@app.get("/stats/manifest.webmanifest", include_in_schema=False)
+async def stats_manifest():
+    """v49.5: so "Add to Home Screen" on /stats makes a separate "Chisme Admin" icon that opens straight to it."""
+    import admin
+    return JSONResponse(admin.manifest(), media_type="application/manifest+json", headers={"Cache-Control": "no-cache", "X-Robots-Tag": "noindex"})
 
 
 def _admin_ok(request: Request) -> bool:
     """The /stats cookie (path=/stats, HttpOnly, SameSite=Strict) and a JSON body (no cross-site form posts)."""
-    return (bool(stats.admin_token()) and stats.cookie_ok(request.cookies.get(stats.COOKIE))
+    return (bool(stats.admin_token()) and _signed_in(request)
             and (request.headers.get("content-type") or "").split(";")[0].strip() == "application/json")
+
+
+def _nope():
+    return JSONResponse({"ok": False, "error": "not allowed"}, status_code=404 if not stats.admin_token() else 401, headers=STATS_HEADERS)
+
+
+@app.get("/stats/push/info", include_in_schema=False)
+async def stats_push_info(request: Request):
+    """v49.5: the page's numbers after an action (counts, switch, plain-English status). No secrets."""
+    import admin
+    if not stats.admin_token() or not _signed_in(request):
+        return _nope()
+    try:
+        return JSONResponse(admin.info_json(await autopush.admin_info()), headers=STATS_HEADERS)
+    except Exception as ex:
+        return JSONResponse({"ok": False, "error": f"storage: {type(ex).__name__}"}, status_code=503, headers=STATS_HEADERS)
 
 
 @app.post("/stats/push/send", include_in_schema=False)
 async def stats_push_send(request: Request):
+    import admin
     if not _admin_ok(request):
-        return JSONResponse({"ok": False, "error": "not allowed"}, status_code=404 if not stats.admin_token() else 401, headers=STATS_HEADERS)
+        return _nope()
     r = await autopush.admin_send(await _body(request, 8000))
-    return JSONResponse(r, status_code=200 if r["ok"] else 400, headers=STATS_HEADERS)
+    return JSONResponse({**r, "text": admin.send_result(r)}, status_code=200 if r["ok"] else 400, headers=STATS_HEADERS)
 
 
 @app.post("/stats/push/auto", include_in_schema=False)
 async def stats_push_auto(request: Request):
     if not _admin_ok(request):
-        return JSONResponse({"ok": False, "error": "not allowed"}, status_code=404 if not stats.admin_token() else 401, headers=STATS_HEADERS)
+        return _nope()
     b = await _body(request)
     if not isinstance(b.get("on"), bool):
         return JSONResponse({"ok": False, "error": "on must be true or false"}, status_code=400, headers=STATS_HEADERS)
@@ -2724,9 +2799,11 @@ async def stats_push_auto(request: Request):
 
 @app.post("/stats/push/check", include_in_schema=False)
 async def stats_push_check(request: Request):
+    import admin
     if not _admin_ok(request):
-        return JSONResponse({"ok": False, "error": "not allowed"}, status_code=404 if not stats.admin_token() else 401, headers=STATS_HEADERS)
-    return JSONResponse(await autopush.check(_auto_stories, reason="owner"), headers=STATS_HEADERS)
+        return _nope()
+    r = await autopush.check(_auto_stories, reason="owner")
+    return JSONResponse({**r, "plain": admin.plain_result(r)}, headers=STATS_HEADERS)
 
 
 @app.get("/healthz")

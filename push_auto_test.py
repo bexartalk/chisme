@@ -8,7 +8,7 @@ recipients (news on, near San Antonio), the payload (serious title, in-app reade
 push service answering 201 / 404 / 410 / 500 (404 + 410 pruned, the rest kept), the owner's send (defaults, link →
 in-app reader, bad links refused, counts), kick() (throttled, never blocks), the Upstash REST store (SET NX, INCRBY,
 LPUSH/LTRIM …) against a mock, and /stats/push/* (cookie + JSON required, the panel on /stats)."""
-import asyncio, base64, json, os, sys, tempfile, threading, time
+import asyncio, base64, json, os, re, sys, tempfile, threading, time
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from zoneinfo import ZoneInfo
@@ -193,6 +193,7 @@ check(P({"message": "   "})[0] is None and len(P({"message": "y" * 999})[0]["bod
 # ---------------------------------------------------------------- 7. kick(): throttled + non-blocking
 async def kicks():
     reset(); autopush._last_kick = 0
+    quiet0 = autopush.is_quiet; autopush.is_quiet = lambda now: False   # kick() checks on the real clock: don't let 10pm–7am skip the feed
     started = asyncio.Event()
     async def slow_stories():
         started.set(); await asyncio.sleep(0.5); return []
@@ -203,6 +204,7 @@ async def kicks():
     k3 = autopush.kick(slow_stories, now=at(12) + autopush.check_every() + 1)
     check(k1 and dt < 0.02 and not k2 and k3, f"kick(): starts a background check without waiting ({dt * 1000:.1f} ms), then not again for {autopush.check_every() // 60} min")
     await asyncio.sleep(0.7)
+    autopush.is_quiet = quiet0
 asyncio.run(kicks())
 
 # ---------------------------------------------------------------- 8. Upstash REST store (mock)
@@ -264,18 +266,65 @@ check(r.status_code == 401 and "Send a notification" not in r.text, "/stats with
 c.get("/stats?key=unit-test-admin-token", follow_redirects=False)
 c.cookies.set(A.stats.COOKIE, A.stats.session_value(), path="/stats")
 r = c.get("/stats")
-check(r.status_code == 200 and "Send a notification" in r.text and "Auto-send is off" in r.text and "¡Órale, new chisme! 👀" in r.text and "<b>1</b> subscriber will get it" in r.text,
+check(r.status_code == 200 and "Send a notification" in r.text and "Auto-alerts are off" in r.text and "¡Órale, new chisme! 👀" in r.text and "<b>1</b> phone will get it" in r.text
+      and "Off · nothing is sent automatically" in r.text,
       "/stats (admin): send box with the default message, the subscriber count, the auto-send switch (off)")
 r = c.post("/stats/push/send", content="message=hi", headers={"Content-Type": "application/x-www-form-urlencoded"})
 check(r.status_code == 401, "a form post (cross-site style) is refused even with the cookie: JSON only")
 r = c.post("/stats/push/send", json={"title": "Chisme", "message": "¡Órale, new chisme! 👀", "link": "https://example.com/s"})
-check(r.status_code == 200 and r.json()["sent"] == 1 and r.json()["failed"] == 0, f"owner send: {r.json()}")
+check(r.status_code == 200 and r.json()["sent"] == 1 and r.json()["failed"] == 0 and r.json()["text"] == "Sent to 1 phone", f"owner send: {r.json()}")
 r = c.post("/stats/push/send", json={"message": "x", "link": "javascript:alert(1)"})
 check(r.status_code == 400 and "https" in r.json()["error"], "a bad link: 400 with a reason")
 r = c.post("/stats/push/auto", json={"on": True}); r2 = c.get("/stats")
-check(r.json() == {"ok": True, "on": True} and "Auto-send is on" in r2.text, "the auto-send switch saves (and /stats shows it on)")
+check(r.json() == {"ok": True, "on": True} and "Auto-alerts are on" in r2.text and re.search(r"On · 0 of 2 sent today · quiet hours", r2.text), "the auto-send switch saves (and /stats shows it on, in plain words)")
 r = c.post("/stats/push/auto", json={"on": "yes"})
 check(r.status_code == 400, "the switch only takes true/false")
 check(c.get("/api/push/key").json()["publicKey"] == os.environ["VAPID_PUBLIC_KEY"], "/api/push/key serves the VAPID public key (applicationServerKey)")
+
+# ---------------------------------------------------------------- 10. v49.5: the admin page helpers + sign-in
+import admin
+check(admin.status_line({"enabled": True, "on": True, "today": 1, "cap": 2, "quiet": False}) == "On · 1 of 2 sent today · quiet hours 10pm–7am"
+      and admin.status_line({"enabled": True, "on": True, "today": 2, "cap": 2, "quiet": True}) == "On · 2 of 2 sent today (today's limit reached) · quiet hours now, back at 7am"
+      and admin.status_line({"enabled": True, "on": False}) == "Off · nothing is sent automatically"
+      and admin.status_line({"enabled": False}).startswith("Off · notifications aren't set up"), "status line in plain English (on/off, n of 2, quiet hours, limit, not set up)")
+pr = admin.plain_result
+check(pr({"result": "nothing major", "considered": 14}) == "Looked at 14 new stories: nothing big enough to send."
+      and pr({"result": "sent: Big fire downtown", "sent": 3}) == "Sent an alert: “Big fire downtown” to 3 phones."
+      and pr({"result": "quiet hours (10 PM – 7 AM CT)"}).startswith("Quiet hours") and pr({"result": "daily cap reached (2)"}).startswith("Already sent today's limit")
+      and pr({"result": "error: ConnectError: boom"}).startswith("The check ran into a problem") and pr({"result": "auto-send is off"}).startswith("Auto-alerts are off")
+      and pr({"result": "candidates, but none major (gemini said no)", "considered": 1}) == "Looked at 1 new story: a few looked important, but none were big enough to send.",
+      "check results in plain sentences (never raw codes)")
+sr = admin.send_result
+check(sr({"ok": True, "total": 3, "sent": 2, "failed": 1, "removed": 1}) == "Sent to 2 phones · 1 didn't go through · 1 old subscription cleaned up"
+      and sr({"ok": True, "total": 0, "sent": 0, "failed": 0, "removed": 0}).startswith("Nobody has news alerts on") and sr({"ok": False, "error": "x"}) == "Not sent: x",
+      "send results in plain words")
+now_ = time.time()
+check(admin.clock(now_ - 20, now_) == "just now" and admin.clock(now_ - 600, now_) == "10 min ago" and admin.clock("x") == "—", "times: just now / 10 min ago")
+j = c.get("/stats/push/info").json()
+check(j["ok"] and j["on"] is True and j["news"] == 1 and j["status"].startswith("On · ") and "secret" not in json.dumps(j).lower(), f"/stats/push/info: counts + status, no secrets ({j['status']})")
+r = c.post("/stats/push/check", json={})
+check(r.status_code == 200 and isinstance(r.json().get("plain"), str) and r.json()["plain"][0].isupper(), f"Run a check now answers in a sentence ({r.json().get('plain')})")
+c2 = TestClient(A.app)
+check(c2.get("/stats/push/info").status_code == 401, "/stats/push/info needs the session")
+r = c2.post("/stats/login", data={"key": "wrong"}, follow_redirects=False)
+check(r.status_code == 401 and "match. Check it and try again" in r.text and "set-cookie" not in r.headers, "sign-in form: a wrong key → 401, friendly message, no cookie")
+r = c2.post("/stats/login", data={"key": "unit-test-admin-token", "remember": "1"}, follow_redirects=False)
+sc = r.headers.get_list("set-cookie")
+sess = [x for x in sc if x.startswith(A.stats.COOKIE + "=")]; mark = [x for x in sc if x.startswith("chisme_admin=")]
+check(r.status_code == 303 and sess and "HttpOnly" in sess[0] and "Max-Age=34560000" in sess[0] and "Path=/stats" in sess[0] and "unit-test-admin-token" not in "".join(sc)
+      and mark and "chisme_admin=1" in mark[0] and "Path=/" in mark[0] and "HttpOnly" not in mark[0], "sign-in + 'keep me signed in': 400-day HttpOnly session (not the token) + the app's marker cookie")
+r = c2.post("/stats/login", data={"key": "unit-test-admin-token"}, follow_redirects=False)
+check(r.status_code == 303 and "Max-Age" not in [x for x in r.headers.get_list("set-cookie") if x.startswith(A.stats.COOKIE)][0], "without 'keep me signed in': a session cookie (gone when the browser closes)")
+check(c2.post("/stats/login", data={"key": "unit-test-admin-token"}, headers={"Origin": "https://evil.example"}, follow_redirects=False).status_code == 403, "sign-in posted from another site: 403")
+r = c2.post("/stats/logout", follow_redirects=False)
+check(r.status_code == 303 and any(x.startswith(A.stats.COOKIE + '=""') or x.startswith(A.stats.COOKIE + "=;") or "Max-Age=0" in x for x in r.headers.get_list("set-cookie")), "Sign out clears the cookies")
+c3 = TestClient(A.app)
+codes = [c3.post("/stats/login", data={"key": f"bad{k}"}, follow_redirects=False).status_code for k in range(12)]
+check(429 in codes and "Too many tries" in c3.post("/stats/login", data={"key": "bad"}).text, f"too many wrong keys: 429 'Too many tries' ({codes.count(401)} tries allowed)")
+m = c.get("/stats/manifest.webmanifest")
+check(m.json()["start_url"] == "/stats" and m.json()["scope"] == "/stats" and m.headers["content-type"].startswith("application/manifest+json"), "admin manifest: 'Chisme Admin', opens /stats")
+pg = c.get("/stats").text
+check('rel="manifest" href="/stats/manifest.webmanifest"' in pg and "admin-180.png" in pg and "<title>Chisme Admin</title>" in pg and 'apple-mobile-web-app-title" content="Chisme Admin"' in pg,
+      "admin page: its own title, Home Screen icon and manifest")
 
 print("ALL PASS" if not fails else f"{fails} FAIL(S)"); sys.exit(1 if fails else 0)

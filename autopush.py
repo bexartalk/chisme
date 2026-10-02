@@ -12,6 +12,7 @@ Auto alerts — only truly major local or breaking stories:
     Central, and never the same story twice: the link is claimed in Upstash (SET NX, kept 30 days) and a headline that
     looks like a recent auto push (same key words, any outlet) is skipped too.
   • The owner's on/off switch (chisme:push:auto:on, default OFF) and a log of recent auto pushes are on /stats.
+    (v49.5: the page is rendered by admin.py; this module only supplies admin_info / admin_send / check.)
   • Recipients: subscribers with news alerts on whose area is within AUTO_PUSH_RADIUS_KM (default 100) of San Antonio.
 
 When it runs (Render's free plan sleeps after ~15 min without traffic, and nothing runs while it sleeps):
@@ -389,105 +390,4 @@ async def admin_info(now: float | None = None) -> dict:
             "log": await recent("log", 10), "manual": await recent("manual", 5), "secret": bool(push.conf()["secret"])}
 
 
-# ---------------------------------------------------------------- the /stats panel
-def _when(ts) -> str:
-    try:
-        return datetime.fromtimestamp(float(ts), TZ).strftime("%a %b %-d, %-I:%M %p CT")
-    except Exception:
-        return "—"
-
-
-def admin_html(i: dict) -> str:
-    import html
-    e = html.escape
-    if not i.get("enabled"):
-        warn = ('<div class="ban warn" role="note"><b>Push isn\'t set up.</b> Set <code>VAPID_PUBLIC_KEY</code>, <code>VAPID_PRIVATE_KEY</code> and '
-                '<code>VAPID_SUBJECT</code> on the server; until then nothing can be sent.</div>')
-    else:
-        warn = ""
-    last = i.get("last") or {}
-    last_line = (f'{e(_when(last.get("ts")))} · {e(str(last.get("reason") or ""))} · <b>{e(str(last.get("result") or ""))}</b>'
-                 + (f' · {int(last.get("considered") or 0)} fresh stories' if last.get("considered") is not None else "")
-                 + (f' · top: “{e(last["top"]["t"])}” ({int(last["top"]["score"])})' if isinstance(last.get("top"), dict) else "")) if last else "No check yet since storage was set up."
-    rows = "".join(
-        f'<li><span class="pl-t"><a href="{e(x.get("link") or "#")}" target="_blank" rel="noopener noreferrer">{e(x.get("title") or "")}</a>'
-        f'{" <small>" + e(x.get("source")) + "</small>" if x.get("source") else ""}</span>'
-        f'<span class="pl-m">{e(_when(x.get("ts")))} · score {int(x.get("score") or 0)} · {e(", ".join(x.get("why") or []))}</span>'
-        f'<span class="pl-n">sent {int(x.get("sent") or 0)} · failed {int(x.get("failed") or 0)}{" · pruned " + str(int(x["removed"])) if x.get("removed") else ""}</span></li>'
-        for x in i.get("log") or [])
-    manual = "".join(
-        f'<li><span class="pl-t">{e(x.get("title") or "")}: {e(x.get("body") or "")}</span><span class="pl-m">{e(_when(x.get("ts")))}</span>'
-        f'<span class="pl-n">sent {int(x.get("sent") or 0)} · failed {int(x.get("failed") or 0)}{" · pruned " + str(int(x["removed"])) if x.get("removed") else ""}</span></li>'
-        for x in i.get("manual") or [])
-    on = bool(i.get("on"))
-    return f"""<style>
-.push{{border-top:6px solid var(--pink)}}.push.auto{{border-top-color:var(--turq)}}
-.push label.f{{display:block;font-weight:800;font-size:.9rem;margin:8px 0 2px}}
-.push input[type=text],.push input[type=url],.push textarea{{width:100%;font:inherit;padding:10px;border:2px solid var(--ink);border-radius:10px;background:#fff;color:var(--ink)}}
-.push textarea{{min-height:64px;resize:vertical}}.push input:focus-visible,.push textarea:focus-visible{{outline:4px solid var(--pink);outline-offset:1px}}
-.push .row{{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}}
-.push button{{font:inherit;font-weight:900;min-height:44px;padding:0 16px;border:2px solid var(--ink);border-radius:10px;background:#fff;color:var(--ink);cursor:pointer}}
-.push button.go{{background:var(--ink);color:#fff}}.push button:disabled{{opacity:.55;cursor:default}}
-.push .count{{font-weight:900}}.push .count b{{font-size:1.3rem}}.push .res{{font-weight:800;margin:8px 0 0}}.push .res.ok{{color:var(--turqd)}}.push .res.bad{{color:var(--pinkd)}}
-.push .sub{{font-size:.8rem;color:#333;margin:4px 0 0}}.push .pills{{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}}
-.push .pill{{border:2px solid #a7a9ac;background:#f1f2f3;border-radius:999px;padding:2px 10px;font-size:.8rem;font-weight:800}}
-.push .pill.on{{border-color:var(--turqd);background:#e5fbfb}}.push .pill.hot{{border-color:var(--orange);background:#fff1e3}}
-.sw{{display:flex;align-items:center;gap:12px;font-weight:900;cursor:pointer;min-height:48px}}
-.sw input{{appearance:none;-webkit-appearance:none;width:56px;height:32px;border-radius:999px;background:#767676;position:relative;margin:0;cursor:pointer;border:2px solid var(--ink);flex:0 0 auto}}
-.sw input::after{{content:"";position:absolute;top:2px;left:2px;width:24px;height:24px;border-radius:50%;background:#fff;transition:transform .2s}}
-.sw input:checked{{background:var(--turqd)}}.sw input:checked::after{{transform:translateX(24px)}}.sw input:focus-visible{{outline:4px solid var(--pink);outline-offset:2px}}
-.plog{{list-style:none;margin:6px 0 0;padding:0}}.plog li{{display:grid;gap:2px;padding:7px 0;border-bottom:1px solid #eee}}
-.pl-t{{font-weight:800;font-size:.9rem;overflow-wrap:anywhere}}.pl-t a{{color:#0a3d8f}}.pl-t small{{color:#333;font-weight:600}}.pl-m,.pl-n{{font-size:.75rem;color:#333}}
-dialog.cf{{border:3px solid var(--ink);border-radius:14px;padding:16px;max-width:min(92vw,420px)}}dialog.cf::backdrop{{background:rgba(0,0,0,.5)}}
-dialog.cf h3{{margin:0 0 6px;font-size:1.1rem}}dialog.cf .prev{{border-left:6px solid var(--pink);background:#f4f3ef;padding:8px 10px;border-radius:8px;margin:8px 0;overflow-wrap:anywhere}}
-</style>
-{warn}
-<section class="push" aria-labelledby="push-h"><h2 id="push-h">📣 Send a notification <small>to everyone with news alerts on</small></h2>
-<p class="count" id="push-count"><b>{int(i.get("news") or 0):,}</b> {"subscriber" if int(i.get("news") or 0) == 1 else "subscribers"} will get it <small>({int(i.get("subs") or 0):,} {"subscription" if int(i.get("subs") or 0) == 1 else "subscriptions"} in total · {e("Upstash" if i.get("store") == "upstash" else "temporary file store")})</small></p>
-<form id="pf-form" novalidate>
-<label class="f" for="pf-title">Title</label><input type="text" id="pf-title" maxlength="80" value="{e(DEFAULT_TITLE)}" required>
-<label class="f" for="pf-msg">Message</label><textarea id="pf-msg" maxlength="240" required>{e(DEFAULT_BODY)}</textarea>
-<label class="f" for="pf-link">Link <small>(optional: a story's https:// address opens in Chisme's in-app reader; or an app path like /#weather)</small></label>
-<input type="url" id="pf-link" maxlength="1800" placeholder="https://www.ksat.com/news/…" inputmode="url">
-<div class="row"><button type="submit" class="go" id="pf-send"{" disabled" if not i.get("enabled") else ""}>Send…</button></div>
-<p class="res" id="pf-res" role="status" aria-live="polite"></p></form>
-<dialog class="cf" id="pf-confirm" aria-labelledby="pf-confirm-h"><h3 id="pf-confirm-h">Send this to <span id="pf-n">{int(i.get("news") or 0):,}</span> {"phone" if int(i.get("news") or 0) == 1 else "phones"}?</h3>
-<div class="prev"><b id="pf-pt"></b><br><span id="pf-pm"></span><br><small id="pf-pl"></small></div>
-<p class="sub">This can't be undone.</p><div class="row"><button type="button" class="go" id="pf-yes">Yes, send it</button><button type="button" id="pf-no">Cancel</button></div></dialog>
-{('<h3 style="margin:12px 0 0;font-size:.95rem">Recent sends</h3><ol class="plog">' + manual + '</ol>') if manual else ''}
-</section>
-<section class="push auto" aria-labelledby="auto-h"><h2 id="auto-h">⚡ Auto-send for big news <small>major local or breaking stories only</small></h2>
-<label class="sw"><input type="checkbox" role="switch" id="auto-on"{" checked" if on else ""}{" disabled" if not i.get("enabled") else ""}><span id="auto-on-l">Auto-send is {"on" if on else "off"}</span></label>
-<div class="pills"><span class="pill{' hot' if int(i.get('today') or 0) >= int(i.get('cap') or 2) else ''}">Today: {int(i.get("today") or 0)} / {int(i.get("cap") or 2)}</span>
-<span class="pill{' hot' if i.get('quiet') else ''}">Quiet hours 10 PM – 7 AM CT{" · now" if i.get("quiet") else ""}</span>
-<span class="pill{' on' if i.get('gemini') else ''}">Gemini {"check on" if i.get("gemini") else "not set: keywords only (stricter)"}</span>
-<span class="pill">{int(i.get("near") or 0):,} {"subscriber" if int(i.get("near") or 0) == 1 else "subscribers"} within {int(i.get("radius") or 100)} km of San Antonio</span></div>
-<p class="sub"><b>Last check:</b> <span id="auto-last">{last_line}</span></p>
-<div class="row"><button type="button" id="auto-check"{" disabled" if not i.get("enabled") else ""}>Run a check now</button></div>
-<p class="res" id="auto-res" role="status" aria-live="polite"></p>
-<h3 style="margin:10px 0 0;font-size:.95rem">Recent auto pushes</h3>{('<ol class="plog">' + rows + '</ol>') if rows else '<p class="empty">None yet.</p>'}
-<p class="sub">Checks run at most every {int(i.get("every") or 10)} min, in the background, when someone opens the app{" or the cron knocks on /api/push/tick" if i.get("secret") else ""}. The free server sleeps when nobody visits, so a check can be late; caps and dedupe always apply.</p>
-</section>
-<script>(function(){{
-var $=function(id){{return document.getElementById(id)}};
-function post(path,body){{return fetch(path,{{method:'POST',credentials:'same-origin',headers:{{'Content-Type':'application/json'}},body:JSON.stringify(body||{{}})}}).then(function(r){{return r.json().catch(function(){{return {{ok:false,error:'HTTP '+r.status}}}}).then(function(j){{if(!r.ok&&j.ok!==false)j.ok=false;return j}})}})}}
-var dlg=$('pf-confirm'),res=$('pf-res'),form=$('pf-form');
-function vals(){{return {{title:$('pf-title').value.trim(),message:$('pf-msg').value.trim(),link:$('pf-link').value.trim()}}}}
-form.addEventListener('submit',function(ev){{ev.preventDefault();var v=vals();
-  if(!v.message){{res.className='res bad';res.textContent='Write a message first.';return}}
-  $('pf-pt').textContent=v.title||'Chisme';$('pf-pm').textContent=v.message;$('pf-pl').textContent=v.link?('Opens: '+v.link):'Opens: the News tab';
-  if(dlg.showModal)dlg.showModal();else if(confirm('Send to everyone?'))send();}});
-$('pf-no').onclick=function(){{dlg.close()}};
-$('pf-yes').onclick=function(){{dlg.close();send()}};
-function send(){{var b=$('pf-send');b.disabled=true;res.className='res';res.textContent='Sending…';
-  post('/stats/push/send',vals()).then(function(j){{
-    if(j.ok){{res.className='res ok';res.textContent='Sent: '+j.sent+' · Failed: '+j.failed+(j.removed?' ('+j.removed+' expired subscription'+(j.removed>1?'s':'')+' removed)':'')+' · of '+j.total;}}
-    else{{res.className='res bad';res.textContent='Not sent: '+(j.error||'error');}}
-  }}).catch(function(e){{res.className='res bad';res.textContent='Not sent: '+e.message}}).then(function(){{b.disabled=false}});}}
-var sw=$('auto-on');sw.addEventListener('change',function(){{var want=sw.checked;sw.disabled=true;
-  post('/stats/push/auto',{{on:want}}).then(function(j){{if(j.ok){{sw.checked=!!j.on;$('auto-on-l').textContent='Auto-send is '+(j.on?'on':'off')}}else{{sw.checked=!want;$('auto-res').textContent='Couldn\\'t save: '+(j.error||'error')}}}})
-  .catch(function(){{sw.checked=!want}}).then(function(){{sw.disabled=false}});}});
-$('auto-check').onclick=function(){{var b=this;b.disabled=true;$('auto-res').className='res';$('auto-res').textContent='Checking…';
-  post('/stats/push/check',{{}}).then(function(j){{$('auto-res').className='res'+(j.ok?' ok':' bad');$('auto-res').textContent=(j.result||j.error||'done')+(j.considered!=null?' · '+j.considered+' fresh stories':'');}})
-  .catch(function(e){{$('auto-res').textContent=e.message}}).then(function(){{b.disabled=false}});}};
-}})();</script>"""
+# ---------------------------------------------------------------- the /stats page: rendered by admin.py (v49.5)

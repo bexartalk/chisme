@@ -219,6 +219,8 @@ async def dashboard(p):
     check("reset on every redeploy" in txt and "TEST DATA" not in txt, "no Upstash: the 'resets on every redeploy' banner (real data: no TEST DATA label)")
     for lab in ("Top tabs", "Top stories", "Games", "Cities", "Add to Home Screen tutorial", "Visitors per day"):
         check(lab in txt, f"section: {lab}")
+    check(not await pg.evaluate("document.querySelector('#f-all').open"), "v49.5: the detailed numbers are folded away at first (the phone-first admin page)")
+    await pg.tap("#f-all summary"); await pg.wait_for_timeout(150)
     vis = await pg.evaluate("[...document.querySelectorAll('[role=tabpanel]')].filter(x => x.offsetHeight > 0).map(x => x.id)")
     check(vis == ["p1"], f"only Today's numbers show at first ({vis})")
     await pg.tap("#t7"); await pg.wait_for_timeout(200)
