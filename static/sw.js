@@ -51,7 +51,12 @@ self.addEventListener("install", (event) => {
       if (!ours(resp)) throw new Error("bad shell response for " + u);
       await c.put(u, resp);
     }));
-    await Promise.allSettled(ART.map(async (u) => {
+    // v49.8: the update no longer waits on ~5 MB of art/audio (iPhone Safari often suspended the page first, so the old
+    // build kept being served: the "old sliders" in Settings). Art saved by an older version is copied over (local, fast);
+    // anything missing downloads in the background, best-effort, after the new version has taken over.
+    const missing = [];
+    await Promise.allSettled(ART.map(async (u) => { const old = await caches.match(u); if (old) await c.put(u, old); else missing.push(u); }));
+    Promise.allSettled(missing.map(async (u) => {
       const resp = await fetch(new Request(u, { cache: "reload" }));
       if (ours(resp)) await c.put(u, resp);
     }));
