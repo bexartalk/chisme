@@ -140,11 +140,11 @@ async def main():
         allerrs += errs; await ctx.close()
 
         HEAD = """() => { const t = document.querySelector('#tia-title'), cs = getComputedStyle(t), st = document.querySelector('#tia-settings'), cl = document.querySelector('#tia-close');
-          const S = (b) => { const c = getComputedStyle(b), r = b.getBoundingClientRect(); return { w: r.width, h: r.height, t: r.top, l: r.left, r: r.right, bg: c.backgroundColor, fg: c.color, bd: c.borderTopColor, fs: c.fontSize, fw: c.fontWeight }; };
+          const S = (b) => { const c = getComputedStyle(b), r = b.getBoundingClientRect(); return { w: r.width, h: r.height, t: r.top, b: r.bottom, l: r.left, r: r.right, bg: c.backgroundColor, fg: c.color, bd: c.borderTopColor, fs: c.fontSize, fw: c.fontWeight }; };
           const tr = t.getBoundingClientRect(), hr = document.querySelector('.tia-head').getBoundingClientRect();
           return { text: t.textContent, font: cs.fontFamily, loaded: document.fonts.check('40px "Chisme Display"', 'Tía Chismosa'), px: parseFloat(cs.fontSize), color: cs.color,
             stroke: cs.webkitTextStrokeWidth, strokeColor: cs.webkitTextStrokeColor, bg: cs.backgroundColor, sub: !!document.querySelector('.tia-head p'), inHead: tr.bottom <= hr.bottom + 1 && tr.right <= hr.right,
-            settings: S(st), close: S(cl), foot: document.querySelector('.tia-foot').textContent, vw: innerWidth }; }"""
+            settings: S(st), close: S(cl), headTop: hr.top, foot: document.querySelector('.tia-foot').textContent, vw: innerWidth }; }"""
         BADGE = """() => { const f = document.querySelector('#tia-btn'), g = f.querySelector('.tia-fab-badge'), r = g.getBoundingClientRect(), fr = f.getBoundingClientRect(), c = getComputedStyle(g);
           return { text: g.textContent, hidden: g.getAttribute('aria-hidden'), w: r.width, l: r.left, t: r.top, r: r.right, fl: fr.left, ft: fr.top, vw: innerWidth, bg: c.backgroundColor, ring: c.boxShadow, pe: c.pointerEvents,
             hit: document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.closest('#tia-btn') === f }; }"""
@@ -169,7 +169,8 @@ async def main():
             check(h["px"] >= 30 and h["color"] == "rgb(255, 255, 255)" and float(h["stroke"].rstrip("px") or 0) >= 5 and h["strokeColor"] == "rgb(0, 0, 0)", f"{scheme} {width}: big white with a black outline ({h['px']:.0f}px, stroke {h['stroke']})")
             check(h["bg"] in ("rgba(0, 0, 0, 0)", "transparent") and h["inHead"], f"{scheme} {width}: no pill behind it, inside the header ({h['bg']})")
             st, cl = h["settings"], h["close"]
-            check(st["h"] >= 44 and st["w"] >= 44 and abs(st["t"] - cl["t"]) < 1 and st["r"] < cl["l"] and cl["r"] <= h["vw"], f"{scheme} {width}: ⚙️ Settings next to Close, 44px+ ({st['w']:.0f}x{st['h']:.0f})")
+            check(st["h"] >= 44 and st["w"] >= 44 and cl["h"] >= 44 and st["b"] <= cl["t"] and max(st["r"], cl["r"]) <= h["vw"], f"{scheme} {width}: ⚙️ Settings stacked over Close, 44px+ ({st['w']:.0f}x{st['h']:.0f})")
+            check(st["t"] - h["headTop"] <= 8 and min(st["l"], cl["l"]) >= 0.62 * h["vw"], f"{scheme} {width}: tucked in the top-right corner, off her face (top +{st['t'] - h['headTop']:.0f}px, left edge {min(st['l'], cl['l']):.0f}/{h['vw']})")
             check((st["bg"], st["fg"], st["bd"], st["fs"], st["fw"]) == (cl["bg"], cl["fg"], cl["bd"], cl["fs"], cl["fw"]), f"{scheme} {width}: same style as Close ({st['bg']}, {st['fg']})")
             check(h["foot"].startswith("Tía is an AI and only talks about what's in Chisme right now.") and "Forget me" in h["foot"], f"{scheme} {width}: 'Tía is an AI' in the footer line")
             check(await pg.evaluate("document.activeElement && document.activeElement.id") == "tia-title", f"{scheme} {width}: opens with focus on her name (no ring on Settings after a tap)")
