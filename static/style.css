@@ -208,7 +208,14 @@ main{padding-top:0}
 /* alert strip (visible on every view when NWS alerts are active) */
 .alert-strip[hidden]{display:none}
 .alert-strip{margin-top:10px}
-.alert-strip button{width:100%;text-align:left;background:var(--accent);color:#fff;border-color:#7a120d;font-size:.95rem}
+.alert-strip .as-row{display:flex;align-items:stretch;gap:8px}
+.alert-strip .as-go{flex:1;min-width:0;min-height:48px;text-align:left;background:var(--accent);color:#fff;border-color:#7a120d;font-size:1rem;font-weight:800}
+/* v49.3: hide-this-alert ✕ — a big round 44px target, Fiesta pink ring on white (dark: turquoise ring on near-black) */
+.alert-strip .as-x{flex:0 0 auto;align-self:center;width:44px;height:44px;min-width:44px;min-height:44px;padding:0;border-radius:50%;
+  display:inline-flex;align-items:center;justify-content:center;background:#fff;color:#000;border:3px solid var(--pink);
+  font-size:1.25rem;font-weight:900;line-height:1;box-shadow:0 2px 0 #b3264e;cursor:pointer}
+.alert-strip .as-x:active{transform:translateY(1px);box-shadow:none}
+.alert-strip .as-x:focus-visible{outline:3px solid var(--turq);outline-offset:2px}
 
 /* ---------- news: "dig deeper" links at the end of each story */
 .story{flex-wrap:wrap}
@@ -657,7 +664,8 @@ body { overscroll-behavior-y: contain; }
 .basemap{filter:grayscale(1) contrast(.82) brightness(1.1)}
 [data-theme="dark"] .basemap{filter:grayscale(1) invert(1) brightness(.78) contrast(1.05)}
 /* dark mode: buttons that keep their own look */
-[data-theme="dark"] .alert-strip button{background:#b3261e;color:#fff;border-color:#ff8a7e}
+[data-theme="dark"] .alert-strip .as-go{background:#b3261e;color:#fff;border-color:#ff8a7e}
+[data-theme="dark"] .alert-strip .as-x{background:#111;color:#fff;border-color:var(--turq);box-shadow:0 2px 0 #007f82}
 [data-theme="dark"] .tab{background:#000;color:#fff;border-color:#000}
 [data-theme="dark"] .tab[aria-current="page"]{background:var(--turq);color:#000;border-color:var(--turq)}
 [data-theme="dark"] .tab:hover{border-color:var(--pink)}
@@ -919,7 +927,11 @@ html.feed-open,html.feed-open body{overflow:hidden}
 [data-theme="dark"] .mapsheet .ms-map{background:#1b2528}
 /* ---------- Tía Chismosa (v28): floating avatar + chat sheet */
 .tia-fab{position:fixed;right:max(14px,env(safe-area-inset-right));bottom:calc(16px + env(safe-area-inset-bottom));z-index:44;width:64px;height:64px;min-height:0;padding:0;
-  border-radius:50%;border:3px solid #000;background:#0b0b2a;box-shadow:0 0 0 3px var(--pink),0 6px 18px rgba(0,0,0,.35);overflow:hidden}
+  border-radius:50%;border:3px solid #000;background:#0b0b2a;box-shadow:0 0 0 3px var(--pink),0 6px 18px rgba(0,0,0,.35);overflow:visible}
+/* v49.3: a small ⚙️ badge on her circle: she holds Settings (decoration; the whole circle is the button) */
+.tia-fab-badge{position:absolute;top:-8px;left:-8px;width:30px;height:30px;box-sizing:border-box;border-radius:50%;background:#fff;border:2px solid #000;
+  box-shadow:0 0 0 3px var(--turq);display:flex;align-items:center;justify-content:center;font-size:17px;line-height:1;pointer-events:none}
+[data-theme="dark"] .tia-fab-badge{background:#fff;border-color:#000;box-shadow:0 0 0 3px var(--turq)}
 .tia-fab img{display:block;width:100%;height:100%;border-radius:50%}
 .tia-fab:focus-visible{outline:4px solid var(--focus);outline-offset:4px}
 body{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
@@ -928,11 +940,16 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
 .tia-head{position:relative;flex:0 0 auto;height:170px;overflow:hidden;border-bottom:3px solid var(--pink)}
 .tia-hero{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 30%}
 .tia-head .grab{background:rgba(255,255,255,.6);z-index:1}
-/* v35: the name sits bottom right, so her glowing phone (left) shows */
-.tia-name{position:absolute;right:12px;bottom:10px;text-align:right;z-index:1;background:rgba(11,11,42,.78);border-radius:12px;padding:4px 10px}
-.tia-name h2{margin:0;font-size:1.05rem;color:#fff}
-.tia-name p{margin:0;font-size:.72rem;color:#bff4f5;font-weight:700}
-#tia-close{position:absolute;right:10px;top:14px;z-index:1;background:#000;color:#fff;border-color:#fff}
+/* v49.3: her name in the logo's spirit: a chunky hand-lettered display face (Chewy, subset to these letters, Apache 2.0),
+   big white with a black outline like the Chisme wordmark; no pill behind it, no subtitle (the "AI" note is in the footer) */
+@font-face{font-family:"Chisme Display";src:url("/static/fonts/chewy-tia.woff2") format("woff2");font-weight:400;font-style:normal;font-display:swap}
+.tia-name{position:absolute;right:12px;bottom:6px;left:12px;z-index:1;margin:0;text-align:right;font-family:"Chisme Display","Arial Rounded MT Bold",system-ui,sans-serif;
+  font-weight:400;font-size:2.35rem;line-height:1;letter-spacing:.5px;color:#fff;-webkit-text-stroke:7px #000;paint-order:stroke fill;
+  text-shadow:0 3px 0 #000;background:none;padding:0;pointer-events:none}
+@media (max-width:360px){.tia-name{font-size:2rem;-webkit-text-stroke-width:6px}}
+.tia-name:focus{outline:none}
+.tia-head-btns{position:absolute;right:10px;top:14px;z-index:1;display:flex;gap:8px}
+.tia-head-btns button{min-height:44px;min-width:44px;background:#000;color:#fff;border-color:#fff}
 .tia-log{flex:1 1 auto;overflow-y:auto;list-style:none;margin:0;padding:12px 12px 4px;display:flex;flex-direction:column;gap:10px;overscroll-behavior:contain}
 .tia-msg{display:flex;gap:8px;align-items:flex-end;max-width:100%}
 .tia-msg.from-me{justify-content:flex-end}
@@ -1275,28 +1292,17 @@ html.a2hs-open .tia-fab,html.a2hs-open .news-pill{visibility:hidden}
 .gd-pre{border-color:var(--turq)}
 .gd-live .live-dot{background:#000}
 
-/* ---------- v49b: a ⚙️ Settings button in the header's top-right corner (44 px, black with a silver ring and a white gear;
-   the Chisme bubble still opens Settings too) + a one-time tip right under it */
-.topbar .actions{display:flex;gap:8px;align-items:center;z-index:2}
-.topbar .set-gear{width:44px;height:44px;min-height:44px;padding:0;margin:0;border-radius:50%;background:#000;border:2px solid #c9d0d8;color:#fff;
-  display:grid;place-items:center;cursor:pointer;box-shadow:0 2px 0 rgba(0,0,0,.35);-webkit-tap-highlight-color:transparent;transition:transform .15s ease}
-.topbar .set-gear:active{transform:scale(.94)}
-.topbar .set-gear:focus-visible{outline:4px solid var(--focus);outline-offset:2px}
-.topbar .set-gear svg{width:26px;height:26px;display:block}
-.set-gear .gear-teeth{fill:none;stroke:#fff;stroke-width:3.4}
-.set-gear .gear-body{fill:#fff}
-.set-gear .gear-hole{fill:#000}
-[data-theme="dark"] .topbar .set-gear{background:#000;border-color:#c9d0d8;color:#fff}
-.reduce-motion .topbar .set-gear{transition:none}
-.stip-anchor{position:relative;height:0;z-index:40}
-.stip{position:absolute;right:12px;top:75px;width:min(calc(100vw - 24px),330px);
+/* ---------- v49 → v49.3: the one-time Settings tip. v49.3: Settings live in Tía's menu (the floating Tía button), so the tip
+   floats right above her, its tail pointing down at her (the v49.2 corner ⚙️ is gone; the header bubble still opens Settings) */
+.stip-anchor{position:static;height:0}
+.stip{position:fixed;z-index:45;right:max(14px,env(safe-area-inset-right));bottom:calc(16px + 64px + 20px + env(safe-area-inset-bottom));width:min(calc(100vw - 28px),330px);
   display:flex;align-items:center;gap:8px;padding:10px 8px 10px 10px;background:#fff;color:#000;border:3px solid #000;border-radius:20px;
   box-shadow:0 6px 0 var(--pink),0 10px 24px rgba(0,0,0,.25);animation:stip-in .35s ease-out both, stip-bob 2.2s ease-in-out .5s 3}
 .stip[hidden]{display:none}
 /* the speech-bubble tail, pointing up at the emblem */
-.stip::before,.stip::after{content:"";position:absolute;width:0;height:0;border-style:solid}   /* the tail: under the ⚙️ (22 px from the right edge) */
-.stip::before{top:-19px;right:4px;border-width:0 15px 19px;border-color:transparent transparent #000}
-.stip::after{top:-14px;right:8px;border-width:0 11px 15px;border-color:transparent transparent #fff}
+.stip::before,.stip::after{content:"";position:absolute;width:0;height:0;border-style:solid}   /* the tail: over Tía's middle (32 px from the right edge) */
+.stip::before{bottom:-19px;right:14px;border-width:19px 15px 0;border-color:#000 transparent transparent}
+.stip::after{bottom:-14px;right:18px;border-width:15px 11px 0;border-color:#fff transparent transparent}
 .stip-tia{flex:none;width:46px;height:46px;border-radius:50%;border:3px solid var(--turq);object-fit:cover;background:#000}
 .stip .stip-go{flex:1;min-width:0;min-height:0;margin:0;padding:2px 0;border:0;background:none;color:inherit;text-align:left;cursor:pointer;border-radius:10px;font:inherit}
 .stip-big{display:block;font-size:1.3rem;font-weight:900;line-height:1.15}
@@ -1305,8 +1311,8 @@ html.a2hs-open .tia-fab,html.a2hs-open .news-pill{visibility:hidden}
   font-size:1.25rem;font-weight:900;line-height:1;display:grid;place-items:center}
 .stip .stip-go:focus-visible,.stip .stip-x:focus-visible{outline:4px solid var(--focus);outline-offset:2px}
 [data-theme="dark"] .stip{background:#15171f;color:#fff;border-color:var(--turq)}
-[data-theme="dark"] .stip::before{border-bottom-color:var(--turq)}
-[data-theme="dark"] .stip::after{border-bottom-color:#15171f}
+[data-theme="dark"] .stip::before{border-top-color:var(--turq)}
+[data-theme="dark"] .stip::after{border-top-color:#15171f}
 [data-theme="dark"] .stip .stip-go{background:none;color:#fff;border:0}
 [data-theme="dark"] .stip-sub{color:#c9d0d8}
 [data-theme="dark"] .stip .stip-x{background:var(--turq);color:#000;border-color:var(--turq)}
@@ -1345,5 +1351,37 @@ html.notif-open .tia-fab,html.notif-open .news-pill{visibility:hidden}
 .reduce-motion .notif-card{animation:none}
 @media (prefers-reduced-motion:reduce){ .notif-card{animation:none} }
 @media (max-width:360px){ .notif-t{font-size:1.32rem} .notif-s{font-size:.95rem} }
-/* v49.2: narrow phones scale the header art down, which brings the helicopter up under the ⚙️: lift the button (and its tip) */
-@media (max-width:389px){ .topbar .actions{top:4px} .stip{top:67px} }
+
+/* ---------- v49.3: Tía's menu (tap the floating Tía): ⚙️ Settings or 💬 chat. It floats right above her, tail pointing at her. */
+dialog.tia-menu{position:fixed;inset:auto;right:max(14px,env(safe-area-inset-right));bottom:calc(16px + 64px + 18px + env(safe-area-inset-bottom));margin:0;padding:0;
+  width:min(calc(100vw - 28px),340px);max-width:none;max-height:calc(100dvh - 130px);overflow:visible;box-sizing:border-box;
+  background:#fff;color:#000;border:3px solid #000;border-radius:22px;box-shadow:0 6px 0 var(--pink),0 14px 30px rgba(0,0,0,.3)}
+dialog.tia-menu[open]{animation:tm-in .2s ease-out both}
+dialog.tia-menu::backdrop{background:rgba(0,0,0,.4)}
+dialog.tia-menu::before,dialog.tia-menu::after{content:"";position:absolute;width:0;height:0;border-style:solid}
+dialog.tia-menu::before{bottom:-21px;right:14px;border-width:19px 15px 0;border-color:#000 transparent transparent}
+dialog.tia-menu::after{bottom:-15px;right:18px;border-width:15px 11px 0;border-color:#fff transparent transparent}
+.tia-menu-in{padding:12px 12px 14px;max-height:calc(100dvh - 136px);overflow:auto;box-sizing:border-box}
+.tia-menu-head{display:flex;align-items:center;gap:10px}
+.tia-menu-emblem{position:relative;flex:none;width:74px;height:58px}   /* the header's Chisme bubble, cloned in by app.js */
+.tia-menu-emblem .bubble-edge{stroke-width:14}
+.tia-menu-hi{flex:1;min-width:0;margin:0;font-size:1.15rem;line-height:1.2;font-weight:900;outline:none}
+.tia-menu .tia-menu-x{flex:none;width:44px;height:44px;min-height:44px;padding:0;border-radius:50%;border:3px solid #000;background:#000;color:#fff;
+  font-size:1.2rem;font-weight:900;line-height:1;display:grid;place-items:center}
+.tia-menu .tia-menu-btn{display:block;width:100%;min-height:66px;margin:10px 0 0;padding:10px 14px;text-align:left;border:3px solid #000;border-radius:16px;
+  font:inherit;cursor:pointer;box-shadow:inset 0 -5px 0 rgba(0,0,0,.18)}
+.tia-menu .tia-menu-btn.tm-settings{background:var(--turq);color:#000}
+.tia-menu .tia-menu-btn.tm-chat{background:var(--pink);color:#fff}
+.tm-big{display:block;font-size:1.45rem;line-height:1.15;font-weight:900}
+.tm-sub{display:block;margin-top:2px;font-size:1rem;line-height:1.2;font-weight:800}
+.tia-menu .tia-menu-btn:focus-visible,.tia-menu .tia-menu-x:focus-visible{outline:4px solid var(--focus);outline-offset:2px}
+[data-theme="dark"] dialog.tia-menu{background:#15171f;color:#fff;border-color:var(--turq)}
+[data-theme="dark"] dialog.tia-menu::before{border-top-color:var(--turq)}
+[data-theme="dark"] dialog.tia-menu::after{border-top-color:#15171f}
+[data-theme="dark"] .tia-menu .tia-menu-x{background:var(--turq);color:#000;border-color:var(--turq)}
+[data-theme="dark"] .tia-menu .tia-menu-btn.tm-settings{background:var(--turq);color:#000;border-color:#000}
+[data-theme="dark"] .tia-menu .tia-menu-btn.tm-chat{background:#ff3d8b;color:#fff;border-color:#000}
+@keyframes tm-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.reduce-motion dialog.tia-menu[open]{animation:none}
+@media (prefers-reduced-motion:reduce){ dialog.tia-menu[open]{animation:none} }
+@media (max-width:360px){ .tm-big{font-size:1.28rem} .tm-sub{font-size:.92rem} .tia-menu-hi{font-size:1.02rem} .tia-menu-emblem{width:62px;height:48px} }

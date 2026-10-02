@@ -113,7 +113,7 @@ async def run_theme(b, dev, theme, shots):
     await scan(pg, "#settings", "Settings")
     await pg.keyboard.press("Escape"); await pg.wait_for_timeout(300)
     # --- the Tía chat sheet (her picture is left as is)
-    await pg.click("#tia-btn"); await pg.wait_for_timeout(1200)
+    await pg.click("#tia-btn"); await pg.click("#tia-menu-chat"); await pg.wait_for_timeout(1200)
     await scan(pg, "#tia", "Tía chat sheet (UI; her art excluded)")
     await pg.keyboard.press("Escape"); await pg.wait_for_timeout(300)
     # --- Lotería: a win

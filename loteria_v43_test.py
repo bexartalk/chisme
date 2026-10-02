@@ -59,7 +59,7 @@ def files():
     check(sum(sat) / len(sat) > 0.4 and min(sat) > 0.2, f"bright, saturated print colors, not muddy (mean saturation {sum(sat) / len(sat):.2f}, lowest {min(sat):.2f})")
     check(min(border) >= 235, f"a crisp white card border on every card (darkest border pixel {min(border)})")
     sw = open(os.path.join(HERE, "static", "sw.js")).read()
-    check("/static/loteria/cards/" in sw and re.search(r'VERSION = "chisme-v\d+"', sw), "the service worker precaches the pictures (offline tabla)")
+    check("/static/loteria/cards/" in sw and re.search(r'VERSION = "chisme-v\d+(?:\.\d+)?"', sw), "the service worker precaches the pictures (offline tabla)")
     gen = open(os.path.join(HERE, "tools", "make_loteria_cards.py")).read()
     check("loteria_cards.js" in gen and "webp" in gen, "tools/make_loteria_cards.py re-renders them from our own drawings in loteria_cards.js")
 

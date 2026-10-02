@@ -1,7 +1,7 @@
 /* Chisme — frontend (location-aware) */
 // Build of this file. Must equal the number in sw.js VERSION ("chisme-v22"); the page compares it
 // with the build the HTML was served for and reloads once if an old cached app.js got mixed in.
-window.CHISME_APP_BUILD = "49.2";
+window.CHISME_APP_BUILD = "49.3";
 (() => {
   "use strict";
   const WEATHER_MS = 10 * 60 * 1000;
@@ -417,12 +417,43 @@ window.CHISME_APP_BUILD = "49.2";
   });
 
   // ---------- weather
+  // v49.3: the banner has a ✕. Hiding is per alert, until it expires: keyed by the NWS id AND by event + severity + end
+  // time, so an NWS re-issue of the same alert stays hidden, but a new one, an upgrade (Watch → Warning, or a higher
+  // severity) or an extension shows again. The Weather tab always keeps the full alerts.
+  const WX_HIDE = "chisme-wx-hidden";
+  const wxKey = (a) => `${a.event || ""}|${a.severity || ""}|${a.ends || a.expires || ""}`;
+  function wxHidden() {
+    let m = {};
+    try { m = JSON.parse(localStorage.getItem(WX_HIDE) || "{}") || {}; } catch {}
+    const now = Date.now(); let pruned = false;
+    for (const k of Object.keys(m)) if (!(m[k] > now)) { delete m[k]; pruned = true; }
+    if (pruned) try { localStorage.setItem(WX_HIDE, JSON.stringify(m)); } catch {}
+    return m;
+  }
+  const wxIdKey = (a) => `id:${a.id}|${a.event || ""}|${a.severity || ""}`;   // same id but upgraded: shows again
+  const wxIsHidden = (a, m) => !!(m[wxKey(a)] || (a.id && m[wxIdKey(a)]));
+  function wxHide(a) {
+    const m = wxHidden(), end = Date.parse(a.ends || a.expires || "");
+    const until = Number.isFinite(end) && end > Date.now() ? end : Date.now() + 12 * 3600e3;   // no end time: 12 hours
+    m[wxKey(a)] = until; if (a.id) m[wxIdKey(a)] = until;
+    try { localStorage.setItem(WX_HIDE, JSON.stringify(m)); } catch {}
+  }
+  let lastStripW = null;
   function renderAlertStrip(w) {
-    const strip = $("#alert-strip"), alerts = (w && w.alerts) || [];
+    lastStripW = w;
+    const strip = $("#alert-strip"), m = wxHidden();
+    const alerts = ((w && w.alerts) || []).filter((a) => !wxIsHidden(a, m));
     if (!alerts.length) { strip.hidden = true; strip.replaceChildren(); return; }
-    const b = el("button", { type: "button", text: `⚠ ${alerts[0].event}${alerts.length > 1 ? ` (+${alerts.length - 1} more)` : ""} for your area — tap for details` });
+    const a = alerts[0];
+    const b = el("button", { type: "button", class: "as-go", text: `⚠ ${a.event}${alerts.length > 1 ? ` (+${alerts.length - 1} more)` : ""} for your area — tap for details` });
     b.onclick = () => goView("weather", { scrollTo: "alerts" });
-    strip.replaceChildren(b);
+    const x = el("button", { type: "button", class: "as-x", "aria-label": `Hide this alert: ${a.event}`, title: "Hide this alert" }, el("span", { "aria-hidden": "true", text: "✕" }));
+    x.onclick = () => {
+      wxHide(a); renderAlertStrip(lastStripW);
+      const next = $("#alert-strip .as-go");
+      if (next) next.focus({ preventScroll: true });
+    };
+    strip.replaceChildren(el("div", { class: "as-row" }, b, x));
     strip.hidden = false;
   }
   function weatherBlurb(w) {
@@ -2696,7 +2727,6 @@ window.CHISME_APP_BUILD = "49.2";
     showFs(); renderLocLabel(); syncUI();
   }
   $("#settings-btn").onclick = () => { syncSettings(); dlg.showModal(); };
-  $("#settings-gear").onclick = () => { syncSettings(); dlg.showModal(); };   // v49b: the ⚙️ in the header's corner
   dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });   // tap outside the sheet
   for (const r of dlg.querySelectorAll('input[name="theme"]')) r.onchange = () => { localStorage.setItem(THEME_KEY, r.value); applyTheme(); };
   for (const r of dlg.querySelectorAll('input[name="deftab"]')) r.onchange = () => localStorage.setItem(TAB_KEY, r.value);
@@ -3157,7 +3187,7 @@ window.CHISME_APP_BUILD = "49.2";
     if (firstRun()) document.addEventListener("chisme-setup-done", () => a2Try(1200), { once: true }); else a2Try(1500);
   }
 
-  // ---------- v49: one-time tip "Settings are up here ⚙️" (Tía's voice; v49b: pointing up at the ⚙️ button in the header's corner).
+  // ---------- v49: one-time Settings tip (v49.3: "👆 Tap Tía for Settings ⚙️", floating right above the Tía button, tail at her).
   // One popup per open: it shows on a normal open only, never on the first launch (location card), nor on an open the
   // notifications card or the Home Screen tutorial took (it tries again next open), nor over a dialog / the food feed /
   // a full-screen game. Tapping the bubble, the tip or ✕ ends it for good.
@@ -3173,7 +3203,7 @@ window.CHISME_APP_BUILD = "49.2";
     const html = document.documentElement;
     return firstRun() || !$("#loc-panel").hidden || html.classList.contains("a2hs-open") || html.classList.contains("notif-open") || notifPhase === "pending" || (a2Claim && a2Due())
       || !!document.querySelector("dialog[open]") || html.classList.contains("game-fs") || !!document.getElementById("wake")
-      || document.visibilityState !== "visible" || window.scrollY > 60;
+      || document.visibilityState !== "visible" || getComputedStyle($("#tia-btn")).visibility === "hidden" || getComputedStyle($("#tia-btn")).display === "none";
   }
   function tipTry(delay) {
     clearTimeout(tipTimer);
@@ -3185,10 +3215,10 @@ window.CHISME_APP_BUILD = "49.2";
     }, delay);
   }
   $("#settings-btn").addEventListener("click", () => tipEnd("bubble"));   // they found it: no tip, ever
-  $("#settings-gear").addEventListener("click", () => tipEnd("gear"));
+  $("#tia-btn").addEventListener("click", () => tipEnd("tia"));   // her menu has Settings: they found it
   if (tipEl) {
     $("#settings-tip-x").onclick = () => tipEnd("dismissed");
-    $("#settings-tip-go").onclick = () => { tipEnd("tip"); $("#settings-gear").click(); };
+    $("#settings-tip-go").onclick = () => { tipEnd("tip"); $("#tia-btn").click(); };   // shows them: Tía's menu, Settings first
     tipEl.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.preventDefault(); tipEnd("dismissed"); } });
     if (!tipDone() && !tipFirstOpen) tipTry(1800);
   }
@@ -3351,12 +3381,25 @@ window.CHISME_APP_BUILD = "49.2";
   function openTia() {
     tiaOpener = document.activeElement;
     tiaDaily(); tiaRender();
-    if (!tiaDlg.open) tiaDlg.showModal();
+    if (!tiaDlg.open) { tiaDlg.showModal(); $("#tia-title").focus({ preventScroll: true }); }   // v49.3: no focus ring on Settings after a tap
   }
-  $("#tia-btn").onclick = openTia;
+  // v49.3: tapping Tía opens her little menu: ⚙️ Settings (the header's Chisme bubble still opens Settings too) or 💬 chat
+  const tiaMenu = $("#tia-menu");
+  { const emb = $("#settings-btn .bubble"); if (emb) $("#tia-menu-emblem").append(emb.cloneNode(true)); }   // the Chisme bubble, as branding
+  function openTiaMenu() {
+    if (tiaMenu.open || document.querySelector("dialog[open]")) return;
+    tiaMenu.showModal(); $("#tia-menu-title").focus({ preventScroll: true });   // (no focus ring on a button after a tap)
+  }
+  $("#tia-btn").onclick = openTiaMenu;
+  $("#tia-menu-x").onclick = () => tiaMenu.close();
+  tiaMenu.addEventListener("click", (e) => { if (e.target === tiaMenu) tiaMenu.close(); });   // a tap outside it
+  $("#tia-menu-settings").onclick = () => { tiaMenu.close(); $("#settings-btn").click(); };
+  $("#tia-menu-chat").onclick = () => { tiaMenu.close(); openTia(); tiaOpener = $("#tia-btn"); };
+  tiaMenu.addEventListener("close", () => { if (!document.querySelector("dialog[open]")) $("#tia-btn").focus({ preventScroll: true }); });
   $("#tia-close").onclick = () => tiaDlg.close();
+  $("#tia-settings").onclick = () => { tiaOpener = null; tiaDlg.close(); $("#settings-btn").click(); };   // v49.3: Settings from her chat
   tiaDlg.addEventListener("click", (e) => { if (e.target === tiaDlg) tiaDlg.close(); });
-  tiaDlg.addEventListener("close", () => { if (tiaOpener && tiaOpener.isConnected) tiaOpener.focus({ preventScroll: true }); });
+  tiaDlg.addEventListener("close", () => { if (tiaOpener && tiaOpener.isConnected && !document.querySelector("dialog[open]")) tiaOpener.focus({ preventScroll: true }); });
   tiaForm.addEventListener("submit", (e) => { e.preventDefault(); const t = tiaIn.value; tiaIn.value = ""; tiaSend(t); });
   for (const b of document.querySelectorAll("#tia-quick button")) b.onclick = () => tiaSend(b.dataset.q);
   // Settings → Forget me: two taps (no pop-up), then everything she knows about you is gone from this phone
@@ -3406,7 +3449,8 @@ window.CHISME_APP_BUILD = "49.2";
     get ready() { return secs.weather.shownUrl === secs.weather.url() && secs.news.shownUrl === secs.news.url(); },
     get fresh() { return rendered.weather === q() && rendered.news === q(); },
     get newsReady() { return secs.news.shownUrl === secs.news.url(); }, get sportsReady() { return secs.sports.shownUrl === secs.sports.url(); }, get eventsReady() { return secs.events.shownUrl === secs.events.url(); }, get foodReady() { return !!foodData; },
-    get sync() { return { busy: [...Sync.busy], failed: [...Sync.failed.keys()], lastOk: Sync.lastOk }; }, refreshNow, get evCat() { return evCat; }, get view() { return VIEWS[cur]; }, radarColor: (r, g, b) => radarColor(r, g, b), get notif() { return { ...notif, phase: notifPhase, open: !$("#push-ask").hidden, kind: $("#push-ask").dataset.kind || null, due: notifDue() }; }, get settingsTip() { return { shown: !!tipEl && !tipEl.hidden, done: tipDone(), saved: lsGet(TIP_KEY), shownAt: tipShownAt }; }, get a2hs() { return { ...a2, open: !a2Sheet.hidden, ipad: isIPad, safari: isIOSSafari, standalone, kind: a2Kind(), shown: a2Shown, claim: a2Claim, visits }; }, get donateMid() { const c = document.getElementById("donate-mid"); return { opens: midLaunch.opens, line: midLaunch.line, tab: midTab, where: midWhere, placed: !!(c && c.isConnected), dismissed: midGone() }; }, goView, get juegos() { return juegosOpen(); }, get forYou() { return { profile: FY && FY.load(), feed: feedList.map((r) => ({ url: r.item.url, title: r.item.title, creator: r.item.creator, crew: r.crew, place: r.place, why: r.why.text, explore: r.explore, recipe: !!r.item.recipe, world: !!r.item.world, where: r.item.where || null })), cur: feedCur, open: feed.open, sound: { wanted: soundWanted, muted: feedMuted, unlocks: feedUnlocks, held: feed.classList.contains("sound-held") }, get player() { const sl = slides(), c = YT.find((p) => p.slide && !p.warm && sl.indexOf(p.slide) === feedCur) || YT.find((p) => p.slide && !p.warm) || YT[0] || {}, w = YT.find((p) => p.warm && p.slide);
+    get sync() { return { busy: [...Sync.busy], failed: [...Sync.failed.keys()], lastOk: Sync.lastOk }; }, refreshNow, get evCat() { return evCat; }, get view() { return VIEWS[cur]; }, radarColor: (r, g, b) => radarColor(r, g, b), get notif() { return { ...notif, phase: notifPhase, open: !$("#push-ask").hidden, kind: $("#push-ask").dataset.kind || null, due: notifDue() }; }, get wxHidden() { return wxHidden(); },
+    get tiaMenu() { return { open: tiaMenu.open }; }, get settingsTip() { return { shown: !!tipEl && !tipEl.hidden, done: tipDone(), saved: lsGet(TIP_KEY), shownAt: tipShownAt }; }, get a2hs() { return { ...a2, open: !a2Sheet.hidden, ipad: isIPad, safari: isIOSSafari, standalone, kind: a2Kind(), shown: a2Shown, claim: a2Claim, visits }; }, get donateMid() { const c = document.getElementById("donate-mid"); return { opens: midLaunch.opens, line: midLaunch.line, tab: midTab, where: midWhere, placed: !!(c && c.isConnected), dismissed: midGone() }; }, goView, get juegos() { return juegosOpen(); }, get forYou() { return { profile: FY && FY.load(), feed: feedList.map((r) => ({ url: r.item.url, title: r.item.title, creator: r.item.creator, crew: r.crew, place: r.place, why: r.why.text, explore: r.explore, recipe: !!r.item.recipe, world: !!r.item.world, where: r.item.where || null })), cur: feedCur, open: feed.open, sound: { wanted: soundWanted, muted: feedMuted, unlocks: feedUnlocks, held: feed.classList.contains("sound-held") }, get player() { const sl = slides(), c = YT.find((p) => p.slide && !p.warm && sl.indexOf(p.slide) === feedCur) || YT.find((p) => p.slide && !p.warm) || YT[0] || {}, w = YT.find((p) => p.warm && p.slide);
       return { made: YT.length > 0, ready: !!c.ready, vid: c.vid || null, st: c.st ?? -1, ytMuted: c.ytMuted ?? null, unlocked: !!c.unlocked, slide: c.slide ? sl.indexOf(c.slide) : -1, frames: document.querySelectorAll("iframe.vf-yt").length,
         players: YT.map((p) => ({ slide: p.slide ? sl.indexOf(p.slide) : -1, warm: p.warm, vid: p.vid, st: p.st, ready: p.ready, unlocked: p.unlocked, muted: p.ytMuted })), warm: w ? sl.indexOf(w.slide) : -1, ios: IOS_FEED,
         warms: YT.filter((p) => p.warm && p.slide).map((p) => sl.indexOf(p.slide)).sort((a, b) => a - b), pool: ytPool(), ahead: aheadN(), slow: slowNet() }; }, cover: fyList.slice(0, 3).map((r) => r.item.url), coverCrews: fyList.slice(0, 3).map((r) => r.crew) }; }, openFeed, closeFeed,

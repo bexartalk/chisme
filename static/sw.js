@@ -1,7 +1,7 @@
 /* Chisme service worker: caches the app shell and the last-loaded news/weather
    so the app opens instantly (and shows the last saved data) even when the server is asleep
    or there's no connection. */
-const VERSION = "chisme-v49.2";   // v49.2: a same-day follow-up (a ".N" after the number is allowed)
+const VERSION = "chisme-v49.3";   // v49.2 / v49.3: same-day follow-ups (a ".N" after the number is allowed)
 const BUILD = VERSION.replace("chisme-v", "");          // index.html asks for app.js?v=<BUILD>
 const SHELL_CACHE = `${VERSION}-shell`;
 const DATA_CACHE = `${VERSION}-data`;
@@ -33,6 +33,8 @@ ART.push(...["spurs-arena", "spurs-bluehour", "missions-wolff", "missions-game",
 // Tía Chismosa's avatar + chat header (~85 KB), so her button shows offline too.
 // ?art=N changes whenever tools/make_mascot_assets.py rebuilds her (same query in index.html, app.js, juegos.js)
 ART.push(...["avatar-64", "avatar-128", "avatar-192", "header-480", "header-960"].map((n) => `/static/mascot/${n}.webp?art=3`));
+// v49.3: the 3 KB display face for "Tía Chismosa" in her chat header
+ART.push("/static/fonts/chewy-tia.woff2");
 // v41: Lotería Chismosa's recorded Spanish calls (57 short mp3s, ~1.3 MB; tools/make_loteria_audio.py), best-effort too.
 ART.push(...[...Array.from({ length: 54 }, (_, i) => String(i + 1).padStart(2, "0")), "intro", "loteria", "over"].map((k) => `/static/loteria/audio/${k}.mp3`));
 // v43: the 54 vintage Lotería cards (tools/make_loteria_cards.py, ~1.3 MB), best-effort too: the tabla works offline

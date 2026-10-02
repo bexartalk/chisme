@@ -24,6 +24,7 @@ HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 BASE = os.environ.get("CHISME_URL", "http://localhost:8211")
 OUT = os.path.join(HERE, "screenshots"); os.makedirs(OUT, exist_ok=True)
 MOCK = int(os.environ.get("GEMINI_MOCK_PORT", "8391"))
+from popup_quiet import QUIET   # v49: the notifications card / Settings tip stay out of the way (their own tests cover them)
 INIT = "if (!localStorage.getItem('chisme-location-setup')) { localStorage.setItem('chisme-location-setup','1'); localStorage.setItem('chisme-ios-hint-dismissed','1'); localStorage.setItem('chisme-swiped','1'); }"
 fails = 0
 def check(ok, what):
@@ -252,7 +253,7 @@ async def ui():
     async with async_playwright() as p:
         b = await p.webkit.launch()
         dev = dict(p.devices["iPhone 13"]); dev.pop("default_browser_type", None)
-        ctx = await b.new_context(**dev); await ctx.add_init_script(INIT)
+        ctx = await b.new_context(**dev); await ctx.add_init_script(INIT); await ctx.add_init_script(QUIET)
         pg = await ctx.new_page(); errs = []
         pg.on("pageerror", lambda e: errs.append(str(e)[:160]))
         await pg.goto(BASE + "/"); await pg.wait_for_function("window.__chisme && __chisme.ready && document.querySelector('#near-list .story')", timeout=120000)
@@ -272,7 +273,7 @@ async def ui():
         check(prof and prof["k"].get("news", 0) > 0 and len(prof["t"]) > 0, f"tapping a story teaches her (on the phone): {list(prof['t'])[:5] if prof else None}")
         # make that story's words a strong interest: it should lead today's chisme del día
         await pg.evaluate("""(t) => { const p = JSON.parse(localStorage.getItem('chisme-tia-profile')); for (const k of Object.keys(p.t)) p.t[k] = 6; localStorage.setItem('chisme-tia-profile', JSON.stringify(p)); }""", title)
-        await pg.click("#tia-btn")
+        await pg.click("#tia-btn"); await pg.click("#tia-menu-chat")
         await pg.wait_for_function("document.querySelector('#tia').open && document.querySelectorAll('#tia-log .tia-msg').length", timeout=10000)
         first = await pg.evaluate("""() => { const m = document.querySelector('#tia-log .tia-msg'); return { text: m.textContent, cites: [...m.querySelectorAll('.tia-cite')].map(c => c.textContent) }; }""")
         hr = await pg.evaluate("new Date().getHours()"); want = "Buenos días" if 5 <= hr < 12 else "Buenas tardes" if 12 <= hr < 18 else "Buenas noches"
@@ -296,7 +297,7 @@ async def ui():
         await pg.evaluate("document.querySelector('#player').close()"); await pg.evaluate("document.querySelector('#tia').close()")
         n = await pg.evaluate("JSON.parse(localStorage.getItem('chisme-tia-chat')).length")
         await pg.reload(); await pg.wait_for_function("window.__chisme && __chisme.ready", timeout=60000)
-        await pg.click("#tia-btn"); await pg.wait_for_timeout(500)
+        await pg.click("#tia-btn"); await pg.click("#tia-menu-chat"); await pg.wait_for_timeout(500)
         n2 = await pg.evaluate("document.querySelectorAll('#tia-log .tia-msg').length")
         check(n >= 5 and n2 == n, f"history kept on the phone across reloads ({n} → {n2}), no second daily greeting")
         await pg.evaluate("document.querySelector('#tia').close()")
@@ -316,26 +317,27 @@ async def tia_city():
     src = "".join(open(os.path.join(HERE, f), encoding="utf-8").read() for f in ("static/index.html", "static/app.js", "mascot.py", "static/juegos.js", "static/juan.js"))
     check("holograph" not in src.lower(), "no 'holographic' in the app's copy (index.html, app.js, mascot.py, games)")
     mj = json.load(open(os.path.join(HERE, "static", "mascot", "mascot.json")))
-    art3 = all("art=3" in open(os.path.join(HERE, f), encoding="utf-8").read() and "art=2" not in open(os.path.join(HERE, f), encoding="utf-8").read() for f in ("static/index.html", "static/app.js", "static/sw.js", "static/juegos.js"))
+    art3 = all("art=3" in open(os.path.join(HERE, f), encoding="utf-8").read() and "art=2" not in open(os.path.join(HERE, f), encoding="utf-8").read() for f in ("static/index.html", "static/app.js", "static/sw.js", "static/juegos.js")
+               if "/static/mascot/" in open(os.path.join(HERE, f), encoding="utf-8").read())   # (juegos.js stopped using her art in v4x)
     check(mj["source"] == "tia-chismosa-v3.jpg" and art3, f"v39 art: assets rebuilt from tia-chismosa-v3.jpg (face {mj['face']}, header {mj['header']}), cache-bust ?art=3 everywhere")
     places = [("Port San Antonio (Kelly), San Antonio", {"neighborhood": "Port San Antonio (Kelly)", "city": "San Antonio", "county": "Bexar County", "state": "Texas", "state_abbr": "TX"}, 29.385, -98.578, "San Antonio", ["Port", "Kelly", "("]),
               ("Montrose, Houston", {"neighborhood": "Montrose", "city": "Houston", "county": "Harris County", "state": "Texas", "state_abbr": "TX"}, 29.744, -95.39, "Houston", ["Montrose"])]
     async with async_playwright() as p:
         b = await p.webkit.launch(); dev = dict(p.devices["iPhone 13"]); dev.pop("default_browser_type", None)
         for i, (label, place, lat, lon, city, bad) in enumerate(places):
-            ctx = await b.new_context(**dev); await ctx.add_init_script(INIT)
+            ctx = await b.new_context(**dev); await ctx.add_init_script(INIT); await ctx.add_init_script(QUIET)
             await ctx.add_init_script("if (!sessionStorage.getItem('v39-loc')) { sessionStorage.setItem('v39-loc', '1'); localStorage.setItem('chisme-location', " + json.dumps(json.dumps({"lat": lat, "lon": lon, "label": label, "source": "manual", "place": place})) + "); }")
             pg = await ctx.new_page(); errs = []; pg.on("pageerror", lambda e: errs.append(str(e)[:160]))
             await pg.goto(BASE + "/"); await pg.wait_for_function("window.__chisme && __chisme.ready", timeout=120000)
             await pg.wait_for_function("document.querySelector('#current') && !document.querySelector('#current .loading') && document.querySelector('#current').textContent.includes('°')", timeout=90000)
             await pg.wait_for_timeout(800)
-            await pg.click("#tia-btn")
+            await pg.click("#tia-btn"); await pg.click("#tia-menu-chat")
             await pg.wait_for_function("document.querySelector('#tia').open && document.querySelectorAll('#tia-log .tia-msg').length", timeout=15000)
-            sub = (await pg.text_content("#tia .tia-name p")).strip()
+            sub = (await pg.text_content("#tia .tia-name")).strip(); foot = (await pg.text_content("#tia .tia-foot")).strip()
             greet = await pg.evaluate("document.querySelector('#tia-log .tia-msg').textContent")
             head = await pg.evaluate("document.querySelector('#tia .tia-head, #tia header') ? document.querySelector('#tia .tia-head, #tia header').textContent : ''")
             if i == 0:
-                check(sub == "your comadre · an AI" and "holograph" not in (head + greet).lower(), f"chat header: 'Tía Chismosa · {sub}' (no 'holographic')")
+                check(sub == "Tía Chismosa" and foot.startswith("Tía is an AI") and "holograph" not in (head + greet).lower(), f"chat header: just '{sub}', 'Tía is an AI' in the footer (v49.3; no 'holographic')")
                 check("Tía Chismosa here, your comadre." in greet, f"greeting: 'Tía Chismosa here, your comadre.' ({greet[:80]!r})")
             wx = greet[greet.find(" It's "):].split("Your chisme")[0] if " It's " in greet else ""
             check(f" in {city}" in wx and not any(x in wx for x in bad), f"{label!r} → Tía says just the city: {wx.strip()[:90]!r}")
@@ -357,13 +359,13 @@ async def tia_smart():
     async with async_playwright() as p:
         b = await p.webkit.launch(); dev = dict(p.devices["iPhone 13"]); dev.pop("default_browser_type", None)
         dev["viewport"] = {"width": 390, "height": 1500}   # a tall phone so the whole exchange fits in one screenshot
-        ctx = await b.new_context(**dev); await ctx.add_init_script(INIT)
+        ctx = await b.new_context(**dev); await ctx.add_init_script(INIT); await ctx.add_init_script(QUIET)
         pg = await ctx.new_page(); errs = []; pg.on("pageerror", lambda e: errs.append(str(e)[:160]))
         await pg.goto(BASE + "/"); await pg.wait_for_function("window.__chisme && __chisme.ready && document.querySelector('#near-list .story')", timeout=120000)
         # today's greeting already happened (so the screenshot shows just this exchange)
         await pg.evaluate("""localStorage.setItem('chisme-tia-chat', JSON.stringify([{ role: 'tia', text: 'Buenos días, mija! ☕ Ask me anything that’s in the app.', t: Date.now(),
             daily: new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()) }]))""")
-        await pg.click("#tia-btn"); await pg.wait_for_timeout(400)
+        await pg.click("#tia-btn"); await pg.click("#tia-menu-chat"); await pg.wait_for_timeout(400)
         n0 = await pg.evaluate("document.querySelectorAll('#tia-log .from-tia').length")
         await pg.click("#tia-quick button[data-q^='Spurs']")
         await pg.wait_for_function(f"document.querySelectorAll('#tia-log .tia-msg.from-tia').length > {n0} && !document.querySelector('#tia-log .typing')", timeout=60000)
@@ -392,14 +394,14 @@ async def tia_spanglish():
     async with async_playwright() as p:
         b = await p.webkit.launch(); dev = dict(p.devices["iPhone 13"]); dev.pop("default_browser_type", None)
         dev["viewport"] = {"width": 390, "height": 1500}
-        ctx = await b.new_context(**dev); await ctx.add_init_script(INIT)
+        ctx = await b.new_context(**dev); await ctx.add_init_script(INIT); await ctx.add_init_script(QUIET)
         pg = await ctx.new_page(); errs = []; pg.on("pageerror", lambda e: errs.append(str(e)[:160]))
         await pg.goto(BASE + "/"); await pg.wait_for_function("window.__chisme && __chisme.ready && document.querySelector('#near-list .story')", timeout=120000)
         await pg.wait_for_function("document.querySelector('#current') && document.querySelector('#current').textContent.includes('°')", timeout=90000)
         await pg.evaluate("localStorage.removeItem('chisme-tia-chat')")
-        await pg.click("#tia-btn"); await pg.wait_for_function("document.querySelectorAll('#tia-log .from-tia').length", timeout=15000)
+        await pg.click("#tia-btn"); await pg.click("#tia-menu-chat"); await pg.wait_for_function("document.querySelectorAll('#tia-log .from-tia').length", timeout=15000)
         await pg.evaluate("(() => { const h = JSON.parse(localStorage.getItem('chisme-tia-chat')); h[0].cites = []; localStorage.setItem('chisme-tia-chat', JSON.stringify(h)); })()")   # keep the shot short
-        await pg.evaluate("document.querySelector('#tia').close()"); await pg.click("#tia-btn"); await pg.wait_for_timeout(300)
+        await pg.evaluate("document.querySelector('#tia').close()"); await pg.click("#tia-btn"); await pg.click("#tia-menu-chat"); await pg.wait_for_timeout(300)
         texts = [await pg.evaluate("document.querySelector('#tia-log .from-tia .tia-text').innerText")]
         for q in ("Spurs score?", "How's the weather?"):
             n = await pg.evaluate("document.querySelectorAll('#tia-log .from-tia').length")

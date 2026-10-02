@@ -96,10 +96,10 @@
   <div id="update-toast" class="update-toast" role="status" hidden>
     <span>✨ Chisme was updated.</span> <button type="button" id="update-reload" class="primary">Reload</button>
   </div>
-  <!-- v49: one-time tip pointing at the ⚙️ Settings button in the header's top-right corner (app.js shows it once, then never again) -->
+  <!-- v49.3: one-time tip pointing at the floating Tía button (Settings live in her menu; app.js shows it once, then never again) -->
   <div class="stip-anchor"><div id="settings-tip" class="stip" role="status" aria-live="polite" hidden>
     <img class="stip-tia" src="/static/mascot/avatar-128.webp" alt="" width="46" height="46" decoding="async">
-    <button type="button" id="settings-tip-go" class="stip-go"><span class="stip-big">👆 Settings are up here ⚙️</span><span class="stip-sub">Alerts, location &amp; more.</span></button>
+    <button type="button" id="settings-tip-go" class="stip-go"><span class="stip-big">👆 Tap Tía for Settings ⚙️</span><span class="stip-sub">Alerts, location &amp; more.</span></button>
     <button type="button" id="settings-tip-x" class="stip-x" aria-label="Dismiss the Settings tip">✕</button>
   </div></div>
   <header class="topbar" id="topbar" data-skyline="sa">
@@ -124,8 +124,6 @@
     <!-- /HEADER-ART -->
     <div class="actions">
       <button type="button" id="install-btn" class="install" hidden>📲 Install</button>
-      <!-- v49b: a plain Settings button (the Chisme bubble still opens Settings too) -->
-      <button type="button" id="settings-gear" class="set-gear" aria-label="Settings" aria-haspopup="dialog" aria-controls="settings"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle class="gear-teeth" cx="12" cy="12" r="8.6" stroke-dasharray="3.38 3.38"/><circle class="gear-body" cx="12" cy="12" r="6.4"/><circle class="gear-hole" cx="12" cy="12" r="2.7"/></svg></button>
     </div>
     <div class="picado" aria-hidden="true"></div>
   </header>
@@ -412,16 +410,30 @@
     <div id="feed-toast" class="feed-toast" role="status" aria-live="polite"></div>
   </dialog>
 
-  <button type="button" id="tia-btn" class="tia-fab" aria-haspopup="dialog" aria-controls="tia">
+  <button type="button" id="tia-btn" class="tia-fab" aria-haspopup="dialog" aria-controls="tia-menu">
     <img src="/static/mascot/avatar-64.webp?art=3" srcset="/static/mascot/avatar-64.webp?art=3 1x, /static/mascot/avatar-128.webp?art=3 2x, /static/mascot/avatar-192.webp?art=3 3x" width="60" height="60" alt="">
-    <span class="sr-only">Chat with Tía Chismosa</span>
+    <span class="sr-only">Tía Chismosa: Settings and chat</span>
+    <span class="tia-fab-badge" aria-hidden="true">⚙️</span>
   </button>
+  <!-- v49.3: tapping Tía opens her little menu: ⚙️ Settings (alerts, location & more) or 💬 chat with her -->
+  <dialog id="tia-menu" class="tia-menu" aria-labelledby="tia-menu-title">
+    <div class="tia-menu-in">
+      <div class="tia-menu-head">
+        <span class="tia-menu-emblem" id="tia-menu-emblem" aria-hidden="true"></span>
+        <p class="tia-menu-hi" id="tia-menu-title" tabindex="-1">Hey, it's Tía 👋 What do you need?</p>
+        <button type="button" id="tia-menu-x" class="tia-menu-x" aria-label="Close Tía's menu">✕</button>
+      </div>
+      <button type="button" id="tia-menu-settings" class="tia-menu-btn tm-settings"><span class="tm-big">⚙️ Settings</span><span class="tm-sub">Alerts, location &amp; more</span></button>
+      <button type="button" id="tia-menu-chat" class="tia-menu-btn tm-chat"><span class="tm-big">💬 Chat with Tía</span><span class="tm-sub">Ask about today's chisme</span></button>
+    </div>
+  </dialog>
   <dialog id="tia" class="settings player tia-sheet" aria-labelledby="tia-title">
     <div class="tia-head">
       <picture><img class="tia-hero" src="/static/mascot/header-480.webp?art=3" srcset="/static/mascot/header-480.webp?art=3 480w, /static/mascot/header-960.webp?art=3 960w" sizes="(max-width:560px) 100vw, 560px" width="480" height="240" alt=""></picture>
       <span class="grab" aria-hidden="true"></span>
-      <div class="tia-name"><h2 id="tia-title">Tía Chismosa</h2><p>your comadre · an AI</p></div>
-      <button type="button" id="tia-close" aria-label="Close chat">Close</button>
+      <h2 id="tia-title" class="tia-name" tabindex="-1">Tía Chismosa</h2>
+      <!-- v49.3: Settings right here too (same look as Close) -->
+      <div class="tia-head-btns"><button type="button" id="tia-settings"><span aria-hidden="true">⚙️ </span>Settings</button><button type="button" id="tia-close" aria-label="Close chat">Close</button></div>
     </div>
     <ol id="tia-log" class="tia-log" aria-live="polite" aria-label="Chat with Tía Chismosa"></ol>
     <div id="tia-quick" class="tia-quick" role="group" aria-label="Ask about">
@@ -437,7 +449,7 @@
       <input id="tia-in" type="text" maxlength="500" placeholder="Ask la Tía…" enterkeyhint="send">
       <button type="submit" id="tia-send" class="primary">Send</button>
     </form>
-    <p class="tia-foot">She only talks about what's in Chisme right now. Chats stay on this phone (Settings → Forget me).</p>
+    <p class="tia-foot">Tía is an AI and only talks about what's in Chisme right now. Chats stay on this phone (Settings → Forget me).</p>
   </dialog>
   <dialog id="player" class="settings player" aria-labelledby="player-title">
     <div class="set-head player-head">

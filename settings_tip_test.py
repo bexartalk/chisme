@@ -1,11 +1,9 @@
-"""v49 → v49.2: the one-time Settings tip + the ⚙️ Settings button in the header's top-right corner (WebKit iPhone 13, 390 px).
-  - v49.2: the ⚙️ is its own 44 px round button (black, silver ring, white gear) at the top right of the header, clear of the
-    skyline and the helicopter (checked shape by shape), at 390 and 320 px, light + dark; it opens Settings. The Chisme
-    bubble still opens Settings too, and has no badge any more. Screenshot: header-settings-button.png.
-  - A normal open: Tía's tip "👆 Settings are up here ⚙️ / Alerts, location & more." right under the ⚙️, its tail
-    pointing up at it, big bold text, a ✕ (≥ 44 px), Fiesta colours (no yellow), light + dark. Screenshots cropped to the
-    header: settings-tip-light.png, settings-tip-dark.png.
-  - ✕, the ⚙️, the bubble, or tapping the tip (opens Settings) ends it for good (localStorage chisme-settings-tip).
+"""v49 → v49.3: the one-time Settings tip (WebKit iPhone 13, 390 + 320 px, light + dark).
+  - v49.3: Settings live in Tía's menu (tap the floating Tía; tia_menu_test covers the menu). The tip floats right above
+    Tía: "👆 Tap Tía for Settings ⚙️ / Alerts, location & more.", its tail pointing down at her, big bold text, a ✕ (≥ 44 px),
+    Fiesta colours (no yellow), fits at 390 and 320 px. The v49.2 corner ⚙️ and the v49 badge are gone; the header's Chisme
+    bubble still opens Settings. Screenshots: tia-tip.png (light), settings-tip-light.png, settings-tip-dark.png.
+  - ✕, tapping Tía, the bubble, or tapping the tip (opens Tía's menu) ends it for good (localStorage chisme-settings-tip).
   - Tapping the bubble before the tip appears: it never shows.
   - One popup per open: never on the first launch (location card), nor on an open the notifications card or the Home
     Screen tutorial took; it shows on the next open.
@@ -33,36 +31,21 @@ SCAN = "(root) => { " + YELLOW_JS + r"""
   for (const r of document.querySelectorAll(root)) for (const e of [r, ...r.querySelectorAll('*')]) { const cs = getComputedStyle(e);
     for (const v of [cs.backgroundColor, cs.backgroundImage, cs.color, cs.boxShadow, cs.borderTopColor]) if (rgb(v).some(yellow)) { bad.push((e.id || e.className.baseVal || e.className || e.tagName) + ' ' + String(v).slice(0, 40)); break; } }
   return bad; }"""
-GEOM = """() => { const t = document.querySelector('#settings-tip'), b = document.querySelector('#settings-btn'), g = document.querySelector('#settings-gear'), x = document.querySelector('#settings-tip-x');
+GEOM = """() => { const t = document.querySelector('#settings-tip'), f = document.querySelector('#tia-btn'), b = document.querySelector('#settings-btn'), x = document.querySelector('#settings-tip-x');
   const R = (e) => { const r = e.getBoundingClientRect(); return { l: r.left, t: r.top, r: r.right, b: r.bottom, w: r.width, h: r.height }; };
-  const shown = !t.hidden && getComputedStyle(t).display !== 'none', tail = getComputedStyle(t, '::before'), gc = getComputedStyle(g);
-  // does the ⚙️ (plus 3 px around it) touch the skyline or the helicopter? sample its box against each visible shape
-  const gr = g.getBoundingClientRect(), hits = [];
-  const shapes = [...document.querySelectorAll('.skyline g[class^="sky-"] path, .skyline .heli')].filter((p) => p.getBoundingClientRect().width > 0);
-  for (const p of shapes) { const m = p.getScreenCTM().inverse();
-    for (let X = gr.left - 3; X <= gr.right + 3; X += 2) for (let Y = gr.top - 3; Y <= gr.bottom + 3; Y += 2) {
-      const q = new DOMPoint(X, Y).matrixTransform(m); if (p.isPointInFill(q)) { hits.push(p.getAttribute('class') || p.parentNode.getAttribute('class')); X = 1e9; break; } } }
-  const heli = document.querySelector('.skyline .heli').getBoundingClientRect();
-  return { shown, tip: R(t), btn: R(b), gear: R(g), gearBg: gc.backgroundColor, gearRing: gc.borderTopColor, gearRadius: gc.borderTopLeftRadius,
-    gearFill: getComputedStyle(g.querySelector('.gear-body')).fill, hits, heli: { l: heli.left, t: heli.top, r: heli.right, b: heli.bottom },
-    badge: !!document.querySelector('#settings-btn .gear-badge, .gear-badge'), x: R(x),
+  const shown = !t.hidden && getComputedStyle(t).display !== 'none', tail = getComputedStyle(t, '::before');
+  return { shown, tip: R(t), fab: R(f), btn: R(b), x: R(x), vw: innerWidth, vh: innerHeight,
+    gone: !!document.querySelector('#settings-gear, .gear-badge'),
     big: parseFloat(getComputedStyle(t.querySelector('.stip-big')).fontSize), weight: +getComputedStyle(t.querySelector('.stip-big')).fontWeight,
-    text: t.innerText.replace(/\\s+/g, ' ').trim(), tailTop: parseFloat(tail.top), tailRight: parseFloat(tail.right), tailW: parseFloat(tail.borderLeftWidth), tailOn: tail.content !== 'none', st: __chisme.settingsTip }; }"""
+    text: t.innerText.replace(/\\s+/g, ' ').trim(), tailBottom: parseFloat(tail.bottom), tailRight: parseFloat(tail.right), tailW: parseFloat(tail.borderLeftWidth),
+    tailOn: tail.content !== 'none', menu: __chisme.tiaMenu.open, st: __chisme.settingsTip }; }"""
 
-def check_gear(s, w, scheme):
-    g = s["gear"]
-    check(round(g["w"]) == 44 and round(g["h"]) == 44 and s["gearRadius"] in ("50%", "22px") and g["r"] <= w - 8 and g["t"] >= 6 and g["r"] > w - 20,
-          f"{w} px {scheme}: ⚙️ 44 px round button in the top-right corner ({g['l']:.0f},{g['t']:.0f} → {g['r']:.0f},{g['b']:.0f}, radius {s['gearRadius']})")
-    check(s["gearBg"] == "rgb(0, 0, 0)" and s["gearFill"] in ("rgb(255, 255, 255)", "#fff", "#ffffff") and s["gearRing"] == "rgb(201, 208, 216)",
-          f"{w} px {scheme}: black, silver ring, white gear ({s['gearBg']}, {s['gearRing']}, {s['gearFill']})")
-    h = s["heli"]; clear_heli = h["r"] + 10 < g["l"] or h["l"] - 10 > g["r"] or h["b"] < g["t"] or h["t"] > g["b"] + 3   # ±10 px: the helicopter drifts
-    check(not s["hits"] and clear_heli, f"{w} px {scheme}: clear of the skyline and the helicopter (shapes touched: {s['hits']}; heli {h['l']:.0f},{h['t']:.0f}–{h['r']:.0f},{h['b']:.0f})")
-    check(not s["badge"], f"{w} px {scheme}: no badge on the Chisme bubble any more")
-
-def check_tail(s):
-    tip, g = s["tip"], s["gear"]
-    tail_x = tip["r"] - 3 - s["tailRight"] - s["tailW"]; gx = (g["l"] + g["r"]) / 2; tail_y = tip["t"] + 3 + s["tailTop"]
-    check(s["tailOn"] and abs(tail_x - gx) < 3 and g["b"] - 4 <= tail_y <= g["b"] + 8, f"the tail points up at the ⚙️ (tail x {tail_x:.0f} vs ⚙️ x {gx:.0f}; tail tip y {tail_y:.0f}, ⚙️ bottom {g['b']:.0f})")
+def check_tip(s, w):
+    tip, f = s["tip"], s["fab"]
+    tail_x = tip["r"] - 3 - s["tailRight"] - s["tailW"]; fx = (f["l"] + f["r"]) / 2; tail_y = tip["b"] - 3 - s["tailBottom"]
+    check(s["tailOn"] and abs(tail_x - fx) < 3 and f["t"] - 8 <= tail_y <= f["t"] + 4, f"{w} px: the tail points down at Tía (tail x {tail_x:.0f} vs Tía x {fx:.0f}; tail tip y {tail_y:.0f}, Tía top {f['t']:.0f})")
+    check(tip["l"] >= 0 and tip["r"] <= w and tip["t"] >= 0 and tip["b"] < f["t"], f"{w} px: fits the screen, right above Tía ({tip['l']:.0f}–{tip['r']:.0f}, {tip['t']:.0f}–{tip['b']:.0f})")
+    check(not s["gone"], f"{w} px: no corner ⚙️ and no badge on the bubble")
 
 async def ready(pg): await pg.wait_for_function("window.__chisme && __chisme.ready", timeout=120000)
 async def state(pg): return await pg.evaluate(GEOM)
@@ -86,26 +69,24 @@ async def main():
             await pg.wait_for_function("__chisme.settingsTip.shown", timeout=8000)
             await pg.wait_for_timeout(700)   # past the slide-in
             s = await state(pg)
-            check(s["shown"] and s["text"].startswith("👆 Settings are up here ⚙️ Alerts, location & more.") and "mija" not in s["text"], f"the tip shows: {s['text']!r}")
-            check_gear(s, 390, scheme)
-            check_tail(s)
+            check(s["shown"] and s["text"].startswith("👆 Tap Tía for Settings ⚙️ Alerts, location & more.") and "mija" not in s["text"], f"the tip shows: {s['text']!r}")
+            check_tip(s, 390)
             check(s["big"] >= 19 and s["weight"] >= 800 and s["x"]["w"] >= 44 and s["x"]["h"] >= 44, f"big bold text ({s['big']} px, {s['weight']}), ✕ {s['x']['w']:.0f}×{s['x']['h']:.0f}")
-            check(s["tip"]["l"] >= 0 and s["tip"]["r"] <= 390, f"fits the screen ({s['tip']['l']:.0f}–{s['tip']['r']:.0f})")
-            bad = await pg.evaluate(SCAN, "#settings-tip, #settings-gear")
+            bad = await pg.evaluate(SCAN, "#settings-tip")
             check(not bad, f"Fiesta colours, no yellow {bad[:3]}")
             try: await pg.wait_for_function("document.querySelector('#sync').hidden", timeout=8000)   # the "Updated" pill fades away
             except Exception: pass
             await pg.wait_for_timeout(400)
-            clip_h = s["tip"]["b"] + 14
-            await pg.screenshot(path=os.path.join(OUT, f"settings-tip-{scheme}.png"), clip={"x": 0, "y": 0, "width": 390, "height": clip_h})
+            top = max(0, s["tip"]["t"] - 24); clip = {"x": 0, "y": top, "width": 390, "height": s["vh"] - top}   # the bottom of the screen: the tip + Tía
+            await pg.screenshot(path=os.path.join(OUT, f"settings-tip-{scheme}.png"), clip=clip)
+            if scheme == "light": await pg.screenshot(path=os.path.join(OUT, "tia-tip.png"), clip=clip)
             if scheme == "light":
                 await pg.click("#settings-tip-x", force=True); await pg.wait_for_timeout(300)
                 s = await state(pg)
                 check(not s["shown"] and (s["st"]["saved"] or "").startswith("dismissed:"), f"✕ hides it and saves it ({s['st']['saved']})")
                 await pg.wait_for_timeout(300)
-                await pg.screenshot(path=os.path.join(OUT, "header-settings-button.png"), clip={"x": 0, "y": 0, "width": 390, "height": s["btn"]["b"] + 30})
-                await pg.click("#settings-gear"); await pg.wait_for_timeout(400)
-                check(await pg.evaluate("document.querySelector('#settings').open"), "the ⚙️ opens Settings")
+                await pg.click("#tia-btn"); await pg.wait_for_timeout(400); await pg.click("#tia-menu-settings"); await pg.wait_for_timeout(400)
+                check(await pg.evaluate("document.querySelector('#settings').open"), "Tía → ⚙️ Settings opens Settings")
                 await pg.evaluate("document.querySelector('#settings').close()"); await pg.wait_for_timeout(200)
                 await pg.click("#settings-btn"); await pg.wait_for_timeout(400)
                 check(await pg.evaluate("document.querySelector('#settings').open"), "…and so does the Chisme bubble")
@@ -113,20 +94,20 @@ async def main():
                 await pg.reload(); await ready(pg); await pg.wait_for_timeout(4500)
                 check(not (await state(pg))["shown"], "…and it never shows again")
             else:
-                await pg.click("#settings-gear", force=True); await pg.wait_for_timeout(500)
-                s = await state(pg); dlg = await pg.evaluate("document.querySelector('#settings').open")
-                check(not s["shown"] and dlg and (s["st"]["saved"] or "").startswith("gear:"), f"tapping the ⚙️ hides it, Settings opens ({s['st']['saved']})")
-                await pg.evaluate("document.querySelector('#settings').close()")
+                await pg.click("#tia-btn", force=True); await pg.wait_for_timeout(500)
+                s = await state(pg)
+                check(not s["shown"] and s["menu"] and (s["st"]["saved"] or "").startswith("tia:"), f"tapping Tía hides it, her menu opens ({s['st']['saved']})")
+                await pg.evaluate("document.querySelector('#tia-menu').close()")
                 await pg.reload(); await ready(pg); await pg.wait_for_timeout(4500)
                 check(not (await state(pg))["shown"], "…and it never shows again")
             allerrs += errs; await ctx.close()
 
-        print("== tapping the tip opens Settings")
+        print("== tapping the tip opens Tía's menu")
         ctx, pg, errs = await newctx(b, p)
         await pg.goto(BASE + "/"); await ready(pg); await pg.wait_for_function("__chisme.settingsTip.shown", timeout=8000); await pg.wait_for_timeout(500)
         await pg.click("#settings-tip-go", force=True); await pg.wait_for_timeout(500)
-        s = await state(pg); dlg = await pg.evaluate("document.querySelector('#settings').open")
-        check(not s["shown"] and dlg and (s["st"]["saved"] or "").startswith("tip:"), f"tip → Settings opens, tip gone for good ({s['st']['saved']})")
+        s = await state(pg)
+        check(not s["shown"] and s["menu"] and (s["st"]["saved"] or "").startswith("tip:"), f"tip → Tía's menu (Settings first), tip gone for good ({s['st']['saved']})")
         allerrs += errs; await ctx.close()
 
         print("== the bubble tapped before the tip appears")
@@ -179,23 +160,15 @@ async def main():
         check(ok and not await pg.evaluate("__chisme.notif.open"), "the next open: the tip (no card)")
         allerrs += errs; await ctx.close()
 
-        print("== 320 px")
-        ctx, pg, errs = await newctx(b, p, width=320)
-        await pg.goto(BASE + "/"); await ready(pg); await pg.wait_for_function("__chisme.settingsTip.shown", timeout=8000); await pg.wait_for_timeout(600)
-        s = await state(pg)
-        check_gear(s, 320, "light"); check_tail(s)
-        check(s["tip"]["l"] >= 0 and s["tip"]["r"] <= 320 and s["x"]["w"] >= 44, f"the tip fits ({s['tip']['l']:.0f}–{s['tip']['r']:.0f})")
-        await pg.screenshot(path="/tmp/settings-tip-320.png", clip={"x": 0, "y": 0, "width": 320, "height": s["tip"]["b"] + 14})
-        allerrs += errs; await ctx.close()
-        print("== 320 px, dark (no tip)")
-        ctx, pg, errs = await newctx(b, p, "dark", width=320, init=(SETUP, NO_A2, NO_NOTIF, "localStorage.setItem('chisme-settings-tip', 'test:0');"))
-        await pg.goto(BASE + "/"); await ready(pg); await pg.wait_for_timeout(1500)
-        s = await state(pg); check_gear(s, 320, "dark")
-        await pg.click("#settings-gear"); await pg.wait_for_timeout(400)
-        check(await pg.evaluate("document.querySelector('#settings').open"), "320 px dark: the ⚙️ opens Settings")
-        await pg.evaluate("document.querySelector('#settings').close()"); await pg.wait_for_timeout(300)
-        await pg.screenshot(path="/tmp/header-gear-320-dark.png", clip={"x": 0, "y": 0, "width": 320, "height": s["btn"]["b"] + 30})
-        allerrs += errs; await ctx.close()
+        for scheme in ["light", "dark"]:
+            print(f"== 320 px ({scheme})")
+            ctx, pg, errs = await newctx(b, p, scheme, width=320)
+            await pg.goto(BASE + "/"); await ready(pg); await pg.wait_for_function("__chisme.settingsTip.shown", timeout=8000); await pg.wait_for_timeout(700)
+            s = await state(pg); check_tip(s, 320)
+            check(s["x"]["w"] >= 44 and s["big"] >= 18, f"320 px: ✕ {s['x']['w']:.0f} px, text {s['big']} px")
+            top = max(0, s["tip"]["t"] - 24)
+            await pg.screenshot(path=f"/tmp/tia-tip-320-{scheme}.png", clip={"x": 0, "y": top, "width": 320, "height": s["vh"] - top})
+            allerrs += errs; await ctx.close()
 
         check(not allerrs, f"no page errors {allerrs[:3]}")
         await b.close()
