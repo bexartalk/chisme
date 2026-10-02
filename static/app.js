@@ -1,7 +1,7 @@
 /* Chisme — frontend (location-aware) */
 // Build of this file. Must equal the number in sw.js VERSION ("chisme-v22"); the page compares it
 // with the build the HTML was served for and reloads once if an old cached app.js got mixed in.
-window.CHISME_APP_BUILD = "49.7";
+window.CHISME_APP_BUILD = "49.8";
 (() => {
   "use strict";
   const WEATHER_MS = 10 * 60 * 1000;

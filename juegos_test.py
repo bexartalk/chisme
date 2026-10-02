@@ -79,7 +79,7 @@ out.kinds = [...new Set(ALL.flatMap((n) => I.buildLevel(n).filter((x) => HZ.incl
 out.dmg = Object.fromEntries(Object.entries(I.HAZ).map(([k, v]) => [k, v[0]])); out.hp = I.HP;
 out.afterCheck = ALL.every((n) => I.buildLevel(n).every((e) => !(HZ.includes(e.t) || SOLID.includes(e.t)) || I.CHECKS.every((c) => !c || e.x + e.w < c - 40 || e.x > c + 60)));
 const fs = require("fs"), path = require("path"), src = fs.readFileSync(process.argv[1], "utf8") + fs.readFileSync(process.argv[2], "utf8") + fs.readFileSync(path.join(path.dirname(process.argv[1]), "loteria_cards.js"), "utf8");
-const srcNet = src.split('fetch("/api/juan/scores"').join("");   // v49.5: the one allowed call, Juan's own Top 10 board (same site)
+const srcNet = src.split('fetch("/api/juan/scores"').join("").split('fetch("/stats/juan/scores"').join("");   // v49.5: the one allowed call, Juan's own Top 10 board (same site); v49.8: + the owner check (same site, only with the admin marker)
 out.net = ["http:", "https:", "fetch(", "XMLHttpRequest", "import(", "sendBeacon", "WebSocket", "<a "].filter((w) => srcNet.includes(w));
 out.callsText = J.CARDS.map((c) => c.verse);
 out.hints = I.LEVELS.map((l) => l.hint); out.game = [I.game.id, I.game.name, I.KEY];
@@ -134,7 +134,7 @@ def unit():
     check(o["kinds"] == ["cart", "chancla", "chihuahua", "cone", "lowcar", "pallet", "pothole", "sportscar", "sprinkler", "tires"], f"cones, potholes, carts, chanclas, chihuahuas, sprinklers + pallets / tires (and, v49.5, Dice City VI's lowriders / sports cars) to hop on ({o['kinds']})")
     check(o["hp"] == 100 and all(5 <= d <= 20 for d in o["dmg"].values()), f"a bump costs a little of the 100-point health bar ({o['dmg']})")
     check(o["afterCheck"], "no hazards right at a checkpoint")
-    check(not o["net"], f"the games' code has no URLs, links or network calls, except Juan's own Top 10 board (same-site /api/juan/scores) ({o['net']})")
+    check(not o["net"], f"the games' code has no URLs, links or network calls, except Juan's own Top 10 board (same-site /api/juan/scores) and the owner check (same-site /stats/juan/scores) ({o['net']})")
 
 async def to_stage(pg):
     await pg.evaluate("() => { const t = document.querySelector('#game-stage'); window.scrollTo(0, t.getBoundingClientRect().top + scrollY - 70); }"); await pg.wait_for_timeout(300)

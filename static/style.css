@@ -1194,6 +1194,10 @@ button.juan-hs-skip{min-height:44px;border:0;background:none;color:#000;font-siz
 .juan-ov .juan-sk-btn{min-height:44px;padding:.15em .8em;border:2px solid rgba(62,232,235,.8);border-radius:999px;background:rgba(255,255,255,.12);color:#fff;font-size:.95em;font-weight:900}
 .juan-ov .juan-sk-btn b{color:#3ee8eb}
 @media (max-width:360px){.juan-btns.has-cont .juan-sk-word{display:none}.juan-btns.has-cont .juan-sk-btn{min-width:44px;padding:.15em .55em}}
+.juan-ov button,.juan-controls .lot-btn,.game-stage.gfs{touch-action:manipulation}   /* v49.8: no double-tap page zoom on the game */
+.juan-ov .juan-sk-hint{pointer-events:none;flex-basis:100%;font-size:.8em;font-weight:800;color:#fff;text-shadow:0 1px 2px #000}   /* v49.8: under a locked 👕 Skins */
+.juan-ov.clear .juan-btns,.juan-ov.win .juan-btns{margin-top:.1em!important}
+.juan-ov.title .juan-sk-hint{position:absolute;left:50%;bottom:.7em;transform:translateX(-50%);width:max-content;max-width:calc(100% - 1.2em);padding:.25em .8em;border:2px solid #3ee8eb;border-radius:999px;background:rgba(0,0,0,.72);font-size:.85em}   /* the title is full: the hint sits at the bottom, out of the way */
 [data-theme="dark"] .juan-ov .juan-sk-btn{background:rgba(255,255,255,.12);color:#fff;border-color:rgba(62,232,235,.8)}
 dialog.juan-skins{width:min(96vw,420px);max-width:calc(100vw - 8px);max-height:92dvh;margin:auto;padding:0;border:3px solid #000;border-radius:20px;background:#fff;color:#000;box-shadow:0 6px 0 #000;overflow:auto}
 dialog.juan-skins::backdrop{background:rgba(0,0,0,.6)}

@@ -1,5 +1,6 @@
 """v49.5 Juan skins + a 1.5× Juan (static/juan.js + style.css).
   • Juan is drawn 1.5× bigger; his hitbox grows to match (32×88, the body without the hat, a bit forgiving at the sides)
+  • v49.8: "👕 Skins" (aria "Skins: wearing <name>") on the title, Paused, level clear and the win; locked: 🔒 + "Make the Top 10 to unlock"; a pick applies at once (even paused)
   • the title screen has a "👕 Skin" chip beside Start (🔒 while locked; aria-label "Skin: <name>") → a picker sheet: Classic Juan, El Jefe Presidente, Iron Juan,
     El Joker, Juan UFO, Master Jefe, Armadura, Juanby, Juan Vice (original parodies, no real names, logos or numbers); 9 cards in 2 columns,
     the odd last one centered
@@ -81,8 +82,13 @@ async def main():
         print("== a new phone: Classic Juan, the rest locked")
         seed(SEVEN); ctx, pg, errs = await page(b, p, 390); await to_stage(pg)
         t = await pg.evaluate(TITLE)
-        check(t["mode"] == "title" and t["txt"] == "👕 Skin 🔒" and t["aria"] == "Skin: Classic Juan. Make the Top 10 to unlock more" and t["h"] >= 44 and t["inside"] and t["scroll"] <= 1, f"the title screen has {t['txt']!r} beside Start ({t['aria']!r}, {t['h']:.0f}px) and still fits")
+        check(t["mode"] == "title" and t["txt"] == "👕 Skins 🔒" and t["aria"] == "Skins: wearing Classic Juan. Make the Top 10 to unlock more" and t["h"] >= 44 and t["inside"] and t["scroll"] <= 1, f"the title screen has {t['txt']!r} beside Start ({t['aria']!r}, {t['h']:.0f}px) and still fits")
         check(await pg.evaluate(G + ".skins.now") == "classic" and not await pg.evaluate(G + ".skins.unlocked"), "Classic Juan is the default; skins start locked")
+        OVB = "(() => { const ov = document.querySelector('#juan-ov'), b = ov.querySelector('[data-act=skins]'), h = ov.querySelector('.juan-sk-hint'); return { mode: " + G + ".state.mode, btn: b ? b.textContent.trim() : null, hint: h ? h.textContent.trim() : null, skin: " + G + ".state.skin, h: b ? b.getBoundingClientRect().height : 0 }; })()"
+        o = await pg.evaluate(OVB); check(o["hint"] == "🔒 Make the Top 10 to unlock", f"v49.8 locked: the title shows the hint under the button ({o['hint']!r})")
+        await pg.click("#juan-ov [data-act=start]"); await pg.wait_for_timeout(500); await pg.click("#juan-pause"); await pg.wait_for_timeout(200); o = await pg.evaluate(OVB)
+        check(o["mode"] == "paused" and o["btn"] == "👕 Skins 🔒" and o["hint"] == "🔒 Make the Top 10 to unlock" and o["h"] >= 44, f"v49.8 locked: Paused has a locked 👕 Skins with the Top 10 hint ({o})")
+        await pg.reload(); await pg.wait_for_function("window.__chisme && __chisme.ready && __chisme.juegos.game && __chisme.juegos.game.skins", timeout=120000); await to_stage(pg)
         await pg.click("#juan-ov [data-act=skins]"); await pg.wait_for_selector("dialog.juan-skins[open]"); m = await pg.evaluate(PICK)
         check(m["names"] == NAMES and m["ids"] == IDS, f"the picker lists all {N}: Classic + {N - 1} ({', '.join(m['names'])})")
         check(TIDY(m) and m["last"]["w"] < 2, f"{N} cards in 2 columns, tidy (an odd last card sits alone, centered; v49.6: 10 fill 5 full rows), all the same size ({m['last']})")
@@ -120,7 +126,7 @@ async def main():
         await pg.click("dialog.juan-hs-sheet .juan-hs-save"); await pg.wait_for_timeout(300); await pg.click(".gfs-x"); await pg.wait_for_timeout(600)
         await pg.reload(); await pg.wait_for_function("window.__chisme && __chisme.ready && __chisme.juegos.game && __chisme.juegos.game.skins", timeout=120000); await pg.wait_for_timeout(600)
         await to_stage(pg); t = await pg.evaluate(TITLE)
-        check(t["txt"] == "👕 Skin" and t["aria"] == "Skin: Armadura" and t["inside"] and t["scroll"] <= 1, f"after a reload: still unlocked, no lock, and the skin saved earlier (Armadura) now applies ({t})")
+        check(t["txt"] == "👕 Skins" and t["aria"] == "Skins: wearing Armadura" and t["inside"] and t["scroll"] <= 1, f"after a reload: still unlocked, no lock, and the skin saved earlier (Armadura) now applies ({t})")
         await pg.click("#juan-ov [data-act=skins]"); await pg.wait_for_selector("dialog.juan-skins[open]"); m = await pg.evaluate(PICK)
         check(not m["locked"] and m["sub"] == "🏆 You made the Top 10: every skin is yours." and m["drawn"] == N and TIDY(m), f"the picker: nothing locked ({m['sub']!r})")
         foc = await pg.evaluate("document.activeElement && document.activeElement.dataset.skin")
@@ -135,6 +141,22 @@ async def main():
         await pg.click("dialog.juan-skins .juan-sk-done"); await pg.wait_for_timeout(200)
         await pg.reload(); await pg.wait_for_function("window.__chisme && __chisme.ready && __chisme.juegos.game && __chisme.juegos.game.skins", timeout=120000)
         check(await pg.evaluate(G + ".skins.now") == IDS[-1], f"the pick is saved on the phone (the last one picked, {NAMES[-1]}, after a reload)")
+
+        print("== v49.8: 👕 Skins anytime: paused, level clear, the win")
+        await to_stage(pg); await pg.click("#juan-ov [data-act=start]"); await pg.wait_for_timeout(600); await pg.click("#juan-pause"); await pg.wait_for_timeout(200); o = await pg.evaluate(OVB)
+        check(o["mode"] == "paused" and o["btn"] == "👕 Skins" and o["hint"] is None and o["h"] >= 44, f"Paused: ▶ Resume + 👕 Skins, no lock ({o})")
+        await pg.click("#juan-ov [data-act=skins]"); await pg.wait_for_selector("dialog.juan-skins[open]"); await pg.click("dialog.juan-skins .juan-sk[data-skin=jefe]"); await pg.wait_for_timeout(150)
+        o = await pg.evaluate(OVB); await pg.screenshot(path=os.path.join(OUT, "skins-button-picker.png"))
+        check(o["skin"] == "jefe" and o["mode"] == "paused", f"picking Master Jefe while paused puts him on right away (the paused game shows {o['skin']}), still paused")
+        await pg.click("dialog.juan-skins .juan-sk-done"); await pg.wait_for_timeout(200); await pg.screenshot(path=os.path.join(OUT, "skins-button.png"))
+        await pg.click("#juan-ov [data-act=resume]"); await pg.wait_for_timeout(300)
+        check((await pg.evaluate(OVB))["mode"] == "run" and await pg.evaluate(G + ".state.skin") == "jefe", "▶ Resume: the run goes on in the new skin")
+        await pg.evaluate(G + ".warp(1, 5700)"); await pg.wait_for_function(G + ".state.mode === 'clear'", timeout=20000); await pg.wait_for_timeout(300); o = await pg.evaluate(OVB)
+        check(o["btn"] == "👕 Skins" and o["h"] >= 44 and await pg.locator("#juan-ov [data-act=next]").count() == 1, f"level clear: ▶ next level + 👕 Skins ({o})")
+        await pg.evaluate(G + ".warp(7, 5700)"); await pg.wait_for_function(G + ".state.mode === 'win'", timeout=30000); await pg.wait_for_timeout(300); o = await pg.evaluate(OVB)
+        check(o["btn"] == "👕 Skins" and await pg.locator("#juan-ov [data-act=again]").count() == 1, f"the win (end of Dice City VI): ▶ Play again + 👕 Skins ({o})")
+        await pg.click("#juan-ov [data-act=skins]"); await pg.wait_for_selector("dialog.juan-skins[open]"); await pg.click(f"dialog.juan-skins .juan-sk[data-skin={IDS[-1]}]"); await pg.click("dialog.juan-skins .juan-sk-done")
+        check(await pg.evaluate(G + ".skins.now") == IDS[-1], f"…and it opens the picker there too (back to {NAMES[-1]})")
 
         print("== every skin's jump animation (offscreen, the game's own drawJuan)")
         fx = await pg.evaluate(FX)

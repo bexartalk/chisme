@@ -1298,7 +1298,7 @@
       if (level === LEVELS.length) {
         mode = "win"; st.levelMax = LEVELS.length; st.beers = Math.max(st.beers || 0, beersGot); save(st); stats();
         if (!reduced()) for (let i = 0; i < 120; i++) parts.push({ x: Math.random() * VW, y: -Math.random() * VH, vy: 40 + Math.random() * 70, vx: Math.random() * 30 - 15, r: Math.random() * 6, c: ["#00b8b0", "#ff3d8b", "#ff8a00", "#c9d0d8", "#ffffff"][i % 5] });
-        overlay(`<p class="juan-big">¡Salud, Juan!</p><p class="juan-win-line">From Noche Caliente to the beach at Dice City VI: the Juan That Got Away made it to his vacation. <span lang="es">¡A la playa!</span></p><p class="juan-win-score">Final score <b>${score}</b></p><button type="button" class="lot-btn lot-main" data-act="again">▶ Play again</button>`, "win");
+        overlay(`<p class="juan-big">¡Salud, Juan!</p><p class="juan-win-line">From Noche Caliente to the beach at Dice City VI: the Juan That Got Away made it to his vacation. <span lang="es">¡A la playa!</span></p><p class="juan-win-score">Final score <b>${score}</b></p><button type="button" class="lot-btn lot-main" data-act="again">▶ Play again</button><p class="juan-btns">${skinBtn()}${skinHint()}</p>`, "win");
         const final = score; setTimeout(() => { if (el.isConnected) offer(final, LEVELS.length); }, reduced() ? 600 : 1800);   // v49.5: the run's done → the board?
         $("#juan-note").innerHTML = `🎉 <span lang="es">¡Órale!</span> Friday shift done, cold ones at Noche Caliente, then a vacation in Dice City VI, from the hotel to the beach. <span lang="es">¡Salud!</span> <span class="juan-score">Final score <b>${score}</b> · Best <b>${st.best}</b></span> <button type="button" class="lot-btn lot-main" data-act="again">▶ Play again</button>`;
         return;
@@ -1306,7 +1306,7 @@
       if (level === 6) st.wins++;   // v49.5: made it to Noche Caliente (Dice City is the celebration after)
       st.levelMax = Math.max(st.levelMax, level + 1); save(st); stats();
       mode = "clear";
-      overlay(`<p class="juan-big">You made it to ${name}!</p><p class="juan-story">${L().done}</p><p>+500 · Score <b>${score}</b></p><button type="button" class="lot-btn lot-main" data-act="next">▶ Level ${level + 1}: ${LEVELS[level].name}</button>`, "clear");
+      overlay(`<p class="juan-big">You made it to ${name}!</p><p class="juan-story">${L().done}</p><p>+500 · Score <b>${score}</b></p><button type="button" class="lot-btn lot-main" data-act="next">▶ Level ${level + 1}: ${LEVELS[level].name}</button><p class="juan-btns">${OVER}${skinBtn()}${skinHint()}</p>`, "clear");
       $("#juan-note").textContent = `Next up: ${LEVELS[level].name}. ${LEVELS[level].hint}`;
     }
     function update(dt) {
@@ -1552,9 +1552,17 @@
       else if (fueraT > 0) { const pop = reduced() ? 1 : 1 + Math.max(0, fueraT - 0.9) * 2.2;   // v46: Juan got away
         g.globalAlpha = Math.min(1, fueraT * 3); say(g, FUERA, VW / 2, VH * 0.3, 46 * pop, "#3ee8eb", { font: UI, weight: 900, stroke: "#111111", sw: 7, max: VW - 30 }); g.globalAlpha = 1; }
     }
+    // v49.8: the "tiny game" fix. fit() used to measure once, on a window resize, with getBoundingClientRect: on a phone that
+    // event often fires mid-rotation / mid URL-bar or full-screen change (and the rect shrinks with a CSS transform), and a
+    // snapshot of a short, wide box got pillar-boxed (landscape) into a ~230px-wide canvas that stayed that small. Now it
+    // measures the layout box (offsetWidth/Height), and re-fits whenever that box really changes: a ResizeObserver, the visual
+    // viewport, rotation, coming back to the tab, plus a check every ~0.5 s while the game runs, so it always recovers.
+    let fitKey = "", fitN = 0, refitT = 0;
+    const sizeKey = () => wrap.offsetWidth + "x" + wrap.offsetHeight + (fs.on ? "f" : "") + (root.devicePixelRatio || 1);
+    const refit = () => { requestAnimationFrame(() => fit()); clearTimeout(refitT); refitT = setTimeout(() => fit(), 350); };
     function fit() {
       let w, h;
-      const r = wrap.getBoundingClientRect();
+      const r = { width: wrap.offsetWidth, height: wrap.offsetHeight };   // the layout box (a CSS transform doesn't shrink it)
       if (fs.on) { w = r.width; h = r.height; if (w < 40 || h < 40) return;
         if (h / w < 520 / VW) w = h * VW / 520;   // a wide screen (landscape, desktop): pillar-box
         if (h / w > 900 / VW) h = w * 900 / VW; }
@@ -1564,7 +1572,7 @@
       let d = Math.min(root.devicePixelRatio || 1, dprCap); while (d > 1 && w * h * d * d > 3.4e6) d -= 0.25;
       const bw = Math.round(w * d), bh = Math.round(h * d);
       if (bw !== cv.width || bh !== cv.height) { cv.width = bw; cv.height = bh; }
-      dpr = d; S = bw / VW; VH = bh / S; GS = VH - ROADH;
+      dpr = d; S = bw / VW; VH = bh / S; GS = VH - ROADH; fitKey = sizeKey();
       if (!raf && hero) draw();
     }
     function title() {
@@ -1573,11 +1581,11 @@
       $("#juan-note").textContent = "¡Ya es viernes! Get Juan through his Friday shift to cold beers at Noche Caliente.";
       overlay(`<p class="juan-big">The Juan That Got Away</p><p class="juan-story"><span lang="es">¡Ya es viernes!</span> One last shift, then cold ones.</p>
         ${howList("juan-how-ov")}
-        <p class="juan-btns${cont ? " has-cont" : ""}"><button type="button" class="lot-btn lot-main" data-act="start">▶ Start at level 1</button><button type="button" class="lot-btn juan-sk-btn" data-act="skins" aria-haspopup="dialog" aria-label="${skinAria()}">👕<span class="juan-sk-word"> Skin</span>${skinsOpen() ? "" : ' <span aria-hidden="true">🔒</span>'}</button>${cont}</p>`, "title");   // v49.5: a compact skin chip beside Start; the best score lives in the HUD (HI) and under the game
+        <p class="juan-btns${cont ? " has-cont" : ""}"><button type="button" class="lot-btn lot-main" data-act="start">▶ Start at level 1</button>${skinBtn()}${cont}${skinHint()}</p>`, "title");   // v49.5: a compact skin chip beside Start; the best score lives in the HUD (HI) and under the game
     }
     function loop() {
       cancelAnimationFrame(raf); last = performance.now();
-      const step = (now) => { const dt = Math.min(0.05, (now - last) / 1000); last = now; update(dt); draw();
+      const step = (now) => { const dt = Math.min(0.05, (now - last) / 1000); last = now; if (++fitN % 30 === 0 && sizeKey() !== fitKey) fit(); update(dt); draw();
         if (mode === "run") { perf.n++; perf.sum += dt; if (perf.n >= 90) { const avg = perf.sum / perf.n; perf = { n: 0, sum: 0 };   // a slow phone: draw at a lower resolution
           if (avg > 0.024 && dprCap > 1.5) { dprCap = dprCap > 2 ? 2 : 1.5; fit(); } } }
         if (mode === "run" || mode === "oops" || (mode === "win" && parts.length) || fx.length) raf = requestAnimationFrame(step); else raf = null; };
@@ -1587,7 +1595,7 @@
       if ((mode === "run" || mode === "oops") && !paused) {
         if (mode === "oops") spawn(ck);
         paused = true; mode = "paused"; cancelAnimationFrame(raf); raf = null; draw();
-        overlay(`<p class="juan-big">Paused</p><button type="button" class="lot-btn lot-main" data-act="resume">▶ Resume</button>`, "soft"); ctrl();
+        overlay(`<p class="juan-big">Paused</p><p class="juan-btns"><button type="button" class="lot-btn lot-main" data-act="resume">▶ Resume</button>${OVER}${skinBtn()}${skinHint()}</p>`, "soft");   // v49.8: 👕 Skins here too ctrl();
       }
     }
     function resume() { if (paused) { paused = false; mode = "run"; overlay(null); fs.enter(); fit(); loop(); ctrl(); } }
@@ -1693,7 +1701,14 @@
     // ---- v49.5 skins: Classic Juan is the default; the others unlock (on this phone, for good) once a score of yours posts into
     // the Top 10. The picker is a sheet from the title screen; locked skins show 🔒 and "Make the Top 10 to unlock".
     const SK_UNLOCK = "chisme-juan-top10";
-    const skinsOpen = () => !!lsGet(SK_UNLOCK, null);
+    // v49.8: the owner (signed in to /stats, the same sign-in as the high score admin) gets every skin on that phone to promote
+    // the game. The page can't see the real sign-in (an HttpOnly cookie for /stats), so: only when the harmless chisme_admin=1
+    // marker is there, ask the server (GET /stats/juan/scores answers 200 only to the signed-in owner). Nothing is written to
+    // the Top 10 unlock, so signing out puts the phone back as it was. Everyone else: no marker, no request, nothing changes.
+    let owner = false;
+    if (/(?:^|;\s*)chisme_admin=1(?:;|$)/.test(document.cookie)) fetch("/stats/juan/scores", { credentials: "same-origin", cache: "no-store" })
+      .then((r) => { owner = r.ok; if (owner && mode === "title") title(); }).catch(() => {});
+    const skinsOpen = () => owner || !!lsGet(SK_UNLOCK, null);
     function unlockSkins(d) { if (!skinsOpen()) lsSet(SK_UNLOCK, { at: Date.now(), rank: d.rank, score: d.entry && d.entry.score }); }
     const skinName = (id) => (JSKINS.find((k) => k[0] === id) || JSKINS[0])[1];
     function skinNow() { const k = st.skin || "classic"; return k !== "classic" && (!skinsOpen() || !JSKINS.some((x) => x[0] === k)) ? "classic" : k; }
@@ -1702,7 +1717,7 @@
       if (skDlg) skDlg.remove();
       const open = skinsOpen(), cur = skinNow(), d = document.createElement("dialog"); d.className = "juan-skins"; d.setAttribute("aria-labelledby", "juan-sk-t");
       d.innerHTML = `<form method="dialog" class="juan-sk-card"><p class="juan-sk-t" id="juan-sk-t">👕 Pick your Juan</p>
-        <p class="juan-sk-sub">${open ? "🏆 You made the Top 10: every skin is yours." : "🔒 Make the Top 10 to unlock the skins."}</p>
+        <p class="juan-sk-sub">${owner && !lsGet(SK_UNLOCK, null) ? "👑 Owner: every skin is unlocked on this phone." : open ? "🏆 You made the Top 10: every skin is yours." : "🔒 Make the Top 10 to unlock the skins."}</p>
         <div class="juan-sk-grid">${JSKINS.map(([id, name]) => { const lock = id !== "classic" && !open;
           return `<button type="button" class="juan-sk${lock ? " locked" : ""}${id === cur ? " on" : ""}" data-skin="${id}" aria-pressed="${id === cur}" aria-label="${name}${lock ? ", locked: make the Top 10 to unlock" : id === cur ? ", wearing it" : ""}">
             <canvas class="juan-sk-cv" aria-hidden="true"></canvas><span class="juan-sk-tx"><span class="juan-sk-n">${name.replace("Presidente", "Presi\u00addente").replace("Armadura", "Arma\u00addura")}</span>${lock ? '<span class="juan-sk-why">Make the Top 10 to unlock</span>' : ""}</span>${lock ? '<span class="juan-sk-lock" aria-hidden="true">🔒</span>' : ""}</button>`; }).join("")}</div>
@@ -1721,7 +1736,20 @@
       });
       d.showModal(); const onB = d.querySelector(".juan-sk.on"); if (onB) onB.focus({ preventScroll: true });   // not the first card
     }
-    function skinAria() { return "Skin: " + skinName(skinNow()) + (skinsOpen() ? "" : ". Make the Top 10 to unlock more"); }
+    function skinAria() { return "Skins: wearing " + skinName(skinNow()) + (skinsOpen() ? "" : ". Make the Top 10 to unlock more"); }
+    // v49.8: the 👕 Skins button on the title, pause and level-clear / win screens (locked: a 🔒 and the Top 10 hint)
+    function skinBtn() { return `<button type="button" class="lot-btn juan-sk-btn" data-act="skins" aria-haspopup="dialog" aria-label="${skinAria()}">👕<span class="juan-sk-word"> Skins</span>${skinsOpen() ? "" : ' <span aria-hidden="true">🔒</span>'}</button>`; }
+    // v49.8: 🔄 Start over (paused, level clear): level 1 with a fresh score. Skins, the best score (HI) and the Top 10 stay; a
+    // score that makes the board gets its "New high score!" sheet first (the game waits, paused, until it's closed)
+    const OVER = '<button type="button" class="lot-btn juan-over" data-act="over">🔄 Start over</button>';
+    let overBusy = false;
+    async function startOver() {
+      if (overBusy) return; overBusy = true;
+      try { const sc = score, lv = level;
+        if (sc > 0 && await offer(sc, lv)) await new Promise((r) => { const k = setInterval(() => { if (!hsDlg) { clearInterval(k); r(); } }, 150); });
+        ckScore = 0; startLevel(1); } finally { overBusy = false; }
+    }
+    function skinHint() { return skinsOpen() ? "" : '<span class="juan-sk-hint" aria-hidden="true">🔒 Make the Top 10 to unlock</span>'; }
     function skinLabel() { const b = $("#juan-ov [data-act=skins]"); if (b) b.setAttribute("aria-label", skinAria()); }
 
     // ---- input: tap / click the game, the Jump button, Space / ↑ / W
@@ -1734,7 +1762,7 @@
     // again), so a leftover handler from the old Juan would also "start" and put a 2nd full-screen bar on the stage
     const onAct = (e) => { const b = e.target.closest("[data-act]"); if (!b) return; const a = b.dataset.act; audio();
       if (a === "start" || a === "cont" || a === "again") played();
-      if (a === "start") startLevel(1); else if (a === "cont") { ckScore = 0; startLevel(st.levelMax); } else if (a === "next") startLevel(level + 1, true); else if (a === "again") startLevel(1); else if (a === "resume") resume(); else if (a === "skins") openSkins(); };
+      if (a === "start") startLevel(1); else if (a === "cont") { ckScore = 0; startLevel(st.levelMax); } else if (a === "next") startLevel(level + 1, true); else if (a === "again") startLevel(1); else if (a === "resume") resume(); else if (a === "skins") openSkins(); else if (a === "over") startOver(); };
     el.addEventListener("click", onAct);
     $("#juan-pause").onclick = () => (paused ? resume() : pause());
     $("#juan-restart").onclick = () => { paused = false; ckScore = 0; startLevel(level); ctrl(); };
@@ -1745,7 +1773,11 @@
       else if (e.key === "p" || e.key === "P") paused ? resume() : pause();
     };
     const onKeyUp = (e) => { if (e.code === "Space" || e.key === "ArrowUp") release(); };
-    const onWin = () => { if (!fs.on) fit(); };
+    const onWin = () => refit();
+    const onVis = () => { if (!document.hidden) refit(); };
+    const ro = root.ResizeObserver ? new ResizeObserver(() => { if (sizeKey() !== fitKey) fit(); }) : null; if (ro) ro.observe(wrap);
+    const vv = root.visualViewport; if (vv) vv.addEventListener("resize", onWin);
+    root.addEventListener("orientationchange", onWin); root.addEventListener("pageshow", onWin); document.addEventListener("visibilitychange", onVis);
     // v48: Android drops a canvas's pixels while the app is in the background (the GPU process is reclaimed; Chrome
     // restores the canvas blank and fires "contextrestored"). A paused or idle game never redrew it, so the app came
     // back to an empty dark screen. Redraw whenever the canvas comes back or the page is shown again.
@@ -1759,9 +1791,9 @@
     return {
       pause, resume, jump,
       fs, exitFullscreen: (quiet) => fs.exit(quiet),
-      destroy() { fs.exit(true); cancelAnimationFrame(raf); document.removeEventListener("keydown", onKey); document.removeEventListener("keyup", onKeyUp); root.removeEventListener("resize", onWin); el.removeEventListener("click", onAct);
+      destroy() { fs.exit(true); cancelAnimationFrame(raf); document.removeEventListener("keydown", onKey); document.removeEventListener("keyup", onKeyUp); root.removeEventListener("resize", onWin); if (ro) ro.disconnect(); if (vv) vv.removeEventListener("resize", onWin); root.removeEventListener("orientationchange", onWin); root.removeEventListener("pageshow", onWin); document.removeEventListener("visibilitychange", onVis); clearTimeout(refitT); el.removeEventListener("click", onAct);
         document.removeEventListener("visibilitychange", onShow); root.removeEventListener("pageshow", repaint); root.removeEventListener("online", onOnline); if (hsDlg) hsDlg.remove(); if (skDlg) skDlg.remove(); cache = {}; },
-      skins: { open: openSkins, get now() { return skinNow(); }, get unlocked() { return skinsOpen(); }, list: JSKINS.map((k) => k[0]) },   // v49.5 (tests)
+      skins: { open: openSkins, get now() { return skinNow(); }, get unlocked() { return skinsOpen(); }, get owner() { return owner; }, list: JSKINS.map((k) => k[0]) },   // v49.5 (tests)
       hs: { loadBoard, offer, flushPending, get rows() { return merged(); }, get live() { return boardLive; }, get hi() { return hiId; }, get run() { return { ...run }; } },   // v49.5 (tests)
       repaint,
       get state() { return { oopsMsg, msg, mode, level, name: L().name, outfit: L().outfit, x: hero.x, y: hero.y, hw: hero.w, hh: hero.h, skin: skinNow(), ja: hero.jumpAt != null ? t - hero.jumpAt : null, la: hero.landAt != null ? t - hero.landAt : null, view: { S, GS, VH, dpr }, ground: hero.ground, score, ck, best: st.best, muted: st.muted, boost: hero.boost, health: hero.health, beers: beersGot, shield: hero.shield, fuera: fueraT > 0, fueras, caught: caughtN, caughtBy,
