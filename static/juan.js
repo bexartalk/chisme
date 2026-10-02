@@ -2,7 +2,7 @@
    (paths, gradients and anti-aliasing, drawn at the phone's devicePixelRatio so it stays crisp; no image files, no requests).
    v47 story: it's FRIDAY, and Juan grinds through his workday to get to Noche Caliente for beers with the crew. 6 levels:
    Hon Dipo (v47, was Home Dehole; our own parody hardware store: beige building, bright orange trim, a square orange sign
-   with heavy condensed white letters, no real logo) → The Job Site (v47: downtown San Antonio, the most ICE agents and
+   with heavy condensed white letters, no real logo) → La Chamba (v47: downtown San Antonio, the most ICE agents and
    background SUVs; it ends at a construction site with a cement mixer, a yellow excavator + loader, fencing, cones and a blue
    "COMING SOON Gualmart" parody sign) → Don Pedroes (a Southside Mexican restaurant: cream stucco, red tile roofs, the tall pole sign with the
    specials) → O'Reillees (a green-and-white parody auto-parts store, no real logo) → Juan's Casa (quitting time: wash up,
@@ -36,8 +36,8 @@
   const LEVELS = [
     { name: "Hon Dipo", speed: 188, time: "morning", outfit: "work", hint: "Friday shift, 7 a.m. Load up the supplies and dodge the runaway carts and the ICE agents. ¡Órale!", done: "Supplies loaded. ¡Órale!", d: 1, seed: 1,
       mix: { cone: 3, cart: 3, pothole: 2, pallet: 2, agent: 2, suv: 1 }, power: [[900, "coffee"], [2300, "flipflops"], [2700, "taco"], [4400, "coffee"]] },
-    { name: "The Job Site", speed: 194, time: "morning", outfit: "work", d: "site", seed: 23, diff: 3, city: true,   // v47: downtown, the most ICE agents, the SUVs out in force
-      hint: "Supplies in the truck, now downtown to the job site. ICE agents on every corner, so hop 'em! ¡Ándale!", done: "Clocked in! Gualmart won't build itself.",
+    { name: "La Chamba", speed: 194, time: "morning", outfit: "work", d: "site", seed: 23, diff: 3, city: true,   // v47: downtown, the most ICE agents, the SUVs out in force
+      hint: "Supplies in the truck, now downtown to La Chamba. ICE agents on every corner, so hop 'em! ¡Ándale!", done: "Clocked in! Gualmart won't build itself.",
       mix: { agent: 8, cone: 4, pothole: 3, cart: 2, pallet: 2, suv: 2 }, power: [[1100, "coffee"], [2300, "flipflops"], [2800, "taco"], [4500, "coffee"]] },
     { name: "Don Pedroes", speed: 198, time: "noon", outfit: "work", d: 2, seed: 2, hint: "Lunch break! The alambre plate is calling, and the weekend's almost here.", done: "Panza full. Back to work!",
       mix: { pothole: 3, chancla: 2, chihuahua: 2, cone: 2, agent: 2, suv: 1 }, power: [[1250, "taco"], [2350, "flipflops"], [3100, "coffee"], [4700, "taco"]] },
@@ -245,7 +245,7 @@
       box(c, "#0f7a3a", 818, -176, 56, 12, 2); say(c, "SE MILITARY DR", 846, -170, 8, "#ffffff", { max: 52, weight: 900 }); }
   }
 
-  // ---- v47: the mid layer for The Job Site: downtown San Antonio (period 2000), office towers, limestone hotels, brick, the River Walk, a parking garage
+  // ---- v47: the mid layer for La Chamba: downtown San Antonio (period 2000), office towers, limestone hotels, brick, the River Walk, a parking garage
   function cityLayer(c, P, night, pass) {
     if (pass === "lights") return;
     const grid = (x, y, w, h, cw, ch, gap, col) => { c.fillStyle = col; for (let yy = y; yy + ch <= y + h; yy += ch + gap) for (let xx = x; xx + cw <= x + w; xx += cw + gap) c.fillRect(xx, yy, cw, ch); };
@@ -291,7 +291,7 @@
 
   // ---- each stop's building (drawn once per level into a cache, 360 units wide, ground at y 0)
   function destination(c, n, night) {
-    if (n === "site") {   // v47 The Job Site: a construction site downtown: steel frame + crane, a "COMING SOON Gualmart" parody sign (our own art), fencing, cones, a cement mixer, a yellow excavator and loader
+    if (n === "site") {   // v47 La Chamba: a construction site downtown: steel frame + crane, a "COMING SOON Gualmart" parody sign (our own art), fencing, cones, a cement mixer, a yellow excavator and loader
       const BLUE = "#0a5fc2", YEL = "#f5b800", YEL2 = "#d79a00";
       box(c, lin(c, 0, -40, 0, 0, ["#c9a77c", "#a8865c"]), 0, -40, 360, 40); c.fillStyle = "#b8956a"; c.beginPath(); c.moveTo(-10, -36); c.quadraticCurveTo(40, -96, 100, -36); c.fill();   // the dirt lot + a pile
       box(c, lin(c, 0, -190, 0, -30, ["#b9c1ca", "#9aa3ad"]), 196, -190, 70, 160); for (let y = -182; y < -40; y += 32) box(c, "#7d848e", 196, y, 70, 3);   // the concrete core going up
@@ -978,7 +978,7 @@
       if (!cache.sky) cache.sky = makeSky();
       if (cache.cloud === undefined) cache.cloud = makeCloud();
       if (!cache.far) cache.far = makeLayer(1400, 400, Math.min(S, 2.2), (c) => farLayer(c, p, night), null);
-      if (!cache.mid) cache.mid = makeLayer(2000, 240, S, (c, pass) => (L().city ? cityLayer : midLayer)(c, p, night, pass), p.tint, night, 1.1);   // v47: downtown for The Job Site
+      if (!cache.mid) cache.mid = makeLayer(2000, 240, S, (c, pass) => (L().city ? cityLayer : midLayer)(c, p, night, pass), p.tint, night, 1.1);   // v47: downtown for La Chamba
       if (!cache.dest) cache.dest = makeDest();
     }
     const destX = () => CAM_END;

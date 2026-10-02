@@ -948,10 +948,15 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
   text-shadow:0 3px 0 #000;background:none;padding:0;pointer-events:none}
 @media (max-width:360px){.tia-name{font-size:2rem;-webkit-text-stroke-width:6px}}
 .tia-name:focus{outline:none}
-/* v49.3: stacked in the far-right corner, tight to the top edge, so her face and eyes (center/center-left) stay clear */
-.tia-head-btns{position:absolute;right:8px;top:6px;z-index:1;display:flex;flex-direction:column;align-items:stretch;gap:6px}
-.tia-head-btns button{min-height:44px;min-width:44px;padding:0 .7em;font-size:.95rem;background:#000;color:#fff;border-color:#fff;white-space:nowrap}
-@media (max-width:360px){.tia-head-btns{right:6px;top:5px;gap:5px}.tia-head-btns button{font-size:.85rem;padding:0 .5em}}
+/* v49.4: a small round ✕ tight in the top-right corner (off her face); ⚙️ Settings moved to the bottom of her page */
+.tia-x{position:absolute;right:6px;top:6px;z-index:1;width:44px;height:44px;min-width:44px;min-height:44px;padding:0;border-radius:50%;
+  display:inline-flex;align-items:center;justify-content:center;background:#000;color:#fff;border:3px solid #fff;font-size:1.3rem;font-weight:900;line-height:1;
+  box-shadow:0 2px 6px rgba(0,0,0,.45)}
+[data-theme="dark"] .tia-x{background:#000;color:#fff;border-color:#fff}
+.tia-settings-btn{flex:0 0 auto;display:block;width:calc(100% - 24px);margin:6px 12px 2px;min-height:48px;border-radius:999px;background:#12123a;color:#fff;
+  border:3px solid var(--turq);font-size:1.1rem;font-weight:900}
+[data-theme="dark"] .tia-settings-btn{background:#12123a;color:#fff;border-color:var(--turq)}
+.tia-settings-btn:active{background:#1d1d52}
 .tia-log{flex:1 1 auto;overflow-y:auto;list-style:none;margin:0;padding:12px 12px 4px;display:flex;flex-direction:column;gap:10px;overscroll-behavior:contain}
 .tia-msg{display:flex;gap:8px;align-items:flex-end;max-width:100%}
 .tia-msg.from-me{justify-content:flex-end}

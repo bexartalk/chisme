@@ -9,7 +9,8 @@ the Chisme bubble as branding, a big "⚙️ Settings" and "💬 Chat with Tía"
     gets tapped) and the card's buttons work again once it closes.
   - v49.3 refinements: a ⚙️ badge on Tía's circle (tia-circle-badge.png); her chat header reads just "Tía Chismosa" in the
     logo-style display face (white, black outline, no pill, no subtitle), "Tía is an AI" moves to the footer line, and a
-    ⚙️ Settings button next to Close (same style, 44px+) opens Settings (tia-chat-header.png).
+    v49.4: just a small round ✕ (44px+, black, white ring, bold) tight in the header's top-right corner, off her face
+    (tia-x-top.png), and ⚙️ Settings moved to the bottom of her page, under the Ask box (tia-settings-bottom.png).
 Against the local server (CHISME_URL, default http://localhost:8211)."""
 import ast, asyncio, os
 from playwright.async_api import async_playwright
@@ -140,15 +141,16 @@ async def main():
         allerrs += errs; await ctx.close()
 
         HEAD = """() => { const t = document.querySelector('#tia-title'), cs = getComputedStyle(t), st = document.querySelector('#tia-settings'), cl = document.querySelector('#tia-close');
-          const S = (b) => { const c = getComputedStyle(b), r = b.getBoundingClientRect(); return { w: r.width, h: r.height, t: r.top, b: r.bottom, l: r.left, r: r.right, bg: c.backgroundColor, fg: c.color, bd: c.borderTopColor, fs: c.fontSize, fw: c.fontWeight }; };
+          const S = (b) => { const c = getComputedStyle(b), r = b.getBoundingClientRect(); return { w: r.width, h: r.height, t: r.top, b: r.bottom, l: r.left, r: r.right, bg: c.backgroundColor, fg: c.color, bd: c.borderTopColor, bw: parseFloat(c.borderTopWidth), rad: c.borderTopLeftRadius, fs: c.fontSize, fw: +c.fontWeight, text: b.textContent.trim() }; };
           const tr = t.getBoundingClientRect(), hr = document.querySelector('.tia-head').getBoundingClientRect();
           return { text: t.textContent, font: cs.fontFamily, loaded: document.fonts.check('40px "Chisme Display"', 'Tía Chismosa'), px: parseFloat(cs.fontSize), color: cs.color,
             stroke: cs.webkitTextStrokeWidth, strokeColor: cs.webkitTextStrokeColor, bg: cs.backgroundColor, sub: !!document.querySelector('.tia-head p'), inHead: tr.bottom <= hr.bottom + 1 && tr.right <= hr.right,
-            settings: S(st), close: S(cl), headTop: hr.top, foot: document.querySelector('.tia-foot').textContent, vw: innerWidth }; }"""
+            settings: S(st), close: S(cl), headTop: hr.top, headBtns: document.querySelectorAll('.tia-head button').length, form: document.querySelector('#tia-form').getBoundingClientRect().bottom,
+            footTop: document.querySelector('.tia-foot').getBoundingClientRect().top, vh: innerHeight, foot: document.querySelector('.tia-foot').textContent, vw: innerWidth }; }"""
         BADGE = """() => { const f = document.querySelector('#tia-btn'), g = f.querySelector('.tia-fab-badge'), r = g.getBoundingClientRect(), fr = f.getBoundingClientRect(), c = getComputedStyle(g);
           return { text: g.textContent, hidden: g.getAttribute('aria-hidden'), w: r.width, l: r.left, t: r.top, r: r.right, fl: fr.left, ft: fr.top, vw: innerWidth, bg: c.backgroundColor, ring: c.boxShadow, pe: c.pointerEvents,
             hit: document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.closest('#tia-btn') === f }; }"""
-        for scheme, width in [("light", 390), ("dark", 320)]:
+        for scheme, width in [("light", 390), ("dark", 390), ("light", 320), ("dark", 320)]:
             print(f"== Tía's circle badge + her chat header ({scheme}, {width} px)")
             ctx, pg, errs = await newctx(b, p, scheme, width)
             await pg.goto(BASE + "/"); await ready(pg); await pg.wait_for_timeout(1000)
@@ -157,7 +159,7 @@ async def main():
             check(26 <= g["w"] <= 34 and g["l"] < g["fl"] and g["t"] < g["ft"] and g["r"] <= g["vw"], f"{scheme} {width}: badge sits on the circle's top-left edge ({g['w']:.0f} px)")
             check(g["bg"] == "rgb(255, 255, 255)" and "0, 201, 205" in g["ring"], f"{scheme} {width}: white badge, turquoise ring ({g['bg']}, {g['ring'][:30]})")
             check(g["pe"] == "none" and g["hit"], f"{scheme} {width}: tapping the badge is tapping Tía")
-            if scheme == "light":
+            if scheme == "light" and width == 390:
                 bx = await pg.evaluate("(() => { const f = document.querySelector('#tia-btn').getBoundingClientRect(); return { x: f.left - 18, y: f.top - 18, width: f.width + 30, height: f.height + 30 }; })()")
                 await pg.screenshot(path=os.path.join(OUT, "tia-circle-badge.png"), clip=bx, scale="device")
             bad = await pg.evaluate(SCAN, "#tia-btn"); check(not bad, f"{scheme} {width}: no yellow on Tía's circle ({bad[:3]})")
@@ -169,14 +171,19 @@ async def main():
             check(h["px"] >= 30 and h["color"] == "rgb(255, 255, 255)" and float(h["stroke"].rstrip("px") or 0) >= 5 and h["strokeColor"] == "rgb(0, 0, 0)", f"{scheme} {width}: big white with a black outline ({h['px']:.0f}px, stroke {h['stroke']})")
             check(h["bg"] in ("rgba(0, 0, 0, 0)", "transparent") and h["inHead"], f"{scheme} {width}: no pill behind it, inside the header ({h['bg']})")
             st, cl = h["settings"], h["close"]
-            check(st["h"] >= 44 and st["w"] >= 44 and cl["h"] >= 44 and st["b"] <= cl["t"] and max(st["r"], cl["r"]) <= h["vw"], f"{scheme} {width}: ⚙️ Settings stacked over Close, 44px+ ({st['w']:.0f}x{st['h']:.0f})")
-            check(st["t"] - h["headTop"] <= 8 and min(st["l"], cl["l"]) >= 0.62 * h["vw"], f"{scheme} {width}: tucked in the top-right corner, off her face (top +{st['t'] - h['headTop']:.0f}px, left edge {min(st['l'], cl['l']):.0f}/{h['vw']})")
-            check((st["bg"], st["fg"], st["bd"], st["fs"], st["fw"]) == (cl["bg"], cl["fg"], cl["bd"], cl["fs"], cl["fw"]), f"{scheme} {width}: same style as Close ({st['bg']}, {st['fg']})")
+            check(h["headBtns"] == 1 and cl["text"] == "✕", f"{scheme} {width}: the header has just the ✕ (no Settings / Close words up there)")
+            check(cl["w"] >= 44 and cl["h"] >= 44 and cl["rad"] == "50%" and cl["bg"] == "rgb(0, 0, 0)" and cl["bd"] == "rgb(255, 255, 255)" and cl["bw"] >= 2 and cl["fw"] >= 800,
+                  f"{scheme} {width}: round ✕, 44px+, black with a white outline, bold ({cl['w']:.0f}x{cl['h']:.0f}, {cl['bg']}, {cl['bd']} {cl['bw']}px, {cl['fw']})")
+            check(cl["t"] - h["headTop"] <= 8 and h["vw"] - cl["r"] <= 10 and cl["l"] >= 0.8 * h["vw"], f"{scheme} {width}: tight in the top-right corner, off her face (top +{cl['t'] - h['headTop']:.0f}px, left {cl['l']:.0f}/{h['vw']})")
+            check("Settings" in st["text"] and st["h"] >= 44 and st["w"] >= 0.85 * h["vw"] and st["t"] >= h["form"] and st["b"] <= h["footTop"] + 1 and st["b"] <= h["vh"] and st["fw"] >= 800,
+                  f"{scheme} {width}: ⚙️ Settings at the bottom, under the Ask box, full width, bold ({st['w']:.0f}x{st['h']:.0f}, top {st['t']:.0f} ≥ form {h['form']:.0f})")
             check(h["foot"].startswith("Tía is an AI and only talks about what's in Chisme right now.") and "Forget me" in h["foot"], f"{scheme} {width}: 'Tía is an AI' in the footer line")
             check(await pg.evaluate("document.activeElement && document.activeElement.id") == "tia-title", f"{scheme} {width}: opens with focus on her name (no ring on Settings after a tap)")
             bad = await pg.evaluate(SCAN, ".tia-head"); check(not bad, f"{scheme} {width}: no yellow in the header chrome ({bad[:3]})")
-            if scheme == "light": await pg.screenshot(path=os.path.join(OUT, "tia-chat-header.png"), clip={"x": 0, "y": 0, "width": width, "height": 340})
-            else: await pg.screenshot(path="/tmp/tia-chat-header-dark-320.png")
+            if scheme == "light" and width == 390:
+                await pg.screenshot(path=os.path.join(OUT, "tia-x-top.png"), clip={"x": 0, "y": 0, "width": width, "height": 340})
+                await pg.screenshot(path=os.path.join(OUT, "tia-settings-bottom.png"), clip={"x": 0, "y": h["vh"] - 330, "width": width, "height": 330})
+            await pg.screenshot(path=f"/tmp/tia-chat-{scheme}-{width}.png")
             await pg.click("#tia-settings"); await pg.wait_for_timeout(500)
             check(await pg.evaluate("document.querySelector('#settings').open && !document.querySelector('#tia').open"), f"{scheme} {width}: ⚙️ Settings in her chat opens Settings (chat closes)")
             allerrs += errs; await ctx.close()

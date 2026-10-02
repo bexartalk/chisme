@@ -3,7 +3,7 @@
 1. Node: Lotería Chismosa's deck: the 54 traditional cards (El Gallo … La Rana; #26 is El Chocolate instead of El Negrito) with their folk
    verses, each with its own original SVG art; the call is the verse then "¡Name!"; one recorded mp3 per call; random 4×4 tablas, and
    wins (rows, columns, diagonals, 4 corners) that only count for cards Tía actually called. The Juan That Got Away's 6 levels
-   (Hon Dipo → The Job Site → Don Pedroes → O'Reillees → Juan's Casa → Noche Caliente), same course every time, ☕ coffee + breakfast taco on each
+   (Hon Dipo → La Chamba → Don Pedroes → O'Reillees → Juan's Casa → Noche Caliente), same course every time, ☕ coffee + breakfast taco on each
    level, cold ones to jump for on the cantina level, hazards on every level but none right at a checkpoint.
 2. WebKit iPhone 13: the 🎲 Juegitos tab (between ¿Cuál dieta? and Events) fits; a list of games. Lotería: Tía (avatar) calls
    cards in Spanish from recorded clips (the phone's es-MX voice only if a clip fails), 🔇 Sound, pause, speed, new board; a bean drops only on a
@@ -16,9 +16,9 @@
 3. Chromium: offline (service worker), Juegitos still opens and both games run.
 4. v41 full screen: the board fills the width and most of the height at 390×844 and 320×640 with no scrolling; the called card sits small above it.
    v43: the tabla-app layout (picker + bean count in the top bar, the called-card strip, big vintage cards, Limpiar / Nueva tabla): see loteria_v43_test.py.
-   v44: The Juan That Got Away full screen at 390×844 (level 1 at Hon Dipo, level 2 at The Job Site, Don Pedroes, level 6 at the cantina) and 320×640 (canvas + controls fit, no scrolling).
+   v44: The Juan That Got Away full screen at 390×844 (level 1 at Hon Dipo, level 2 at La Chamba, Don Pedroes, level 6 at the cantina) and 320×640 (canvas + controls fit, no scrolling).
 Screenshots: juegos-tab.png, juegos-english.png, loteria-calls.png, loteria-win.png, loteria-tabla-big.png, loteria-cards.png, loteria-320.png,
-juan-intro.png, juan-l1.png, juan-job-site.png, juan-don-pedroes.png, juan-l5.png, juan-caught-cabron.png, juan-win.png, juan-320.png, juan-caught-320.png."""
+juan-intro.png, juan-l1.png, la-chamba.png, juan-don-pedroes.png, juan-l5.png, juan-caught-cabron.png, juan-win.png, juan-320.png, juan-caught-320.png."""
 import asyncio, json, os, re, subprocess
 from urllib.parse import urlparse
 from playwright.async_api import async_playwright
@@ -48,7 +48,7 @@ TRADITIONAL = ["El Gallo", "El Diablito", "La Dama", "El Catrín", "El Paraguas"
 ALLOWED_ES = ["Limpiar", "Nueva tabla", "Pick your tabla", "your tabla", "tabla", "La Clásica", "Del Campo", "La Fiesta", "Cielo y Mar", "La Gente"]
 SPANISH = ["Empezar", "Pausa", "Seguir", "Otra vez", "Nueva tabla", "Voz", "Lenta", "Rápida", "mija", "Siéntate", "carta", "baraja", "Primero", "Todavía",
   "Ganaste", "Bienvenido", "Llegaste", "Qué", "fiesta", "Mamá", "Cafecito", "Taquería", "Tiendita", "Casa de", "La Plaza", "tabla", "ficha", "esquinas", "fila", "columna"]
-JUAN_LEVELS = ["Hon Dipo", "The Job Site", "Don Pedroes", "O'Reillees", "Juan's Casa", "Noche Caliente"]
+JUAN_LEVELS = ["Hon Dipo", "La Chamba", "Don Pedroes", "O'Reillees", "Juan's Casa", "Noche Caliente"]
 OOPS = {"¡Ay no!", "¡Híjole!", "¡Ándale, otra vez!"}
 CAUGHT = ["¡Ay no!", "¡Ay cabrón!", "¡Chingao!", "¡Pinche ICE!", "¡Ay, vengo mamá!"]   # v47: caught by ICE, the user's picks (+ the original)
 UNIT = r"""
@@ -107,7 +107,7 @@ def unit():
     check(not o["none"]["win"], "4 marks that aren't a line: no win")
     check(not o["uncalled"]["win"] and len(o["uncalled"]["early"]) == 1, "a line with a card Tía hasn't called doesn't count (caught as an early mark)")
     check(o["game"] == ["juan", "The Juan That Got Away", "chisme-juegos-juan"], f"v44: the second game is The Juan That Got Away ({o['game']})")
-    check(o["levels"] == JUAN_LEVELS, f"The Juan That Got Away: 6 stops, Hon Dipo → The Job Site → Don Pedroes → O'Reillees → Juan's Casa → Noche Caliente ({o['levels']})")
+    check(o["levels"] == JUAN_LEVELS, f"The Juan That Got Away: 6 stops, Hon Dipo → La Chamba → Don Pedroes → O'Reillees → Juan's Casa → Noche Caliente ({o['levels']})")
     check(o["outfits"] == ["work", "work", "work", "work", "work", "western"], f"work clothes for the first 5 levels, cowboy clothes at night ({o['outfits']})")
     check(o["same"], "a level is the same course every time (so a checkpoint restarts it fairly)")
     check(all(c >= 1 and t >= 1 for c, t in o["power"]), f"every level has a ☕ coffee and a breakfast taco ({o['power']})")
@@ -115,7 +115,7 @@ def unit():
     check(all(h >= 6 for h in o["haz"]), f"neutral hazards on every level, mixed in with the agents ({o['haz']})")
     check(all(a >= 2 and v >= 1 and f == 1 for a, v, f in o["ice"]), f"v46: ICE agents back on every level: patrolling agents + a dark SUV with a chaser, and a 🩴 flip-flops shield ({o['ice']})")
     check(o["ice"][1][0] > max(a for i, (a, v, f) in enumerate(o["ice"]) if i != 1) and o["ice"][1][1] >= 2 and o["city"] == [False, True, False, False, False, False],
-          f"v47: The Job Site (downtown) has the most ICE agents of any level, and 2+ SUVs ({[a for a, v, f in o['ice']]})")
+          f"v47: La Chamba (downtown) has the most ICE agents of any level, and 2+ SUVs ({[a for a, v, f in o['ice']]})")
     check(o["sameOld"], "v47: the other 5 levels keep their old courses (seeded by the level, not its place in the list)")
     check(o["iceLines"] == [CAUGHT, "¡Fuera!"] and o["iceSafe"], f"v47: caught = one of {CAUGHT}, '¡Fuera!' when he gets away; no agents right at a checkpoint ({o['iceLines']})")
     sq = o["caughtSeq"]; reps = sum(a == b for a, b in zip(sq, sq[1:])); cnt = {l: sq.count(l) for l in CAUGHT}
@@ -387,7 +387,7 @@ async def webkit(p):
     s = await st(pg)
     check(s["mode"] == "clear" and "You made it to Hon Dipo!" in s["overlay"] and "Supplies loaded. ¡Órale!" in s["overlay"] and s["levelMax"] == 2, f"level 1 cleared at Hon Dipo ({s['overlay'][:40]!r})")
     await pg.click('#juan-ov [data-act="next"]'); await pg.wait_for_timeout(200)
-    check((await st(pg))["level"] == 2 and (await st(pg))["mode"] == "run" and (await st(pg))["name"] == "The Job Site", "▶ on to level 2: The Job Site")
+    check((await st(pg))["level"] == 2 and (await st(pg))["mode"] == "run" and (await st(pg))["name"] == "La Chamba", "▶ on to level 2: La Chamba")
     await pg.click("#juan-pause"); s = await st(pg); await pg.wait_for_timeout(600)
     check(s["mode"] == "paused" and (await st(pg))["x"] == s["x"], "⏸ Pause freezes the game")
     await pg.click("#juan-pause")
@@ -495,8 +495,8 @@ async def fullscreen_shots(p):
     await pg.screenshot(path=os.path.join(OUT, "juan-l1.png"))
     await pg.evaluate(G + ".warp(2, 5780)"); await pg.wait_for_timeout(450)
     s = await st(pg)
-    check(s["level"] == 2 and s["name"] == "The Job Site" and (await fs(pg))["on"], f"v47 390×844: level 2, The Job Site: the construction site with the COMING SOON Gualmart sign ({s['mode']})")
-    await pg.screenshot(path=os.path.join(OUT, "juan-job-site.png"))
+    check(s["level"] == 2 and s["name"] == "La Chamba" and (await fs(pg))["on"], f"v47 390×844: level 2, La Chamba: the construction site with the COMING SOON Gualmart sign ({s['mode']})")
+    await pg.screenshot(path=os.path.join(OUT, "la-chamba.png"))
     await pg.evaluate(G + ".warp(3, 5780)"); await pg.wait_for_timeout(450)
     s = await st(pg)
     check(s["level"] == 3 and s["name"] == "Don Pedroes" and (await fs(pg))["on"], f"390×844: level 3, Don Pedroes ({s['mode']})")

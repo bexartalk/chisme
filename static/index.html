@@ -432,8 +432,8 @@
       <picture><img class="tia-hero" src="/static/mascot/header-480.webp?art=3" srcset="/static/mascot/header-480.webp?art=3 480w, /static/mascot/header-960.webp?art=3 960w" sizes="(max-width:560px) 100vw, 560px" width="480" height="240" alt=""></picture>
       <span class="grab" aria-hidden="true"></span>
       <h2 id="tia-title" class="tia-name" tabindex="-1">Tía Chismosa</h2>
-      <!-- v49.3: Settings right here too (same look as Close) -->
-      <div class="tia-head-btns"><button type="button" id="tia-settings"><span aria-hidden="true">⚙️ </span>Settings</button><button type="button" id="tia-close" aria-label="Close chat">Close</button></div>
+      <!-- v49.4: just a small round ✕, tight in the top-right corner, off her face -->
+      <button type="button" id="tia-close" class="tia-x" aria-label="Close chat"><span aria-hidden="true">✕</span></button>
     </div>
     <ol id="tia-log" class="tia-log" aria-live="polite" aria-label="Chat with Tía Chismosa"></ol>
     <div id="tia-quick" class="tia-quick" role="group" aria-label="Ask about">
@@ -449,6 +449,8 @@
       <input id="tia-in" type="text" maxlength="500" placeholder="Ask la Tía…" enterkeyhint="send">
       <button type="submit" id="tia-send" class="primary">Send</button>
     </form>
+    <!-- v49.4: ⚙️ Settings lives at the bottom of her page, under the Ask box -->
+    <button type="button" id="tia-settings" class="tia-settings-btn"><span aria-hidden="true">⚙️ </span>Settings</button>
     <p class="tia-foot">Tía is an AI and only talks about what's in Chisme right now. Chats stay on this phone (Settings → Forget me).</p>
   </dialog>
   <dialog id="player" class="settings player" aria-labelledby="player-title">
