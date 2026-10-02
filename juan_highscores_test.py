@@ -2,7 +2,7 @@
   • the board sits at the bottom of The Juan That Got Away's game screen: rank · name · score from GET /api/juan/scores,
     "Be the first on the board!" when empty, hidden while the game is full screen; the last board is kept on the phone and
     still shows offline (with an offline note)
-  • a run ends when Juan reaches Noche Caliente, or when you leave the game (✕) with points: if the score makes the Top 10,
+  • a run ends when Juan makes it through Dice City VI (level 7), or when you leave the game (✕) with points: if the score makes the Top 10,
     a sheet says "🏆 New high score! Put your name on the board" with a 12-character name box and a big Save → POST → the
     board refreshes with the new row highlighted (in the sheet and on the page); a score that doesn't make it asks nothing
   • offline: Save keeps the name on the phone ("waiting") and posts it when the phone is back online
@@ -83,13 +83,13 @@ async def main():
                 check(sh and sh["fits"] and sh["inH"] >= 44 and sh["saveH"] >= 56 and sh["max"] == 12 and sh["bg"] != "rgb(255, 255, 255)", f"dark 320: the sheet fits the screen, dark, 12-char box, big Save ({sh})")
             await ctx.close()
 
-        print("== a real run: Juan reaches Noche Caliente → the sheet → Save → the board")
+        print("== a real run: Juan makes it through Dice City VI → the sheet → Save → the board")
         seed(TEN[:7]); ctx, pg, errs = await page(b, p, 390)
         await pg.click("#juan-ov [data-act=start]"); await pg.wait_for_timeout(300)
         hidden = await pg.evaluate("getComputedStyle(document.querySelector('#juan-hs')).display === 'none'")
         check(hidden, "the board is hidden while the game is full screen")
         END = await pg.evaluate("ChismeJuan.END")
-        await pg.evaluate(f"{G}.warp(6, {END} - 40)")
+        await pg.evaluate(f"{G}.warp(7, {END} - 40)")
         await pg.wait_for_function(G + ".state.mode === 'win'", timeout=10000)
         await pg.wait_for_selector("dialog.juan-hs-sheet[open]", timeout=8000)
         sc = await pg.evaluate(G + ".state.score"); sh = await pg.evaluate(SHEET)
@@ -103,7 +103,7 @@ async def main():
         await pg.wait_for_function("document.querySelector('dialog.juan-hs-sheet .in-sheet')", timeout=10000)
         sh = await pg.evaluate(SHEET); srv = await pg.evaluate("fetch('/api/juan/scores').then(r => r.json())")
         mine = [r for r in srv["scores"] if r["name"] == "Goonie El Te"]
-        check(mine and mine[0]["score"] == sc and mine[0]["level"] == 6, f"Save POSTs it: the server has 'Goonie El Te' · {sc} · level 6")
+        check(mine and mine[0]["score"] == sc and mine[0]["level"] == 7, f"Save POSTs it: the server has 'Goonie El Te' · {sc} · level 7 (v49.5: Dice City VI ends the run)")
         check(sh["me"] >= 0 and sh["rows"][sh["me"]] == "Goonie El Te", f"the sheet shows the refreshed board with the new row highlighted (#{sh['me'] + 1})")
         await pg.click("dialog.juan-hs-sheet .juan-hs-save"); await pg.wait_for_timeout(300)
         await pg.click(".gfs-x"); await pg.wait_for_timeout(500); await to_board(pg); m = await pg.evaluate(BOARD)

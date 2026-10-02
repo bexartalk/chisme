@@ -54,7 +54,7 @@ TRADITIONAL = ["El Gallo", "El Diablito", "La Dama", "El Catrín", "El Paraguas"
 ALLOWED_ES = ["Limpiar", "Nueva tabla", "Pick your tabla", "your tabla", "tabla", "La Clásica", "Del Campo", "La Fiesta", "Cielo y Mar", "La Gente"]
 SPANISH = ["Empezar", "Pausa", "Seguir", "Otra vez", "Nueva tabla", "Voz", "Lenta", "Rápida", "mija", "Siéntate", "carta", "baraja", "Primero", "Todavía",
   "Ganaste", "Bienvenido", "Llegaste", "Qué", "fiesta", "Mamá", "Cafecito", "Taquería", "Tiendita", "Casa de", "La Plaza", "tabla", "ficha", "esquinas", "fila", "columna"]
-JUAN_LEVELS = ["Hon Dipo", "La Chamba", "Don Pedroes", "O'Reillees", "Juan's Casa", "Noche Caliente"]
+JUAN_LEVELS = ["Hon Dipo", "La Chamba", "Don Pedroes", "O'Reillees", "Juan's Casa", "Noche Caliente", "Dice City VI"]
 OOPS = {"¡Ay no!", "¡Híjole!", "¡Ándale, otra vez!"}
 CAUGHT = ["¡Ay no!", "¡Ay cabrón!", "¡Chingao!", "¡Pinche ICE!", "¡Ay, vengo mamá!"]   # v47: caught by ICE, the user's picks (+ the original)
 UNIT = r"""
@@ -67,24 +67,25 @@ const win = (cells, calledSet) => J.check(t, new Set(cells), calledSet || called
 out.row = win([4, 5, 6, 7]); out.col = win([1, 5, 9, 13]); out.diag = win([3, 6, 9, 12]); out.corners = win([0, 3, 12, 15]); out.none = win([0, 1, 2, 5]);
 out.uncalled = win([0, 1, 2, 3], new Set([t[0], t[1], t[2]]));
 out.lines = J.LINES.length;
+const ALL = I.LEVELS.map((_, i) => i + 1);   // v49.5: every level, Dice City VI too
 out.levels = I.LEVELS.map((l) => l.name); out.outfits = I.LEVELS.map((l) => l.outfit);
 out.same = JSON.stringify(I.buildLevel(3)) === JSON.stringify(I.buildLevel(3));
-out.power = [1, 2, 3, 4, 5, 6].map((n) => { const e = I.buildLevel(n); return [e.filter((x) => x.t === "coffee").length, e.filter((x) => x.t === "taco").length]; });
-out.beers = [1, 2, 3, 4, 5, 6].map((n) => I.buildLevel(n).filter((x) => x.t === "beer").length);
+out.power = ALL.map((n) => { const e = I.buildLevel(n); return [e.filter((x) => x.t === "coffee").length, e.filter((x) => x.t === "taco").length]; });
+out.beers = ALL.map((n) => I.buildLevel(n).filter((x) => x.t === "beer").length);
 out.lastBeers = I.buildLevel(6).filter((x) => x.t === "beer" && x.x > I.END - 200).length;
-const HZ = Object.keys(I.HAZ), SOLID = ["pallet", "tires"];
-out.haz = [1, 2, 3, 4, 5, 6].map((n) => I.buildLevel(n).filter((x) => HZ.includes(x.t)).length);
-out.kinds = [...new Set([1, 2, 3, 4, 5, 6].flatMap((n) => I.buildLevel(n).filter((x) => HZ.includes(x.t) || SOLID.includes(x.t)).map((x) => x.t)))].sort();
+const HZ = Object.keys(I.HAZ), SOLID = ["pallet", "tires", "lowcar", "sportscar"];
+out.haz = ALL.map((n) => I.buildLevel(n).filter((x) => HZ.includes(x.t)).length);
+out.kinds = [...new Set(ALL.flatMap((n) => I.buildLevel(n).filter((x) => HZ.includes(x.t) || SOLID.includes(x.t)).map((x) => x.t)))].sort();
 out.dmg = Object.fromEntries(Object.entries(I.HAZ).map(([k, v]) => [k, v[0]])); out.hp = I.HP;
-out.afterCheck = [1, 2, 3, 4, 5, 6].every((n) => I.buildLevel(n).every((e) => !(HZ.includes(e.t) || SOLID.includes(e.t)) || I.CHECKS.every((c) => !c || e.x + e.w < c - 40 || e.x > c + 60)));
+out.afterCheck = ALL.every((n) => I.buildLevel(n).every((e) => !(HZ.includes(e.t) || SOLID.includes(e.t)) || I.CHECKS.every((c) => !c || e.x + e.w < c - 40 || e.x > c + 60)));
 const fs = require("fs"), path = require("path"), src = fs.readFileSync(process.argv[1], "utf8") + fs.readFileSync(process.argv[2], "utf8") + fs.readFileSync(path.join(path.dirname(process.argv[1]), "loteria_cards.js"), "utf8");
 const srcNet = src.split('fetch("/api/juan/scores"').join("");   // v49.5: the one allowed call, Juan's own Top 10 board (same site)
 out.net = ["http:", "https:", "fetch(", "XMLHttpRequest", "import(", "sendBeacon", "WebSocket", "<a "].filter((w) => srcNet.includes(w));
 out.callsText = J.CARDS.map((c) => c.verse);
 out.hints = I.LEVELS.map((l) => l.hint); out.game = [I.game.id, I.game.name, I.KEY];
-out.ice = [1, 2, 3, 4, 5, 6].map((n) => { const e = I.buildLevel(n); return [e.filter((x) => x.t === "agent").length, e.filter((x) => x.t === "suv").length, e.filter((x) => x.t === "flipflops").length]; });
+out.ice = ALL.map((n) => { const e = I.buildLevel(n); return [e.filter((x) => x.t === "agent").length, e.filter((x) => x.t === "suv").length, e.filter((x) => x.t === "flipflops").length]; });
 out.city = I.LEVELS.map((l) => !!l.city); out.sameOld = I.LEVELS.filter((l) => l.seed && l.seed === l.d).length === 5;
-out.iceLines = [I.CAUGHT, I.FUERA]; out.caughtSeq = Array.from({ length: 3000 }, () => I.pickCaught()); out.caughtEdge = [I.pickCaught("¡Ay no!", () => 0.9999), I.pickCaught("¡Chingao!", () => 0)]; out.iceSafe = [1, 2, 3, 4, 5, 6].every((n) => I.buildLevel(n).every((e) => !I.ICE.includes(e.t) || I.CHECKS.every((c) => !c || e.x + e.w < c - 40 || e.x > c + 60)));
+out.iceLines = [I.CAUGHT, I.FUERA]; out.caughtSeq = Array.from({ length: 3000 }, () => I.pickCaught()); out.caughtEdge = [I.pickCaught("¡Ay no!", () => 0.9999), I.pickCaught("¡Chingao!", () => 0)]; out.iceSafe = ALL.every((n) => I.buildLevel(n).every((e) => !I.ICE.includes(e.t) || I.CHECKS.every((c) => !c || e.x + e.w < c - 40 || e.x > c + 60)));
 out.keepLines = ["¡Fuera!", "¡Vámonos, amigo!", "¡Ay no!", "¡Híjole!", "¡Ándale, otra vez!", "Flip-flops! He's dizzy", "Caught! Juan tries again"].filter((l) => !fs.readFileSync(process.argv[2], "utf8").includes(l));
 out.iceSrc = /weapon|gun|pistol|handcuff|taser|blood/i.test(fs.readFileSync(process.argv[2], "utf8").replace(/No weapons|no weapons/g, ""));
 console.log(JSON.stringify(out));
@@ -114,14 +115,14 @@ def unit():
     check(not o["none"]["win"], "4 marks that aren't a line: no win")
     check(not o["uncalled"]["win"] and len(o["uncalled"]["early"]) == 1, "a line with a card Tía hasn't called doesn't count (caught as an early mark)")
     check(o["game"] == ["juan", "The Juan That Got Away", "chisme-juegos-juan"], f"v44: the second game is The Juan That Got Away ({o['game']})")
-    check(o["levels"] == JUAN_LEVELS, f"The Juan That Got Away: 6 stops, Hon Dipo → La Chamba → Don Pedroes → O'Reillees → Juan's Casa → Noche Caliente ({o['levels']})")
-    check(o["outfits"] == ["work", "work", "work", "work", "work", "western"], f"work clothes for the first 5 levels, cowboy clothes at night ({o['outfits']})")
+    check(o["levels"] == JUAN_LEVELS, f"The Juan That Got Away: 7 stops, Hon Dipo → La Chamba → Don Pedroes → O'Reillees → Juan's Casa → Noche Caliente → (v49.5) Dice City VI ({o['levels']})")
+    check(o["outfits"] == ["work", "work", "work", "work", "work", "western", "western"], f"work clothes for the first 5 levels, cowboy clothes at night and in Dice City VI ({o['outfits']})")
     check(o["same"], "a level is the same course every time (so a checkpoint restarts it fairly)")
     check(all(c >= 1 and t >= 1 for c, t in o["power"]), f"every level has a ☕ coffee and a breakfast taco ({o['power']})")
-    check(o["beers"][:5] == [0, 0, 0, 0, 0] and o["beers"][5] >= 20 and o["lastBeers"] == 4, f"cold ones to jump for only on the cantina level, with a last arc of 4 by the door ({o['beers']}, last {o['lastBeers']})")
+    check(o["beers"][:5] == [0, 0, 0, 0, 0] and o["beers"][5] >= 20 and o["beers"][6] >= 5 and o["lastBeers"] == 4, f"cold ones to jump for only on the cantina level, with a last arc of 4 by the door; martinis on Dice City VI ({o['beers']}, last {o['lastBeers']})")
     check(all(h >= 6 for h in o["haz"]), f"neutral hazards on every level, mixed in with the agents ({o['haz']})")
     check(all(a >= 2 and v >= 1 and f == 1 for a, v, f in o["ice"]), f"v46: ICE agents back on every level: patrolling agents + a dark SUV with a chaser, and a 🩴 flip-flops shield ({o['ice']})")
-    check(o["ice"][1][0] > max(a for i, (a, v, f) in enumerate(o["ice"]) if i != 1) and o["ice"][1][1] >= 2 and o["city"] == [False, True, False, False, False, False],
+    check(o["ice"][1][0] > max(a for i, (a, v, f) in enumerate(o["ice"]) if i != 1) and o["ice"][1][1] >= 2 and o["city"] == [False, True, False, False, False, False, False],
           f"v47: La Chamba (downtown) has the most ICE agents of any level, and 2+ SUVs ({[a for a, v, f in o['ice']]})")
     check(o["sameOld"], "v47: the other 5 levels keep their old courses (seeded by the level, not its place in the list)")
     check(o["iceLines"] == [CAUGHT, "¡Fuera!"] and o["iceSafe"], f"v47: caught = one of {CAUGHT}, '¡Fuera!' when he gets away; no agents right at a checkpoint ({o['iceLines']})")
@@ -129,8 +130,8 @@ def unit():
     check(reps == 0 and set(sq) == set(CAUGHT) and min(cnt.values()) > 0.15 * len(sq) and "¡Chingao!" not in o["caughtEdge"][1:] and o["caughtEdge"][0] != "¡Ay no!",
           f"v47: the caught line rotates at random, never the same twice in a row ({len(sq)} picks, {reps} repeats, {cnt}, edges {o['caughtEdge']})")
     check(not o["keepLines"], f"v47: every existing line is still in the game (¡Fuera!, ¡Vámonos, amigo!, ¡Ay no!, ¡Híjole!, ¡Ándale, otra vez!…); the new caught lines are added, nothing replaced (missing {o['keepLines']})")
-    check(not o["iceSrc"], "v46: cartoon agents, nothing violent in the game's code (no weapons, handcuffs, blood)")
-    check(o["kinds"] == ["cart", "chancla", "chihuahua", "cone", "pallet", "pothole", "sprinkler", "tires"], f"cones, potholes, carts, chanclas, chihuahuas, sprinklers + pallets / tires to hop on ({o['kinds']})")
+    check(not o["iceSrc"], "v46: cartoon agents, no weapons, handcuffs or blood in the game's code (v49.5: Dice City VI's background rooftop standoff is just silhouettes + flashes, decorative)")
+    check(o["kinds"] == ["cart", "chancla", "chihuahua", "cone", "lowcar", "pallet", "pothole", "sportscar", "sprinkler", "tires"], f"cones, potholes, carts, chanclas, chihuahuas, sprinklers + pallets / tires (and, v49.5, Dice City VI's lowriders / sports cars) to hop on ({o['kinds']})")
     check(o["hp"] == 100 and all(5 <= d <= 20 for d in o["dmg"].values()), f"a bump costs a little of the 100-point health bar ({o['dmg']})")
     check(o["afterCheck"], "no hazards right at a checkpoint")
     check(not o["net"], f"the games' code has no URLs, links or network calls, except Juan's own Top 10 board (same-site /api/juan/scores) ({o['net']})")
@@ -415,15 +416,18 @@ async def webkit(p):
     got = await grab(6, "beer", G + ".state.beers > 0"); s = await st(pg)
     check(got and s["outfit"] == "western" and s["health"] > 50 and s["msg"] == "¡Salud! +8 health", f"level 6: boots + cowboy hat on; jump for a cold one → a little health ({s['msg']!r}, health {s['health']}, beers {s['beers']})")
     await pg.evaluate(f"{G}.warp(6, 5900)")
+    cl6 = await until(pg, G + ".state.mode === 'clear'", 6); s = await st(pg)
+    check(cl6 and "You made it to Noche Caliente!" in s["overlay"] and "Level 7: Dice City VI" in s["overlay"], f"v49.5: Noche Caliente → on to the celebration level, Dice City VI ({s['overlay'][:90]!r})")
+    await pg.evaluate(f"{G}.warp(7, 5900)")
     won = await until(pg, G + ".state.mode === 'win'", 6)
     await pg.wait_for_timeout(1300)
     s = await st(pg); juan = json.loads(await pg.evaluate("localStorage.getItem('chisme-juegos-juan')"))
     note = await pg.text_content("#juan-note")
-    check(won and "¡Salud, Juan!" in s["overlay"] and "The Juan That Got Away made it to Noche Caliente. Cold beers with the crew. ¡Ya es viernes!" in s["overlay"] and "The Juan that got away" in note and "Friday shift done" in note and "Noche Caliente" in note, f"level 5: the win at the cantina, '¡Salud, Juan!' ({note[:70]!r})")
+    check(won and "¡Salud, Juan!" in s["overlay"] and "From Noche Caliente to the beach at Dice City VI" in s["overlay"] and "Friday shift done" in note and "Noche Caliente" in note and "Dice City VI" in note, f"level 7: the win after Dice City VI, '¡Salud, Juan!' ({note[:70]!r})")
     txt = await pg.evaluate("(() => { const j = document.querySelector('#view-juegos'); return [...j.querySelectorAll('#juegos, #game-stage')].map(e => e.textContent).join(' ') + ' ' + [...j.querySelectorAll('[aria-label]')].map(e => e.getAttribute('aria-label')).join(' '); })()")   # textContent: the rules are hidden while full screen
     es = [w for w in SPANISH if w.lower() in txt.lower().replace("lotería", "")]
     check(not es and "Tap to jump (or twice!)" in txt and "Hop cones, carts & ICE" in txt and "Grab coffee & tacos" in txt and "Reach Noche Caliente" in txt, f"The Juan That Got Away's UI is English (v49.4: the 4 short how-to-play lines) ({es})")
-    check(juan["best"] >= s["score"] > 0 and juan["wins"] == 1 and juan["levelMax"] == 6, f"best score saved on the phone ({juan['best']})")
+    check(juan["best"] >= s["score"] > 0 and juan["wins"] == 1 and juan["levelMax"] == len(JUAN_LEVELS), f"best score saved on the phone ({juan['best']})")
     check("Play again" in s["overlay"], "…with ▶ Play again right on the full-screen win screen")
     await pg.screenshot(path=os.path.join(OUT, "juan-win.png"))
     await pg.click(".gfs-x"); await pg.wait_for_timeout(300)

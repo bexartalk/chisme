@@ -66,9 +66,9 @@ async def main():
         check(len(game) == juanscores.LEVELS and all(g <= t for g, t in zip(game, juanscores.LEVEL_PTS)), f"the server's per-level maximum covers everything the game's levels can give ({game} ≤ {list(juanscores.LEVEL_PTS)})")
         mx = (await c.get("/api/juan/scores")).json().get("max")
         check(mx == juanscores.SCORE_MAX == juanscores.MAX_BY_LEVEL[-1] and 12000 < mx < 20000, f"GET says the highest possible score ({mx})")
-        cases = [({"score": juanscores.MAX_BY_LEVEL[0] + 5, "level": 1}, 400, "more than level 1 can give"), ({"score": mx + 5, "level": 6}, 400, "more than the whole game can give"),
-                 ({"score": 1003, "level": 3}, 400, "not a multiple of 5"), ({"score": 500, "level": 7}, 400, "a level that doesn't exist"), ({"score": 10_000_000, "level": 6}, 400, "a silly big number"),
-                 ({"score": mx, "level": 6}, 200, "the very best possible run (all 6 levels)"), ({"score": juanscores.MAX_BY_LEVEL[0], "level": 1}, 200, "the best possible level-1 run")]
+        cases = [({"score": juanscores.MAX_BY_LEVEL[0] + 5, "level": 1}, 400, "more than level 1 can give"), ({"score": mx + 5, "level": 7}, 400, "more than the whole game can give"),
+                 ({"score": 1003, "level": 3}, 400, "not a multiple of 5"), ({"score": 500, "level": 8}, 400, "a level that doesn't exist"), ({"score": 10_000_000, "level": 7}, 400, "a silly big number"),
+                 ({"score": mx, "level": 7}, 200, "the very best possible run (all 7 levels)"), ({"score": juanscores.MAX_BY_LEVEL[0], "level": 1}, 200, "the best possible level-1 run")]
         for i, (body, want, what) in enumerate(cases):
             rr = await c.post("/api/juan/scores", json={"name": "Test", **body}, headers={"X-Forwarded-For": f"10.9.8.{i}"})
             check(rr.status_code == want, f"sanity check: {what} ({body['score']} on level {body['level']}) → {rr.status_code}")
