@@ -259,6 +259,13 @@ svg{width:100%;height:auto;display:block}svg text{font-size:11px;fill:#333}.va{f
 .pl-t{font-weight:800;font-size:.92rem;overflow-wrap:anywhere}.pl-t small{color:var(--muted);font-weight:600}.pl-m,.pl-n{font-size:.8rem;color:var(--muted)}
 .pills{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 8px}.pill{border:2px solid var(--silver);background:var(--silverl);border-radius:999px;padding:3px 10px;font-size:.8rem;font-weight:800}
 .pill.on{border-color:var(--turqd);background:#e5fbfb}.pill.hot{border-color:var(--orange);background:#ffece6}
+.hs-list{list-style:none;margin:8px 0 0;padding:0}.hs-row{display:grid;grid-template-columns:32px 1fr;gap:6px 10px;padding:10px 0;border-bottom:1px solid var(--silverl);align-items:start}
+.hs-rk{width:32px;height:32px;border-radius:50%;background:var(--ink);color:#fff;font-weight:900;font-size:.9rem;display:flex;align-items:center;justify-content:center;margin-top:8px}
+.hs-row:nth-child(1) .hs-rk{background:var(--pink)}.hs-row:nth-child(2) .hs-rk{background:var(--turqd)}.hs-row:nth-child(3) .hs-rk{background:var(--orange);color:#000}
+.hs-main{min-width:0}.hs-name{min-height:46px;padding:8px 10px;font-weight:800}.hs-meta{font-size:.85rem;color:var(--muted);margin:4px 2px 0}.hs-meta b{color:var(--ink);font-size:1.05rem}
+.hs-btns{grid-column:2;display:flex;gap:8px}.hs-btns button{flex:1;min-height:44px;border-radius:12px;border:2px solid var(--ink);background:#fff;font-weight:900;font-size:.95rem;cursor:pointer}
+.hs-btns .hs-save{background:var(--turq);border-color:var(--turqd);color:#000}.hs-btns .hs-del{color:var(--pinkd);border-color:var(--pinkd)}.hs-btns .hs-del.arm{background:var(--pinkd);color:#fff}
+.hs-clear{border-color:var(--pinkd);color:var(--pinkd)}
 .kv{margin:0;display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:.88rem}.kv dt{font-weight:800}.kv dd{margin:0;overflow-wrap:anywhere}
 dialog.sheet{border:0;padding:0;margin:auto auto 0;width:100%;max-width:520px;border-radius:22px 22px 0 0;background:var(--card);color:var(--ink)}
 @media(min-width:560px){dialog.sheet{margin:auto;border-radius:22px}}
@@ -281,7 +288,28 @@ def header(sub: str, signed_in: bool = True) -> str:
             f'<div class="ht"><h1>Chisme Admin</h1><p id="updated">{e(sub)}</p></div>{right}</div><div class="picado" aria-hidden="true"></div></header>')
 
 
-def page(r: dict, store_name: str, info: dict | None = None, now: float | None = None, info_error: str = "", extra: str = "") -> str:
+def _scores(scores: list | None, now: float) -> str:
+    """v49.5: 🏆 Juan High Scores: every saved score, best first; rename (12 characters), delete (tap twice), clear the board (confirm sheet)."""
+    if scores is None:
+        return '<p class="empty">Couldn\'t load the scores right now (storage). Try again in a minute.</p>'
+    rows = []
+    for i, r in enumerate(scores):
+        sid = html.escape(str(r.get("id") or ""), quote=True); nm = html.escape(str(r.get("name") or ""), quote=True)
+        when = datetime.fromtimestamp(int(r.get("t") or now), TZ).strftime("%b %-d, %-I:%M %p")
+        rows.append(f'<li class="hs-row" data-id="{sid}"><span class="hs-rk">{i + 1}</span>'
+                    f'<div class="hs-main"><input class="inp hs-name" maxlength="12" value="{nm}" aria-label="Name for the {int(r.get("score") or 0):,} score" autocomplete="off" enterkeyhint="done">'
+                    f'<div class="hs-meta"><b>{int(r.get("score") or 0):,}</b> · level {int(r.get("level") or 1)} · {when}</div></div>'
+                    f'<div class="hs-btns"><button type="button" class="hs-save">Save</button><button type="button" class="hs-del" aria-label="Delete the {int(r.get("score") or 0):,} score">🗑️ Delete</button></div></li>')
+    lst = f'<ol class="hs-list" id="hs-list">{"".join(rows)}</ol>' if rows else ""
+    return (f'<p class="sub">Every saved score, best first. Fix a name (12 characters max) and tap Save, or delete one (tap Delete twice).</p>'
+            f'<p class="empty" id="hs-empty"{" hidden" if rows else ""}>No scores on the board yet.</p>{lst}'
+            f'<button type="button" class="big hs-clear" id="hs-clear"{" hidden" if not rows else ""}>🧹 Clear the board</button>'
+            '<dialog class="sheet" id="hs-confirm" aria-labelledby="hs-confirm-h"><div class="sheet-b"><h3 id="hs-confirm-h">Clear the whole board?</h3>'
+            f'<p class="sub" id="hs-confirm-n">All {plural(len(scores), "score")} will be deleted for good. This can\'t be undone.</p>'
+            '<div class="two"><button type="button" class="big" id="hs-no">Cancel</button><button type="button" class="big go" id="hs-yes">Yes, clear it</button></div></div></dialog>')
+
+
+def page(r: dict, store_name: str, info: dict | None = None, now: float | None = None, info_error: str = "", extra: str = "", scores: list | None = None) -> str:
     now = now or time.time()
     days = stats.last_days(30, stats.day_of(now))
     S = stats.summarize(r, days)
@@ -405,6 +433,7 @@ def page(r: dict, store_name: str, info: dict | None = None, now: float | None =
         _fold("📲 Add to Home Screen tutorial", _bars(a2, "Nobody has seen it yet."), "f-a2hs", "30 days"),
         _fold("📣 Notifications you sent", man_hist, "f-sent", plural(len(mlog), "recent") if mlog else ""),
         _fold("📡 Auto-alert history", auto_hist, "f-autolog", plural(len(alog), "recent") if alog else ""),
+        _fold("🏆 Juan High Scores", _scores(scores, now), "f-scores", plural(len(scores), "score") if scores else ("none yet" if scores is not None else "")),
         _fold("🔧 Technical details", tech, "f-tech"),
     ])
 
@@ -416,7 +445,7 @@ def page(r: dict, store_name: str, info: dict | None = None, now: float | None =
             '<footer>Chisme counts anonymous visits: no names, no IPs, no ads, no third parties. Visitors are counted from a random ID on each phone, hashed on the server and never stored as-is.</footer>'
             '</main><div class="toast" id="toast" role="status" aria-live="polite"></div>')
     return (HEAD.replace("%%TITLE%%", "Chisme Admin") + body + "<script>" + SCRIPT.replace("%%TPL%%", tpl_js).replace("%%WHERE%%", where_js)
-            .replace("%%N%%", str(n_news)) + "</script></body></html>")
+            .replace("%%N%%", str(n_news)) + "</script><script>" + SCORES_JS + "</script></body></html>")
 
 
 SCRIPT = r"""(function(){
@@ -506,3 +535,26 @@ def manifest() -> dict:
             "description": "Send notifications and see how Chisme is doing (owner only).",
             "icons": [{"src": "/static/icons/admin-192.png", "sizes": "192x192", "type": "image/png"},
                       {"src": "/static/icons/admin-512.png", "sizes": "512x512", "type": "image/png"}]}
+
+
+# v49.5: the 🏆 Juan High Scores manager (self-contained; talks to /stats/juan/scores/..., which gets the /stats cookie)
+SCORES_JS = r"""(function(){
+var list=document.getElementById('hs-list'),clr=document.getElementById('hs-clear'),dlg=document.getElementById('hs-confirm');if(!clr)return;
+var sayT;function say(m,bad){var t=document.getElementById('toast');if(!t)return;t.textContent=m;t.className='toast show'+(bad?' bad':'');clearTimeout(sayT);sayT=setTimeout(function(){t.className='toast'+(bad?' bad':'')},bad?7000:4500)}
+function call(method,path,body){return fetch(path,{method:method,credentials:'same-origin',headers:{'Content-Type':'application/json'},body:body?JSON.stringify(body):(method==='GET'?undefined:'{}')})
+  .then(function(r){if(r.status===401){say('You were signed out. Reloading…',true);setTimeout(function(){location.reload()},1500)}return r.json().catch(function(){return {ok:false,error:'HTTP '+r.status}})})}
+function count(){var n=list?list.children.length:0;var s=document.querySelector('#f-scores summary small');if(s)s.textContent=n?(n+(n===1?' score':' scores')):'none yet';
+  [].forEach.call(list?list.children:[],function(li,i){li.querySelector('.hs-rk').textContent=i+1});
+  document.getElementById('hs-empty').hidden=!!n;clr.hidden=!n;var c=document.getElementById('hs-confirm-n');if(c)c.textContent='All '+n+(n===1?' score':' scores')+' will be deleted for good. This can\'t be undone.'}
+if(list)list.addEventListener('click',function(ev){var b=ev.target.closest('button');if(!b)return;var li=b.closest('.hs-row'),id=li.dataset.id,path='/stats/juan/scores/'+encodeURIComponent(id);
+  if(b.classList.contains('hs-save')){var inp=li.querySelector('.hs-name'),v=inp.value.replace(/\s+/g,' ').trim().slice(0,12);b.disabled=true;
+    call('PATCH',path,{name:v}).then(function(j){if(j.ok){inp.value=j.score.name;say('✅ Saved: '+j.score.name)}else say('❗ Couldn\'t save: '+(j.error||'error'),true)}).catch(function(){say('❗ Couldn\'t save: no connection',true)}).then(function(){b.disabled=false})}
+  else if(b.classList.contains('hs-del')){if(!b.classList.contains('arm')){b.classList.add('arm');b.dataset.t=b.textContent;b.textContent='Tap again';setTimeout(function(){if(b.isConnected&&b.classList.contains('arm')){b.classList.remove('arm');b.textContent=b.dataset.t}},4000);return}
+    b.disabled=true;call('DELETE',path).then(function(j){if(j.ok){li.remove();count();say('🗑️ Deleted')}else{b.disabled=false;say('❗ Couldn\'t delete: '+(j.error||'error'),true)}}).catch(function(){b.disabled=false;say('❗ Couldn\'t delete: no connection',true)})}});
+if(list)list.addEventListener('keydown',function(ev){if(ev.key==='Enter'&&ev.target.classList.contains('hs-name')){ev.preventDefault();ev.target.closest('.hs-row').querySelector('.hs-save').click()}});
+clr.onclick=function(){if(dlg&&dlg.showModal)dlg.showModal();else if(confirm('Clear the whole board?'))go()};
+document.getElementById('hs-no').onclick=function(){dlg.close()};
+function go(){var y=document.getElementById('hs-yes');y.disabled=true;call('POST','/stats/juan/scores/clear',{confirm:'CLEAR'}).then(function(j){if(j.ok){if(list)list.innerHTML='';count();say('🧹 Board cleared ('+j.cleared+')')}else say('❗ Couldn\'t clear: '+(j.error||'error'),true)})
+  .catch(function(){say('❗ Couldn\'t clear: no connection',true)}).then(function(){y.disabled=false;if(dlg.open)dlg.close()})}
+document.getElementById('hs-yes').onclick=go;
+})();"""

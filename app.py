@@ -39,6 +39,7 @@ import reader as rdr
 from limits import RateLimit, client_ip
 
 import autopush
+import juanscores
 import push
 import stats
 
@@ -2714,7 +2715,11 @@ async def stats_page(request: Request, key: str | None = None):
         info = await autopush.admin_info()
     except Exception as ex:
         err = f"{type(ex).__name__} from the push storage"
-    return HTMLResponse(stats.page(data, st.name, info=info, info_error=err), headers=STATS_HEADERS)
+    try:
+        scores = await juanscores.everything()
+    except Exception:
+        scores = None
+    return HTMLResponse(stats.page(data, st.name, info=info, info_error=err, scores=scores), headers=STATS_HEADERS)
 
 
 @app.post("/stats/login", include_in_schema=False)
@@ -2804,6 +2809,81 @@ async def stats_push_check(request: Request):
         return _nope()
     r = await autopush.check(_auto_stories, reason="owner")
     return JSONResponse({**r, "plain": admin.plain_result(r)}, headers=STATS_HEADERS)
+
+
+# ---------------------------------------------------------------- v49.5: The Juan That Got Away high scores (juanscores.py)
+_juan_posts: dict[str, list[float]] = {}
+
+
+def _juan_admin(request: Request, json_only: bool = True) -> bool:
+    """Owner only, the same sign-in as /stats: the /stats cookie (sent to the /stats/juan/... aliases; JSON body, so no
+    cross-site form posts) or `Authorization: Bearer <ADMIN_TOKEN>` (for the /api/juan/... endpoints from a script)."""
+    tok = stats.admin_token()
+    if not tok:
+        return False
+    auth = request.headers.get("authorization") or ""
+    if auth.lower().startswith("bearer ") and stats.key_ok(auth[7:].strip()):
+        return True
+    return _admin_ok(request) if json_only else _signed_in(request)
+
+
+@app.get("/api/juan/scores")
+async def juan_scores(n: int = Query(10, ge=1, le=50)):
+    try:
+        return JSONResponse({"ok": True, "scores": await juanscores.board(n)}, headers={"Cache-Control": "no-store"})
+    except Exception as ex:
+        return JSONResponse({"ok": False, "error": f"storage: {type(ex).__name__}", "scores": []}, status_code=503)
+
+
+@app.post("/api/juan/scores")
+async def juan_score_add(request: Request):
+    ip = (request.headers.get("x-forwarded-for") or (request.client.host if request.client else "")).split(",")[-1].strip()   # (the proxy appends the real one)
+    now = time.time(); recent = [t for t in _juan_posts.get(ip, []) if now - t < 60]
+    if len(recent) >= 6:
+        return JSONResponse({"ok": False, "error": "slow down"}, status_code=429)
+    _juan_posts[ip] = recent + [now]
+    if len(_juan_posts) > 5000:
+        _juan_posts.clear()
+    r = await juanscores.add(await _body(request, 2000))
+    return JSONResponse(r, status_code=200 if r["ok"] else 400)
+
+
+@app.get("/stats/juan/scores", include_in_schema=False)
+async def juan_scores_all(request: Request):
+    if not _juan_admin(request, json_only=False):
+        return _nope()
+    return JSONResponse({"ok": True, "scores": await juanscores.everything()}, headers=STATS_HEADERS)
+
+
+@app.post("/api/juan/scores/clear", include_in_schema=False)
+@app.post("/stats/juan/scores/clear", include_in_schema=False)
+async def juan_scores_clear(request: Request):
+    if not _juan_admin(request):
+        return _nope()
+    if (await _body(request)).get("confirm") != "CLEAR":
+        return JSONResponse({"ok": False, "error": 'send {"confirm": "CLEAR"} to clear the board'}, status_code=400, headers=STATS_HEADERS)
+    return JSONResponse({"ok": True, "cleared": await juanscores.clear()}, headers=STATS_HEADERS)
+
+
+@app.delete("/api/juan/scores/{sid}", include_in_schema=False)
+@app.delete("/stats/juan/scores/{sid}", include_in_schema=False)
+async def juan_score_delete(sid: str, request: Request):
+    if not _juan_admin(request):
+        return _nope()
+    if not await juanscores.remove(sid):
+        return JSONResponse({"ok": False, "error": "no such score"}, status_code=404, headers=STATS_HEADERS)
+    return JSONResponse({"ok": True, "deleted": sid}, headers=STATS_HEADERS)
+
+
+@app.patch("/api/juan/scores/{sid}", include_in_schema=False)
+@app.patch("/stats/juan/scores/{sid}", include_in_schema=False)
+async def juan_score_rename(sid: str, request: Request):
+    if not _juan_admin(request):
+        return _nope()
+    row = await juanscores.rename(sid, (await _body(request)).get("name"))
+    if not row:
+        return JSONResponse({"ok": False, "error": "no such score"}, status_code=404, headers=STATS_HEADERS)
+    return JSONResponse({"ok": True, "score": row}, headers=STATS_HEADERS)
 
 
 @app.get("/healthz")

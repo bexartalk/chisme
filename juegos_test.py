@@ -415,7 +415,7 @@ async def webkit(p):
     check(won and "¡Salud, Juan!" in s["overlay"] and "The Juan That Got Away made it to Noche Caliente. Cold beers with the crew. ¡Ya es viernes!" in s["overlay"] and "The Juan that got away" in note and "Friday shift done" in note and "Noche Caliente" in note, f"level 5: the win at the cantina, '¡Salud, Juan!' ({note[:70]!r})")
     txt = await pg.evaluate("(() => { const j = document.querySelector('#view-juegos'); return [...j.querySelectorAll('#juegos, #game-stage')].map(e => e.textContent).join(' ') + ' ' + [...j.querySelectorAll('[aria-label]')].map(e => e.getAttribute('aria-label')).join(' '); })()")   # textContent: the rules are hidden while full screen
     es = [w for w in SPANISH if w.lower() in txt.lower().replace("lotería", "")]
-    check(not es and "Coffee = speed boost" in txt and "Breakfast taco = more health" in txt and "cold ones" in txt and "ICE agents" in txt and "Flip-flops = a shield" in txt, f"The Juan That Got Away's UI is English ({es})")
+    check(not es and "Tap to jump (or twice!)" in txt and "Hop cones, carts & ICE" in txt and "Grab coffee & tacos" in txt and "Reach Noche Caliente" in txt, f"The Juan That Got Away's UI is English (v49.4: the 4 short how-to-play lines) ({es})")
     check(juan["best"] >= s["score"] > 0 and juan["wins"] == 1 and juan["levelMax"] == 6, f"best score saved on the phone ({juan['best']})")
     check("Play again" in s["overlay"], "…with ▶ Play again right on the full-screen win screen")
     await pg.screenshot(path=os.path.join(OUT, "juan-win.png"))
