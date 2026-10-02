@@ -191,6 +191,7 @@ async def chromium_part(p):
     ctx = await b.new_context(viewport={"width": 390, "height": 844}, device_scale_factor=2, is_mobile=True, has_touch=True)
     await ctx.grant_permissions(["notifications"], origin=URL.rstrip("/"))
     await ctx.add_init_script(INIT % "")
+    await ctx.add_init_script("if (!localStorage.getItem('chisme-settings-tip')) localStorage.setItem('chisme-settings-tip', 'test:0');")   # v49 tip: settings_tip_test
     # 1. a real subscribe attempt (expected to fail headless: no push service) — just a note
     pg = await ctx.new_page(); errs = []
     pg.on("pageerror", lambda e: errs.append(str(e)[:160]))

@@ -2752,8 +2752,8 @@ async def service_worker():
 
 
 def app_build() -> str:
-    """Build number from sw.js VERSION ("chisme-v22" -> "22"): the one place it's defined."""
-    m = re.search(r'VERSION\s*=\s*"chisme-v(\d+)"', (BASE / "static" / "sw.js").read_text())
+    """Build from sw.js VERSION ("chisme-v22" -> "22", "chisme-v49.2" -> "49.2"): the one place it's defined."""
+    m = re.search(r'VERSION\s*=\s*"chisme-v(\d+(?:\.\d+)?)"', (BASE / "static" / "sw.js").read_text())
     return m.group(1) if m else "0"
 
 

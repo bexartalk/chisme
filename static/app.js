@@ -1,7 +1,7 @@
 /* Chisme — frontend (location-aware) */
 // Build of this file. Must equal the number in sw.js VERSION ("chisme-v22"); the page compares it
 // with the build the HTML was served for and reloads once if an old cached app.js got mixed in.
-window.CHISME_APP_BUILD = "49";
+window.CHISME_APP_BUILD = "49.2";
 (() => {
   "use strict";
   const WEATHER_MS = 10 * 60 * 1000;
@@ -2696,6 +2696,7 @@ window.CHISME_APP_BUILD = "49";
     showFs(); renderLocLabel(); syncUI();
   }
   $("#settings-btn").onclick = () => { syncSettings(); dlg.showModal(); };
+  $("#settings-gear").onclick = () => { syncSettings(); dlg.showModal(); };   // v49b: the ⚙️ in the header's corner
   dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });   // tap outside the sheet
   for (const r of dlg.querySelectorAll('input[name="theme"]')) r.onchange = () => { localStorage.setItem(THEME_KEY, r.value); applyTheme(); };
   for (const r of dlg.querySelectorAll('input[name="deftab"]')) r.onchange = () => localStorage.setItem(TAB_KEY, r.value);
@@ -3156,7 +3157,7 @@ window.CHISME_APP_BUILD = "49";
     if (firstRun()) document.addEventListener("chisme-setup-done", () => a2Try(1200), { once: true }); else a2Try(1500);
   }
 
-  // ---------- v49: one-time tip "the Chisme bubble is the Settings button" (Tía's voice, under the header, pointing up at it).
+  // ---------- v49: one-time tip "Settings are up here ⚙️" (Tía's voice; v49b: pointing up at the ⚙️ button in the header's corner).
   // One popup per open: it shows on a normal open only, never on the first launch (location card), nor on an open the
   // notifications card or the Home Screen tutorial took (it tries again next open), nor over a dialog / the food feed /
   // a full-screen game. Tapping the bubble, the tip or ✕ ends it for good.
@@ -3184,9 +3185,10 @@ window.CHISME_APP_BUILD = "49";
     }, delay);
   }
   $("#settings-btn").addEventListener("click", () => tipEnd("bubble"));   // they found it: no tip, ever
+  $("#settings-gear").addEventListener("click", () => tipEnd("gear"));
   if (tipEl) {
     $("#settings-tip-x").onclick = () => tipEnd("dismissed");
-    $("#settings-tip-go").onclick = () => { tipEnd("tip"); $("#settings-btn").click(); };
+    $("#settings-tip-go").onclick = () => { tipEnd("tip"); $("#settings-gear").click(); };
     tipEl.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.preventDefault(); tipEnd("dismissed"); } });
     if (!tipDone() && !tipFirstOpen) tipTry(1800);
   }

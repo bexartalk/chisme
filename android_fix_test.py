@@ -18,7 +18,7 @@ localStorage.setItem('chisme-a2hs', JSON.stringify({ done: true })); localStorag
 localStorage.setItem('chisme-notif', JSON.stringify({ n: 1, shows: 1 }));   // v49: notif card + Settings tip have their own tests
 if (!localStorage.getItem('chisme-settings-tip')) localStorage.setItem('chisme-settings-tip', 'test:0');"""
 import re as _re
-VER = _re.search(r'const VERSION = "chisme-v(\d+)"', open(os.path.join(HERE, "static", "sw.js")).read()).group(1)   # the current build
+VER = _re.search(r'const VERSION = "chisme-v(\d+(?:\.\d+)?)"', open(os.path.join(HERE, "static", "sw.js")).read()).group(1)   # the current build
 fails = 0
 def check(ok, what):
     global fails

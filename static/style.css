@@ -1275,25 +1275,28 @@ html.a2hs-open .tia-fab,html.a2hs-open .news-pill{visibility:hidden}
 .gd-pre{border-color:var(--turq)}
 .gd-live .live-dot{background:#000}
 
-/* ---------- v49: the Chisme bubble is the Settings button: a tiny ⚙️ badge on it + a one-time tip under the header */
-.gear-badge{position:absolute;right:4px;bottom:24px;width:36px;height:36px;border-radius:50%;background:var(--pink);border:3px solid #000;
-  display:grid;place-items:center;box-shadow:0 2px 0 rgba(0,0,0,.35);pointer-events:none}
-.gear-badge svg{width:24px;height:24px;display:block}
-.gear-teeth{fill:none;stroke:#fff;stroke-width:3.4}
-.gear-body{fill:#fff}
-.gear-hole{fill:var(--pink)}
-[data-theme="dark"] .gear-badge{border-color:#fff}
-@media (max-width:389px){ .gear-badge{right:1vw;bottom:6.2vw;width:9.2vw;height:9.2vw;border-width:.77vw} .gear-badge svg{width:6.2vw;height:6.2vw} }
-
+/* ---------- v49b: a ⚙️ Settings button in the header's top-right corner (44 px, black with a silver ring and a white gear;
+   the Chisme bubble still opens Settings too) + a one-time tip right under it */
+.topbar .actions{display:flex;gap:8px;align-items:center;z-index:2}
+.topbar .set-gear{width:44px;height:44px;min-height:44px;padding:0;margin:0;border-radius:50%;background:#000;border:2px solid #c9d0d8;color:#fff;
+  display:grid;place-items:center;cursor:pointer;box-shadow:0 2px 0 rgba(0,0,0,.35);-webkit-tap-highlight-color:transparent;transition:transform .15s ease}
+.topbar .set-gear:active{transform:scale(.94)}
+.topbar .set-gear:focus-visible{outline:4px solid var(--focus);outline-offset:2px}
+.topbar .set-gear svg{width:26px;height:26px;display:block}
+.set-gear .gear-teeth{fill:none;stroke:#fff;stroke-width:3.4}
+.set-gear .gear-body{fill:#fff}
+.set-gear .gear-hole{fill:#000}
+[data-theme="dark"] .topbar .set-gear{background:#000;border-color:#c9d0d8;color:#fff}
+.reduce-motion .topbar .set-gear{transition:none}
 .stip-anchor{position:relative;height:0;z-index:40}
-.stip{position:absolute;left:50%;top:-4px;width:min(calc(100vw - 20px),380px);transform:translateX(-50%);
+.stip{position:absolute;right:12px;top:75px;width:min(calc(100vw - 24px),330px);
   display:flex;align-items:center;gap:8px;padding:10px 8px 10px 10px;background:#fff;color:#000;border:3px solid #000;border-radius:20px;
   box-shadow:0 6px 0 var(--pink),0 10px 24px rgba(0,0,0,.25);animation:stip-in .35s ease-out both, stip-bob 2.2s ease-in-out .5s 3}
 .stip[hidden]{display:none}
 /* the speech-bubble tail, pointing up at the emblem */
-.stip::before,.stip::after{content:"";position:absolute;left:50%;width:0;height:0;border-style:solid;transform:translateX(-50%)}
-.stip::before{top:-19px;border-width:0 15px 19px;border-color:transparent transparent #000}
-.stip::after{top:-14px;border-width:0 11px 15px;border-color:transparent transparent #fff}
+.stip::before,.stip::after{content:"";position:absolute;width:0;height:0;border-style:solid}   /* the tail: under the ⚙️ (22 px from the right edge) */
+.stip::before{top:-19px;right:4px;border-width:0 15px 19px;border-color:transparent transparent #000}
+.stip::after{top:-14px;right:8px;border-width:0 11px 15px;border-color:transparent transparent #fff}
 .stip-tia{flex:none;width:46px;height:46px;border-radius:50%;border:3px solid var(--turq);object-fit:cover;background:#000}
 .stip .stip-go{flex:1;min-width:0;min-height:0;margin:0;padding:2px 0;border:0;background:none;color:inherit;text-align:left;cursor:pointer;border-radius:10px;font:inherit}
 .stip-big{display:block;font-size:1.3rem;font-weight:900;line-height:1.15}
@@ -1307,8 +1310,8 @@ html.a2hs-open .tia-fab,html.a2hs-open .news-pill{visibility:hidden}
 [data-theme="dark"] .stip .stip-go{background:none;color:#fff;border:0}
 [data-theme="dark"] .stip-sub{color:#c9d0d8}
 [data-theme="dark"] .stip .stip-x{background:var(--turq);color:#000;border-color:var(--turq)}
-@keyframes stip-in{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}
-@keyframes stip-bob{50%{transform:translate(-50%,4px)}}
+@keyframes stip-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes stip-bob{50%{transform:translateY(4px)}}
 .reduce-motion .stip{animation:none}
 @media (prefers-reduced-motion:reduce){ .stip{animation:none} }
 @media (max-width:360px){ .stip-big{font-size:1.15rem} .stip-sub{font-size:.92rem} .stip-tia{width:40px;height:40px} }
@@ -1342,3 +1345,5 @@ html.notif-open .tia-fab,html.notif-open .news-pill{visibility:hidden}
 .reduce-motion .notif-card{animation:none}
 @media (prefers-reduced-motion:reduce){ .notif-card{animation:none} }
 @media (max-width:360px){ .notif-t{font-size:1.32rem} .notif-s{font-size:.95rem} }
+/* v49.2: narrow phones scale the header art down, which brings the helicopter up under the ⚙️: lift the button (and its tip) */
+@media (max-width:389px){ .topbar .actions{top:4px} .stip{top:67px} }

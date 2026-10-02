@@ -5,7 +5,7 @@ reopening, the page runs the NEW app.js with the NEW HTML: Sports and Weather ta
     ./venv/bin/python upgrade_test.py [old_commit ...]      (default: v15, v17, v19, v21, v22, v23, v24 and v25)
 Also checks the next deploy (current build -> build+1 with the app open): the page reloads itself once.
 """
-import asyncio, json, os, shutil, subprocess, sys, tempfile, time, urllib.request
+import asyncio, json, os, re, shutil, subprocess, sys, tempfile, time, urllib.request
 from playwright.async_api import async_playwright
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -136,11 +136,11 @@ async def next_deploy(p):
     """v22 page open while a v23 is deployed: the page must reload itself once onto v23 (no manual reopen)."""
     print("\n== next deploy: current build -> build+1, with the app left open")
     cur = [l for l in open(os.path.join(HERE, "static", "sw.js")) if "const VERSION" in l][0].split('"')[1]
-    n = int(cur.replace("chisme-v", "")); nxt = str(n + 1)
+    cur_build = cur.replace("chisme-v", ""); n = int(re.match(r"\d+", cur_build).group(0)); nxt = str(n + 1)   # "49.2" -> 50
     tmp = tempfile.mkdtemp(prefix="chisme-next-")
     shutil.copytree(HERE, os.path.join(tmp, "c"), ignore=shutil.ignore_patterns("venv", ".git", "screenshots", "art-candidates", "logs", "__pycache__"))
     d = os.path.join(tmp, "c")
-    for f, a_, b_ in [("static/sw.js", f'"chisme-v{n}"', f'"chisme-v{nxt}"'), ("static/app.js", f'window.CHISME_APP_BUILD = "{n}"', f'window.CHISME_APP_BUILD = "{nxt}"')]:
+    for f, a_, b_ in [("static/sw.js", f'"{cur}"', f'"chisme-v{nxt}"'), ("static/app.js", f'window.CHISME_APP_BUILD = "{cur_build}"', f'window.CHISME_APP_BUILD = "{nxt}"')]:
         path = os.path.join(d, f); t = open(path).read(); assert a_ in t, (f, a_); open(path, "w").write(t.replace(a_, b_))
     prof = tempfile.mkdtemp(prefix="wk-prof-")
     dev = dict(p.devices["iPhone 13"]); dev.pop("default_browser_type", None)
