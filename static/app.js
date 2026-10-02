@@ -1,7 +1,7 @@
 /* Chisme — frontend (location-aware) */
 // Build of this file. Must equal the number in sw.js VERSION ("chisme-v22"); the page compares it
 // with the build the HTML was served for and reloads once if an old cached app.js got mixed in.
-window.CHISME_APP_BUILD = "49.4";
+window.CHISME_APP_BUILD = "49.5";
 (() => {
   "use strict";
   const WEATHER_MS = 10 * 60 * 1000;
@@ -3398,6 +3398,28 @@ window.CHISME_APP_BUILD = "49.4";
   tiaMenu.addEventListener("close", () => { if (!document.querySelector("dialog[open]")) $("#tia-btn").focus({ preventScroll: true }); });
   $("#tia-close").onclick = () => tiaDlg.close();
   $("#tia-settings").onclick = () => { tiaOpener = null; tiaDlg.close(); $("#settings-btn").click(); };   // v49.3: Settings from her chat
+
+  // v49.5: the owner's ways to the admin page (/stats). A hidden long-press: hold the Chisme bubble ~1.5 s (it opens the
+  // sign-in page unless this phone is already signed in). Settings → Owner shows a button only when the admin cookie's
+  // harmless marker (chisme_admin=1, set by /stats on sign-in, cleared on sign-out) is on this phone.
+  {
+    const isAdmin = () => /(?:^|;\s*)chisme_admin=1(?:;|$)/.test(document.cookie);
+    const grp = $("#set-admin");
+    const showAdmin = () => { if (grp) grp.hidden = !isAdmin(); };
+    showAdmin(); $("#settings-btn").addEventListener("click", showAdmin);
+    const go = () => { location.href = "/stats"; };
+    if ($("#set-admin-open")) $("#set-admin-open").onclick = go;
+    const b = $("#settings-btn");
+    let t = 0, fired = false, x0 = 0, y0 = 0;
+    b.style.webkitTouchCallout = "none"; b.style.webkitUserSelect = "none"; b.style.userSelect = "none";
+    const stop = () => clearTimeout(t);
+    b.addEventListener("pointerdown", (ev) => { fired = false; x0 = ev.clientX; y0 = ev.clientY; stop();
+      t = setTimeout(() => { fired = true; try { navigator.vibrate && navigator.vibrate(30); } catch (_) {} go(); }, 1500); });
+    b.addEventListener("pointermove", (ev) => { if (Math.abs(ev.clientX - x0) + Math.abs(ev.clientY - y0) > 12) stop(); });
+    ["pointerup", "pointerleave", "pointercancel"].forEach((n) => b.addEventListener(n, stop));
+    b.addEventListener("contextmenu", (ev) => ev.preventDefault());
+    window.addEventListener("click", (ev) => { if (fired && b.contains(ev.target)) { fired = false; ev.stopImmediatePropagation(); ev.preventDefault(); } }, true);   // the long press isn't also a tap
+  }
   tiaDlg.addEventListener("click", (e) => { if (e.target === tiaDlg) tiaDlg.close(); });
   tiaDlg.addEventListener("close", () => { if (tiaOpener && tiaOpener.isConnected && !document.querySelector("dialog[open]")) tiaOpener.focus({ preventScroll: true }); });
   tiaForm.addEventListener("submit", (e) => { e.preventDefault(); const t = tiaIn.value; tiaIn.value = ""; tiaSend(t); });

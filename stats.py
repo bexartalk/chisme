@@ -13,8 +13,9 @@ What's counted, and how it stays anonymous:
 Storage: Upstash Redis over its REST API when UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN are set (days kept
 40 days). Otherwise a JSON file (STATS_STORE_FILE, default /tmp/chisme-stats.json), which on Render is wiped on every
 redeploy or sleep: the dashboard says so in a banner.
-Dashboard: /stats, only with ADMIN_TOKEN (open /stats?key=<token> once; that sets an HttpOnly cookie holding an HMAC of
-the token, never the token itself). Without ADMIN_TOKEN, /stats doesn't exist (404)."""
+Dashboard: /stats, only with ADMIN_TOKEN: sign in with the token on the form (v49.5) or open /stats?key=<token> once; either
+sets an HttpOnly cookie holding an HMAC of the token, never the token itself. Without ADMIN_TOKEN, /stats doesn't exist (404).
+The page itself is rendered by admin.py."""
 from __future__ import annotations
 
 import asyncio, hashlib, hmac, html, json, os, re, secrets, time
@@ -320,105 +321,13 @@ def _top(c: dict, prefix: str, n: int = 8) -> list[tuple[str, int]]:
     return sorted(((k[len(prefix):], v) for k, v in c.items() if k.startswith(prefix)), key=lambda x: (-x[1], x[0]))[:n]
 
 
-def page(r: dict, store_name: str, now: float | None = None, extra: str = "") -> str:
-    """The dashboard. `extra`: trusted HTML from autopush.admin_html (v45: the send box + auto-send panel), shown first."""
-    days = last_days(30, day_of(now))
-    S = summarize(r, days)
-    e = html.escape
-    fmt = lambda n: f"{n:,}"
-    banners = []
-    if r.get("sample"):
-        banners.append('<div class="ban test" role="note"><b>🧪 TEST DATA</b> — these are made-up sample numbers for a screenshot, not real visitors.</div>')
-    if store_name != "upstash":
-        banners.append('<div class="ban warn" role="note"><b>⚠ Temporary storage.</b> Upstash Redis isn\'t set up, so these counts live in a file on the server and <b>reset on every redeploy</b> (and whenever Render puts the free server to sleep). Set <code>UPSTASH_REDIS_REST_URL</code> and <code>UPSTASH_REDIS_REST_TOKEN</code> to keep them.</div>')
-
-    def cards(n: int) -> str:
-        c, u = S[n]["c"], S[n]["u"]
-        items = [("Visitors", u["all"], "unique phones"), ("Installed app", u["app"], "phones opening from the Home Screen"),
-                 ("In Safari / browser", u["web"], "phones in the browser"), ("Opens", c.get("open", 0), f"{fmt(c.get('open:app', 0))} app · {fmt(c.get('open:web', 0))} browser"),
-                 ("Food video views", c.get("food", 0), f"{fmt(c.get('food:yt', 0))} YouTube · {fmt(c.get('food:tt', 0))} TikTok"),
-                 ("Game plays", c.get("game", 0), ""), ("Donate taps", c.get("donate", 0), " · ".join(f"{e(k)} {fmt(v)}" for k, v in _top(c, "donate:"))),
-                 ("Tía chats", c.get("tia", 0), "messages (never the text)")]
-        return "".join(f'<div class="stat"><div class="n">{fmt(v)}</div><div class="l">{e(l)}</div><div class="s">{s}</div></div>' for l, v, s in items)
-
-    def bars(rows: list[tuple[str, int]], empty: str = "Nothing yet") -> str:
-        if not rows:
-            return f'<p class="empty">{e(empty)}</p>'
-        mx = max(v for _, v in rows) or 1
-        return "<ol class='bars'>" + "".join(
-            f'<li><span class="bl">{lab}</span><span class="bv">{fmt(v)}</span><span class="bb"><i style="width:{max(2, round(100 * v / mx))}%"></i></span></li>' for lab, v in rows) + "</ol>"
-
-    c30 = S[30]["c"]
-    tabs = [(e(TAB_NAMES.get(k, k)), v) for k, v in _top(c30, "tab:", 10)]
-    stories = []
-    for k, v in _top(c30, "story:", 10):
-        m = r["stories"].get(k) or {}
-        t = e(m.get("t") or "(a story)"); src = e(m.get("s") or "")
-        stories.append((f'<a href="{e(m.get("u") or "#")}" target="_blank" rel="noopener noreferrer">{t}</a>' + (f' <small>{src}</small>' if src else ""), v))
-    games = [(e({"loteria": "Lotería Chismosa", "juan": "The Juan That Got Away", "icebebe": "The Juan That Got Away (old runner)"}.get(k, k)), v) for k, v in _top(c30, "game:")]
-    cities = [(e(k), v) for k, v in _top(c30, "city:", 10)]
-    a2 = [(e(A2HS_NAMES.get(k, k)), v) for k, v in _top(c30, "a2hs:")]
-
-    # the daily chart: 30 days of visitors (installed part in pink)
-    mx = max([r["per"][d]["u"]["all"] for d in days] + [1])
-    W, H, bw = 600, 160, 600 / 30
-    rects = []
-    for i, d in enumerate(days):
-        a, p_ = r["per"][d]["u"]["all"], r["per"][d]["u"]["app"]
-        ha, hp = H * a / mx, H * min(p_, a) / mx
-        x = i * bw + 2
-        lab = datetime.strptime(d, "%Y-%m-%d").strftime("%b %-d")
-        rects.append(f'<g><title>{lab}: {a} visitors, {p_} in the app</title><rect x="{x:.1f}" y="{H - ha:.1f}" width="{bw - 4:.1f}" height="{ha:.1f}" rx="3" class="va"/>'
-                     f'<rect x="{x:.1f}" y="{H - hp:.1f}" width="{bw - 4:.1f}" height="{hp:.1f}" rx="3" class="vp"/></g>')
-    ticks = "".join(f'<text x="{i * bw + bw / 2:.1f}" y="{H + 16}" text-anchor="middle">{datetime.strptime(days[i], "%Y-%m-%d").strftime("%b %-d")}</text>' for i in (0, 7, 14, 21, 29))
-    chart = (f'<svg viewBox="0 -8 {W} {H + 26}" role="img" aria-label="Visitors per day, last 30 days (most on one day: {mx})">'
-             f'<line x1="0" y1="{H}" x2="{W}" y2="{H}" class="ax"/>{"".join(rects)}{ticks}</svg>')
-    when = datetime.fromtimestamp(now or time.time(), TZ).strftime("%a %b %-d, %-I:%M %p CT")
-    tab_btns = "".join(f'<button type="button" role="tab" id="t{n}" aria-controls="p{n}" aria-selected="{"true" if n == 1 else "false"}">{lab}</button>'
-                       for n, lab in ((1, "Today"), (7, "7 days"), (30, "30 days")))
-    panels = "".join(f'<div class="grid" role="tabpanel" id="p{n}" aria-labelledby="t{n}"{"" if n == 1 else " hidden"}>{cards(n)}</div>' for n in (1, 7, 30))
-    return f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer"><title>Chisme · Stats</title>
-<style>
-:root{{--ink:#0a0a0a;--bg:#f4f3ef;--card:#fff;--line:#cfcac0;--pink:#EF426F;--turq:#00C9CD;--orange:#FF8200;--pinkd:#b8123f;--turqd:#00797c}}
-*{{box-sizing:border-box}}[hidden]{{display:none!important}}body{{margin:0;background:var(--bg);color:var(--ink);font:500 16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}}
-header{{background:var(--turq);padding:14px 16px 10px}}header h1{{margin:0;font-size:1.35rem;font-weight:900}}header p{{margin:2px 0 0;font-size:.85rem}}
-.picado{{height:10px;background:repeating-linear-gradient(90deg,var(--pink) 0 28px,var(--orange) 28px 56px,#000 56px 84px)}}
-main{{max-width:900px;margin:0 auto;padding:12px}}
-.ban{{border-radius:12px;padding:10px 12px;margin:0 0 10px;border:3px solid;font-size:.9rem}}.ban.warn{{border-color:var(--orange);background:#fff1e3}}
-.ban.test{{border-color:var(--pink);background:#fde7ed;font-size:1rem}}code{{font-size:.8em;background:#0000000d;padding:0 .2em;border-radius:4px}}
-.seg{{display:flex;gap:6px;margin:4px 0 10px}}.seg button{{flex:1;font:inherit;font-weight:800;min-height:44px;border:2px solid var(--ink);border-radius:10px;background:#fff;color:var(--ink)}}
-.seg button[aria-selected=true]{{background:var(--ink);color:#fff}}button:focus-visible,a:focus-visible{{outline:4px solid var(--pink);outline-offset:2px}}
-.grid{{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}}@media(min-width:640px){{.grid{{grid-template-columns:repeat(4,1fr)}}}}
-.stat{{background:var(--card);border:2px solid var(--line);border-radius:14px;padding:10px 12px;border-top:6px solid var(--turq)}}
-.stat:nth-child(2){{border-top-color:var(--pink)}}.stat:nth-child(3){{border-top-color:var(--orange)}}.stat:nth-child(4){{border-top-color:#000}}
-.stat .n{{font-size:1.6rem;font-weight:900;line-height:1.1}}.stat .l{{font-weight:800;font-size:.9rem}}.stat .s{{font-size:.72rem;color:#333}}
-section{{background:var(--card);border:2px solid var(--line);border-radius:14px;padding:12px;margin:10px 0}}section h2{{margin:0 0 8px;font-size:1.05rem;font-weight:900}}
-section h2 small{{font-weight:600;font-size:.75rem;color:#333}}.two{{display:grid;gap:0 12px}}@media(min-width:640px){{.two{{grid-template-columns:1fr 1fr}}.two section{{margin:10px 0}}}}
-svg{{width:100%;height:auto;display:block}}svg text{{font-size:11px;fill:#333}}.va{{fill:var(--turq)}}.vp{{fill:var(--pink)}}.ax{{stroke:#999}}
-.key{{font-size:.78rem;margin:6px 0 0}}.key i{{display:inline-block;width:10px;height:10px;border-radius:2px;margin:0 4px 0 8px;vertical-align:-1px}}
-.bars{{list-style:none;margin:0;padding:0}}.bars li{{display:grid;grid-template-columns:1fr auto;gap:2px 8px;padding:5px 0;border-bottom:1px solid #eee}}
-.bl{{font-weight:700;font-size:.9rem;overflow-wrap:anywhere}}.bl a{{color:#0a3d8f}}.bl small{{color:#333;font-weight:500}}.bv{{font-weight:900}}
-.bb{{grid-column:1/-1;height:6px;background:#eee;border-radius:3px;overflow:hidden}}.bb i{{display:block;height:100%;background:var(--orange)}}
-.two section:nth-child(2) .bb i{{background:var(--turqd)}}.empty{{margin:0;color:#333;font-size:.9rem}}
-footer{{font-size:.75rem;color:#333;padding:4px 4px 24px}}
-</style></head><body>
-<header><h1>Chisme · Stats</h1><p>Private · anonymous counts · updated {e(when)}</p></header><div class="picado" aria-hidden="true"></div>
-<main>{"".join(banners)}{extra}
-<div class="seg" role="tablist" aria-label="Period">{tab_btns}</div>{panels}
-<section><h2>Visitors per day <small>last 30 days</small></h2>{chart}<p class="key"><i style="background:var(--turq)"></i>All visitors<i style="background:var(--pink)"></i>In the installed app</p></section>
-<div class="two"><section><h2>Top tabs <small>30 days</small></h2>{bars(tabs)}</section>
-<section><h2>Top stories <small>30 days, opens</small></h2>{bars(stories)}</section>
-<section><h2>Games <small>30 days, plays</small></h2>{bars(games)}</section>
-<section><h2>Cities <small>30 days, opens</small></h2>{bars(cities)}</section>
-<section><h2>Add to Home Screen tutorial <small>30 days</small></h2>{bars(a2)}</section></div>
-<footer>Storage: {e("Upstash Redis" if store_name == "upstash" else "temporary file")} · Chisme counts anonymous visits: no names, no IPs, no ads, no third parties. Visitors are counted from a random ID on each phone, hashed on the server and never stored as-is.</footer>
-</main>
-<script>document.querySelectorAll('[role=tab]').forEach(function(b){{b.onclick=function(){{document.querySelectorAll('[role=tab]').forEach(function(x){{var on=x===b;x.setAttribute('aria-selected',on);document.getElementById(x.getAttribute('aria-controls')).hidden=!on;}});}};}});</script>
-</body></html>"""
+def page(r: dict, store_name: str, now: float | None = None, extra: str = "", info: dict | None = None, info_error: str = "") -> str:
+    """The dashboard (v49.5: rendered by admin.py, phone-first). `info`: autopush.admin_info() for the push cards."""
+    import admin
+    return admin.page(r, store_name, info=info, now=now, info_error=info_error, extra=extra)
 
 
-def gate_page() -> str:
-    return """<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow">
-<title>Chisme · Stats</title><style>body{margin:0;font:600 16px/1.4 system-ui,sans-serif;background:#f4f3ef;color:#0a0a0a}div{max-width:420px;margin:15vh auto;background:#fff;border:3px solid #EF426F;border-radius:14px;padding:16px}</style></head>
-<body><div><h1 style="margin:0 0 6px;font-size:1.2rem">Private page</h1><p style="margin:0">Open the link with your admin key once: <code>/stats?key=…</code></p></div></body></html>"""
+def gate_page(error: str = "") -> str:
+    """v49.5: a simple sign-in form (admin.login_page) instead of 'open the link with ?key='."""
+    import admin
+    return admin.login_page(error)

@@ -128,20 +128,20 @@ async def chromium_part(p):
     await adm.goto(BASE + "/stats?key=" + urllib.parse.quote(env["ADMIN_TOKEN"]))
     info = await adm.evaluate("({ count: document.querySelector('#push-count b').textContent, msg: document.querySelector('#pf-msg').value, url: location.href })")
     check(info["count"] == "1" and info["msg"] == "¡Órale, new chisme! 👀" and "key=" not in info["url"], f"/stats: {info['count']} subscriber, default message '{info['msg']}', key dropped from the address")
-    await adm.fill("#pf-title", "Chisme"); await adm.fill("#pf-link", "https://www.ksat.com/news/local/")
+    await adm.fill("#pf-title", "Chisme"); await adm.select_option("#pf-where", "link"); await adm.fill("#pf-link", "https://www.ksat.com/news/local/")
     await adm.click("#pf-send"); await adm.wait_for_function("document.querySelector('#pf-confirm').open", timeout=5000)
     cf = await adm.evaluate("({ h: document.querySelector('#pf-confirm-h').textContent, t: document.querySelector('#pf-pt').textContent, m: document.querySelector('#pf-pm').textContent })")
     check(cf["h"] == "Send this to 1 phone?" and cf["m"] == "¡Órale, new chisme! 👀", f"confirm dialog first: '{cf['h']}'")
     await adm.screenshot(path=os.path.join(SHOTS, "4b-stats-confirm-dialog.png"))
     await adm.click("#pf-yes")
-    await adm.wait_for_function("/^(Sent|Not sent)/.test(document.querySelector('#pf-res').textContent)", timeout=60000)
+    await adm.wait_for_function("/^(Sent|Not sent|Nobody)/.test(document.querySelector('#pf-res').textContent)", timeout=60000)
     res = await adm.evaluate("document.querySelector('#pf-res').textContent")
-    check(res.startswith("Sent: 1 · Failed: 0"), f"after sending: '{res}'")
-    check(res.startswith("Sent: 1"), "the REAL push service (FCM) accepted the owner's push (HTTP 201; VAPID + encryption checked by Google)")
+    check(res == "Sent to 1 phone", f"after sending: '{res}'")
+    check(res.startswith("Sent to 1"), "the REAL push service (FCM) accepted the owner's push (HTTP 201; VAPID + encryption checked by Google)")
     n, how = await shown(ctx, pg, {"title": "Chisme", "body": "¡Órale, new chisme! 👀", "url": "/?story=https%3A%2F%2Fwww.ksat.com%2Fnews%2Flocal%2F&t=Chisme&s=&p=0#news", "tag": "chisme-owner"})
     check(bool(n) and n["b"] == "¡Órale, new chisme! 👀" and "story=https%3A%2F%2Fwww.ksat.com" in (n["u"] or ""), f"the service worker shows '{n and n['t']}: {n and n['b']}' (link: in-app reader) [{how}]")
     # 6. auto-send switch + a big-news auto push (fake feed + fake clock: PUSH_TEST=1)
-    await adm.click("label.sw"); await adm.wait_for_function("document.querySelector('#auto-on-l').textContent === 'Auto-send is on'", timeout=10000)
+    await adm.click("label.sw"); await adm.wait_for_function("document.querySelector('#auto-on-l').textContent === 'Auto-alerts are on'", timeout=10000)
     now = datetime.now(CT).replace(hour=12, minute=0, second=0, microsecond=0).timestamp()
     big = {"title": "BREAKING: SAPD says active shooter at North Star Mall, shoppers told to shelter in place", "link": "https://example.com/v45-ui/big-1",
            "source": "KSAT", "published": now - 300, "summary": "", "related": [{"source": "KENS 5"}, {"source": "Express-News"}], "tier": "city"}
@@ -154,11 +154,12 @@ async def chromium_part(p):
     j2 = httpx.post(BASE + "/api/push/tick", headers={"Authorization": "Bearer " + env["PUSH_TICK_SECRET"]}, json={"now": now + 900, "fake": {"news": [routine, big], "alerts": []}}, timeout=90).json()
     check(j2["auto"]["result"] == "nothing major", f"15 min later, same feed: nothing (dedupe) ({j2['auto']['result']})")
     await adm.reload(); await adm.wait_for_timeout(500)
-    pan = await adm.evaluate("({ on: document.querySelector('#auto-on').checked, log: [...document.querySelectorAll('.push.auto .plog li')].map(li => li.textContent).join(' | '), today: document.querySelector('.push.auto .pill').textContent, sends: document.querySelectorAll('.push:not(.auto) .plog li').length })")
-    check(pan["on"] and "active shooter" in pan["log"] and "sent 1" in pan["log"] and pan["today"].startswith("Today:") and pan["sends"] == 1, f"/stats: switch on, log '{pan['log'][:70]}…', {pan['today']}, 1 recent owner send")
-    y = await adm.evaluate(YELLOW, ".push"); check(not y["bad"], f"/stats push panels: no yellow ({y['n']} elements) {y['bad']}")
+    pan = await adm.evaluate("({ on: document.querySelector('#auto-on').checked, log: [...document.querySelectorAll('#f-autolog .plog li')].map(li => li.textContent).join(' | '), today: document.querySelector('#auto-status-t').textContent, sends: document.querySelectorAll('#f-sent .plog li').length })")
+    check(pan["on"] and "active shooter" in pan["log"] and "Sent to 1 phone" in pan["log"] and pan["today"].startswith("On · 1 of 2 sent today") and pan["sends"] == 1, f"/stats: switch on, log '{pan['log'][:70]}…', {pan['today']}, 1 recent owner send")
+    await adm.evaluate("document.querySelectorAll('details.fold').forEach(d => d.open = true)")
+    y = await adm.evaluate(YELLOW, "main"); check(not y["bad"], f"/stats (every section opened): no yellow ({y['n']} elements) {y['bad']}")
     await adm.screenshot(path=os.path.join(SHOTS, "4-stats-admin-send-and-auto.png"), full_page=True)
-    await adm.evaluate("document.querySelector('#push-h').scrollIntoView()"); await adm.wait_for_timeout(200)
+    await adm.evaluate("document.querySelector('#push-h').scrollIntoView(); scrollBy(0, -70)"); await adm.wait_for_timeout(200)
     await adm.screenshot(path=os.path.join(SHOTS, "4a-stats-admin-panels-viewport.png"))
     # 7. the notification's link opens the story in the in-app reader
     await pg.bring_to_front()
@@ -186,11 +187,11 @@ async def chromium_part(p):
     pr = {}
     for _ in range(4):   # FCM can take a moment to forget a token
         await adm.goto(BASE + "/stats"); await adm.click("#pf-send"); await adm.wait_for_function("document.querySelector('#pf-confirm').open"); await adm.click("#pf-yes")
-        await adm.wait_for_function("/^(Sent|Not sent)/.test(document.querySelector('#pf-res').textContent)", timeout=60000)
+        await adm.wait_for_function("/^(Sent|Not sent|Nobody)/.test(document.querySelector('#pf-res').textContent)", timeout=60000)
         pr = {"res": await adm.evaluate("document.querySelector('#pf-res').textContent"), "left": len(subs())}
         if pr["left"] == 0: break
         await asyncio.sleep(5)
-    check(on_again and pr["left"] == 0 and "removed" in pr["res"], f"a subscription the browser dropped: FCM says it's gone → pruned ('{pr.get('res')}')")
+    check(on_again and pr["left"] == 0 and "cleaned up" in pr["res"], f"a subscription the browser dropped: FCM says it's gone → pruned ('{pr.get('res')}')")
     check(not errs, f"no page errors ({errs[:2]})")
     await ctx.close(); shutil.rmtree(prof, ignore_errors=True)
 
@@ -261,8 +262,8 @@ def sw_part():
     check(o["outside"] == [["open", "https://chisme.test/?story=https%3A%2F%2Fevil.example%2Fx%3Fy%3D1#news"]], "an outside URL becomes an in-app reader link, never a browser tab")
     check(o["stats"] == [["open", "https://chisme.test/"]] and o["js"] == [["open", "https://chisme.test/"]], "/stats or javascript: in a payload → just the app")
     sw = open(os.path.join(HERE, "static", "sw.js")).read()
-    m = re.search(r'const VERSION = "chisme-v(\d+)(?:\.\d+)?";', sw); n = int(m.group(1)) if m else 0   # v46: v45 or any later build
-    check(n >= 45 and f'window.CHISME_APP_BUILD = "{n}";' in open(os.path.join(HERE, "static", "app.js")).read(), f"service worker cache chisme-v{n} (app build {n}, v45 or later)")
+    m = re.search(r'const VERSION = "chisme-v(\d+(?:\.\d+)?)";', sw); v = m.group(1) if m else "0"   # v45 or any later build, "49.5" style included
+    check(float(v) >= 45 and f'window.CHISME_APP_BUILD = "{v}";' in open(os.path.join(HERE, "static", "app.js")).read(), f"service worker cache chisme-v{v} (app build {v}, v45 or later)")
 
 async def main():
     sw_part()
