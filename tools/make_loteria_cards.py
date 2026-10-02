@@ -15,7 +15,8 @@ from PIL import Image
 from playwright.async_api import async_playwright
 
 HERE = Path(__file__).resolve().parent.parent
-OUT = HERE / "static" / "loteria" / "cards"
+import os
+OUT = Path(os.environ.get("LOT_OUT") or HERE / "static" / "loteria" / "cards")   # LOT_OUT: preview somewhere else
 W, H = 200, 300          # card units (2:3)
 PX = 300                 # output width in pixels (≈ 3× the card's size on an iPhone tabla; flat art stays crisp)
 
@@ -96,13 +97,15 @@ def scene(kind: str, bg: str, n: int) -> str:
 
 # v49.5: the classic-deck look: flat solid backgrounds in the old lotería print colors (card art, not app UI), a cream
 # border, a small number top-left, the NAME in caps at the bottom, bold black outlines, no gradients / halftone / grain.
-CLASSIC = {"sky": "#8fcbee", "pink": "#f6c3d0", "cream": "#f6ead2", "mint": "#bfe7cf", "yellow": "#f8e7a4", "tan": "#e3c99c"}
+# v49.5b: darker, richer, like the printed reference deck: rich sky blue → cobalt, deep rose, deep mint-green, warm tan
+CLASSIC = {"sky": "#3d9be0", "cobalt": "#2a5cb8", "pink": "#e0698d", "cream": "#efdcb4", "mint": "#3fae78", "yellow": "#f0bf45", "tan": "#d0955a"}
 CREAM = "#f7f0de"
 
 
 def classic_bg(n: int) -> str:
     kind, bg = SCENE[n]
-    if bg in ("sky", "royal", "night"): return "sky"
+    if bg in ("royal", "night"): return "cobalt"
+    if bg == "sky": return "sky"
     if bg in ("pink", "red"): return "pink"
     if bg == "green": return "mint"
     if bg == "gold": return "yellow"
@@ -118,16 +121,18 @@ def card_svg(c: dict) -> str:
     name = c["name"].upper()
     fs = 22 if len(name) <= 10 else 19 if len(name) <= 13 else 17
     bg = CLASSIC[classic_bg(n)]
+    FH = 257   # v49.5b: the colored field stops above a cream name band (the name reads on any background, like the printed decks)
     return f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}">
 <rect x=".5" y=".5" width="{W - 1}" height="{H - 1}" rx="10" fill="{CREAM}" stroke="#b9ae93" stroke-width="1"/>
-<clipPath id="field{n}"><rect x="9" y="9" width="{W - 18}" height="{H - 18}" rx="3"/></clipPath>
+<clipPath id="field{n}"><rect x="9" y="9" width="{W - 18}" height="{FH}" rx="3"/></clipPath>
 <g clip-path="url(#field{n})">
-  <rect x="9" y="9" width="{W - 18}" height="{H - 18}" fill="{bg}"/>
+  <rect x="9" y="9" width="{W - 18}" height="{FH}" fill="{bg}"/>
   <g class="fig" transform="translate(14 40) scale(1.72)"><g class="figin" stroke-linejoin="round">{inner}</g></g>
 </g>
-<rect x="9" y="9" width="{W - 18}" height="{H - 18}" rx="3" fill="none" stroke="#161616" stroke-width="2"/>
-<text x="17" y="29" font-family="Oswald" font-weight="600" font-size="15" fill="#161616">{n}</text>
-<text x="100" y="281" text-anchor="middle" font-family="Oswald" font-weight="700" font-size="{fs}" letter-spacing="1" fill="#161616" textLength="{min(170, 10 + len(name) * fs * .52):.0f}" lengthAdjust="spacingAndGlyphs">{name}</text>
+<rect x="9" y="9" width="{W - 18}" height="{FH}" rx="3" fill="none" stroke="#161616" stroke-width="2.2"/>
+<rect x="13" y="13" width="{22 if n < 10 else 27}" height="21" rx="4" fill="{CREAM}" stroke="#161616" stroke-width="1.6"/>
+<text x="{24 if n < 10 else 26.5}" y="29" text-anchor="middle" font-family="Oswald" font-weight="700" font-size="15" fill="#161616">{n}</text>
+<text x="100" y="287" text-anchor="middle" font-family="Oswald" font-weight="700" font-size="{fs}" letter-spacing="1" fill="#161616" textLength="{min(172, 10 + len(name) * fs * .52):.0f}" lengthAdjust="spacingAndGlyphs">{name}</text>
 </svg>"""
 
 
@@ -191,8 +196,8 @@ async def render(cs: list, sheet: str | None):
             await pg.evaluate("document.fonts.ready")
             # fit the figure to the painted field (each drawing uses its 100×100 box differently)
             await pg.evaluate("""() => { const g = document.querySelector('.figin'), b = g.getBBox();
-              const s = Math.min(164 / b.width, 214 / b.height, 2.45), cx = b.x + b.width / 2, cy = b.y + b.height / 2;
-              const tx = 100 - cx * s, ty = Math.min(148 - cy * s, 258 - (b.y + b.height) * s);
+              const s = Math.min(164 / b.width, 206 / b.height, 2.45), cx = b.x + b.width / 2, cy = b.y + b.height / 2;
+              const tx = 100 - cx * s, ty = Math.max(38 - b.y * s, Math.min(144 - cy * s, 258 - (b.y + b.height) * s));
               document.querySelectorAll('.fig').forEach(f => f.setAttribute('transform', `translate(${tx.toFixed(2)} ${ty.toFixed(2)}) scale(${s.toFixed(3)})`)); }""")
             png = OUT / f"{c['id']:02d}.png"
             await pg.locator("svg").first.screenshot(path=str(png), omit_background=True)

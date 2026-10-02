@@ -547,7 +547,7 @@ async def fullscreen_shots(p):
       document.body.appendChild(d); }""")
     await until(pg, "[...document.querySelectorAll('#art-sheet img')].every(i => i.complete && i.naturalWidth)", 8); await pg.wait_for_timeout(200)
     sheet = await pg.evaluate("(() => { const d = document.querySelector('#art-sheet'), l = [...d.querySelectorAll('.lcard')]; return { n: l.length, fits: l[l.length - 1].getBoundingClientRect().bottom <= innerHeight + 1, alts: l.map(e => e.querySelector('img').alt).filter(a => a === 'El Chocolate' || a === 'El Apache') }; })()")
-    check(sheet["n"] == 16 and sheet["fits"] and len(sheet["alts"]) == 2, f"a grid of 16 cards' original vintage art fits one 390×844 screen, incl. #26 El Chocolate and #38 (huaraches) ({sheet})")
+    check(sheet["n"] == 16 and sheet["fits"] and len(sheet["alts"]) == 2, f"a grid of 16 cards' original vintage art fits one 390×844 screen, incl. #26 El Chocolate and #38 El Apache ({sheet})")
     await pg.screenshot(path=os.path.join(OUT, "loteria-cards.png"))
     await pg.evaluate("document.querySelector('#art-sheet').remove()")
     await pg.click(".gfs-x"); await pg.wait_for_timeout(300)

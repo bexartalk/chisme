@@ -1,7 +1,8 @@
 /* Chisme · Lotería: the 54 traditional card names and their folk verses (traditional sayings), with ORIGINAL art drawn
    here in SVG for Chisme (Fiesta colors: turquoise, pink, orange, black, silver). The art is not copied or traced from any published deck.
    #26: the traditional deck's "El Negrito" is a racial caricature, so this deck uses "El Chocolate" (a folk rhyme) instead.
-   #38 "El Apache" keeps the traditional name and verse, but the art is only the huaraches from the verse, not a person. */
+   #38 "El Apache" (v49.5b): a dignified Apache man standing with his bow, in a cloth headband with one feather, long hair and a
+   fringed buckskin tunic, drawn plainly in the same flat style as the other people (calm face, no caricature, no war paint). */
 (function (root) {
   "use strict";
   const K = "#111", W = "#fff", T = "#00b8b0", T2 = "#3ee8eb", P = "#ff3d8b", P2 = "#c2185b", O = "#ff8a00", O2 = "#c95f00", S = "#b9c0c7", S2 = "#7c858f";
@@ -106,9 +107,17 @@
     37: `<g ${L}><path d="M28 94h44M50 84v10M24 50a26 26 0 0 0 52 0" fill="none" stroke="${S2}" stroke-width="4"/><circle cx="50" cy="48" r="26" fill="${T}"/></g>
       <g fill="${G2}" stroke="${K}" stroke-width="1.6"><path d="M34 32c6-4 14-2 14 4s-8 6-8 12-8 6-10 0 0-12 4-16z"/><path d="M56 42c6 0 12 4 10 12s-10 10-14 4 0-16 4-16z"/><path d="M58 26c4-2 8 0 8 4-4 2-8 0-8-4z"/></g>
       <path d="M26 46h48M30 34q20 6 40 0M30 62q20-6 40 0" stroke="${W}" stroke-width="1" fill="none" opacity=".6"/>`,
-    38: `<g ${L}><path d="M30 12c10 0 14 14 14 38s-4 40-14 40-14-16-14-40 4-38 14-38z" fill="${BR}"/><path d="M70 12c10 0 14 14 14 38s-4 40-14 40-14-16-14-40 4-38 14-38z" fill="${BR}"/></g>
-      <g fill="none" stroke="${O}" stroke-width="3.4"><path d="M18 30l24 10M18 40l24-10M17 50l26 8M17 58l26-8M58 30l24 10M58 40l24-10M57 50l26 8M57 58l26-8"/></g><g fill="none" stroke="${K}" stroke-width="1.6"><path d="M18 30l24 10M18 40l24-10M58 30l24 10M58 40l24-10"/></g>
-      <g fill="${T}" stroke="${K}" stroke-width="1.6"><circle cx="30" cy="22" r="3"/><circle cx="70" cy="22" r="3"/></g>`,
+    38: `<g fill="none" stroke="${K}" stroke-width="6" stroke-linecap="round"><path d="M30 12C13 34 13 68 30 92"/></g><path d="M30 12C13 34 13 68 30 92" fill="none" stroke="${BR}" stroke-width="3"/><path d="M30 12V92" stroke="${CR}" stroke-width="1"/>
+      <g ${L}><path d="M37 26c0-16 26-16 26 0v22h-5V34H42v14h-5z" fill="#2b1d14"/>
+      <path d="M40 78h8v15h-8zM52 78h8v15h-8z" fill="#7a5232"/><path d="M39 93h10v4H37zM51 93h10l2 4H51z" fill="${BR}"/>
+      <path d="M32 80l3-30c6-7 24-7 30 0l3 30z" fill="#c9965c"/><path d="M42 47l8 9 8-9" fill="none"/><path d="M33 68h34" fill="none" stroke="${BR2}" stroke-width="3.4"/>
+      <path d="M35 59l4-4 4 4 4-4 4 4 4-4 4 4 4-4 4 4 3-3" fill="none" stroke="${T}" stroke-width="2.2"/>
+      <path d="M35 80v5M40 80v5M45 80v5M50 80v5M55 80v5M60 80v5M65 80v5" fill="none" stroke-width="1.8"/>
+      <path d="M37 52L22 57" fill="none" stroke="${SK2}" stroke-width="6"/><path d="M63 52l5 21" fill="none" stroke="${SK2}" stroke-width="6"/>
+      <circle cx="20" cy="57.5" r="4" fill="${SK}"/><circle cx="68.5" cy="74" r="3.4" fill="${SK}"/>
+      <path d="M39 30c0-15 22-15 22 0 0 10-5 16-11 16S39 40 39 30z" fill="${SK}"/>
+      <path d="M38 22h24v5H38z" fill="${R}"/><path d="M58 22c3-9 6-15 9-18 1 7-1 13-5 19z" fill="${CR}"/><path d="M64.6 6.5l2.4-2.5c.6 3-.2 5.2-1.2 6.6z" fill="${K}" stroke-width="1.2"/></g>
+      ${eyes(46, 54, 32, 1.4)}<path d="M46.5 39.5h7" stroke="${K}" stroke-width="1.9" stroke-linecap="round"/><path d="M50 33v3.4" stroke="${SK2}" stroke-width="1.5" stroke-linecap="round"/><path d="M44 29.4h4M52 29.4h4" stroke="${K}" stroke-width="1.5" stroke-linecap="round"/>`,
     39: `<g ${L} fill="${G}"><ellipse cx="50" cy="72" rx="16" ry="22"/><ellipse cx="30" cy="42" rx="12" ry="17" transform="rotate(-24 30 42)"/><ellipse cx="68" cy="36" rx="12" ry="17" transform="rotate(20 68 36)"/></g>
       <g fill="${P}" ${L}><ellipse cx="24" cy="22" rx="5" ry="6"/><ellipse cx="62" cy="16" rx="5" ry="6"/><ellipse cx="78" cy="20" rx="5" ry="6"/></g><g fill="${W}"><circle cx="46" cy="64" r="1.4"/><circle cx="56" cy="74" r="1.4"/><circle cx="46" cy="84" r="1.4"/><circle cx="28" cy="40" r="1.4"/><circle cx="34" cy="50" r="1.4"/><circle cx="66" cy="34" r="1.4"/><circle cx="72" cy="44" r="1.4"/></g>`,
     40: `<g ${L}><path d="M58 66c10 4 20 0 24-10 4-10 0-22-10-26-8-4-14 2-12 8" fill="none" stroke="${O2}" stroke-width="7"/><path d="M58 66c10 4 20 0 24-10 4-10 0-22-10-26-8-4-14 2-12 8" fill="none"/>

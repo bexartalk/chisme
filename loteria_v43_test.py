@@ -3,7 +3,7 @@
 1. Files: 54 finished card pictures (static/loteria/cards/01–54.webp, drawn by tools/make_loteria_cards.py) in bright flat
    vintage-print colors with a white border (v49.5: the classic-deck look, solid pastel backgrounds, bold black outlines, a cream border); golden yellow only in the art of the 5 cards the classic decks have it in
    (El Diablito, La Estrella, El Alacrán, El Sol, La Corona; the user asked for it), none anywhere else; #26 is El Chocolate,
-   #38 is the huaraches card; the service worker precaches them. The app's UI stays yellow-free.
+   #38 El Apache is a dignified Apache man with a bow (v49.5b; was the huaraches); the service worker precaches them. The app's UI stays yellow-free.
 2. WebKit 390×844 full screen: the teal top bar holds the title badge, the "Pick your tabla" picker, the "x / 16" bean count and ✕;
    under it a strip with the called card (picture, Spanish verse, count) + ▶/⏸ and ¡Lotería!; a 4×4 tabla of big cards filling the
    width; big Limpiar + Nueva tabla buttons at the bottom; nothing scrolls. A called card tapped → a big pinto bean covers it (the
@@ -159,11 +159,11 @@ async def big(p):
       document.body.appendChild(d); }""")
     await pg.wait_for_function("[...document.querySelectorAll('#art-sheet img')].every(i => i.complete && i.naturalWidth)", timeout=10000); await pg.wait_for_timeout(200)
     fit = await pg.evaluate("(() => { const l = [...document.querySelectorAll('#art-sheet img')]; return l.length === 16 && l[15].getBoundingClientRect().bottom <= innerHeight + 1; })()")
-    check(fit, "16 of the new cards (incl. #26 El Chocolate, #38 the huaraches) fit one 390×844 screen")
+    check(fit, "16 of the new cards (incl. #26 El Chocolate, #38 El Apache) fit one 390×844 screen")
     await pg.screenshot(path=os.path.join(OUT, "loteria-v43-cards.png"))
     await pg.evaluate("document.querySelector('#art-sheet').remove()")
     names = await pg.evaluate("[ChismeLoteriaCards.CARDS[25].name, ChismeLoteriaCards.CARDS[37].name, ChismeLoteriaCards.CARDS[37].svg.length > 300]")
-    check(names[0] == "El Chocolate" and names[2], f"#26 is {names[0]}; #38 ({names[1]}) keeps its huaraches drawing")
+    check(names[0] == "El Chocolate" and names[2], f"#26 is {names[0]}; #38 ({names[1]}) has its own drawing (v49.5b: a dignified Apache man with a bow)")
     check(not errs, f"no page errors ({errs[:3]})")
     await b.close()
 
