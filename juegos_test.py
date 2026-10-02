@@ -273,8 +273,10 @@ async def webkit(p):
     # --- The Juan That Got Away (v44; replaces Ice Ice Bebé)
     await pg.click('.game-pick[data-game="juan"]'); await to_stage(pg)
     s = await st(pg)
-    stops = await pg.evaluate("[...document.querySelectorAll('#juan-ov .juan-stops li')].map(l => l.textContent.replace(/^\\d+/, '').trim())")
-    check(s["mode"] == "title" and "The Juan That Got Away" in s["overlay"] and "It's FRIDAY! ¡Ya es viernes!" in s["overlay"] and "cold beers with the crew" in s["overlay"] and stops == JUAN_LEVELS, f"The Juan That Got Away: title screen with the 6 stops ({stops})")
+    how = await pg.evaluate("[...document.querySelectorAll('#juan-ov .juan-how li')].map(l => l.textContent.trim())")
+    check(s["mode"] == "title" and "The Juan That Got Away" in s["overlay"] and "¡Ya es viernes! One last shift, then cold ones." in s["overlay"]
+          and how == ["👆Tap to jump (or twice!)", "🚧Hop cones, carts & ICE", "☕Grab coffee & tacos", "🍻Reach Noche Caliente"], f"v49.4: title screen = a one-line hook + 4 short how-to-play lines ({how})")
+    check(await pg.evaluate("document.querySelectorAll('.juan-rules .juan-how li').length") == 4 and "Nobody gets hurt" not in await pg.evaluate("document.querySelector('.juan-rules').textContent"), "v49.4: the same 4 lines under the game (the long rules paragraph is gone)")
     await pg.click('#juan-ov [data-act="start"]'); await pg.wait_for_timeout(700)
     s1 = await st(pg); await pg.wait_for_timeout(500); s2 = await st(pg)
     check(s2["mode"] == "run" and s2["x"] > s1["x"] + 20 and s2["outfit"] == "work" and s2["health"] == 100, f"Juan runs, in his work clothes, full health ({s1['x']:.0f} → {s2['x']:.0f}, {s2['outfit']}, {s2['health']})")

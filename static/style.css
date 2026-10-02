@@ -1100,6 +1100,20 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
 .juan-stops li span{flex:none;display:grid;place-items:center;width:1.6em;height:1.6em;border-radius:50%;background:#ff3d8b;color:#fff;font-size:.85em}
 .juan-stops li:last-child{border-color:#ff3d8b;background:rgba(255,61,139,.22)}
 .juan-sub{max-width:20em;font-size:.88em;opacity:.92}
+/* v49.4: how to play: 4 short lines, an emoji each, big + bold (title screen and under the game) */
+.juan-how{list-style:none;margin:.3em auto;padding:0;display:flex;flex-direction:column;gap:.32em;text-align:left;width:100%;max-width:340px;box-sizing:border-box}
+.juan-how li{display:flex;align-items:center;gap:.5em;font-size:1.15em;font-weight:900;line-height:1.15;border-radius:14px;padding:.3em .65em;white-space:nowrap}
+.juan-how .ic{flex:none;min-width:1.45em;font-size:1.3em;text-align:center;line-height:1}
+.juan-how-ov li{background:rgba(255,255,255,.12);border:2px solid rgba(62,232,235,.6);color:#fff}
+.juan-how-ov li:last-child{border-color:#ff3d8b;background:rgba(255,61,139,.24)}
+.juan-rules{font-size:1em}
+.juan-how-page{margin:.2em 0;width:auto}
+.juan-how-page li{background:#fff;color:#000;border:2px solid var(--turq)}
+.juan-how-page li:last-child{border-color:var(--pink)}
+[data-theme="dark"] .juan-how-page li{background:#12161a;color:#fff;border-color:var(--turq)}
+[data-theme="dark"] .juan-how-page li:last-child{border-color:#ff3d8b}
+@media (max-width:360px){.juan-how li{font-size:.94em;padding:.26em .5em;gap:.4em}.juan-how-page li{font-size:.92em}}
+@media (max-height:700px){.juan-how{gap:.3em}.juan-how li{padding:.28em .6em}}
 .juan-btns{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:.35em!important}
 .juan-ov .lot-btn{border-color:#000}
 .juan-ov .lot-btn:not(.lot-main){background:#fff;color:#000}

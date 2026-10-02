@@ -698,6 +698,9 @@
     c.fillText("ICE", x - 30 * k * dir, y - 20 * k); c.restore();   // never mirrored, whichever way it faces
   }
 
+  // v49.4: how to play, short: 4 lines, an emoji each, big and bold (the same list on the title screen and under the game)
+  const HOW = [["👆", "Tap to jump (or twice!)"], ["🚧", "Hop cones, carts & ICE"], ["☕", "Grab coffee & tacos"], ["🍻", "Reach Noche Caliente"]];
+  const howList = (cls) => `<ul class="juan-how ${cls}" aria-label="How to play">${HOW.map(([i, t]) => `<li><span class="ic" aria-hidden="true">${i}</span><span>${t}</span></li>`).join("")}</ul>`;
   function mount(el, ctx) {
     const reduced = () => (ctx && ctx.reducedMotion ? ctx.reducedMotion() : matchMedia("(prefers-reduced-motion: reduce)").matches);
     const st = load();
@@ -713,7 +716,7 @@
         <button type="button" id="juan-restart" class="lot-btn" aria-label="Restart level"><span aria-hidden="true">↺</span><span class="juan-lbl"> Restart level</span></button>
         <button type="button" id="juan-sound" class="lot-btn" aria-pressed="true"></button>
       </div>
-      <p class="lot-rules">Tap the game (or Space / ↑) to jump; tap again in the air for a double jump. Hop the cones, potholes, runaway carts, loose chanclas, yappy chihuahuas and sprinklers: every bump costs a little health. ICE agents patrol the sidewalks and hop out of dark SUVs to chase Juan: jump over them or outrun them. If one catches him, it's back to the last 🚩 checkpoint. 🩴 Flip-flops = a shield (the next agent just gets dizzy). ☕ Coffee = speed boost · Breakfast taco = more health · Conchas = points. On the way to the cantina, jump for the cold ones: each gives a little health. Out of health? Back to the last 🚩 checkpoint. Nobody gets hurt.</p>
+      <div class="lot-rules juan-rules">${howList("juan-how-page")}</div>
       <p class="lot-stats" id="juan-stats"></p>`;
     const cv = el.querySelector("#juan-cv"), g = cv.getContext("2d", { alpha: false }), ov = el.querySelector("#juan-ov"), wrap = el.querySelector(".juan-wrap"), $ = (s) => el.querySelector(s);
     const HAT = `<svg class="gfs-juan-hat" viewBox="0 0 32 20" aria-hidden="true" focusable="false"><path d="M4 15a12 12 0 0 1 24 0z" fill="#fff"/><rect x="1" y="14" width="30" height="4" rx="2" fill="#e1e6ea"/><rect x="14.5" y="3.4" width="3" height="11" rx="1.2" fill="#c9d0d8"/></svg>`;
@@ -1087,10 +1090,9 @@
     function title() {
       level = 1; cache = {}; spawn(0); hero.x = 140; camX = cam(hero.x); mode = "title"; fit();
       const cont = st.levelMax > 1 ? `<button type="button" class="lot-btn" data-act="cont">▶ Keep going: level ${st.levelMax}</button>` : "";
-      $("#juan-note").textContent = "¡Ya es viernes! Juan's grinding through his Friday shift: 6 stops from Hon Dipo to Noche Caliente, where the crew has a cold one waiting. Hop the cones, potholes and runaway carts, dodge the ICE agents, and grab a coffee.";
-      overlay(`<p class="juan-big">The Juan That Got Away</p><p class="juan-story">It's FRIDAY! <span lang="es">¡Ya es viernes!</span></p>
-        <ol class="juan-stops">${LEVELS.map((l, i) => `<li><span>${i + 1}</span>${l.name}</li>`).join("")}</ol>
-        <p class="juan-sub">One more workday, then cold beers with the crew. Dodge the ICE agents! <span lang="es">¡Ándale!</span></p>
+      $("#juan-note").textContent = "¡Ya es viernes! Get Juan through his Friday shift to cold beers at Noche Caliente.";
+      overlay(`<p class="juan-big">The Juan That Got Away</p><p class="juan-story"><span lang="es">¡Ya es viernes!</span> One last shift, then cold ones.</p>
+        ${howList("juan-how-ov")}
         <p class="juan-btns"><button type="button" class="lot-btn lot-main" data-act="start">▶ Start at level 1</button>${cont}</p>${st.best ? `<p class="juan-score">Best score <b>${st.best}</b></p>` : ""}`, "title");
     }
     function loop() {
