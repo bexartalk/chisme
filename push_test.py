@@ -93,7 +93,7 @@ def major(i, t_pub, title=None):
 news = [story(1, t0 - 1800), story(2, t0 - 3600), major(1, t0 - 600)]; alerts = [alert(1, "Heat Advisory")]
 j = tick({"now": t0, "fake": {"news": news, "alerts": alerts}}).json()
 check(j["primed"] == 1 and j["auto"]["result"] == "auto-send is off" and not got, f"first check: alerts only recorded; auto-send is off by default, nothing sent ({j['auto']['result']})")
-c.get("/stats", params={"key": env["ADMIN_TOKEN"]}, follow_redirects=False)
+c.post("/stats/login", data={"key": env["ADMIN_TOKEN"], "remember": "1"}, follow_redirects=False)   # v49.11: the sign-in form (?key= no longer signs in)
 check(c.post("/stats/push/auto", json={"on": True}).json() == {"ok": True, "on": True}, "the owner switches auto-send on (/stats, admin cookie)")
 # ---- 4. a major story → one push, routine ones never
 j = tick({"now": t0 + 600, "fake": {"news": news, "alerts": alerts}}).json()

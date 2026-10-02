@@ -39,6 +39,11 @@ run = lambda c: asyncio.run(c) if not isinstance(c, (dict, list)) else c
 MAJOR = lambda i, t, src="KSAT", rel=2: {"title": t, "link": f"https://example.com/{i}", "source": src, "published": t_pub, "summary": "",
                                          "related": [{"source": "x"}] * rel, "tier": "city"}
 
+# v49.11: only the real browser push services are accepted (the server POSTs to this address)
+check(push.clean_sub({"endpoint": "https://push.example.com/x", "keys": {"p256dh": "B" + "A" * 86, "auth": "a" * 22}}) is None
+      and push.clean_sub({"endpoint": "https://fcm.googleapis.com/fcm/send/x", "keys": {"p256dh": "B" + "A" * 86, "auth": "a" * 22}}) is not None
+      and push.clean_sub({"endpoint": "https://web.push.apple.com/Qx", "keys": {"p256dh": "B" + "A" * 86, "auth": "a" * 22}}) is not None,
+      "a subscription to a host that isn't a browser push service is refused (FCM / Apple accepted)")
 # ---- mocked sending: endpoint → behaviour
 sent = []
 def fake_send(rec, payload, urgent, ttl=None):
@@ -51,7 +56,7 @@ def reset():
         os.remove(os.path.join(TMP, f))
     sent.clear(); autopush._verdicts.clear()
 def sub(name, lat=29.43, lon=-98.49, news=True):
-    return {"subscription": {"endpoint": f"https://push.example.com/{name}", "keys": {"p256dh": "B" + "A" * 86, "auth": "a" * 22}},
+    return {"subscription": {"endpoint": f"https://fcm.googleapis.com/fcm/send/{name}", "keys": {"p256dh": "B" + "A" * 86, "auth": "a" * 22}},
             "lat": lat, "lon": lon, "tz": "America/Chicago", "news": news, "weather": True}
 async def setup(*subs, on=True):
     for s in subs:
@@ -255,7 +260,7 @@ autopush._last_kick = time.time() + 10 ** 6   # no background checks from these 
 A.autopush._last_kick = autopush._last_kick
 reset()
 _ph = ec.generate_private_key(ec.SECP256R1())
-asyncio.run(push.subscribe({**sub("x"), "subscription": {"endpoint": "https://push.example.com/x", "keys": {"p256dh": b64e(_ph.public_key().public_bytes(serialization.Encoding.X962, serialization.PublicFormat.UncompressedPoint)), "auth": b64e(os.urandom(16))}}}))
+asyncio.run(push.subscribe({**sub("x"), "subscription": {"endpoint": "https://fcm.googleapis.com/fcm/send/x", "keys": {"p256dh": b64e(_ph.public_key().public_bytes(serialization.Encoding.X962, serialization.PublicFormat.UncompressedPoint)), "auth": b64e(os.urandom(16))}}}))
 requests.post = lambda url, **kw: FakeResp(201)
 c = TestClient(A.app)
 r0 = c.post("/stats/push/send", json={"message": "hi"})
@@ -313,8 +318,8 @@ check(r.status_code == 401 and "match. Check it and try again" in r.text and "se
 r = c2.post("/stats/login", data={"key": "unit-test-admin-token", "remember": "1"}, follow_redirects=False)
 sc = r.headers.get_list("set-cookie")
 sess = [x for x in sc if x.startswith(A.stats.COOKIE + "=")]; mark = [x for x in sc if x.startswith("chisme_admin=")]
-check(r.status_code == 303 and sess and "HttpOnly" in sess[0] and "Max-Age=34560000" in sess[0] and "Path=/stats" in sess[0] and "unit-test-admin-token" not in "".join(sc)
-      and mark and "chisme_admin=1" in mark[0] and "Path=/" in mark[0] and "HttpOnly" not in mark[0], "sign-in + 'keep me signed in': 400-day HttpOnly session (not the token) + the app's marker cookie")
+check(r.status_code == 303 and sess and "HttpOnly" in sess[0] and f"Max-Age={30 * 86400}" in sess[0] and "Path=/stats" in sess[0] and "unit-test-admin-token" not in "".join(sc)
+      and mark and "chisme_admin=1" in mark[0] and "Path=/" in mark[0] and "HttpOnly" not in mark[0], "sign-in + 'keep me signed in': 30-day HttpOnly server session (v49.11) (not the token) + the app's marker cookie")
 r = c2.post("/stats/login", data={"key": "unit-test-admin-token"}, follow_redirects=False)
 check(r.status_code == 303 and "Max-Age" not in [x for x in r.headers.get_list("set-cookie") if x.startswith(A.stats.COOKIE)][0], "without 'keep me signed in': a session cookie (gone when the browser closes)")
 check(c2.post("/stats/login", data={"key": "unit-test-admin-token"}, headers={"Origin": "https://evil.example"}, follow_redirects=False).status_code == 403, "sign-in posted from another site: 403")

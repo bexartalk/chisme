@@ -71,7 +71,7 @@ async def go(pg, i):   # scroll the feed to slide i the way a snap scroll ends u
 async def wk(p):
     b = await p.webkit.launch()
     dev = dict(p.devices["iPhone 13"]); dev.pop("default_browser_type", None)
-    ctx = await b.new_context(**dev); await ctx.add_init_script(QUIET + INIT % "localStorage.setItem('chisme-feed-sound','off');")   # v41: this run is muted (sound() tests the default)
+    ctx = await b.new_context(**dev); await ctx.add_init_script(INIT % "localStorage.setItem('chisme-feed-sound','off');")   # v41: this run is muted (sound() tests the default)
     pg = await ctx.new_page(); errs = []
     # WebKit: an embedded player torn down mid-call (far-behind players are unloaded) can throw "Context is stopped" from inside
     # its own frame; it's only the app's if the stack points into Chisme's code
@@ -251,7 +251,7 @@ async def wk(p):
     check(not errs, f"no console/page errors ({errs[:3]})")
     await ctx.close()
     # 8. reduced motion: no autoplay, a tap-to-play thumbnail
-    ctx = await b.new_context(**dev); await ctx.add_init_script(QUIET + INIT % "localStorage.setItem('chisme-reduce-motion','1');")
+    ctx = await b.new_context(**dev); await ctx.add_init_script(INIT % "localStorage.setItem('chisme-reduce-motion','1');")
     pg = await ctx.new_page(); await pg.goto(URL + "#cual-dieta")
     await pg.wait_for_function("() => window.__chisme && window.__chisme.foodReady && !document.querySelector('#foryou-card').hidden", timeout=90000)
     await pg.tap("#fy-start"); await pg.wait_for_timeout(700)
@@ -264,7 +264,7 @@ async def wk(p):
     check(r["P"]["slide"] == 0 and r["P"]["st"] == 1 and r["p"] and r["p"]["n"] >= 1, f"tap to play: the player starts, and it counts as an open (state {r['P']['st']})")
     await ctx.close()
     # v42: the phone's own Reduce Motion alone doesn't stop the feed (you opened it to watch; a tap pauses)
-    ctx = await b.new_context(**dev, reduced_motion="reduce"); await ctx.add_init_script(QUIET + INIT % "")
+    ctx = await b.new_context(**dev, reduced_motion="reduce"); await ctx.add_init_script(INIT % "")
     pg = await ctx.new_page(); await pg.goto(URL + "#cual-dieta")
     await pg.wait_for_function("() => window.__chisme && window.__chisme.foodReady && !document.querySelector('#foryou-card').hidden", timeout=90000)
     await pg.wait_for_timeout(1500); await pg.tap("#fy-start")
@@ -277,7 +277,7 @@ async def wk(p):
 async def cr(p):   # a real finger swipe on the video itself scrolls to the next one (the player doesn't eat the touch)
     b = await p.chromium.launch(executable_path="/usr/bin/google-chrome", args=["--no-sandbox", "--autoplay-policy=no-user-gesture-required"])
     ctx = await b.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True, device_scale_factor=3)
-    await ctx.add_init_script(QUIET + INIT % "")
+    await ctx.add_init_script(INIT % "")
     pg = await ctx.new_page(); await pg.goto(URL + "#cual-dieta")
     await pg.wait_for_function("() => window.__chisme && window.__chisme.foodReady && !document.querySelector('#foryou-card').hidden", timeout=90000)
     await pg.tap("#fy-start"); await pg.wait_for_function("document.querySelector('#feed').open", timeout=5000); await pg.wait_for_timeout(1200)
@@ -333,7 +333,7 @@ async def sound(p):
     # Chrome with its normal autoplay rule (sound needs a tap on the page); the feed opened without a tap, like a browser that says no
     b = await p.chromium.launch(executable_path="/usr/bin/google-chrome", args=["--no-sandbox", "--autoplay-policy=document-user-activation-required"])
     ctx = await b.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True, device_scale_factor=1)
-    await ctx.add_init_script(QUIET + INIT % ""); pg = await ctx.new_page(); errs = []
+    await ctx.add_init_script(INIT % ""); pg = await ctx.new_page(); errs = []
     pg.on("console", lambda m: errs.append(m.text[:160]) if own_error(m) else None)
     await pg.goto(URL + "#cual-dieta")
     await pg.wait_for_function("() => window.__chisme && window.__chisme.foodReady && !document.querySelector('#foryou-card').hidden", timeout=90000)
@@ -377,7 +377,7 @@ async def ios_five(p, slow):
     label = "players slow to load" if slow else "players ready"
     print(f"\n== v42 WebKit iPhone: scroll through 5 videos ({label})")
     b = await p.webkit.launch(); dev = dict(p.devices["iPhone 13"]); dev.pop("default_browser_type", None)
-    ctx = await b.new_context(**dev); await ctx.add_init_script(QUIET + INIT % ""); pg = await ctx.new_page(); errs = []
+    ctx = await b.new_context(**dev); await ctx.add_init_script(INIT % ""); pg = await ctx.new_page(); errs = []
     pg.on("console", lambda m: errs.append(m.text[:160]) if own_error(m) else None)
     gate = asyncio.Event()
     if slow:   # YouTube's player page arrives only 3 s after Start is tapped (so the players can't be ready for that tap)
@@ -423,7 +423,7 @@ async def ios_five(p, slow):
 async def settings_toggle(p):
     print("\n== v42 Settings → Food videos: sound")
     b = await p.webkit.launch(); dev = dict(p.devices["iPhone 13"]); dev.pop("default_browser_type", None)
-    ctx = await b.new_context(**dev); await ctx.add_init_script(QUIET + INIT % ""); pg = await ctx.new_page()
+    ctx = await b.new_context(**dev); await ctx.add_init_script(INIT % ""); pg = await ctx.new_page()
     await pg.goto(URL + "#cual-dieta")
     await pg.wait_for_function("() => window.__chisme && window.__chisme.foodReady && !document.querySelector('#foryou-card').hidden", timeout=90000)
     await pg.tap("#settings-btn"); await pg.wait_for_timeout(500)
@@ -451,4 +451,3 @@ async def main():
             if not only or only == name: await fn(p)
     print("ALL PASS" if not fails else f"{len(fails)} FAIL(S)"); sys.exit(1 if fails else 0)
 asyncio.run(main())
-from popup_quiet import QUIET   # v49: the notifications card + Settings tip have their own tests

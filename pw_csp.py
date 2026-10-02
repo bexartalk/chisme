@@ -42,9 +42,10 @@ for _cls in (SyncPage, SyncFrame):   # (coldstart_test, features_test, … use t
 async def admin_sign_in(pg, base: str, token: str, wait: str = "#f-scores"):
     """v49.11: /stats?key= no longer signs in, so tests sign in the way the owner does: the form on /stats."""
     await pg.goto(base.rstrip("/") + "/stats")
-    await pg.fill("#key", token)
-    async with pg.expect_navigation():
-        await pg.click("#login-go")
+    if await pg.locator("#key").count():   # (already signed in → no form; e.g. two test servers sharing one session store)
+        await pg.fill("#key", token)
+        async with pg.expect_navigation():
+            await pg.click("#login-go")
     if wait:
         await pg.wait_for_selector(wait, timeout=30000)
 

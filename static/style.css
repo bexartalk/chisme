@@ -187,7 +187,7 @@ body{padding-top:var(--tabs-h,calc(66px + env(safe-area-inset-top,0px)))}
   .tab{flex-direction:column;gap:2px;min-height:52px;padding:.2em .15em} .tab span{font-size:1.2em} .tab .tl{text-align:center} }
 
 /* ---------- views: News | Sports | Weather | Events | ¿Cuál dieta? (food), side by side; swipe or tap to move */
-.views{overflow:hidden;padding-top:14px;touch-action:pan-y pinch-zoom}
+.views{overflow:hidden;overflow:clip;padding-top:14px;touch-action:pan-y pinch-zoom}   /* v49.11: clip = focus/scrollIntoView can't slide the tabs sideways */
 .track{display:flex;align-items:flex-start;gap:24px;will-change:transform}
 .track.animating{transition:transform .32s cubic-bezier(.2,.8,.2,1)}
 .view{flex:0 0 100%;min-width:0}
@@ -1530,3 +1530,5 @@ dialog.tia-menu::after{bottom:-15px;right:18px;border-width:15px 11px 0;border-c
 @media (max-width:360px){ .tm-big{font-size:1.28rem} .tm-sub{font-size:.92rem} .tia-menu-hi{font-size:1.02rem} .tia-menu-emblem{width:62px;height:48px} }
 /* v49.11: the map's + / − were 30×30 px (Leaflet's touch size); 44×44 like every other control */
 .leaflet-touch .leaflet-bar a { width: 44px; height: 44px; line-height: 44px; font-size: 24px; }
+/* v49.11: on shorter phones (iPhone 13: 844 px) the Skins sheet scrolls and Done started half off the bottom; keep it in view */
+dialog.juan-skins button.juan-sk-done{position:sticky;bottom:8px;z-index:2}

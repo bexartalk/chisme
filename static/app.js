@@ -2693,6 +2693,9 @@ window.CHISME_APP_BUILD = "49.11";
     if (e.key === "ArrowLeft" && e.target.closest(".tabs")) goView(Math.max(0, cur - 1));
   });
   if (localStorage.getItem("chisme-swiped")) $("#swipe-hint").hidden = true;
+  // v49.11: overflow:hidden still lets focus / scrollIntoView scroll #views sideways (the tab sat ~36 px off the left edge,
+  // seen on iPhone WebKit); CSS overflow:clip stops it where supported, this catches older Safari.
+  { const vw = $("#views"); if (vw) vw.addEventListener("scroll", () => { if (vw.scrollLeft) vw.scrollLeft = 0; }, { passive: true }); }
   // Deep links (manifest shortcuts): #sports, #weather, #radar-sec, #events. Otherwise the default tab (News unless changed in Settings).
   const HASH_VIEW = { "#weather": ["weather"], "#forecast-sec": ["weather", "forecast-sec"], "#radar-sec": ["weather", "radar-sec"], "#radar": ["weather", "radar-sec"],
     "#alerts": ["weather", "alerts"], "#events": ["events"], "#antojos": ["antojos"], "#cual-dieta": ["antojos"], "#dieta": ["antojos"], "#food": ["antojos"], "#near": ["news", "near"], "#city": ["news", "city"],

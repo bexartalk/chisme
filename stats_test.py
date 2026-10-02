@@ -120,8 +120,8 @@ def access():
     r = httpx.get(B + "/stats")
     check(r.status_code == 401 and "Private page" in r.text and "Visitors" not in r.text and r.headers.get("cache-control") == "no-store"
           and "noindex" in r.headers.get("x-robots-tag", ""), "no cookie: 401, a private-page note, nothing else (no-store, noindex)")
-    check(httpx.get(B + "/stats?key=wrong").status_code == 401 and httpx.get(B + "/stats", cookies={stats.COOKIE: TOKEN}).status_code == 401,
-          "a wrong key, or the token itself as the cookie: 401")
+    check(httpx.get(B + "/stats?key=wrong").status_code == 303 and httpx.get(B + "/stats", cookies={stats.COOKIE: TOKEN}).status_code == 401,
+          "v49.11: any ?key= link → 303 to the 'old link' note (never signs in); the token itself as the cookie: 401")
     r = httpx.get(B + "/stats?key=" + TOKEN)
     check(r.status_code == 303 and r.headers.get("location") == "/stats?link=old" and "set-cookie" not in r.headers,
           "v49.11: /stats?key= (an old admin link) never signs in: 303 that drops the key, no cookie")
