@@ -1269,6 +1269,12 @@ button.juan-sk-done{width:100%;min-height:56px;border:3px solid #000;border-radi
 html.game-fs,html.game-fs body{overflow:hidden;overscroll-behavior:none}
 html.game-fs .tabs,html.game-fs .foot,html.game-fs .tia-fab,html.game-fs .news-pill,html.game-fs .share-toast,html.game-fs #ptr{display:none!important}
 html.game-fs .track{transform:none!important;will-change:auto}   /* a transformed parent would trap position:fixed */
+/* v49.9: …but without that transform, the hidden screen-reader labels (position:absolute) in the other tabs' strips were placed
+   against the whole page, out to x≈15,800: Android Chrome then widened the page and the full-screen game with it, so the game,
+   its HUD and the Jump label were off to the right (a dark screen + a blank teal bar). The tab area holds (and clips) them now. */
+html.game-fs .views{position:relative}
+.game-broken{position:fixed;left:0;top:0;width:100vw;height:100vh;height:100dvh;z-index:5000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.6em;margin:0;padding:1.5em;border:0;border-radius:0;background:#0d0f1a;color:#fff;font:inherit;font-size:1.15rem;font-weight:900;text-align:center;cursor:pointer}
+.game-broken b{display:inline-block;padding:.5em 1.1em;border:3px solid #000;border-radius:14px;background:var(--turq);color:#000;box-shadow:0 4px 0 #ff3d8b}
 .game-stage.gfs{position:fixed;inset:0;z-index:3000;width:auto;max-width:none;height:100vh;height:100dvh;margin:0;border:0;border-radius:0;box-shadow:none;
   box-sizing:border-box;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);
   display:flex;flex-direction:column;overflow:hidden;background:#0d0f1a;color:#fff;overscroll-behavior:none;touch-action:manipulation}

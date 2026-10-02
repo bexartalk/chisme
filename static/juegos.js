@@ -345,7 +345,12 @@
       if (active && active.exitFullscreen) active.exitFullscreen(true);
       if (active && active.pause) active.pause();
       if (active && active.destroy) active.destroy();   // drop the old game's timers and key listeners
-      stageEl.innerHTML = ""; activeId = g.id; active = g.mount(stageEl, ctx);
+      stageEl.innerHTML = ""; activeId = g.id;
+      try { active = g.mount(stageEl, ctx); }
+      catch (err) {   // v49.9: a game that can't start shows "Tap to reload" (e.g. a half-updated app), never a blank stage
+        console.error(g.id, err); active = null;
+        stageEl.innerHTML = `<button type="button" class="game-broken" style="position:static;width:100%;height:auto;min-height:320px"><span><span aria-hidden="true">😬</span> ${esc(g.name)} didn't load right.</span><b>🔄 Tap to reload</b></button>`;
+        stageEl.querySelector(".game-broken").onclick = () => location.reload(); }
       for (const b of listEl.querySelectorAll(".game-pick")) b.setAttribute("aria-pressed", b.dataset.game === g.id ? "true" : "false");
       return active;
     };

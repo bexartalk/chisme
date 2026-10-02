@@ -1203,7 +1203,7 @@
     function startLevel(n, keepScore) {
       if (n !== level) cache = {};
       if (!keepScore) run = { sent: false, offered: 0 };   // v49.5: a fresh run (its score can go on the board once)
-      level = n; ck = 0; paused = false; if (!keepScore) ckScore = 0; if (n === 1 && !keepScore) beersGot = 0; spawn(0); mode = "run"; overlay(null); fs.enter(); fit();
+      level = n; ck = 0; paused = false; if (!keepScore) ckScore = 0; if (n === 1 && !keepScore) beersGot = 0; spawn(0); mode = "run"; overlay(null); fs.enter(); fit(); healthCheck();
       $("#juan-note").textContent = `Level ${n}: ${L().name}. ${L().hint}`; loop(); ctrl();
     }
     function overlay(html, cls = "") { ov.className = "juan-ov" + (html ? " on " + cls : ""); ov.innerHTML = html || ""; }
@@ -1528,7 +1528,23 @@
       say(g, `HI ${Math.max(st.best, score)}`, VW - 14, 45, 10.5, "#9aa3b5", { font: UI, weight: 800, align: "right" });
       if (msgT > 0) { g.font = `800 13px ${UI}`; const w = g.measureText(msg).width + 26; box(g, "rgba(13,15,26,.85)", (VW - w) / 2, 68, w, 26, 13); say(g, msg, VW / 2, 81.5, 13, "#3ee8eb", { font: UI, weight: 800 }); }
     }
-    function draw() {
+    // v49.9: the safety net. If a frame throws, or ~2 s after the game starts the canvas has no size, never drew, or the full-screen
+    // game is wider than the screen, show a friendly "Tap to reload" instead of a blank screen (100vw × 100vh: on screen even then).
+    let drawnN = 0, hcT = 0, brokeEl = null;
+    function broken(err) {
+      if (brokeEl || !el.isConnected) return; if (err) console.error("Juan:", err);
+      brokeEl = document.createElement("button"); brokeEl.type = "button"; brokeEl.className = "game-broken";
+      brokeEl.innerHTML = `<span><span aria-hidden="true">😬</span> The Juan That Got Away didn't load right.</span><b>🔄 Tap to reload</b>`;
+      brokeEl.onclick = () => location.reload(); document.body.appendChild(brokeEl); brokeEl.focus({ preventScroll: true });
+    }
+    function healthCheck() {
+      clearTimeout(hcT); hcT = setTimeout(() => {
+        if (!el.isConnected || document.hidden || (!fs.on && !el.closest(".view.active"))) return;
+        const r = cv.getBoundingClientRect(), wide = fs.on && (el.getBoundingClientRect().width > innerWidth + 4 || document.documentElement.scrollWidth > innerWidth + 4);
+        if (!cv.width || !cv.height || r.width < 40 || r.height < 40 || !drawnN || wide) broken(wide ? new Error("the page is wider than the screen") : null);
+      }, 2000);
+    }
+    function draw() { drawnN++;
       if (!hero) return;
       caches();
       const sx = shake > 0 && !reduced() ? (Math.random() - 0.5) * 6 : 0;
@@ -1585,7 +1601,8 @@
     }
     function loop() {
       cancelAnimationFrame(raf); last = performance.now();
-      const step = (now) => { const dt = Math.min(0.05, (now - last) / 1000); last = now; if (++fitN % 30 === 0 && sizeKey() !== fitKey) fit(); update(dt); draw();
+      const step = (now) => { const dt = Math.min(0.05, (now - last) / 1000); last = now; if (++fitN % 30 === 0 && sizeKey() !== fitKey) fit();
+        try { update(dt); draw(); } catch (err) { raf = null; broken(err); return; }   // v49.9: a crash shows "Tap to reload", not a frozen / blank screen
         if (mode === "run") { perf.n++; perf.sum += dt; if (perf.n >= 90) { const avg = perf.sum / perf.n; perf = { n: 0, sum: 0 };   // a slow phone: draw at a lower resolution
           if (avg > 0.024 && dprCap > 1.5) { dprCap = dprCap > 2 ? 2 : 1.5; fit(); } } }
         if (mode === "run" || mode === "oops" || (mode === "win" && parts.length) || fx.length) raf = requestAnimationFrame(step); else raf = null; };
@@ -1786,12 +1803,12 @@
     cv.addEventListener("contextrestored", repaint);
     document.addEventListener("visibilitychange", onShow); root.addEventListener("pageshow", repaint);
     document.addEventListener("keydown", onKey); document.addEventListener("keyup", onKeyUp); root.addEventListener("resize", onWin);
-    stats(); ctrl(); title();
+    stats(); ctrl(); title(); healthCheck();
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { cache = {}; if (!raf) draw(); }).catch(() => {});
     return {
       pause, resume, jump,
       fs, exitFullscreen: (quiet) => fs.exit(quiet),
-      destroy() { fs.exit(true); cancelAnimationFrame(raf); document.removeEventListener("keydown", onKey); document.removeEventListener("keyup", onKeyUp); root.removeEventListener("resize", onWin); if (ro) ro.disconnect(); if (vv) vv.removeEventListener("resize", onWin); root.removeEventListener("orientationchange", onWin); root.removeEventListener("pageshow", onWin); document.removeEventListener("visibilitychange", onVis); clearTimeout(refitT); el.removeEventListener("click", onAct);
+      destroy() { fs.exit(true); cancelAnimationFrame(raf); clearTimeout(hcT); if (brokeEl) brokeEl.remove(); document.removeEventListener("keydown", onKey); document.removeEventListener("keyup", onKeyUp); root.removeEventListener("resize", onWin); if (ro) ro.disconnect(); if (vv) vv.removeEventListener("resize", onWin); root.removeEventListener("orientationchange", onWin); root.removeEventListener("pageshow", onWin); document.removeEventListener("visibilitychange", onVis); clearTimeout(refitT); el.removeEventListener("click", onAct);
         document.removeEventListener("visibilitychange", onShow); root.removeEventListener("pageshow", repaint); root.removeEventListener("online", onOnline); if (hsDlg) hsDlg.remove(); if (skDlg) skDlg.remove(); cache = {}; },
       skins: { open: openSkins, get now() { return skinNow(); }, get unlocked() { return skinsOpen(); }, get owner() { return owner; }, list: JSKINS.map((k) => k[0]) },   // v49.5 (tests)
       hs: { loadBoard, offer, flushPending, get rows() { return merged(); }, get live() { return boardLive; }, get hi() { return hiId; }, get run() { return { ...run }; } },   // v49.5 (tests)
