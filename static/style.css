@@ -439,6 +439,10 @@ main{padding-top:0}
 .update-toast { position: fixed; z-index: 45; left: 50%; transform: translateX(-50%); bottom: calc(16px + env(safe-area-inset-bottom));
   display: flex; gap: .75em; align-items: center; padding: .6em .8em .6em 1em; border-radius: 14px; background: #111; color: #fff; box-shadow: 0 6px 20px rgba(0,0,0,.3); }
 .update-toast[hidden], .sync[hidden], .ptr[hidden] { display: none; }
+/* v49.10: "Tía has fresh chisme" (Refresh everyone): above a full-screen game, and at the top there so it never covers Jump */
+.update-toast.rf-pill { z-index: 3500; border-radius: 999px; border: 3px solid var(--turq); font-weight: 700; font-size: .95em; width: max-content; max-width: calc(100vw - 32px); box-sizing: border-box; }
+.update-toast.rf-pill button { border-radius: 999px; font-weight: 800; }
+html.game-fs .update-toast.rf-pill { top: calc(10px + env(safe-area-inset-top)); bottom: auto; }
 body { overscroll-behavior-y: contain; }
 @media (prefers-reduced-motion: reduce) { .sync, .sync-ico, .ptr { animation: none !important; transition: none !important; } }
 

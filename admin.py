@@ -309,7 +309,7 @@ def _scores(scores: list | None, now: float) -> str:
             '<div class="two"><button type="button" class="big" id="hs-no">Cancel</button><button type="button" class="big go" id="hs-yes">Yes, clear it</button></div></div></dialog>')
 
 
-def page(r: dict, store_name: str, info: dict | None = None, now: float | None = None, info_error: str = "", extra: str = "", scores: list | None = None) -> str:
+def page(r: dict, store_name: str, info: dict | None = None, now: float | None = None, info_error: str = "", extra: str = "", scores: list | None = None, refresh: dict | None = None) -> str:
     now = now or time.time()
     days = stats.last_days(30, stats.day_of(now))
     S = stats.summarize(r, days)
@@ -374,6 +374,17 @@ def page(r: dict, store_name: str, info: dict | None = None, now: float | None =
 <p class="sub"><b>Last check:</b> <span id="auto-last">{e(last_txt)}</span></p>
 <button type="button" class="big" id="auto-check"{dis}><span aria-hidden="true">🔎</span> Run a check now</button>
 <p class="res" id="auto-res" role="status" aria-live="polite"></p></section>"""
+
+    # ---- v49.10: 🔄 Refresh everyone now (bumps the token every open Chisme checks about once a minute)
+    rts = (refresh or {}).get("ts")
+    rcard = f"""<section class="card rf" id="rf" aria-labelledby="rf-h"><h2 id="rf-h">🔄 Refresh everyone</h2>
+<p class="sub">Every open Chisme reloads to the newest version within about a minute. Anyone in the middle of a game gets a "Refresh" button instead and reloads once they leave the game.</p>
+<p class="sub"><b>Last pushed:</b> <span id="rf-last">{e(clock(rts, now)) if rts else "never"}</span></p>
+<button type="button" class="big go" id="rf-go"><span aria-hidden="true">🔄</span> Refresh everyone now</button>
+<p class="res" id="rf-res" role="status" aria-live="polite"></p>
+<dialog class="sheet" id="rf-confirm" aria-labelledby="rf-confirm-h"><div class="sheet-b"><h3 id="rf-confirm-h">Refresh everyone's Chisme?</h3>
+<p class="sub">Every open copy of Chisme (phones and computers) reloads to the newest version within about a minute.</p>
+<div class="two"><button type="button" class="big" id="rf-no">Cancel</button><button type="button" class="big go" id="rf-yes">Yes, refresh everyone</button></div></div></dialog></section>"""
 
     # ---- at a glance
     s1, s7 = S[1], S[7]
@@ -440,13 +451,29 @@ def page(r: dict, store_name: str, info: dict | None = None, now: float | None =
     tpl_js = json.dumps({k: {"t": t, "m": m, "w": w} for k, _, t, m, w in TEMPLATES}, ensure_ascii=False)
     where_js = json.dumps({k: p for k, _, p in WHERE})
     updated = "Updated " + datetime.fromtimestamp(now, TZ).strftime("%-I:%M %p CT")
-    body = (header(updated) + f'<main>{"".join(banners)}{tip}{send if has_push else ""}{auto if has_push else ""}{glance}{tops}'
+    body = (header(updated) + f'<main>{"".join(banners)}{tip}{send if has_push else ""}{auto if has_push else ""}{rcard}{glance}{tops}'
             f'<h2 class="sec">More</h2>{folds}'
             '<footer>Chisme counts anonymous visits: no names, no IPs, no ads, no third parties. Visitors are counted from a random ID on each phone, hashed on the server and never stored as-is.</footer>'
             '</main><div class="toast" id="toast" role="status" aria-live="polite"></div>')
     return (HEAD.replace("%%TITLE%%", "Chisme Admin") + body + "<script>" + SCRIPT.replace("%%TPL%%", tpl_js).replace("%%WHERE%%", where_js)
-            .replace("%%N%%", str(n_news)) + "</script><script>" + SCORES_JS + "</script></body></html>")
+            .replace("%%N%%", str(n_news)) + "</script><script>" + SCORES_JS + "</script><script>" + REFRESH_JS + "</script></body></html>")
 
+
+
+REFRESH_JS = r"""(function(){
+var $=function(id){return document.getElementById(id)},go=$('rf-go'),dlg=$('rf-confirm'),res=$('rf-res');if(!go)return;
+function toast(m,bad){var t=$('toast');t.textContent=m;t.className='toast show'+(bad?' bad':'');setTimeout(function(){t.className='toast'},bad?7000:4500)}
+go.onclick=function(){$('toast').className='toast';if(dlg.showModal)dlg.showModal();else if(confirm('Refresh everyone\'s Chisme?'))push()};
+$('rf-no').onclick=function(){dlg.close()};dlg.addEventListener('click',function(ev){if(ev.target===dlg)dlg.close()});
+$('rf-yes').onclick=function(){dlg.close();push()};
+function push(){go.disabled=true;res.className='res';res.textContent='Pushing…';
+  fetch('/stats/refresh',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:'{}'})
+  .then(function(r){if(r.status===401){toast('You were signed out. Reloading…',true);setTimeout(function(){location.reload()},1500)}return r.json().catch(function(){return {ok:false,error:'the server answered '+r.status}})})
+  .then(function(j){if(j.ok){$('rf-last').textContent=j.last||'just now';res.className='res ok';res.textContent='✅ Pushed. Open Chismes reload within about a minute.'}
+    else{res.className='res bad';res.textContent='Not pushed: '+(j.error||'error')}toast((j.ok?'':'❗ ')+res.textContent,!j.ok)})
+  .catch(function(){res.className='res bad';res.textContent='Not pushed: no connection';toast('❗ Not pushed: no connection',true)})
+  .then(function(){go.disabled=false})}
+})();"""
 
 SCRIPT = r"""(function(){
 var $=function(id){return document.getElementById(id)};

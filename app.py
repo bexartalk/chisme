@@ -2719,7 +2719,8 @@ async def stats_page(request: Request, key: str | None = None):
         scores = await juanscores.everything()
     except Exception:
         scores = None
-    return HTMLResponse(stats.page(data, st.name, info=info, info_error=err, scores=scores), headers=STATS_HEADERS)
+    rf = await refresh_state()
+    return HTMLResponse(stats.page(data, st.name, info=info, info_error=err, scores=scores, refresh=rf), headers=STATS_HEADERS)
 
 
 @app.post("/stats/login", include_in_schema=False)
@@ -2863,6 +2864,52 @@ async def juan_scores_clear(request: Request):
     if (await _body(request)).get("confirm") != "CLEAR":
         return JSONResponse({"ok": False, "error": 'send {"confirm": "CLEAR"} to clear the board'}, status_code=400, headers=STATS_HEADERS)
     return JSONResponse({"ok": True, "cleared": await juanscores.clear()}, headers=STATS_HEADERS)
+
+
+# ---------------------------------------------------------------- v49.10: "🔄 Refresh everyone now"
+# The owner bumps a token (Upstash via push.store(), so it survives redeploys); every open Chisme asks GET /api/refresh on
+# focus and about once a minute, and reloads (after a service worker update) when the token changed since it loaded.
+# Cheap: a ~20-byte body, an ETag (304 when unchanged) and a 20-second in-memory copy, so Upstash isn't hit per phone.
+REFRESH_KEY = "chisme:refresh"
+_refresh_mem: dict = {"v": None, "at": 0.0}
+
+
+async def refresh_state() -> dict:
+    now = time.time()
+    if _refresh_mem["v"] is not None and now - _refresh_mem["at"] < 20:
+        return _refresh_mem["v"]
+    try:
+        v = await push.store().kv_get(REFRESH_KEY)
+        v = v if isinstance(v, dict) else {}
+    except Exception:
+        v = _refresh_mem["v"] or {}   # storage hiccup: keep the last known token (never a fake change)
+    _refresh_mem.update(v=v, at=now)
+    return v
+
+
+@app.get("/api/refresh", include_in_schema=False)
+async def refresh_token(request: Request):
+    t = str((await refresh_state()).get("t") or "0")
+    h = {"Cache-Control": "no-cache", "ETag": f'"r{t}"'}
+    if request.headers.get("if-none-match") == h["ETag"]:
+        return Response(status_code=304, headers=h)
+    return JSONResponse({"t": t}, headers=h)
+
+
+@app.post("/stats/refresh", include_in_schema=False)
+async def stats_refresh(request: Request):
+    """Owner only (the /stats cookie + a JSON body, like the other admin actions)."""
+    import admin
+    if not _admin_ok(request):
+        return _nope()
+    now = int(time.time())
+    v = {"t": f"{now:x}{os.urandom(2).hex()}", "ts": now}
+    try:
+        await push.store().kv_set(REFRESH_KEY, v)
+    except Exception as ex:
+        return JSONResponse({"ok": False, "error": f"couldn't save ({type(ex).__name__} from the storage)"}, status_code=503, headers=STATS_HEADERS)
+    _refresh_mem.update(v=v, at=time.time())
+    return JSONResponse({"ok": True, "ts": now, "last": admin.clock(now)}, headers=STATS_HEADERS)
 
 
 @app.delete("/api/juan/scores/{sid}", include_in_schema=False)

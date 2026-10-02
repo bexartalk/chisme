@@ -1,7 +1,7 @@
 /* Chisme — frontend (location-aware) */
 // Build of this file. Must equal the number in sw.js VERSION ("chisme-v22"); the page compares it
 // with the build the HTML was served for and reloads once if an old cached app.js got mixed in.
-window.CHISME_APP_BUILD = "49.9";
+window.CHISME_APP_BUILD = "49.10";
 (() => {
   "use strict";
   const WEATHER_MS = 10 * 60 * 1000;
@@ -3072,6 +3072,51 @@ window.CHISME_APP_BUILD = "49.9";
     askVersion();                            // also catches a page that opened under an older worker
     $("#update-reload").onclick = () => location.reload();
   }
+  // ---------- v49.10: "🔄 Refresh everyone now" (the owner's button on /stats). The token this page loaded with is the
+  // baseline; on focus, coming back to the tab and about once a minute while visible we ask GET /api/refresh (tiny,
+  // ETag → 304). Changed → "Tía has fresh chisme, refreshing…", update the service worker, reload. Never mid-game: a Juan
+  // run (even paused) or a Lotería game in progress gets a "Refresh" pill instead, and it reloads once they leave the game.
+  const Refresh = (() => {
+    let base = null, last = 0, pending = false, waitT = 0;
+    const box = $("#update-toast"), msg = box.querySelector("span"), btn = $("#update-reload");
+    const inGame = () => {
+      const g = juegos && juegos.game; let s = null;
+      try { s = g && g.state; } catch (e) {}
+      if (!s) return false;
+      if (!s.fullscreen && !document.querySelector("#view-juegos.active")) return false;   // they left the game
+      if (s.mode !== undefined) return ["run", "oops", "paused", "clear"].includes(s.mode);   // Juan: a run in progress
+      return !!(s.started && !s.over);                                                          // Lotería: a game going
+    };
+    const busy = () => inGame() || $("#settings").open || $("#player").open
+      || !!(document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName));
+    const go = () => {
+      clearTimeout(waitT);
+      if (busy()) {   // offer it, and look again in a few seconds (they may pause→quit, finish, or leave the game)
+        msg.textContent = "✨ Tía has fresh chisme."; btn.textContent = "Refresh"; btn.style.display = ""; box.classList.add("rf-pill"); box.hidden = false;
+        waitT = setTimeout(go, 3000); return;
+      }
+      msg.textContent = "✨ Tía has fresh chisme, refreshing…"; btn.style.display = "none"; box.classList.add("rf-pill"); box.hidden = false;
+      const upd = "serviceWorker" in navigator ? navigator.serviceWorker.getRegistration().then((r) => r && r.update()).catch(() => {}) : null;
+      Promise.race([upd, new Promise((r) => setTimeout(r, 2500))]).then(() => setTimeout(() => location.reload(), 1200));
+    };
+    const check = async (force) => {
+      if (document.visibilityState !== "visible" || pending || (!force && Date.now() - last < 15e3)) return;
+      last = Date.now();
+      try {
+        const r = await fetch("/api/refresh", { cache: "no-cache" });
+        if (!r.ok) return;
+        const t = String((await r.json()).t || "");
+        if (base === null) base = t;
+        else if (t && t !== base) { pending = true; go(); }
+      } catch (e) {}
+    };
+    check(true);
+    setInterval(() => check(false), 60e3);
+    document.addEventListener("visibilitychange", () => check(false));
+    window.addEventListener("focus", () => check(false));
+    return { check: () => check(true), get base() { return base; }, get pending() { return pending; }, busy };
+  })();
+  window.__chismeRefresh = Refresh;
   const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
   let deferredPrompt = null;
   const INSTALL_KEY = "chisme-install-card-dismissed";

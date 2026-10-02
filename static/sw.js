@@ -1,7 +1,7 @@
 /* Chisme service worker: caches the app shell and the last-loaded news/weather
    so the app opens instantly (and shows the last saved data) even when the server is asleep
    or there's no connection. */
-const VERSION = "chisme-v49.9";   // v49.2 … v49.9: same-day follow-ups (a ".N" after the number is allowed)
+const VERSION = "chisme-v49.10";   // v49.2 … v49.10: same-day follow-ups (a ".N" after the number is allowed)
 const BUILD = VERSION.replace("chisme-v", "");          // index.html asks for app.js?v=<BUILD>
 const SHELL_CACHE = `${VERSION}-shell`;
 const DATA_CACHE = `${VERSION}-data`;
@@ -164,6 +164,7 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return; // map tiles, thumbnails, NWS icons: straight to network
   if (url.pathname === "/sw.js") return;
   if (url.pathname === "/stats" || url.pathname.startsWith("/stats/")) return;   // the owner's private page: always the server, never the app shell
+  if (url.pathname === "/api/refresh") return;   // v49.10: the "refresh everyone" token is never cached here
   if (url.pathname.startsWith("/api/")) { event.respondWith(apiNetworkFirst(req)); return; }
   if (req.mode === "navigate") { event.respondWith(pageCacheFirst(req)); return; }
   if (url.pathname.startsWith("/static/") || url.pathname === "/manifest.webmanifest") {
