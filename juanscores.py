@@ -26,7 +26,7 @@ NAME_MAX = 12
 # dizzied 100, an SUV's chaser 300, +500 for clearing the level). A run that ends on level L can't beat levels 1..L added
 # up; we allow 10% on top (rounded up to 100) and every score is a multiple of 5. admin_highscores_test re-counts these
 # from the game, so a game change that gives more points fails the test until this table is updated.
-LEVEL_PTS = (1630, 2705, 1775, 1690, 2260, 2425, 2005)   # v49.5: + level 7, Dice City VI
+LEVEL_PTS = (1630, 2705, 1775, 1690, 2260, 2425, 2205)   # v49.5: + level 7, Dice City VI (v49.6: + the feria bags)
 LEVELS = len(LEVEL_PTS)
 MAX_BY_LEVEL = tuple(-(-int(sum(LEVEL_PTS[:i + 1]) * 1.1) // 100) * 100 for i in range(LEVELS))
 SCORE_MAX = MAX_BY_LEVEL[-1]

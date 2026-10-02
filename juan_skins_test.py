@@ -25,9 +25,10 @@ FILE = os.environ.get("JUAN_SCORES_FILE", "/tmp/chisme-juan-scores.json")
 SETUP = "if (!localStorage.getItem('chisme-location-setup')) { localStorage.setItem('chisme-location-setup','1'); localStorage.setItem('chisme-swiped','1'); localStorage.setItem('chisme-ios-hint-dismissed','1'); localStorage.setItem('chisme-a2hs', JSON.stringify({done:true})); }"
 G = "__chisme.juegos.game"
 SEVEN = [("Goonie", 12340, 6), ("La Tía", 10125, 6), ("Juanito", 7450, 5), ("Ictunis", 5800, 4), ("Mija", 4800, 4), ("Compa", 3950, 3), ("Chuy", 2600, 2)]
-NAMES = ["Classic Juan", "El Jefe Presidente", "Iron Juan", "El Joker", "Juan UFO", "Master Jefe", "Armadura", "Juanby", "Juan Vice"]
-IDS = ["classic", "jefe", "hierro", "joker", "ufo", "master", "armadura", "juanby", "vice"]
+NAMES = ["Classic Juan", "El Jefe Presidente", "Iron Juan", "El Joker", "Juan UFO", "Master Jefe", "Armadura", "Juanby", "Juan Vice", "Cocaine Cowboy"]
+IDS = ["classic", "jefe", "hierro", "joker", "ufo", "master", "armadura", "juanby", "vice", "cowboy"]
 N = len(IDS)
+TIDY = lambda m: (m["last"]["alone"] and m["last"]["mid"] < 2) if N % 2 else not m["last"]["alone"]
 fails = 0
 def check(ok, what):
     global fails
@@ -83,9 +84,9 @@ async def main():
         check(t["mode"] == "title" and t["txt"] == "👕 Skin 🔒" and t["aria"] == "Skin: Classic Juan. Make the Top 10 to unlock more" and t["h"] >= 44 and t["inside"] and t["scroll"] <= 1, f"the title screen has {t['txt']!r} beside Start ({t['aria']!r}, {t['h']:.0f}px) and still fits")
         check(await pg.evaluate(G + ".skins.now") == "classic" and not await pg.evaluate(G + ".skins.unlocked"), "Classic Juan is the default; skins start locked")
         await pg.click("#juan-ov [data-act=skins]"); await pg.wait_for_selector("dialog.juan-skins[open]"); m = await pg.evaluate(PICK)
-        check(m["names"] == NAMES and m["ids"] == IDS, f"the picker lists the nine: Classic + 8 ({', '.join(m['names'])})")
-        check(m["last"]["alone"] and m["last"]["mid"] < 2 and m["last"]["w"] < 2, f"9 cards in 2 columns: the last one sits alone on its row, centered, the same size as the others ({m['last']})")
-        check(m["locked"] == IDS[1:] and all(m["lockTxt"]) and m["on"] == ["classic"] and m["sub"].startswith("🔒"), f"eight are locked, each with 🔒 + 'Make the Top 10 to unlock'; Classic is on ({m['sub']!r})")
+        check(m["names"] == NAMES and m["ids"] == IDS, f"the picker lists all {N}: Classic + {N - 1} ({', '.join(m['names'])})")
+        check(TIDY(m) and m["last"]["w"] < 2, f"{N} cards in 2 columns, tidy (an odd last card sits alone, centered; v49.6: 10 fill 5 full rows), all the same size ({m['last']})")
+        check(m["locked"] == IDS[1:] and all(m["lockTxt"]) and m["on"] == ["classic"] and m["sub"].startswith("🔒"), f"{N - 1} are locked, each with 🔒 + 'Make the Top 10 to unlock'; Classic is on ({m['sub']!r})")
         check(m["drawn"] == N and m["fits"] and m["doneIn"] and not m["clipped"] and m["minH"] >= 44, f"light 390: every card has its picture, the sheet fits, names not clipped ({m['clipped']}), cards ≥ {m['minH']:.0f}px")
         await pg.screenshot(path="/tmp/juan-skins-locked.png")
         await pg.click("dialog.juan-skins .juan-sk[data-skin=jefe]"); await pg.wait_for_timeout(200); m = await pg.evaluate(PICK)
@@ -121,7 +122,7 @@ async def main():
         await to_stage(pg); t = await pg.evaluate(TITLE)
         check(t["txt"] == "👕 Skin" and t["aria"] == "Skin: Armadura" and t["inside"] and t["scroll"] <= 1, f"after a reload: still unlocked, no lock, and the skin saved earlier (Armadura) now applies ({t})")
         await pg.click("#juan-ov [data-act=skins]"); await pg.wait_for_selector("dialog.juan-skins[open]"); m = await pg.evaluate(PICK)
-        check(not m["locked"] and m["sub"] == "🏆 You made the Top 10: every skin is yours." and m["drawn"] == N and m["last"]["mid"] < 2, f"the picker: nothing locked ({m['sub']!r})")
+        check(not m["locked"] and m["sub"] == "🏆 You made the Top 10: every skin is yours." and m["drawn"] == N and TIDY(m), f"the picker: nothing locked ({m['sub']!r})")
         foc = await pg.evaluate("document.activeElement && document.activeElement.dataset.skin")
         check(foc == "armadura", f"the sheet opens with the skin you're wearing focused ({foc})")
         try: await pg.wait_for_function("(document.querySelector('#sync') || {}).dataset?.state === 'done'", timeout=20000)
@@ -180,7 +181,7 @@ async def main():
                     await pg.wait_for_function("window.__chisme && __chisme.ready && __chisme.juegos.game && __chisme.juegos.game.skins", timeout=120000); await pg.wait_for_timeout(400)
                 await to_stage(pg); t = await pg.evaluate(TITLE)
                 await pg.click("#juan-ov [data-act=skins]"); await pg.wait_for_selector("dialog.juan-skins[open]"); m = await pg.evaluate(PICK)
-                ok = (t["inside"] and t["scroll"] <= 1 and m["fits"] and m["doneIn"] and not m["clipped"] and m["minH"] >= 44 and m["drawn"] == N and len(m["locked"]) == (0 if unlocked else N - 1) and m["last"]["mid"] < 2 and m["last"]["alone"]
+                ok = (t["inside"] and t["scroll"] <= 1 and m["fits"] and m["doneIn"] and not m["clipped"] and m["minH"] >= 44 and m["drawn"] == N and len(m["locked"]) == (0 if unlocked else N - 1) and TIDY(m)
                       and (m["bg"] == "rgb(255, 255, 255)") == (scheme == "light") and not errs)
                 check(ok, f"{scheme} {w} {'unlocked, Keep going + best score' if unlocked else 'locked'}: title fits ({t['scroll']}), the sheet fits with Done showing, names not clipped {m['clipped']}, cards ≥ {m['minH']:.0f}px ({m['bg']}) {errs[:1]}")
                 await pg.screenshot(path=f"/tmp/juan-skins-{scheme}-{w}-{'open' if unlocked else 'locked'}.png")

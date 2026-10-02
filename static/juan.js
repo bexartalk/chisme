@@ -32,7 +32,7 @@
   const GRAV = 1750, JUMP = -620, JUMP2 = -540, HP = 100, HERO_W = 32, HERO_H = 88;   // v49.5: Juan drawn 1.5× (JS); the box is the body (no hat), a bit forgiving at the sides
   const JS = 1.5, ARCH_X = 196;   // ARCH_X: where Dice City's neon arch stands (Juan starts at 140 and runs under it)
   // v49.5 skins: classic is the default; the rest unlock for anyone who has ever made the Top 10 (original parodies, no real names or logos)
-  const JSKINS = [["classic", "Classic Juan"], ["jefe", "El Jefe Presidente"], ["hierro", "Iron Juan"], ["joker", "El Joker"], ["ufo", "Juan UFO"], ["master", "Master Jefe"], ["armadura", "Armadura"], ["juanby", "Juanby"], ["vice", "Juan Vice"]];
+  const JSKINS = [["classic", "Classic Juan"], ["jefe", "El Jefe Presidente"], ["hierro", "Iron Juan"], ["joker", "El Joker"], ["ufo", "Juan UFO"], ["master", "Master Jefe"], ["armadura", "Armadura"], ["juanby", "Juanby"], ["vice", "Juan Vice"], ["cowboy", "Cocaine Cowboy"]];
   const SANS = '"Avenir Next Condensed","Arial Narrow","Roboto Condensed","Helvetica Neue",Arial,sans-serif';
   const UI = '-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif';
   const WEST = 'Rockwell,"American Typewriter",Georgia,"Times New Roman",serif';
@@ -56,7 +56,7 @@
       mix: { lowcar: 2, sportscar: 2, cone: 3, pothole: 3, chihuahua: 1, agent: 2, suv: 1 }, power: [[1100, "coffee"], [2300, "flipflops"], [3000, "taco"], [4600, "taco"]] },
   ];
   const DEST_H = [210, 256, 312, 150, 150, 232, 240];   // how tall each stop's building is (units), so a short screen can shrink it to fit under the HUD
-  const DIM = { cone: [24, 32], pothole: [56, 8], cart: [52, 46], chancla: [30, 14], chihuahua: [36, 28], sprinkler: [18, 12], pallet: [70, 38], tires: [46, 48],
+  const DIM = { feria: [24, 26], cone: [24, 32], pothole: [56, 8], cart: [52, 46], chancla: [30, 14], chihuahua: [36, 28], sprinkler: [18, 12], pallet: [70, 38], tires: [46, 48],
     concha: [22, 16], beer: [24, 32], coffee: [22, 28], taco: [32, 20], flipflops: [30, 18], flag: [10, 70], agent: [30, 64], chaser: [30, 64], suv: [124, 54], lowcar: [92, 30], sportscar: [84, 26] };
   const HAZ = { cone: [10, "Bonk! A cone"], pothole: [15, "¡Híjole! A pothole"], cart: [20, "Runaway cart!"], chancla: [10, "¡La chancla!"], chihuahua: [15, "Yap yap yap!"], sprinkler: [8, "Soaked!"] };
   const HAZARDS = Object.keys(HAZ), SOLID = ["pallet", "tires", "suv", "lowcar", "sportscar"], ICE = ["agent", "suv", "chaser"];   // v46: the ICE agents (not in HAZ: they don't cost health, they catch Juan)
@@ -109,6 +109,7 @@
       if (SOLID.includes(k)) for (let i = 0; i < 2; i++) add("concha", x + 10 + i * 28, -DIM[k][1] - 44);
       else if (!L.beers && r() < 0.55) for (let i = 0; i < 3; i++) add("concha", x - 28 + i * 34, -104 - (i === 1 ? 26 : 0));
     }
+    if (L.beach) for (let bx = 980; bx < END - 420; bx += 640) if (!CHECKS.some((c) => c && Math.abs(bx - c) < 90)) add("feria", bx, -150);   // v49.6: money bags (la feria), +25 each
     if (L.martinis) for (let bx = 760; bx < END - 420; bx += 420 + Math.floor(r() * 160)) if (!CHECKS.some((c) => c && Math.abs(bx - c) < 70)) add("beer", bx, -110 - Math.floor(r() * 50), { mt: 1 });   // v49.5 Dice City VI: martinis (+8 health, like a cold one)
     if (L.beers) { for (let bx = 680; bx < END - 420; bx += 210 + Math.floor(r() * 120)) if (!CHECKS.some((c) => c && Math.abs(bx - c) < 70)) add("beer", bx, -100 - Math.floor(r() * 70));
       [[END - 150, -104], [END - 112, -132], [END - 74, -144], [END - 36, -128]].forEach(([bx, by]) => add("beer", bx, by)); }   // a last arc of cold ones by the cantina door
@@ -671,6 +672,20 @@
       if (P) { const g = 1.2 + P * 3.2, gx = X + 4.2, gy = Y - 1.8; c.fillStyle = "#ffffff"; c.beginPath(); c.moveTo(gx, gy - g); c.lineTo(gx + g * 0.22, gy - g * 0.22); c.lineTo(gx + g, gy); c.lineTo(gx + g * 0.22, gy + g * 0.22); c.lineTo(gx, gy + g); c.lineTo(gx - g * 0.22, gy + g * 0.22); c.lineTo(gx - g, gy); c.lineTo(gx - g * 0.22, gy - g * 0.22); c.closePath(); c.fill(); }   // the sunglasses glint
       return;
     }
+    if (k === "cowboy") {   // v49.6 Cocaine Cowboy: an 80s Miami look, our own: a white suit over a mint shirt, a beige cowboy hat. Jump: a hat tip
+      c.fillStyle = lin(c, -11, -24, 11, 0, ["#c8f5e4", "#8fdcc4"]); rr(c, -11.5, -24, 23, 23.5, 6); c.fill();
+      c.fillStyle = lin(c, -12, -24, 12, 0, ["#ffffff", "#f4f1ea", "#d9d4c8"]);
+      c.beginPath(); c.moveTo(-12.2, -22.5); c.lineTo(-3.6, -24); c.lineTo(-1.2, -10); c.lineTo(-2.6, 0.4); c.lineTo(-12.2, 0.4); c.closePath(); c.fill();
+      c.beginPath(); c.moveTo(6, -24); c.lineTo(12.2, -22); c.lineTo(12.2, 0.4); c.lineTo(5.2, 0.4); c.lineTo(3.4, -10); c.closePath(); c.fill();
+      line(c, "#bfb8a8", 1.1, [-3.6, -24, -1.2, -10, -2.6, 0.4]); line(c, "#bfb8a8", 1.1, [6, -24, 3.4, -10, 5.2, 0.4]); box(c, "#ff8fbf", 7.4, -19, 3.4, 1.6, 0.6);   // lapels + a pink pocket square
+      juanFace(c, X, Y, "#c68a5e", "#a5683f", "#d39a6c", true);
+      c.save(); if (P) { c.translate(X, Y - 9 - P * 3.5); c.rotate(P * 0.28); c.translate(-X, -(Y - 9)); }   // jump: he tips the hat (a little lift + a forward tilt)
+      c.fillStyle = lin(c, 0, Y - 16, 0, Y - 6, ["#efdcb4", "#cdb385"]); c.beginPath(); c.moveTo(X - 7.5, Y - 6.5); c.lineTo(X - 6.6, Y - 16); c.quadraticCurveTo(X + 0.5, Y - 12.5, X + 7.6, Y - 16); c.lineTo(X + 8.5, Y - 6.5); c.closePath(); c.fill();
+      box(c, "#f2f0ea", X - 7, Y - 9, 15, 2.6, 0.5);   // a white band
+      c.fillStyle = lin(c, 0, Y - 9, 0, Y - 3, ["#e6d0a4", "#b99d6e"]); c.beginPath(); c.moveTo(X - 16, Y - 9.5); c.quadraticCurveTo(X + 1, Y - 1.5, X + 18, Y - 9.5); c.quadraticCurveTo(X + 1, Y - 5, X - 16, Y - 9.5); c.fill();
+      c.restore();
+      return;
+    }
     if (k === "juanby") {   // Juanby: Juan stretched into a ridiculously tall, lanky hooper. A plain silver/black jersey: no logo, no number, no real player
       c.fillStyle = lin(c, -9, -44, 9, 0, ["#eef1f4", "#c9d0d8", "#9aa3ad"]); rr(c, -8.5, -44, 17, 44.5, 5); c.fill();
       box(c, "#151515", -8.5, -31, 2.4, 28, 1); line(c, "#151515", 1.6, [-3.2, -44, 0.8, -37.5, 4.8, -44]);
@@ -781,6 +796,7 @@
       master: { jean: "#5f7a3a", jean2: "#4a6230", boot: "#3c4a2a", boot2: "#2e3920", legW: 10, sleeve: "#5f7a3a", sleeveB: "#4a6230", hand: "#2b2f2a", handB: "#1f2320", armW: 8, knee: "#2b2f2a", shoulder: "#6d8a43" },
       armadura: { jean: "#6b7240", jean2: "#565c33", boot: "#7a4a2a", boot2: "#5e3820", legW: 11.5, sleeve: "#6b7240", sleeveB: "#565c33", hand: "#4a4f2c", handB: "#3a3e22", armW: 9.5, knee: "#7a4a2a", dxF: 10, dxB: -8 },
       juanby: { jean: "#c9d0d8", jean2: "#9aa3ad", boot: "#f4f6f8", boot2: "#d5dbe1", sole: "#151515", legW: 5.4, sleeve: "#c68a5e", sleeveB: "#a5683f", hand: "#c68a5e", handB: "#a5683f", armW: 5, cuff: "#f4f6f8", dxF: 3, dxB: -3 },
+      cowboy: { jean: "#f7f5ef", jean2: "#dcd7cb", boot: "#b07a4a", boot2: "#8a5a32", sole: "#5e3820", legW: 8.5, sleeve: "#f7f5ef", sleeveB: "#dcd7cb", hand: "#c68a5e", handB: "#a5683f", armW: 7, cuff: "#c8f5e4", dxF: 6, dxB: -4 },
       vice: { jean: "#f4f1ea", jean2: "#d9d4c8", boot: "#e6d3b3", boot2: "#c9b28c", sole: "#8a6a4a", legW: 8.5, sleeve: "#f7a8c4", sleeveB: "#e08aa8", hand: "#c68a5e", handB: "#a5683f", armW: 7, rolled: true, dxF: 6, dxB: -4 } }[SKN];
     const WEST_FIT = !KIT && o.outfit === "western", SK = "#c68a5e", SK2 = "#a5683f", JE = KIT ? KIT.jean : "#2f5291", JE2 = KIT ? KIT.jean2 : "#22406f";
     const shirt = WEST_FIT ? "#00a7a0" : "#a6ff2e", shirt2 = WEST_FIT ? "#007f7a" : "#78d41a", shirtB = WEST_FIT ? "#00807a" : "#86d424";
@@ -939,6 +955,10 @@
         line(c, "#c9d0d8", 2.2, [x + 2, 0, x + 2, -70]); ell(c, "#ffffff", x + 2, -71, 2.4, 2.4);
         const col = e.done ? "#00b8b0" : "#ff3d8b", wv = rm ? 0 : Math.sin(t * 5) * 3;
         c.fillStyle = col; c.beginPath(); c.moveTo(x + 3, -68); c.quadraticCurveTo(x + 16, -66 + wv, x + 30, -60 + wv * 0.5); c.quadraticCurveTo(x + 16, -54 - wv, x + 3, -50); c.fill(); break; }
+      case "feria": {   // v49.6: a money bag with a $ (la feria)
+        const by = y + (rm ? 0 : Math.sin(t * 3.5 + x * 0.07) * 3);
+        ell(c, lin(c, x, by + 6, x + 24, by + 26, ["#d9c08a", "#b8955a"]), x + 12, by + 17, 11.5, 9.5); poly(c, "#c8a76c", [x + 7, by + 9, x + 17, by + 9, x + 20, by + 2, x + 4, by + 2]);
+        box(c, "#7a5232", x + 6, by + 7.5, 12, 2.6, 1.2); say(c, "$", x + 12, by + 18, 13, "#2f7a3a", { weight: 900 }); break; }
       case "concha": {
         const by = y + (rm ? 0 : Math.sin(t * 4 + x) * 2.5);
         ell(c, "#d99a5e", x + 11, by + 10, 11, 5.5); c.fillStyle = lin(c, 0, by, 0, by + 10, ["#ffc2db", "#ff8fbf"]); c.beginPath(); c.ellipse(x + 11, by + 9, 10.5, 9, 0, Math.PI, 0); c.fill();
@@ -1147,7 +1167,7 @@
     const par = () => (reduced() ? 0 : 1);
     function spawn(atCheck) {
       const x0 = CHECKS[atCheck];
-      ents = buildLevel(level).filter((e) => !((e.t === "concha" || e.t === "beer") && e.x < x0));
+      ents = buildLevel(level).filter((e) => !((e.t === "concha" || e.t === "beer" || e.t === "feria") && e.x < x0));
       for (const e of ents) if (e.t === "flag" && e.x <= x0) e.done = true;
       hero = { x: x0 + 8, y: -HERO_H, w: HERO_W, h: HERO_H, vy: 0, ground: true, jumps: 2, boost: 0, stumble: 0, inv: 0, frame: 0, health: HP, shield: 0 };
       camX = cam(hero.x); score = ckScore; parts = []; fx = []; msgT = 0; shake = 0; fueraT = 0; bgIce = []; bgNext = (reduced() ? 12 + Math.random() * 8 : 3 + Math.random() * 5) * (L().city ? 0.5 : 1);
@@ -1219,7 +1239,8 @@
     }
     function pickup(e) {
       const h = hero; e.gone = true;
-      if (e.t === "concha") { score += 10; SFX.coin(); puff(e.x + 11, e.y + 8, 5, "spark"); }
+      if (e.t === "feria") { score += 25; SFX.coin(); msg = "¡La feria! +25"; msgT = 0.9; puff(e.x + 12, e.y + 12, 8, "spark"); }
+      else if (e.t === "concha") { score += 10; SFX.coin(); puff(e.x + 11, e.y + 8, 5, "spark"); }
       else if (e.t === "beer") { h.health = Math.min(HP, h.health + 8); score += 15; if (!e.mt) beersGot++; SFX.salud(); msg = e.mt ? "Martini! +8 health" : "¡Salud! +8 health"; msgT = 1.1; puff(e.x + 12, e.y + 10, 10, "spark"); }
       else if (e.t === "coffee") { h.boost = 5; score += 50; SFX.power(); msg = "Coffee! Speed boost"; msgT = 1.5; puff(e.x + 11, e.y + 14, 14, "spark"); }
       else if (e.t === "flipflops") { h.shield = 1; score += 50; SFX.power(); msg = "Flip-flops! Shield on"; msgT = 1.5; puff(e.x + 15, e.y + 9, 14, "spark"); }

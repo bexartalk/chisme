@@ -61,7 +61,7 @@ async def main():
         rr = await c.post("/api/juan/scores/clear", json={"confirm": "CLEAR"}, headers=H); check(rr.status_code == 200 and rr.json()["cleared"] == 1, "clear with confirm CLEAR empties the board")
         # v49.5 sanity check: impossible scores for the game are refused
         import juanscores, subprocess
-        js = "const J=require(%r);const o=[];for(let n=1;n<=J.LEVELS.length;n++){let s=500;for(const e of J.buildLevel(n)){const t=e.t;s+=t==='concha'?10:t==='beer'?15:['coffee','taco','flipflops'].includes(t)?50:t==='agent'?150:t==='suv'?300:J.HAZ[t]?25:0;}o.push(s);}console.log(JSON.stringify(o))" % os.path.join(HERE, "static", "juan.js")
+        js = "const J=require(%r);const o=[];for(let n=1;n<=J.LEVELS.length;n++){let s=500;for(const e of J.buildLevel(n)){const t=e.t;s+=t==='concha'?10:t==='beer'?15:t==='feria'?25:['coffee','taco','flipflops'].includes(t)?50:t==='agent'?150:t==='suv'?300:J.HAZ[t]?25:0;}o.push(s);}console.log(JSON.stringify(o))" % os.path.join(HERE, "static", "juan.js")
         game = json.loads(subprocess.check_output(["node", "-e", js]))
         check(len(game) == juanscores.LEVELS and all(g <= t for g, t in zip(game, juanscores.LEVEL_PTS)), f"the server's per-level maximum covers everything the game's levels can give ({game} ≤ {list(juanscores.LEVEL_PTS)})")
         mx = (await c.get("/api/juan/scores")).json().get("max")
