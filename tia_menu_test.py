@@ -148,7 +148,7 @@ async def main():
             settings: S(st), close: S(cl), headTop: hr.top, headBtns: document.querySelectorAll('.tia-head button').length, form: document.querySelector('#tia-form').getBoundingClientRect().bottom,
             footTop: document.querySelector('.tia-foot').getBoundingClientRect().top, vh: innerHeight, foot: document.querySelector('.tia-foot').textContent, vw: innerWidth }; }"""
         BADGE = """() => { const f = document.querySelector('#tia-btn'), g = f.querySelector('.tia-fab-badge'), r = g.getBoundingClientRect(), fr = f.getBoundingClientRect(), c = getComputedStyle(g);
-          return { text: g.textContent, hidden: g.getAttribute('aria-hidden'), w: r.width, l: r.left, t: r.top, r: r.right, fl: fr.left, ft: fr.top, vw: innerWidth, bg: c.backgroundColor, ring: c.boxShadow, pe: c.pointerEvents,
+          return { text: g.textContent, hidden: g.getAttribute('aria-hidden'), w: r.width, l: r.left, t: r.top, r: r.right, b: r.bottom, fl: fr.left, ft: fr.top, fr: fr.right, fb: fr.bottom, vw: innerWidth, vh: innerHeight, bg: c.backgroundColor, ring: c.boxShadow, pe: c.pointerEvents,
             hit: document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.closest('#tia-btn') === f }; }"""
         for scheme, width in [("light", 390), ("dark", 390), ("light", 320), ("dark", 320)]:
             print(f"== Tía's circle badge + her chat header ({scheme}, {width} px)")
@@ -156,11 +156,12 @@ async def main():
             await pg.goto(BASE + "/"); await ready(pg); await pg.wait_for_timeout(1000)
             g = await pg.evaluate(BADGE)
             check(g["text"] == "⚙️" and g["hidden"] == "true", f"{scheme} {width}: a ⚙️ badge on Tía's circle (decorative, aria-hidden)")
-            check(26 <= g["w"] <= 34 and g["l"] < g["fl"] and g["t"] < g["ft"] and g["r"] <= g["vw"], f"{scheme} {width}: badge sits on the circle's top-left edge ({g['w']:.0f} px)")
+            check(26 <= g["w"] <= 34 and g["r"] > g["fr"] and g["b"] > g["fb"] and g["l"] > (g["fl"] + g["fr"]) / 2 and g["t"] > (g["ft"] + g["fb"]) / 2, f"{scheme} {width}: badge sits on the circle's bottom-right edge ({g['w']:.0f} px)")
+            check(g["l"] >= 0 and g["t"] >= 0 and g["r"] <= g["vw"] - 2 and g["b"] <= g["vh"] - 2, f"{scheme} {width}: badge stays inside the screen (right {g['vw'] - g['r']:.0f}px, bottom {g['vh'] - g['b']:.0f}px from the edges)")
             check(g["bg"] == "rgb(255, 255, 255)" and "0, 201, 205" in g["ring"], f"{scheme} {width}: white badge, turquoise ring ({g['bg']}, {g['ring'][:30]})")
             check(g["pe"] == "none" and g["hit"], f"{scheme} {width}: tapping the badge is tapping Tía")
             if scheme == "light" and width == 390:
-                bx = await pg.evaluate("(() => { const f = document.querySelector('#tia-btn').getBoundingClientRect(); return { x: f.left - 18, y: f.top - 18, width: f.width + 30, height: f.height + 30 }; })()")
+                bx = await pg.evaluate("(() => { const f = document.querySelector('#tia-btn').getBoundingClientRect(); return { x: f.left - 16, y: f.top - 16, width: Math.min(f.width + 32, innerWidth - f.left + 16), height: Math.min(f.height + 32, innerHeight - f.top + 16) }; })()")
                 await pg.screenshot(path=os.path.join(OUT, "tia-circle-badge.png"), clip=bx, scale="device")
             bad = await pg.evaluate(SCAN, "#tia-btn"); check(not bad, f"{scheme} {width}: no yellow on Tía's circle ({bad[:3]})")
             await pg.click("#tia-btn"); await pg.click("#tia-menu-chat"); await pg.wait_for_timeout(900)
