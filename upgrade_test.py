@@ -35,6 +35,17 @@ def stop(p):
     except Exception: p.kill()
 
 async def tab_check(pg, errs, label, shots=False):
+    # An old page may reload itself onto the new build in the middle of the check (the expected
+    # auto-update). That destroys the JS context; wait for the new page and check it instead.
+    for attempt in range(3):
+        try:
+            return await _tab_check(pg, errs, label, shots)
+        except Exception as e:
+            if "Execution context was destroyed" not in str(e) or attempt == 2: raise
+            print(f"  ({label}: page reloaded itself mid-check; re-checking the reloaded page)")
+            await pg.wait_for_load_state("load")
+
+async def _tab_check(pg, errs, label, shots=False):
     try: await pg.wait_for_function("() => window.__chisme && window.__chisme.ready", timeout=60000)
     except Exception: print("  (page never reported ready)")
     await pg.wait_for_timeout(1500)

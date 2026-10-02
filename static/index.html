@@ -36,6 +36,41 @@
       if (fs) d.style.setProperty("--fs", fs + "px");
       if (rm === "1") d.classList.add("reduce-motion");
     })();
+    /* v48 safety net: if Chisme hasn't started 8 s after opening (a script that never arrived or crashed, an old cache,
+       a sleeping server), a friendly full-screen card says so with one big button that clears the saved app files and
+       reloads. Inline styles: it works even when style.css never loaded. It goes away by itself if the app starts after
+       all. Also gives the header and tab bar back if a full-screen game's class outlived the game. */
+    (function () {
+      var card = null, t0 = Date.now();
+      function stuck() {
+        var d = document.documentElement, bf = document.getElementById("boot-fail");
+        if (d.classList.contains("game-fs") && !document.querySelector(".game-stage.gfs")) d.classList.remove("game-fs");
+        if (bf && !bf.hidden) return false;   // the older "didn't start properly" card is already showing
+        return !window.__chismeBooted;
+      }
+      function reloadClean() {
+        var go = function () { try { sessionStorage.removeItem("chisme-boot-retry"); } catch (e) {} location.reload(); };
+        var b = document.getElementById("wake-reload"); if (b) { b.disabled = true; b.textContent = "Reloading…"; }
+        try { if (window.caches && caches.keys) { caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k); })); }).then(go, go); setTimeout(go, 3000); return; } } catch (e) {}
+        go();
+      }
+      function show() {
+        if (card || !document.body) return;
+        card = document.createElement("div"); card.id = "wake"; card.setAttribute("role", "alert");
+        card.style.cssText = "position:fixed;inset:0;z-index:9000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;box-sizing:border-box;text-align:center;"
+          + "background:#000 linear-gradient(90deg,#00C9CD 0 33.3%,#EF426F 33.3% 66.6%,#FF8200 66.6% 100%) top/100% 8px no-repeat;color:#fff;font:600 18px/1.35 system-ui,-apple-system,Roboto,sans-serif";
+        card.innerHTML = '<div style="font-size:52px;line-height:1" aria-hidden="true">☕</div>'
+          + '<p style="margin:0;font-size:26px;font-weight:900">Chisme is waking up…</p>'
+          + '<p style="margin:0;max-width:22em;color:#c4ced4">It\'s taking longer than usual. Tap below to reload a fresh copy.</p>'
+          + '<button type="button" id="wake-reload" style="min-height:56px;min-width:240px;padding:0 24px;border:3px solid #fff;border-radius:16px;background:#00C9CD;color:#000;font:900 20px system-ui,-apple-system,Roboto,sans-serif;box-shadow:0 4px 0 #EF426F;cursor:pointer">Tap to reload</button>';
+        document.body.appendChild(card);
+        document.getElementById("wake-reload").onclick = reloadClean;
+        var poll = setInterval(function () { if (window.__chismeBooted) { clearInterval(poll); if (card) { card.remove(); card = null; } } }, 1000);
+      }
+      window.__chismeWake = { check: function () { if (stuck()) show(); }, get shown() { return !!card; }, reload: reloadClean };
+      setTimeout(window.__chismeWake.check, 8000);
+      document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible" && Date.now() - t0 > 8000) setTimeout(window.__chismeWake.check, 1500); });
+    })();
   </script>
 </head>
 <body>

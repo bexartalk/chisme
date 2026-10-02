@@ -1139,13 +1139,22 @@
     };
     const onKeyUp = (e) => { if (e.code === "Space" || e.key === "ArrowUp") release(); };
     const onWin = () => { if (!fs.on) fit(); };
+    // v48: Android drops a canvas's pixels while the app is in the background (the GPU process is reclaimed; Chrome
+    // restores the canvas blank and fires "contextrestored"). A paused or idle game never redrew it, so the app came
+    // back to an empty dark screen. Redraw whenever the canvas comes back or the page is shown again.
+    const repaint = () => { if (!el.isConnected) return; cache = {}; fit(); if (!raf) draw(); };
+    const onShow = () => { if (document.visibilityState === "visible") repaint(); };
+    cv.addEventListener("contextrestored", repaint);
+    document.addEventListener("visibilitychange", onShow); root.addEventListener("pageshow", repaint);
     document.addEventListener("keydown", onKey); document.addEventListener("keyup", onKeyUp); root.addEventListener("resize", onWin);
     stats(); ctrl(); title();
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { cache = {}; if (!raf) draw(); }).catch(() => {});
     return {
       pause, resume, jump,
       fs, exitFullscreen: (quiet) => fs.exit(quiet),
-      destroy() { fs.exit(true); cancelAnimationFrame(raf); document.removeEventListener("keydown", onKey); document.removeEventListener("keyup", onKeyUp); root.removeEventListener("resize", onWin); el.removeEventListener("click", onAct); cache = {}; },
+      destroy() { fs.exit(true); cancelAnimationFrame(raf); document.removeEventListener("keydown", onKey); document.removeEventListener("keyup", onKeyUp); root.removeEventListener("resize", onWin); el.removeEventListener("click", onAct);
+        document.removeEventListener("visibilitychange", onShow); root.removeEventListener("pageshow", repaint); cache = {}; },
+      repaint,
       get state() { return { oopsMsg, msg, mode, level, name: L().name, outfit: L().outfit, x: hero.x, y: hero.y, ground: hero.ground, score, ck, best: st.best, muted: st.muted, boost: hero.boost, health: hero.health, beers: beersGot, shield: hero.shield, fuera: fueraT > 0, fueras, caught: caughtN, caughtBy,
         chase: ents.some((e) => e.t === "chaser" && e.st === "chase"),
         levelMax: st.levelMax, parallax: !reduced(), overlay: ov.textContent.trim(), fullscreen: fs.on, W: VW, H: VH, dpr, cssW, backing: [cv.width, cv.height], fx: fx.length, fxMade }; },

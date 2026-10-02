@@ -1,7 +1,7 @@
 /* Chisme — frontend (location-aware) */
 // Build of this file. Must equal the number in sw.js VERSION ("chisme-v22"); the page compares it
 // with the build the HTML was served for and reloads once if an old cached app.js got mixed in.
-window.CHISME_APP_BUILD = "47";
+window.CHISME_APP_BUILD = "48";
 (() => {
   "use strict";
   const WEATHER_MS = 10 * 60 * 1000;
@@ -2536,7 +2536,9 @@ window.CHISME_APP_BUILD = "47";
   const juegosPause = () => { if (juegos) juegos.pause(); };
   window.addEventListener("chisme-game-play", (e) => Stats.ev("game", String(e.detail || "game").slice(0, 24)));   // juegos.js / juan.js: a game started
   const juegosLeave = () => { if (juegos) (juegos.leave || juegos.pause)(); };   // another tab: drop full-screen play too
-  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") juegosPause(); });
+  // v48: leaving the app also leaves a full-screen game (paused, back in the Juegitos page with ▶ Resume), so reopening
+  // Chisme never lands on a bare full-screen game with the header and tab bar hidden.
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") juegosLeave(); });
   const GAP = 24;
   const track = $("#track"), viewsEl = $("#views"), tabsEl = $("#tabs");
   const panes = VIEWS.map((v) => $("#view-" + v));

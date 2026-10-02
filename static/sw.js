@@ -1,7 +1,7 @@
 /* Chisme service worker: caches the app shell and the last-loaded news/weather
    so the app opens instantly (and shows the last saved data) even when the server is asleep
    or there's no connection. */
-const VERSION = "chisme-v47";
+const VERSION = "chisme-v48";
 const BUILD = VERSION.replace("chisme-v", "");          // index.html asks for app.js?v=<BUILD>
 const SHELL_CACHE = `${VERSION}-shell`;
 const DATA_CACHE = `${VERSION}-data`;
@@ -123,7 +123,7 @@ async function staticCacheFirst(request) {
   const u = new URL(request.url);
   // Exact match (query included): app.js?v=22 never gets an older build's copy.
   const hit = await cache.match(request);
-  if (hit && (SHELL.includes(u.pathname + u.search) || ART.includes(u.pathname))) return ranged(request, hit);
+  if (hit && (SHELL.includes(u.pathname + u.search) || ART.includes(u.pathname) || ART.includes(u.pathname + u.search))) return ranged(request, hit);   // (v48: + Tía's ?art=N files)
   const net = fetch(request, { cache: "no-cache" }).then((resp) => {
     if (ours(resp) && resp.status === 200) cache.put(request, resp.clone()).catch(() => {});   // never a partial (206) copy
     return resp;
