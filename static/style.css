@@ -904,6 +904,22 @@ html.feed-open,html.feed-open body{overflow:hidden}
 .set-alerts .switch{margin:10px 0 0}
 .set-alerts #set-push{min-height:48px}
 .set-alerts #set-push-test{margin-top:10px}
+/* v49.7: the notification toggles + "Send a test" look like the other Settings pills ("Open Chisme to"): white, 2px black border, 12px round, 900 weight;
+   on = black with a ✓ (dark: turquoise), off = white with an empty ring. The real checkbox (role=switch) stays on top, invisible, so taps / keys / screen readers work as before. */
+.set-alerts .switch{position:relative;display:flex;min-height:48px;gap:0}
+.set-alerts .switch input{position:absolute;inset:0;width:100%;height:100%;opacity:0;margin:0;border:0;border-radius:12px;background:none;z-index:1}
+.set-alerts .switch input::after{content:none}
+.set-alerts .switch > span{flex:1;display:flex;align-items:center;gap:.5em;min-height:48px;padding:.35em .8em;border:2px solid var(--ink);border-radius:12px;
+  font-weight:900;font-size:.9rem;line-height:1.25;background:var(--card);color:var(--ink);text-align:left}
+.set-alerts .switch > span::before{content:"";flex:0 0 auto;width:20px;height:20px;border:2px solid var(--ink);border-radius:50%;box-sizing:border-box;display:flex;align-items:center;justify-content:center;font-size:.85rem}
+.set-alerts .switch input:checked + span{background:var(--ink);color:var(--card);box-shadow:inset 0 -5px 0 var(--turq)}
+.set-alerts .switch input:checked + span::before{content:"✓";border:0;width:auto;height:auto;font-size:1rem}
+.set-alerts .switch input:focus-visible + span{outline:4px solid var(--focus);outline-offset:2px}
+.set-alerts .switch input:disabled{cursor:not-allowed}
+.set-alerts .switch input:disabled + span{opacity:.55}
+.set-alerts #set-push-test{display:flex;align-items:center;justify-content:center;width:100%;min-height:48px;border:2px solid var(--ink);border-radius:12px;font-weight:900;font-size:.9rem;background:var(--card);color:var(--ink)}
+.set-alerts #set-push-test[hidden]{display:none}
+[data-theme="dark"] .set-alerts .switch input:checked + span{background:var(--turq);color:#000;border-color:var(--turq);box-shadow:inset 0 -5px 0 #000}
 /* ---------- in-app reader (v27): every outside link opens inside Chisme; "Open original" is small, secondary, last */
 .player-orig{margin:16px 0 0;padding-top:10px;border-top:1px solid var(--line);font-size:.85rem;text-align:center}
 .player-orig[hidden],#player-orig[hidden]{display:none}

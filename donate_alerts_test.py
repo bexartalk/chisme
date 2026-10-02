@@ -231,6 +231,10 @@ async def chromium_part(p):
       let sc = g.parentElement; while (sc && sc.scrollHeight <= sc.clientHeight + 1) sc = sc.parentElement;
       if (sc) sc.scrollTop -= 96; })()"""); await pg.wait_for_timeout(400)
     await pg.screenshot(path=os.path.join(OUT, "alerts-settings.png"))
+    # v49.7: the notification toggles are pills like "Open Chisme to" (on = black ✓): both in one shot
+    await pg.evaluate("""(() => { const g = document.querySelector('#set-alerts'), o = g.previousElementSibling; let sc = g.parentElement;
+      while (sc && sc.scrollHeight <= sc.clientHeight + 1) sc = sc.parentElement; if (sc) sc.scrollTop += o.getBoundingClientRect().top - 110; })()"""); await pg.wait_for_timeout(400)
+    await pg.screenshot(path=os.path.join(OUT, "settings-notifications.png"))
     # 4. Send a test → the server encrypts + signs → our mock push service → decrypted with the phone's key
     n0 = len(got); await pg.tap("#set-push-test")
     await pg.wait_for_function("document.querySelector('#set-push-note').textContent.startsWith('Test sent')", timeout=20000); await asyncio.sleep(0.3)
