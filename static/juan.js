@@ -717,12 +717,18 @@
         <button type="button" id="juan-sound" class="lot-btn" aria-pressed="true"></button>
       </div>
       <div class="lot-rules juan-rules">${howList("juan-how-page")}</div>
-      <p class="lot-stats" id="juan-stats"></p>`;
+      <p class="lot-stats" id="juan-stats"></p>
+      <section class="juan-hs" id="juan-hs" aria-labelledby="juan-hs-t">
+        <h3 class="juan-hs-t" id="juan-hs-t"><span aria-hidden="true">🏆</span> Top 10</h3>
+        <ol class="juan-hs-list" id="juan-hs-list" aria-live="polite"></ol>
+        <p class="juan-hs-note" id="juan-hs-note" hidden></p>
+      </section>`;
     const cv = el.querySelector("#juan-cv"), g = cv.getContext("2d", { alpha: false }), ov = el.querySelector("#juan-ov"), wrap = el.querySelector(".juan-wrap"), $ = (s) => el.querySelector(s);
     const HAT = `<svg class="gfs-juan-hat" viewBox="0 0 32 20" aria-hidden="true" focusable="false"><path d="M4 15a12 12 0 0 1 24 0z" fill="#fff"/><rect x="1" y="14" width="30" height="4" rx="2" fill="#e1e6ea"/><rect x="14.5" y="3.4" width="3" height="11" rx="1.2" fill="#c9d0d8"/></svg>`;
     const FS = root.ChismeJuegos && root.ChismeJuegos.fullscreen;
+    // v49.5: leaving full screen (✕ / Escape) with points ends the run → the Top 10 sheet if the score makes it
     const fs = FS ? FS(el, { title: "The Juan That Got Away", badgeClass: "gfs-juan", badge: `${HAT}<span class="gfs-juan-t" aria-hidden="true">The Juan <b>That Got Away</b></span>`,
-      onEnter: () => fit(), onResize: () => fit(), onExit: () => { pause(); fit(); }, onLeave: () => { pause(); fit(); } }) : { enter() {}, exit() {}, on: false };
+      onEnter: () => fit(), onResize: () => fit(), onExit: () => { const m = mode, sc = score, lv = level; pause(); fit(); if (["run", "oops", "paused", "clear", "win"].includes(m) && sc > 0) offer(sc, lv); }, onLeave: () => { pause(); fit(); } }) : { enter() {}, exit() {}, on: false };
     // ---- sound: small WebAudio blips (🔇 mutes)
     let ac = null;
     const audio = () => { if (!ac) { const A = window.AudioContext || window.webkitAudioContext; if (A) try { ac = new A(); } catch (e) {} } if (ac && ac.state === "suspended") ac.resume(); return ac; };
@@ -778,6 +784,7 @@
     }
     function startLevel(n, keepScore) {
       if (n !== level) cache = {};
+      if (!keepScore) run = { sent: false, offered: 0 };   // v49.5: a fresh run (its score can go on the board once)
       level = n; ck = 0; paused = false; if (!keepScore) ckScore = 0; if (n === 1 && !keepScore) beersGot = 0; spawn(0); mode = "run"; overlay(null); fs.enter(); fit();
       $("#juan-note").textContent = `Level ${n}: ${L().name}. ${L().hint}`; loop(); ctrl();
     }
@@ -868,6 +875,7 @@
         mode = "win"; st.wins++; st.levelMax = LEVELS.length; st.beers = Math.max(st.beers || 0, beersGot); save(st); stats();
         if (!reduced()) for (let i = 0; i < 120; i++) parts.push({ x: Math.random() * VW, y: -Math.random() * VH, vy: 40 + Math.random() * 70, vx: Math.random() * 30 - 15, r: Math.random() * 6, c: ["#00b8b0", "#ff3d8b", "#ff8a00", "#c9d0d8", "#ffffff"][i % 5] });
         overlay(`<p class="juan-big">¡Salud, Juan!</p><p class="juan-win-line">The Juan That Got Away made it to Noche Caliente. Cold beers with the crew. <span lang="es">¡Ya es viernes!</span></p><p class="juan-win-score">Final score <b>${score}</b></p><button type="button" class="lot-btn lot-main" data-act="again">▶ Play again</button>`, "win");
+        const final = score; setTimeout(() => { if (el.isConnected) offer(final, LEVELS.length); }, reduced() ? 600 : 1800);   // v49.5: the run's done → the board?
         $("#juan-note").innerHTML = `🎉 <span lang="es">¡Órale!</span> Friday shift done. The Juan that got away made it to Noche Caliente for cold beers with the crew. <span lang="es">¡Salud!</span> <span class="juan-score">Final score <b>${score}</b> · Best <b>${st.best}</b></span> <button type="button" class="lot-btn lot-main" data-act="again">▶ Play again</button>`;
         return;
       }
@@ -1119,6 +1127,97 @@
       const s = $("#juan-sound");
       s.innerHTML = `<span aria-hidden="true">${st.muted ? "🔇" : "🔊"}</span><span class="juan-lbl"> Sound</span>`; s.setAttribute("aria-label", st.muted ? "Sound is off" : "Sound is on"); s.setAttribute("aria-pressed", st.muted ? "false" : "true");
     }
+    // ---- v49.5 🏆 Top 10 (server board, GET/POST /api/juan/scores). The last board is kept on the phone, so it still shows
+    // offline; a name saved offline waits on the phone and goes up when the phone is back online. A run ends when Juan makes
+    // it to Noche Caliente, or when you leave the game (✕ / Escape) with points; if the score makes the Top 10 a sheet asks
+    // for a name (12 max), Save posts it, then the board refreshes with the new row highlighted.
+    const HS_CACHE = "chisme-juan-board", HS_PENDING = "chisme-juan-pending", HS_NAME = "chisme-juan-name";
+    const lsGet = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k) || "null"); return v == null ? d : v; } catch (e) { return d; } };
+    const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+    const escH = (x) => String(x).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    const fmt = (n) => Number(n || 0).toLocaleString("en-US");
+    let board = lsGet(HS_CACHE, null), boardLive = false, hiId = null, run = { sent: false, offered: 0 }, hsDlg = null;
+    const pendingRows = () => lsGet(HS_PENDING, []).map((p, i) => ({ id: "pending-" + i, name: p.name, score: p.score, level: p.level, t: p.t, pending: true }));
+    const merged = () => [...((board && board.scores) || []), ...pendingRows()].sort((a, b) => b.score - a.score || a.t - b.t).slice(0, 10);
+    const listHTML = (rows, hi) => rows.length ? rows.map((r, i) => `<li class="juan-hs-row${r.id === hi ? " me" : ""}${r.pending ? " pending" : ""}"><span class="rk rk${i + 1}">${i + 1}</span><span class="nm">${escH(r.name)}${r.pending ? ' <small>📴 waiting</small>' : ""}</span><span class="sc">${fmt(r.score)}</span></li>`).join("")
+      : `<li class="juan-hs-empty">Be the first on the board!</li>`;
+    function drawBoard() {
+      const list = $("#juan-hs-list"), note = $("#juan-hs-note"); if (!list) return;
+      const rows = merged();
+      if (!board && !rows.length && !navigator.onLine) list.innerHTML = `<li class="juan-hs-empty">📴 You're offline. The board shows up when you're back online.</li>`;
+      else list.innerHTML = listHTML(rows, hiId);
+      const off = !boardLive && board;
+      note.hidden = !off; note.textContent = off ? "📴 Offline: the last board this phone saw." : "";
+    }
+    async function loadBoard() {
+      try { const r = await fetch("/api/juan/scores", { cache: "no-store" }); const d = await r.json(); if (!r.ok || !d.ok) throw new Error("board");
+        board = { scores: d.scores || [], at: Date.now() }; boardLive = true; lsSet(HS_CACHE, board); }
+      catch (e) { boardLive = false; }
+      drawBoard(); return merged();
+    }
+    async function postScore(e) {
+      const r = await fetch("/api/juan/scores", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(e) });
+      const d = await r.json().catch(() => ({})); return { status: r.status, ...d };
+    }
+    async function flushPending() {
+      const left = []; let last = null;
+      for (const p of lsGet(HS_PENDING, [])) { try { const d = await postScore(p); if (d.ok) last = d.id; else if (d.status === 429) left.push(p); } catch (e) { left.push(p); } }   // 400 = a bad score: dropped
+      lsSet(HS_PENDING, left); if (last) hiId = last; return last;
+    }
+    const makes = (sc, rows) => sc > 0 && (rows.length < 10 || sc > rows[rows.length - 1].score);
+    let offering = false;
+    async function offer(sc, lvl) {
+      if (offering || hsDlg || run.sent || sc <= run.offered || sc <= 0) return false;
+      offering = true; let rows;
+      try { rows = navigator.onLine ? await loadBoard() : merged(); } finally { offering = false; }
+      if (!makes(sc, rows) || hsDlg || !el.isConnected) return false;
+      run.offered = sc; openSheet(sc, Math.max(1, Math.min(LEVELS.length, lvl)), rows.filter((r) => r.score >= sc).length + 1);
+      return true;
+    }
+    function openSheet(sc, lvl, rank) {
+      if (hsDlg) hsDlg.remove();
+      const d = document.createElement("dialog"); d.className = "juan-hs-sheet"; d.setAttribute("aria-labelledby", "juan-hs-big");
+      d.innerHTML = `<form method="dialog" class="juan-hs-card" novalidate>
+        <p class="juan-hs-big" id="juan-hs-big"><span aria-hidden="true">🏆</span> New high score!</p>
+        <p class="juan-hs-sub">Put your name on the board</p>
+        <p class="juan-hs-score"><b>${fmt(sc)}</b> points · <span class="juan-hs-rank">#${rank}</span></p>
+        <label class="juan-hs-lbl" for="juan-hs-name">Your name <small>(12 max)</small></label>
+        <input id="juan-hs-name" class="juan-hs-in" type="text" maxlength="12" autocomplete="nickname" autocapitalize="words" enterkeyhint="done" spellcheck="false" placeholder="Your name" value="${escH(lsGet(HS_NAME, ""))}">
+        <button type="submit" class="juan-hs-save" value="save">Save</button>
+        <button type="button" class="juan-hs-skip">Not now</button>
+        <p class="juan-hs-msg" role="status"></p></form>`;
+      document.body.appendChild(d); hsDlg = d;
+      const inp = d.querySelector("input"), btn = d.querySelector(".juan-hs-save"), msgEl = d.querySelector(".juan-hs-msg");
+      const close = () => { if (d.open) d.close(); d.remove(); if (hsDlg === d) hsDlg = null; };
+      d.querySelector(".juan-hs-skip").onclick = close;
+      d.addEventListener("cancel", (e) => { e.preventDefault(); close(); });
+      d.querySelector("form").addEventListener("submit", async (e) => {
+        e.preventDefault(); if (btn.disabled) return;
+        const name = inp.value.replace(/\s+/g, " ").trim().slice(0, 12) || "Juan"; lsSet(HS_NAME, name === "Juan" ? lsGet(HS_NAME, "") : name);
+        const entry = { name, score: sc, level: lvl, t: Math.floor(Date.now() / 1000) };
+        btn.disabled = true; btn.textContent = "Saving…"; msgEl.textContent = "";
+        let res = null; try { res = await postScore(entry); } catch (err) { res = null; }
+        if (res && res.ok) { run.sent = true; hiId = res.id; await loadBoard(); done(d, `You're <b>#${res.rank || "?"}</b> on the board!`); return; }
+        if (!res) {   // offline / no network: keep it on the phone, it goes up later
+          const q = lsGet(HS_PENDING, []); q.push(entry); lsSet(HS_PENDING, q.slice(-5)); run.sent = true; hiId = "pending-" + (Math.min(q.length, 5) - 1); drawBoard();
+          done(d, "📴 Saved on this phone. It goes on the board when you're back online."); return; }
+        btn.disabled = false; btn.textContent = "Save";
+        msgEl.textContent = res.status === 429 ? "Too many tries. Wait a minute and tap Save again." : "That score can't go on the board.";
+      });
+      d.showModal(); setTimeout(() => { try { inp.focus(); inp.select(); } catch (e) {} }, 60);
+    }
+    function done(d, line) {
+      const card = d.querySelector(".juan-hs-card");
+      card.innerHTML = `<p class="juan-hs-big" id="juan-hs-big"><span aria-hidden="true">🎉</span> ¡Órale!</p><p class="juan-hs-sub">${line}</p>
+        <ol class="juan-hs-list in-sheet">${listHTML(merged(), hiId)}</ol><button type="submit" class="juan-hs-save" value="done">Done</button>`;
+      drawBoard();
+      card.querySelector(".juan-hs-save").focus();
+      card.onsubmit = (e) => { e.preventDefault(); if (d.open) d.close(); d.remove(); if (hsDlg === d) hsDlg = null; const me = $("#juan-hs .me"); if (me && me.scrollIntoView) me.scrollIntoView({ block: "center", behavior: reduced() ? "auto" : "smooth" }); };
+    }
+    const onOnline = () => { flushPending().then(() => loadBoard()); };
+    root.addEventListener("online", onOnline);
+    drawBoard(); (lsGet(HS_PENDING, []).length && navigator.onLine ? flushPending() : Promise.resolve()).then(() => loadBoard());
+
     // ---- input: tap / click the game, the Jump button, Space / ↑ / W
     cv.addEventListener("pointerdown", (e) => { e.preventDefault(); jump(); });
     cv.addEventListener("pointerup", release);
@@ -1155,7 +1254,8 @@
       pause, resume, jump,
       fs, exitFullscreen: (quiet) => fs.exit(quiet),
       destroy() { fs.exit(true); cancelAnimationFrame(raf); document.removeEventListener("keydown", onKey); document.removeEventListener("keyup", onKeyUp); root.removeEventListener("resize", onWin); el.removeEventListener("click", onAct);
-        document.removeEventListener("visibilitychange", onShow); root.removeEventListener("pageshow", repaint); cache = {}; },
+        document.removeEventListener("visibilitychange", onShow); root.removeEventListener("pageshow", repaint); root.removeEventListener("online", onOnline); if (hsDlg) hsDlg.remove(); cache = {}; },
+      hs: { loadBoard, offer, flushPending, get rows() { return merged(); }, get live() { return boardLive; }, get hi() { return hiId; }, get run() { return { ...run }; } },   // v49.5 (tests)
       repaint,
       get state() { return { oopsMsg, msg, mode, level, name: L().name, outfit: L().outfit, x: hero.x, y: hero.y, ground: hero.ground, score, ck, best: st.best, muted: st.muted, boost: hero.boost, health: hero.health, beers: beersGot, shield: hero.shield, fuera: fueraT > 0, fueras, caught: caughtN, caughtBy,
         chase: ents.some((e) => e.t === "chaser" && e.st === "chase"),

@@ -1,6 +1,6 @@
 """v49.5: The Juan That Got Away high scores (server side) + the owner's manager.
 
-Public:  GET  /api/juan/scores           → the top 10 {id, name, score, level, t}
+Public:  GET  /api/juan/scores           → the top 10 {id, name, score, level, t} (+ "max": the highest possible score)
          POST /api/juan/scores {name, score, level} → saves one (name: trimmed, at most 12 characters, nothing else
                                                       filtered, per the owner; empty → "Juan")
 Owner (the same sign-in as /stats: the /stats cookie, or Authorization: Bearer ADMIN_TOKEN):
@@ -21,7 +21,15 @@ import stats
 
 KEY = "chisme:juan:scores"
 NAME_MAX = 12
-SCORE_MAX = 10_000_000
+# v49.5 sanity check: the most points a level can give if Juan grabs, hops and dizzies EVERYTHING (counted from the game's
+# seeded layouts in static/juan.js: concha 10, beer 15, coffee/taco/flip-flops 50, a hazard hopped 25, an agent hopped 50 +
+# dizzied 100, an SUV's chaser 300, +500 for clearing the level). A run that ends on level L can't beat levels 1..L added
+# up; we allow 10% on top (rounded up to 100) and every score is a multiple of 5. admin_highscores_test re-counts these
+# from the game, so a game change that gives more points fails the test until this table is updated.
+LEVEL_PTS = (1630, 2705, 1775, 1690, 2260, 2425)
+LEVELS = len(LEVEL_PTS)
+MAX_BY_LEVEL = tuple(-(-int(sum(LEVEL_PTS[:i + 1]) * 1.1) // 100) * 100 for i in range(LEVELS))
+SCORE_MAX = MAX_BY_LEVEL[-1]
 KEEP = 500          # the board keeps the best 500; lower ones are dropped
 TOP = 10
 
@@ -38,8 +46,8 @@ def clean_entry(body: dict) -> dict | None:
         level = int(body.get("level") or 1)
     except (TypeError, ValueError):
         return None
-    if not (0 < score <= SCORE_MAX) or not (1 <= level <= 6):
-        return None
+    if not (1 <= level <= LEVELS) or not (0 < score <= MAX_BY_LEVEL[level - 1]) or score % 5:
+        return None   # impossible for the game: more than levels 1..level can give, or not a multiple of 5
     return {"name": clean_name(body.get("name")) or "Juan", "score": score, "level": level, "t": int(time.time())}
 
 

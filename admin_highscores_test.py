@@ -1,5 +1,7 @@
 """v49.5: the owner's 🏆 Juan High Scores manager on /stats + the score endpoints.
   • public: POST /api/juan/scores trims the name and keeps 12 characters (no word filter); GET returns the top 10
+  • v49.5 sanity check: scores the game can't give are refused (over levels 1..L's maximum, re-counted here from juan.js's
+    seeded levels; not a multiple of 5; a level that doesn't exist)
   • owner only (the /stats sign-in): GET /stats/juan/scores, DELETE + PATCH /api/juan/scores/{id} (+ /stats/juan/...
     aliases that get the cookie), POST .../clear {confirm:"CLEAR"}; without the cookie or the Bearer ADMIN_TOKEN → 401
   • the page (WebKit iPhone 13, 390 + 320 px): a folded "🏆 Juan High Scores" section listing every score best first,
@@ -25,7 +27,7 @@ def check(ok, what):
     global fails
     print(("  ok   " if ok else "  FAIL ") + what); fails += not ok
 
-SEED = [("Goonie", 48210, 6), ("La Tía", 39150, 5), ("Juanito", 27400, 4), ("Ictunis", 18800, 3), ("Mija", 9050, 2), ("Compa", 4100, 1)]
+SEED = [("Goonie", 12340, 6), ("La Tía", 10125, 6), ("Juanito", 7450, 5), ("Ictunis", 5800, 4), ("Mija", 3950, 3), ("Compa", 1650, 1)]   # v49.5: real, possible scores
 def seed():
     now = int(time.time())
     json.dump({f"seed{i}": {"name": n, "score": sc, "level": lv, "t": now - i * 3600} for i, (n, sc, lv) in enumerate(SEED)}, open(FILE, "w"))
@@ -35,14 +37,14 @@ async def main():
     print("== the endpoints")
     async with httpx.AsyncClient(base_url=BASE, timeout=20) as c:
         open(FILE, "w").write("{}")
-        r = (await c.post("/api/juan/scores", json={"name": "   pinche   cabrón chingón ", "score": 777, "level": 2}, headers={"X-Forwarded-For": "10.9.9.1"})).json()
+        r = (await c.post("/api/juan/scores", json={"name": "   pinche   cabrón chingón ", "score": 775, "level": 2}, headers={"X-Forwarded-For": "10.9.9.1"})).json()
         check(r["ok"] and r["entry"]["name"] == "pinche cabró", f"name trimmed + cut to 12 characters, no word filter ({r['entry']['name']!r})")
         r2 = (await c.post("/api/juan/scores", json={"name": "", "score": 5, "level": 1}, headers={"X-Forwarded-For": "10.9.9.1"})).json()
         check(r2["ok"] and r2["entry"]["name"] == "Juan", "an empty name → Juan")
         bad = await c.post("/api/juan/scores", json={"name": "x", "score": -3}, headers={"X-Forwarded-For": "10.9.9.1"})
         check(bad.status_code == 400, "a bad score is refused (400)")
         top = (await c.get("/api/juan/scores")).json()["scores"]
-        check([t["score"] for t in top] == [777, 5] and set(top[0]) == {"id", "name", "score", "level", "t"}, "GET /api/juan/scores: best first")
+        check([t["score"] for t in top] == [775, 5] and set(top[0]) == {"id", "name", "score", "level", "t"}, "GET /api/juan/scores: best first")
         sid = r["id"]
         for m, path, body in [("DELETE", f"/api/juan/scores/{sid}", None), ("PATCH", f"/api/juan/scores/{sid}", {"name": "x"}), ("POST", "/api/juan/scores/clear", {"confirm": "CLEAR"}),
                               ("GET", "/stats/juan/scores", None), ("DELETE", f"/stats/juan/scores/{sid}", None)]:
@@ -57,6 +59,20 @@ async def main():
         rr = await c.delete(f"/api/juan/scores/{sid}", headers=H); check(rr.status_code == 404, "deleting it again → 404")
         rr = await c.post("/api/juan/scores/clear", json={}, headers=H); check(rr.status_code == 400, "clear without confirm → 400")
         rr = await c.post("/api/juan/scores/clear", json={"confirm": "CLEAR"}, headers=H); check(rr.status_code == 200 and rr.json()["cleared"] == 1, "clear with confirm CLEAR empties the board")
+        # v49.5 sanity check: impossible scores for the game are refused
+        import juanscores, subprocess
+        js = "const J=require(%r);const o=[];for(let n=1;n<=J.LEVELS.length;n++){let s=500;for(const e of J.buildLevel(n)){const t=e.t;s+=t==='concha'?10:t==='beer'?15:['coffee','taco','flipflops'].includes(t)?50:t==='agent'?150:t==='suv'?300:J.HAZ[t]?25:0;}o.push(s);}console.log(JSON.stringify(o))" % os.path.join(HERE, "static", "juan.js")
+        game = json.loads(subprocess.check_output(["node", "-e", js]))
+        check(len(game) == juanscores.LEVELS and all(g <= t for g, t in zip(game, juanscores.LEVEL_PTS)), f"the server's per-level maximum covers everything the game's levels can give ({game} ≤ {list(juanscores.LEVEL_PTS)})")
+        mx = (await c.get("/api/juan/scores")).json().get("max")
+        check(mx == juanscores.SCORE_MAX == juanscores.MAX_BY_LEVEL[-1] and 12000 < mx < 20000, f"GET says the highest possible score ({mx})")
+        cases = [({"score": juanscores.MAX_BY_LEVEL[0] + 5, "level": 1}, 400, "more than level 1 can give"), ({"score": mx + 5, "level": 6}, 400, "more than the whole game can give"),
+                 ({"score": 1003, "level": 3}, 400, "not a multiple of 5"), ({"score": 500, "level": 7}, 400, "a level that doesn't exist"), ({"score": 10_000_000, "level": 6}, 400, "a silly big number"),
+                 ({"score": mx, "level": 6}, 200, "the very best possible run (all 6 levels)"), ({"score": juanscores.MAX_BY_LEVEL[0], "level": 1}, 200, "the best possible level-1 run")]
+        for i, (body, want, what) in enumerate(cases):
+            rr = await c.post("/api/juan/scores", json={"name": "Test", **body}, headers={"X-Forwarded-For": f"10.9.8.{i}"})
+            check(rr.status_code == want, f"sanity check: {what} ({body['score']} on level {body['level']}) → {rr.status_code}")
+        await c.post("/api/juan/scores/clear", json={"confirm": "CLEAR"}, headers=H)
     seed()
     async with async_playwright() as p:
         b = await p.webkit.launch(); errs = []
@@ -69,7 +85,7 @@ async def main():
             check("🏆 Juan High Scores" in summ and "6 scores" in summ and not await pg.evaluate("document.querySelector('#f-scores').open"), f"a folded '🏆 Juan High Scores' section ({summ.strip()!r})")
             await pg.click("#f-scores summary"); await pg.wait_for_timeout(300)
             rows = await pg.evaluate("[...document.querySelectorAll('#hs-list .hs-row')].map(li => [li.querySelector('.hs-name').value, li.querySelector('.hs-meta b').textContent])")
-            check([r[0] for r in rows] == [n for n, _, _ in SEED] and rows[0][1] == "48,210", f"every score, best first ({rows[:3]})")
+            check([r[0] for r in rows] == [n for n, _, _ in SEED] and rows[0][1] == "12,340", f"every score, best first ({rows[:3]})")
             sz = await pg.evaluate("""() => ({ small: [...document.querySelectorAll('#f-scores button, #f-scores input')].filter(e => e.offsetParent && e.getBoundingClientRect().height < 44).map(e => e.className),
                 wide: document.documentElement.scrollWidth - innerWidth, max: document.querySelector('.hs-name').maxLength })""")
             check(not sz["small"] and sz["wide"] <= 0 and sz["max"] == 12, f"{width}: 44 px+ buttons, no sideways scroll, names max 12 ({sz})")

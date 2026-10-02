@@ -2830,7 +2830,7 @@ def _juan_admin(request: Request, json_only: bool = True) -> bool:
 @app.get("/api/juan/scores")
 async def juan_scores(n: int = Query(10, ge=1, le=50)):
     try:
-        return JSONResponse({"ok": True, "scores": await juanscores.board(n)}, headers={"Cache-Control": "no-store"})
+        return JSONResponse({"ok": True, "scores": await juanscores.board(n), "max": juanscores.SCORE_MAX}, headers={"Cache-Control": "no-store"})
     except Exception as ex:
         return JSONResponse({"ok": False, "error": f"storage: {type(ex).__name__}", "scores": []}, status_code=503)
 

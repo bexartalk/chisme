@@ -1121,6 +1121,59 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
 [data-theme="dark"] .juan-how-page li:last-child{border-color:#ff3d8b}
 @media (max-width:360px){.juan-how li{font-size:.94em;padding:.26em .5em;gap:.4em}.juan-how-page li{font-size:.92em}}
 @media (max-height:700px){.juan-how{gap:.3em}.juan-how li{padding:.28em .6em}}
+/* v49.5 🏆 Juan's Top 10: a Fiesta card at the bottom of the game screen (rank badge · name · score), big bold text; the
+   new row lights up turquoise with a pink edge. Hidden while the game is full screen. The new-high-score sheet is a <dialog>. */
+.juan-hs{margin:.7em 0 .4em;padding:.6em .6em .7em;border:3px solid #000;border-radius:16px;background:#fff;color:#000;box-shadow:0 4px 0 #000}
+.gfs .juan-hs{display:none}
+.juan-hs-t{margin:0 0 .4em;font-size:1.35rem;font-weight:900;letter-spacing:.01em;display:flex;align-items:center;gap:.35em}
+.juan-hs-t::after{content:"";flex:1;height:4px;border-radius:2px;background:linear-gradient(90deg,var(--pink),var(--orange),var(--turq))}
+.juan-hs-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
+.juan-hs-row{display:flex;align-items:center;gap:.55em;min-height:44px;padding:.25em .6em .25em .3em;border:2px solid #e3e6ea;border-radius:12px;font-size:1.12rem;font-weight:900;line-height:1.1}
+.juan-hs-row .rk{flex:none;width:1.9em;height:1.9em;display:grid;place-items:center;border-radius:50%;border:2px solid #000;background:#fff;font-size:.95rem;font-variant-numeric:tabular-nums}
+.juan-hs-row .rk1{background:var(--turq)} .juan-hs-row .rk2{background:var(--pink);color:#fff} .juan-hs-row .rk3{background:var(--orange)}
+.juan-hs-row .nm{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.juan-hs-row .nm small{font-size:.7em;font-weight:800;opacity:.75}
+.juan-hs-row .sc{flex:none;font-variant-numeric:tabular-nums;font-size:1.05em}
+.juan-hs-row.me{background:#d6f7f8;border-color:var(--pink);box-shadow:inset 6px 0 0 var(--pink);animation:hs-glow 1.2s ease-in-out 3}
+@keyframes hs-glow{50%{background:#a8eef0}}
+.juan-hs-empty{padding:.7em .4em;text-align:center;font-size:1.2rem;font-weight:900;color:#000;border:2px dashed var(--turq);border-radius:12px}
+.juan-hs-note{margin:.45em 0 0;font-size:.9rem;font-weight:800;opacity:.8}
+[data-theme="dark"] .juan-hs{background:#12161a;color:#fff;border-color:var(--turq);box-shadow:0 4px 0 #007f82}
+[data-theme="dark"] .juan-hs-row{border-color:#2c3a3e}
+[data-theme="dark"] .juan-hs-row .rk{border-color:#fff;background:#12161a;color:#fff}
+[data-theme="dark"] .juan-hs-row .rk1{background:var(--turq);color:#000;border-color:#000} [data-theme="dark"] .juan-hs-row .rk2{background:var(--pink);color:#fff;border-color:#000} [data-theme="dark"] .juan-hs-row .rk3{background:var(--orange);color:#000;border-color:#000}
+[data-theme="dark"] .juan-hs-row.me{background:#0d4446;border-color:var(--pink)}
+@keyframes hs-glow-d{50%{background:#136466}}
+[data-theme="dark"] .juan-hs-row.me{animation-name:hs-glow-d}
+[data-theme="dark"] .juan-hs-empty{color:#fff}
+dialog.juan-hs-sheet{width:min(94vw,380px);max-height:92dvh;margin:auto;padding:0;border:3px solid #000;border-radius:20px;background:#fff;color:#000;box-shadow:0 6px 0 #000;overflow:auto}
+dialog.juan-hs-sheet::backdrop{background:rgba(0,0,0,.6)}
+.juan-hs-card{display:flex;flex-direction:column;gap:.5em;padding:1.05em 1em 1em;text-align:center}
+.juan-hs-big{margin:0;font-size:1.75rem;font-weight:900;line-height:1.1;color:var(--pink);text-shadow:0 2px 0 #000;-webkit-text-stroke:.5px #000}
+.juan-hs-sub{margin:0;font-size:1.2rem;font-weight:900;line-height:1.2}
+.juan-hs-score{margin:.1em 0;font-size:1.05rem;font-weight:800}
+.juan-hs-score b{font-size:1.5em;font-weight:900;font-variant-numeric:tabular-nums}
+.juan-hs-rank{display:inline-block;padding:0 .45em;border-radius:999px;background:var(--turq);color:#000;font-weight:900;border:2px solid #000}
+.juan-hs-lbl{margin-top:.2em;font-size:1rem;font-weight:900;text-align:left}
+.juan-hs-lbl small{font-weight:700;opacity:.7}
+.juan-hs-in{width:100%;box-sizing:border-box;min-height:58px;padding:.2em .55em;border:3px solid #000;border-radius:14px;background:#fff;color:#000;font:inherit;font-size:1.45rem;font-weight:900;text-align:center}
+.juan-hs-in:focus{outline:4px solid var(--pink);outline-offset:1px}
+button.juan-hs-save{width:100%;min-height:60px;margin-top:.2em;border:3px solid #000;border-radius:16px;background:var(--turq);color:#000;font-size:1.5rem;font-weight:900;letter-spacing:.06em;text-transform:uppercase;box-shadow:0 4px 0 #000}
+button.juan-hs-save:active{transform:translateY(2px);box-shadow:0 2px 0 #000}
+button.juan-hs-save:disabled{opacity:.7}
+button.juan-hs-skip{min-height:44px;border:0;background:none;color:#000;font-size:1.05rem;font-weight:800;text-decoration:underline}
+.juan-hs-msg{margin:0;min-height:0;font-size:1rem;font-weight:800;color:#b3261e}
+.juan-hs-msg:empty{display:none}
+.juan-hs-list.in-sheet{text-align:left;margin:.2em 0}
+.juan-hs-list.in-sheet .juan-hs-row{font-size:1rem;min-height:40px}
+[data-theme="dark"] dialog.juan-hs-sheet{background:#12161a;color:#fff;border-color:var(--turq);box-shadow:0 6px 0 #007f82}
+[data-theme="dark"] .juan-hs-in{background:#0b1214;color:#fff;border-color:var(--turq)}
+[data-theme="dark"] button.juan-hs-save{background:var(--turq);color:#000;border-color:#000}
+[data-theme="dark"] button.juan-hs-skip{background:none;color:#fff;border:0}
+[data-theme="dark"] .juan-hs-msg{color:#ff8a7e}
+@media (max-width:360px){.juan-hs-row{font-size:1rem;gap:.45em}.juan-hs-t{font-size:1.2rem}.juan-hs-big{font-size:1.5rem}.juan-hs-sub{font-size:1.08rem}}
+.reduce-motion .juan-hs-row.me{animation:none}
+@media (prefers-reduced-motion:reduce){.juan-hs-row.me{animation:none}}
 .juan-btns{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:.35em!important}
 .juan-ov .lot-btn{border-color:#000}
 .juan-ov .lot-btn:not(.lot-main){background:#fff;color:#000}

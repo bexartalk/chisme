@@ -33,6 +33,12 @@ SPEECH = """(() => { window.__spoken = [];
   const fake = { speak(u) { __spoken.push({ text: u.text, lang: u.lang }); setTimeout(() => u.onend && u.onend(), 60); }, cancel() {}, getVoices() { return [{ lang: 'es-MX', name: 'Test es-MX' }, { lang: 'en-US', name: 'Test en-US' }]; }, addEventListener() {} };
   try { Object.defineProperty(window, 'speechSynthesis', { value: fake, configurable: true }); } catch (e) {}
   window.SpeechSynthesisUtterance = function (t) { this.text = t; }; })()"""
+# v49.5: Juan's 🏆 new-high-score sheet would pop up over these runs; the board they see is full of unbeatable scores
+# (the sheet itself is juan_highscores_test's job)
+FULL_BOARD = json.dumps({"ok": True, "max": 13800, "scores": [{"id": f"x{i}", "name": "Test", "score": 13800 - i * 5, "level": 6, "t": 1} for i in range(10)]})
+async def quiet_board(ctx):   # in the page (requests the service worker makes don't go through Playwright's routes)
+    await ctx.add_init_script("(() => { const F = window.fetch, B = %s; window.fetch = function (u, o) { return String(u).includes('/api/juan/scores') ? Promise.resolve(new Response(B, { status: 200, headers: { 'Content-Type': 'application/json' } })) : F.apply(this, arguments); }; })()" % json.dumps(FULL_BOARD))
+
 fails = 0
 def check(ok, what):
     global fails
@@ -72,7 +78,8 @@ out.kinds = [...new Set([1, 2, 3, 4, 5, 6].flatMap((n) => I.buildLevel(n).filter
 out.dmg = Object.fromEntries(Object.entries(I.HAZ).map(([k, v]) => [k, v[0]])); out.hp = I.HP;
 out.afterCheck = [1, 2, 3, 4, 5, 6].every((n) => I.buildLevel(n).every((e) => !(HZ.includes(e.t) || SOLID.includes(e.t)) || I.CHECKS.every((c) => !c || e.x + e.w < c - 40 || e.x > c + 60)));
 const fs = require("fs"), path = require("path"), src = fs.readFileSync(process.argv[1], "utf8") + fs.readFileSync(process.argv[2], "utf8") + fs.readFileSync(path.join(path.dirname(process.argv[1]), "loteria_cards.js"), "utf8");
-out.net = ["http:", "https:", "fetch(", "XMLHttpRequest", "import(", "sendBeacon", "WebSocket", "<a "].filter((w) => src.includes(w));
+const srcNet = src.split('fetch("/api/juan/scores"').join("");   // v49.5: the one allowed call, Juan's own Top 10 board (same site)
+out.net = ["http:", "https:", "fetch(", "XMLHttpRequest", "import(", "sendBeacon", "WebSocket", "<a "].filter((w) => srcNet.includes(w));
 out.callsText = J.CARDS.map((c) => c.verse);
 out.hints = I.LEVELS.map((l) => l.hint); out.game = [I.game.id, I.game.name, I.KEY];
 out.ice = [1, 2, 3, 4, 5, 6].map((n) => { const e = I.buildLevel(n); return [e.filter((x) => x.t === "agent").length, e.filter((x) => x.t === "suv").length, e.filter((x) => x.t === "flipflops").length]; });
@@ -126,7 +133,7 @@ def unit():
     check(o["kinds"] == ["cart", "chancla", "chihuahua", "cone", "pallet", "pothole", "sprinkler", "tires"], f"cones, potholes, carts, chanclas, chihuahuas, sprinklers + pallets / tires to hop on ({o['kinds']})")
     check(o["hp"] == 100 and all(5 <= d <= 20 for d in o["dmg"].values()), f"a bump costs a little of the 100-point health bar ({o['dmg']})")
     check(o["afterCheck"], "no hazards right at a checkpoint")
-    check(not o["net"], f"the games' code has no URLs, links or network calls ({o['net']})")
+    check(not o["net"], f"the games' code has no URLs, links or network calls, except Juan's own Top 10 board (same-site /api/juan/scores) ({o['net']})")
 
 async def to_stage(pg):
     await pg.evaluate("() => { const t = document.querySelector('#game-stage'); window.scrollTo(0, t.getBoundingClientRect().top + scrollY - 70); }"); await pg.wait_for_timeout(300)
@@ -156,7 +163,7 @@ async def until(pg, js, secs):
 async def webkit(p):
     print("\n== WebKit iPhone 13: the 🎲 Juegitos tab")
     b = await p.webkit.launch(); dev = dict(p.devices["iPhone 13"]); dev.pop("default_browser_type", None)
-    ctx = await b.new_context(**dev); await ctx.add_init_script(QUIET); await ctx.add_init_script(INIT); await ctx.add_init_script(SPEECH)
+    ctx = await b.new_context(**dev); await quiet_board(ctx); await ctx.add_init_script(QUIET); await ctx.add_init_script(INIT); await ctx.add_init_script(SPEECH)
     pg = await ctx.new_page(); errs, outside = [], []
     pg.on("pageerror", lambda e: errs.append(str(e)[:160]))
     watch = {"on": False}
@@ -446,7 +453,7 @@ async def webkit(p):
     check(not errs, f"no page errors ({errs[:3]})")
     await ctx.close()
     # reduce motion
-    ctx = await b.new_context(**dev, reduced_motion="reduce", service_workers="block"); await ctx.add_init_script(QUIET); await ctx.add_init_script(INIT); await ctx.add_init_script(SPEECH)
+    ctx = await b.new_context(**dev, reduced_motion="reduce", service_workers="block"); await quiet_board(ctx); await ctx.add_init_script(QUIET); await ctx.add_init_script(INIT); await ctx.add_init_script(SPEECH)
     pg = await ctx.new_page()
     await pg.route("**/static/loteria/audio/**", lambda r: r.abort())   # v41: the recorded clips can't load → the phone's own Spanish voice
     await pg.goto(BASE + "/#loteria"); await pg.wait_for_function("window.__chisme && __chisme.ready", timeout=120000); await pg.wait_for_timeout(800)
@@ -478,7 +485,7 @@ async def webkit(p):
 async def fullscreen_shots(p):
     print("\n== WebKit 390×844: full-screen screenshots")
     b = await p.webkit.launch(); dev = dict(p.devices["iPhone 13"]); dev.pop("default_browser_type", None); dev["viewport"] = {"width": 390, "height": 844}; dev["device_scale_factor"] = 1   # screenshots exactly 390×844
-    ctx = await b.new_context(**dev); await ctx.add_init_script(QUIET); await ctx.add_init_script(INIT); await ctx.add_init_script(SPEECH)
+    ctx = await b.new_context(**dev); await quiet_board(ctx); await ctx.add_init_script(QUIET); await ctx.add_init_script(INIT); await ctx.add_init_script(SPEECH)
     pg = await ctx.new_page(); errs = []; pg.on("pageerror", lambda e: errs.append(str(e)[:160]))
     for alias in ("#juan-that-got-away", "#juans-long-day"):   # the new title's link + the old one (#juan below)
         await pg.goto(BASE + "/" + alias); await pg.wait_for_function("window.__chisme && __chisme.ready", timeout=120000)
@@ -551,7 +558,7 @@ async def fullscreen_shots(p):
     await ctx.close()
     # v41: the small phone, 320×640
     dev["viewport"] = {"width": 320, "height": 640}
-    ctx = await b.new_context(**dev); await ctx.add_init_script(QUIET); await ctx.add_init_script(INIT); await ctx.add_init_script(SPEECH); pg = await ctx.new_page()
+    ctx = await b.new_context(**dev); await quiet_board(ctx); await ctx.add_init_script(QUIET); await ctx.add_init_script(INIT); await ctx.add_init_script(SPEECH); pg = await ctx.new_page()
     await pg.goto(BASE + "/#loteria"); await pg.wait_for_function("window.__chisme && __chisme.ready", timeout=120000); await pg.wait_for_timeout(800)
     await pg.click("#lot-play"); await pg.wait_for_timeout(300); await pg.click("#lot-play")
     for _ in range(6): await pg.evaluate(G + ".callNext()")
@@ -591,7 +598,7 @@ async def fullscreen_shots(p):
 
 async def offline(p):
     print("\n== Chromium: offline")
-    b = await p.chromium.launch(); ctx = await b.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True); await ctx.add_init_script(QUIET)
+    b = await p.chromium.launch(); ctx = await b.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True); await quiet_board(ctx); await ctx.add_init_script(QUIET)
     await ctx.add_init_script(INIT); pg = await ctx.new_page()
     await pg.goto(BASE + "/"); await pg.wait_for_function("window.__chisme && __chisme.ready", timeout=120000)
     await pg.wait_for_function("navigator.serviceWorker && navigator.serviceWorker.controller", timeout=60000)
