@@ -13,6 +13,19 @@ PHONE = dict(viewport={"width": 390, "height": 844}, device_scale_factor=2, is_m
              timezone_id="America/Chicago", geolocation=GEO, permissions=["geolocation"])
 
 
+async def tab_click(page, sel):
+    """v49.15.1: the phone bottom tab bar (v49.15 fb-nav) slides away on a scroll down, so a tab click can land off screen.
+    Scroll up first like a person would (a scroll up of 8 px+ brings the bars back); at the very top they always show."""
+    tabs_hidden = "() => document.documentElement.classList.contains('fb-hide') || document.querySelector('#tabs').getBoundingClientRect().top >= innerHeight"
+    if await page.evaluate(tabs_hidden):
+        await page.evaluate("window.scrollBy(0, -120)")
+        await page.wait_for_timeout(400)
+        if await page.evaluate(tabs_hidden):
+            await page.evaluate("window.scrollTo(0, 0)")
+            await page.wait_for_timeout(400)
+    await page.click(sel)
+
+
 async def swipe(cdp, x0, x1, y, steps=12, ms=14):
     await cdp.send("Input.dispatchTouchEvent", {"type": "touchStart", "touchPoints": [{"x": x0, "y": y}]})
     for k in range(1, steps + 1):
@@ -96,7 +109,7 @@ async def main():
         await page.wait_for_timeout(700)
         rep["4_swipe_to_sports"] = await page.evaluate("""() => ({ view: window.__chisme.view,
             ariaCurrent: document.querySelector('.tab[aria-current=page]').textContent.trim() })""")
-        await page.click(".tab[data-view=weather]")
+        await tab_click(page, ".tab[data-view=weather]")
         await page.wait_for_timeout(700)
         rep["4b_weather_tab"] = await page.evaluate("""() => ({ view: window.__chisme.view, scrollY: Math.round(scrollY),
             weatherTop: Math.round(document.querySelector('#view-weather').getBoundingClientRect().top),
@@ -131,7 +144,7 @@ async def main():
         rep["8_small_wiggle"] = await page.evaluate("window.__chisme.view")
 
         # 9. events via tab
-        await page.click("#tabs [data-view='chisme']"); await page.click(".view.active .mq-chip[data-go='events']")
+        await tab_click(page, "#tabs [data-view='chisme']"); await page.click(".view.active .mq-chip[data-go='events']")
         await page.wait_for_function("() => window.__chisme.eventsReady && document.querySelectorAll('#events-list .ev').length > 0", timeout=120000)
         # wait for background price/venue lookups to land (the page re-polls)
         for _ in range(8):
@@ -143,7 +156,7 @@ async def main():
         await page.wait_for_timeout(1000)
         await page.evaluate("window.scrollTo(0, 0)")
         await page.wait_for_timeout(300)
-        await page.click("#tabs [data-view='chisme']"); await page.click(".view.active .mq-chip[data-go='events']")  # tab on same view = no-op
+        await tab_click(page, "#tabs [data-view='chisme']"); await page.click(".view.active .mq-chip[data-go='events']")  # tab on same view = no-op
         await page.evaluate("() => new Promise(r => setTimeout(r, 200))")
         # reload the list so the screenshot shows enriched data
         await page.evaluate("() => { window.__chisme.goView('events'); }")
@@ -197,7 +210,7 @@ async def main():
             banner: document.querySelector('#offline-banner').hidden ? null : document.querySelector('#offline-banner').textContent,
             eventsStamp: document.querySelector('#events-updated').textContent })""")
         await page.screenshot(path=str(OUT / "update-offline.png"))
-        await page.click("#tabs [data-view='chisme']"); await page.click(".view.active .mq-chip[data-go='events']")
+        await tab_click(page, "#tabs [data-view='chisme']"); await page.click(".view.active .mq-chip[data-go='events']")
         await page.wait_for_timeout(800)
         await page.screenshot(path=str(OUT / "update-offline-events.png"))
         await ctx.set_offline(False)
