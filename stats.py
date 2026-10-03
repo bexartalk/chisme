@@ -6,6 +6,10 @@ What's counted, and how it stays anonymous:
     Tía chats (a count only, never the text), donate taps, v49.13 reel likes / shares / watched-to-the-end / skips (per
     public video id, for /api/reels/popular), the Add to Home Screen tutorial's outcome, and the city of
     the location setting (city level only, e.g. "San Antonio, TX").
+  • v49.15.2 where a visit came from ("src", once per app open): a category word (facebook, tiktok, instagram, x, google,
+    direct, app …, from the link's utm_source, a click id like fbclid, the sending site or an in-app browser, worked out
+    on the phone), a link's utm_campaign tag, the landing spot (a reel id, "story", a #tab) and the sending site's host
+    name. Never the full referrer URL, never the user agent.
   • Unique visitors: the app makes a random ID on the phone (localStorage "chisme-anon-id", not a cookie, not tied to
     anything). The server never keeps it: it's hashed with a secret salt and added to a Redis HyperLogLog per day
     (which can only be counted, not listed). 7- and 30-day visitors are the union of the days.
@@ -41,6 +45,12 @@ WORD_RX = re.compile(r"^[a-z][a-z0-9_-]{0,23}$")
 REEL_ID_RX = re.compile(r"^(?:[\w-]{11}|\d{15,20})$")   # v49.13: a reel = a YouTube id or a TikTok number
 REEL_ACTS = {"like": 3, "share": 5, "complete": 2, "rewatch": 2, "skip": -1}   # → reel:<act> counts + the rp:<id> popularity score
 SHARE_WAYS = ("native", "copy", "sms", "whatsapp", "facebook", "x", "email")
+SRC_RX = re.compile(r"^[a-z0-9][a-z0-9_-]{0,23}$")   # v49.15.2: a source / campaign word
+LAND_RX = re.compile(r"^(?:reel:(?:[\w-]{11}|\d{15,20})|story|[a-z][a-z0-9-]{0,23})$")
+HOST_RX = re.compile(r"^(?=.{3,60}$)[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$")
+SRC_NAMES = {"facebook": "Facebook", "instagram": "Instagram", "tiktok": "TikTok", "x": "X (Twitter)", "google": "Google", "bing": "Bing",
+             "duckduckgo": "DuckDuckGo", "youtube": "YouTube", "reddit": "Reddit", "whatsapp": "WhatsApp", "nextdoor": "Nextdoor",
+             "direct": "Direct (typed, bookmark, or no info)", "app": "Home Screen app", "other": "Other websites"}
 CITY_RX = re.compile(r"^[^\x00-\x1f<>{}\[\]\\/@#$%^*=+|~`\"]{2,60}$")
 
 
@@ -105,6 +115,14 @@ def tally(body: dict) -> dict | None:
             add("a2hs:" + v)
         elif t == "city" and isinstance(v, str) and CITY_RX.match(v.strip()):
             add("city:" + clean_text(v, 60))
+        elif t == "src" and isinstance(v, dict) and isinstance(v.get("s"), str) and SRC_RX.match(v["s"]):   # v49.15.2
+            src = v["s"]; add("src:" + src)
+            if isinstance(v.get("c"), str) and SRC_RX.match(v["c"]):
+                add(f"camp:{src}/{v['c']}")
+            if isinstance(v.get("l"), str) and LAND_RX.match(v["l"]):
+                add("land:" + v["l"])
+            if isinstance(v.get("r"), str) and HOST_RX.match(v["r"]):
+                add("ref:" + v["r"])
         elif t == "reel" and isinstance(v, dict) and v.get("a") in REEL_ACTS and isinstance(v.get("id"), str) and REEL_ID_RX.match(v["id"]):
             a = v["a"]; add("reel:" + a); add("rp:" + v["id"], REEL_ACTS[a])   # v49.13: anonymous per-video counts for /api/reels/popular
             if a == "share" and v.get("m") in SHARE_WAYS:
@@ -393,6 +411,24 @@ def summarize(r: dict, days: list[str]) -> dict:
                 c[k] = c.get(k, 0) + v
         return c
     return {n: {"c": tot(n), "u": r["ranges"][n]} for n in (1, 7, 30)}
+
+
+def summary_json(r: dict, days: list[str]) -> dict:
+    """v49.15.2: GET /stats/api/summary (owner only): the same anonymous counts as /stats, as JSON for a script or an
+    assistant: visitors + opens for today / 7 / 30 days, where visits came from, campaigns, landing spots, sending sites,
+    the most-read stories and visitors per day."""
+    S = summarize(r, days)
+    def block(n: int) -> dict:
+        c, u = S[n]["c"], S[n]["u"]
+        top = lambda pre, k=20: dict(_top(c, pre, k))
+        stories = [{"title": (r["stories"].get(k) or {}).get("t") or k, "source": (r["stories"].get(k) or {}).get("s") or "", "opens": v}
+                   for k, v in _top(c, "story:", 10)]
+        return {"visitors": u.get("all", 0), "visitors_app": u.get("app", 0), "visitors_browser": u.get("web", 0), "opens": c.get("open", 0),
+                "sources": top("src:"), "campaigns": top("camp:"), "landing": top("land:"), "referrer_sites": top("ref:"), "top_stories": stories}
+    return {"ok": True, "tz": "America/Chicago", "periods": {"today": block(1), "7d": block(7), "30d": block(30)},
+            "per_day": [{"day": d, "visitors": r["per"][d]["u"].get("all", 0), "opens": r["per"][d]["c"].get("open", 0),
+                         "sources": dict(_top(r["per"][d]["c"], "src:", 20))} for d in days],
+            "source_names": SRC_NAMES, "sample": bool(r.get("sample"))}
 
 
 def _top(c: dict, prefix: str, n: int = 8) -> list[tuple[str, int]]:

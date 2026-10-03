@@ -454,9 +454,9 @@ def http_checks(FLAGS):
     st, hd, qr = get(BASE + "/qr.svg")
     check(st == 200 and "image/svg+xml" in hd.get("content-type", "") and "<path" in qr, "/qr.svg")
     st, _, site = get(BASE + "/api/site"); j = json.loads(site)
-    check(j["goal"]["amount"] == 99 and "buymeacoffee.com/Chismoso" in j["goal"]["url"] and not j["moved"]["on"] and j["build"] == "49.15.1", "/api/site (goal $99, moved off, build 49.15.1)")
+    check(j["goal"]["amount"] == 99 and "buymeacoffee.com/Chismoso" in j["goal"]["url"] and not j["moved"]["on"] and j["build"] == "49.15.2", "/api/site (goal $99, moved off, build 49.15.2)")
     st, _, sw = get(BASE + "/sw.js")
-    check('"chisme-v49.15.1"' in sw or "'chisme-v49.15.1'" in sw, "service worker cache chisme-v49.15.1")
+    check('"chisme-v49.15.2"' in sw or "'chisme-v49.15.2'" in sw, "service worker cache chisme-v49.15.2")
     # redirect flag OFF (default): the old host is served as is
     st, hd, _ = get(BASE + "/", dict(NAV, Host="chisme.onrender.com"))
     check(st == 200, f"DOMAIN_REDIRECT off → no redirect from chisme.onrender.com ({st})")

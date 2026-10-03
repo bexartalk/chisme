@@ -230,7 +230,7 @@ textarea.inp{min-height:92px;resize:vertical}select.inp{appearance:none;-webkit-
 .sw input:checked{background:var(--turqd)}.sw input:checked::after{transform:translateX(26px)}
 .status{margin:8px 2px 0;font-weight:800;font-size:1rem}.status .dot{display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--silver);margin-right:6px;vertical-align:0}
 .status.on .dot{background:var(--turqd)}.status.hot .dot{background:var(--orange)}
-.sub{margin:6px 2px 0;font-size:.88rem;color:var(--muted)}
+.sub{margin:6px 2px 0;font-size:.88rem;color:var(--muted)}.fh{margin:14px 2px 4px;font-size:1rem;font-weight:900}
 .glance{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .gl{background:var(--card);border:2px solid var(--line);border-radius:16px;padding:12px;border-left:7px solid var(--turq)}
 .gl:nth-child(2){border-left-color:var(--pink)}.gl:nth-child(3){border-left-color:var(--orange)}.gl:nth-child(4){border-left-color:var(--ink)}
@@ -422,6 +422,16 @@ def page(r: dict, store_name: str, info: dict | None = None, now: float | None =
     games = [(e({"loteria": "Chismería", "juan": "The Juan That Got Away", "icebebe": "The Juan That Got Away (old runner)"}.get(k, k)), v) for k, v in stats._top(c30, "game:")]
     cities = [(e(k), v) for k, v in stats._top(c30, "city:", 10)]
     a2 = [(e(stats.A2HS_NAMES.get(k, k)), v) for k, v in stats._top(c30, "a2hs:")]
+    # v49.15.2: where visits came from (one count per app open; see stats.py "src")
+    def _land(k):
+        return f"ChismeTV video {k[5:]}" if k.startswith("reel:") else ("a shared story link" if k == "story" else f"#{k}")
+    def _camp(k):
+        src, _, c = k.partition("/"); return f"{stats.SRC_NAMES.get(src, src)} · {c}"
+    srcs = f"""<p class="sub" style="margin:0 2px 6px">One count per visit, last 30 days. Tag your links with <code>?utm_source=facebook&amp;utm_campaign=post-name</code> to tell posts apart.</p>
+<h3 class="fh">How they found Chisme</h3>{_bars([(e(stats.SRC_NAMES.get(k, k)), v) for k, v in stats._top(c30, "src:", 12)], "No visits counted yet.")}
+<h3 class="fh">Tagged links (campaigns)</h3>{_bars([(e(_camp(k)), v) for k, v in stats._top(c30, "camp:", 12)], "No tagged links yet.")}
+<h3 class="fh">Where they landed</h3>{_bars([(e(_land(k)), v) for k, v in stats._top(c30, "land:", 12)], "Nobody opened a shared link yet.")}
+<h3 class="fh">Sending websites</h3>{_bars([(e(k), v) for k, v in stats._top(c30, "ref:", 12)], "No other sites yet.")}"""
     tab_btns = "".join(f'<button type="button" role="tab" id="t{n}" aria-controls="p{n}" aria-selected="{"true" if n == 1 else "false"}">{lab}</button>'
                        for n, lab in ((1, "Today"), (7, "7 days"), (30, "30 days")))
     panels = "".join(f'<div class="grid" role="tabpanel" id="p{n}" aria-labelledby="t{n}"{"" if n == 1 else " hidden"}>{_period_cards(S, n)}</div>' for n in (1, 7, 30))
@@ -458,6 +468,7 @@ def page(r: dict, store_name: str, info: dict | None = None, now: float | None =
     folds = "".join([
         _fold("📈 All the numbers", f'<div class="seg" role="tablist" aria-label="Period">{tab_btns}</div>{panels}', "f-all", "today · 7 · 30 days"),
         _fold("📅 Visitors per day", _chart(r, days), "f-chart", "30 days"),
+        _fold("🔗 Where visitors come from", srcs, "f-sources", "30 days"),
         _fold("🗞️ Top stories", _bars(_story_rows(r, c30, 10), "No stories opened yet."), "f-stories", "30 days"),
         _fold("📱 Top tabs", _bars(tabs, "Nothing yet."), "f-tabs", "30 days"),
         _fold("🎮 Games", _bars(games, "No games played yet."), "f-games", "30 days"),

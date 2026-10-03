@@ -1,7 +1,7 @@
 /* Chisme — frontend (location-aware) */
 // Build of this file. Must equal the number in sw.js VERSION ("chisme-v22"); the page compares it
 // with the build the HTML was served for and reloads once if an old cached app.js got mixed in.
-window.CHISME_APP_BUILD = "49.15.1";
+window.CHISME_APP_BUILD = "49.15.2";
 (() => {
   "use strict";
   // v49.13: Chisme's public address for share links + the promo text: one setting on the server (PUBLIC_BASE_URL, else the
@@ -52,6 +52,30 @@ window.CHISME_APP_BUILD = "49.15.1";
     document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") send(); });
     window.addEventListener("pagehide", send);
     return { ev, send, get queue() { return q.slice(); }, get off() { return off; } };
+  })();
+  // v49.15.2: how this visit arrived, for the owner's "Where visitors come from" counts (stats.py "src"). Read once, before
+  // ?reel= / ?story= are tidied out of the address bar. Only a category word (facebook, tiktok, google, direct …), a link's
+  // utm_campaign tag, the landing spot (a reel id, a story, a #tab) and the sending site's host name: never the full
+  // referrer URL, never the user agent. Same rules as every count (nothing with Do Not Track / Global Privacy Control).
+  const ARRIVAL = (() => {
+    try {
+      const q = new URLSearchParams(location.search), w = (x) => String(x || "").toLowerCase().replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 24);
+      let s = w(q.get("utm_source")), r = "";
+      try { const h = document.referrer ? new URL(document.referrer).hostname.toLowerCase().replace(/^www\./, "") : ""; if (h && h !== location.hostname) r = h.slice(0, 60); } catch {}
+      const ua = navigator.userAgent || "", has = (re) => re.test(r);
+      if (!s) s = q.has("fbclid") ? "facebook" : q.has("ttclid") ? "tiktok" : q.has("igshid") ? "instagram" : q.has("gclid") ? "google" : "";
+      if (!s && r) s = has(/(^|\.)(facebook\.com|fb\.com|fb\.me|messenger\.com)$/) ? "facebook" : has(/(^|\.)instagram\.com$/) ? "instagram"
+        : has(/(^|\.)tiktok\.com$/) ? "tiktok" : has(/^(t\.co|(.+\.)?twitter\.com|(.+\.)?x\.com)$/) ? "x" : has(/(^|\.)google\.[a-z.]+$/) ? "google"
+        : has(/(^|\.)bing\.com$/) ? "bing" : has(/(^|\.)duckduckgo\.com$/) ? "duckduckgo" : has(/(^|\.)(youtube\.com|youtu\.be)$/) ? "youtube"
+        : has(/(^|\.)reddit\.com$/) ? "reddit" : has(/(^|\.)whatsapp\.(com|net)$/) ? "whatsapp" : has(/(^|\.)nextdoor\.com$/) ? "nextdoor" : "other";
+      if (!s) s = /FBAN|FBAV|FB_IAB|FBIOS/.test(ua) ? "facebook" : /Instagram/.test(ua) ? "instagram" : /musical_ly|BytedanceWebview|TikTok/i.test(ua) ? "tiktok" : "";
+      if (!s) s = q.get("source") === "pwa" || matchMedia("(display-mode: standalone)").matches || navigator.standalone === true ? "app" : "direct";
+      const v = { s }, c = w(q.get("utm_campaign") || q.get("utm_content")), rid = q.get("reel"), hw = w(location.hash.slice(1));
+      if (c) v.c = c;
+      if (rid && /^(?:[\w-]{11}|\d{15,20})$/.test(rid)) v.l = "reel:" + rid; else if (q.get("story")) v.l = "story"; else if (/^[a-z][a-z0-9-]{0,23}$/.test(hw)) v.l = hw;
+      if (r && s !== "direct") v.r = r;
+      return v;
+    } catch { return null; }
   })();
   const LOC_KEY = "chisme-location";
   const $ = (s) => document.querySelector(s);
@@ -3503,7 +3527,7 @@ window.CHISME_APP_BUILD = "49.15.1";
     $("#terms-ok").onclick = () => { lsSet(TERMS_KEY, String(Date.now())); bar.hidden = true; };
   }
   if (!lsGet(TERMS_KEY)) { showTerms(); document.addEventListener("chisme-setup-done", () => setTimeout(showTerms, 0)); }
-  Stats.ev("open", isStandalone() ? "app" : "web"); statsTab(VIEWS[cur]); statsCity();
+  Stats.ev("open", isStandalone() ? "app" : "web"); if (ARRIVAL) Stats.ev("src", ARRIVAL); statsTab(VIEWS[cur]); statsCity();
   if (window.ChismeDonate) midLaunch = window.ChismeDonate.launch();
   if (midLaunch.line) { midTab = VIEWS[cur]; placeMid(); }   // a 5th open: the launch tab gets the one mid-list donate card
   window.addEventListener("hashchange", () => {   // #juegos, #loteria, #ice … typed or tapped while Chisme is open

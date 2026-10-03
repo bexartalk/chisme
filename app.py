@@ -2727,12 +2727,13 @@ async def api_stats(request: Request):
     if request.headers.get("dnt") == "1" or request.headers.get("sec-gpc") == "1":
         return Response(status_code=204)   # the browser asked not to be tracked
     ok, _ = STATS_LIMIT.check(stats.anon("ip:" + client_ip(request)))
+    stored = False
     if ok:
         try:
-            await stats.collect(await request.body())
+            stored = await stats.collect(await request.body())
         except Exception as ex:   # storage down: the app never notices
             print("stats:", type(ex).__name__, str(ex)[:120])
-    return Response(status_code=204)
+    return Response(status_code=204, headers={"X-Stats": "counted" if stored else "skipped"})   # v49.15.2: says nothing but whether it counted
 
 
 STATS_HEADERS = {"Cache-Control": "no-store", "X-Robots-Tag": "noindex, nofollow", "Referrer-Policy": "no-referrer"}
@@ -2959,6 +2960,19 @@ async def juan_score_add(request: Request):
     if r["ok"] and e:
         _juan_posts[fp] = (time.time(), r)
     return JSONResponse(r, status_code=200 if r["ok"] else 400)
+
+
+@app.get("/stats/api/summary", include_in_schema=False)
+async def stats_api_summary(request: Request):
+    """v49.15.2: the /stats numbers as JSON (visitors, opens, where visits came from, campaigns, landing spots, top stories),
+    for a script or an assistant. Owner only: `Authorization: Bearer <ADMIN_TOKEN>` or the /stats sign-in."""
+    if not await _juan_admin(request, json_only=False):
+        return _nope()
+    try:
+        data = await stats.store().read(stats.last_days(30))
+    except Exception as ex:
+        return JSONResponse({"ok": False, "error": f"storage: {type(ex).__name__}"}, status_code=503, headers=STATS_HEADERS)
+    return JSONResponse(stats.summary_json(data, stats.last_days(30)), headers=STATS_HEADERS)
 
 
 @app.get("/stats/juan/scores", include_in_schema=False)
