@@ -84,3 +84,15 @@ if "NO_AUTO_QUIET" not in _src:
     def _spage(self, *a, **kw):
         pg = _s_page(self, *a, **kw); pg.context.add_init_script(_QUIET); return pg
     _SB.new_context, _SB.new_page = _sctx, _spage
+
+    # v49.12: persistent contexts (coldstart, update, upgrade …) never got QUIET; they get just the News launch-tab pin
+    from playwright.async_api import BrowserType as _ABT
+    from playwright.sync_api import BrowserType as _SBT
+    _a_lpc, _s_lpc = _ABT.launch_persistent_context, _SBT.launch_persistent_context
+
+    async def _alpc(self, *a, **kw):
+        c = await _a_lpc(self, *a, **kw); await c.add_init_script(_PIN); return c
+
+    def _slpc(self, *a, **kw):
+        c = _s_lpc(self, *a, **kw); c.add_init_script(_PIN); return c
+    _ABT.launch_persistent_context, _SBT.launch_persistent_context = _alpc, _slpc
