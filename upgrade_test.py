@@ -7,7 +7,7 @@ Also checks the next deploy (current build -> build+1 with the app open): the pa
 """
 import asyncio, json, os, re, shutil, subprocess, sys, tempfile, time, urllib.request
 from playwright.async_api import async_playwright
-import os as _os, sys as _sys; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__))); import pw_csp  # noqa: E401,F401  (v49.11: CSP-safe wait_for_function)
+import os as _os, sys as _sys; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__))); import pw_csp; from popup_quiet import QUIET  # noqa: E401,F401  (v49.11: CSP-safe wait_for_function)
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PY = os.path.join(HERE, "venv", "bin", "python")
@@ -82,6 +82,7 @@ async def one(p, old):
                                                     geolocation={"latitude": 29.4241, "longitude": -98.4936})
     # the Home Screen tutorial (2nd open) has its own tests (a2hs_test, a2hs_v47_test); keep it out of the way here
     await ctx.add_init_script("if (!localStorage.getItem('chisme-a2hs')) localStorage.setItem('chisme-a2hs', JSON.stringify({done: true}));")
+    await ctx.add_init_script(QUIET)   # v49.11: pw_csp's auto-quiet doesn't cover persistent contexts; the notifications card covered the tabs
     errs = []
     pg = ctx.pages[0] if ctx.pages else await ctx.new_page()
     pg.on("pageerror", lambda e: errs.append(f"pageerror: {e}"))
@@ -146,6 +147,7 @@ async def next_deploy(p):
     prof = tempfile.mkdtemp(prefix="wk-prof-")
     dev = dict(p.devices["iPhone 13"]); dev.pop("default_browser_type", None)
     ctx = await p.webkit.launch_persistent_context(prof, **dev)
+    await ctx.add_init_script(QUIET)
     pg = ctx.pages[0] if ctx.pages else await ctx.new_page()
     errs = []
     pg.on("pageerror", lambda e: errs.append(f"pageerror: {e}"))
