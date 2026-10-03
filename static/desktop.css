@@ -221,3 +221,8 @@ html.dk .dk-foot-bmc:hover{background:var(--pink)}
 /* ---------- the rest of the app on a big screen */
 html.dk .terms-bar{left:auto;right:110px;max-width:560px}
 html.dk .mq-v-nav button{border-color:var(--marigold)}
+
+/* the "Sports" pill: v49.12's peach (#ffe3cc / dark #4a2205 on #ffd9b8) reads as cream/amber to the no-yellow check; Fiesta coral here */
+html.dk .mix-sports .mix-tag{background:#ffd9cc;color:#6b2000}
+html.dk[data-theme="dark"] .mix-sports .mix-tag{background:#4a160a;color:#ffd3c4}
+html.dk body > .tagline,html.dk .tagline{display:none}   /* v49.12 tagline under the phone header: the desktop hero says it */

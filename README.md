@@ -431,6 +431,86 @@ Earlier run (2026-09-29, about 5:02 AM CT):
 * Offline reload kept all news and the forecast.
 * `location_test.py`: South Side SA → "South San, San Antonio"; Austin → "Downtown, Austin" (also via watchPosition when moving); denied → default San Antonio + search ("Houston, TX", ZIP 78211 → South San); Paris → clear non-US weather message. No page errors.
 
+## Desktop website & the move to chisme.co (v49.14)
+
+On screens **1024 px and wider**, Chisme becomes a website instead of a stretched phone column. Phones and narrow
+windows keep the app exactly as it is. `static/desktop.css` only loads at `min-width: 1024px`, and `static/desktop.js`
+does nothing below that width.
+
+- **Top nav:** the logo, the four tabs (the app's own tab buttons), ⚙️ Settings and **Get the app**.
+- **Homepage (the Chisme tab):**
+  - A hero: "Chisme, the community for los metiches", Tía's "¡Hola, metiche!" and the waiting-room pitch.
+  - A QR code (`/qr.svg`, made on the server by `qrsvg.py`, no dependencies) with Add to Home Screen steps and a
+    "coming soon to the App Store and Google Play" note.
+  - The latest chisme as a multi-column grid.
+  - A sidebar with weather, the sponsor spot, Juegitos, ¿Y la dieta? (Ofrendas in season) and the
+    "Help get Chisme on the App Store, $99" Buy Me a Coffee card.
+- **The reader:** opens as a right-hand side panel for stories, food videos and Chisme's own pages (`?embed=1`).
+- **Pages:** `/about` and `/support` (`/contact` redirects to `/support`). The support page uses mailto links to the
+  repo's existing contact address. The v49.12 `/privacy` and `/terms` pages get the site footer, Open Graph tags and
+  `site.css`. Their content is unchanged. The footer (Home · About · Support & contact · Privacy · Terms · Get the app)
+  appears on every desktop page.
+- **SEO:**
+  - The `/` title, description, canonical link, Open Graph and Twitter cards (`static/site/og-image.png`, rebuilt by
+    `tools/make_site_art.py`).
+  - `/robots.txt` (keeps `/api/` and `/stats` out) and `/sitemap.xml`.
+  - All of these are built from `PUBLIC_BASE_URL`, or from the request origin when it isn't set.
+- **Code:** `website.py`, which `app.py` loads with `website.install(app)`. It adds the routes and a small middleware
+  that adds the meta tags and the desktop assets to `/`. `index.html` is untouched.
+
+### Local sponsors (`data/sponsors.json`)
+
+"This chisme brought to you by…" in the desktop sidebar. Every paid card shows a **Sponsored** tag and uses
+`rel="sponsored"`. Its link opens in the in-app reader, like every other link.
+
+```json
+{ "sponsors": [
+  { "id": "southtown-tacos", "name": "Southtown Tacos", "url": "https://…", "tagline": "Breakfast tacos till 2.",
+    "area": "Southtown", "cta": "See the menu", "image": "/static/…", "alt": "…", "adult": false,
+    "active": true, "start": "2026-10-01", "end": "2026-10-31", "weight": 5 } ] }
+```
+
+- **`adult: true`** marks beer and ice-house ads. The server leaves them out unless the request says `?adult=1`, and the
+  page only asks for them when **Settings → Local sponsors → "I'm 21 or older"** is on (saved on the device).
+- **`start` / `end`** are Chicago dates. Expired, future, inactive and non-https entries are dropped.
+- **No live sponsors:** the card shows "Your business here, reach local metiches" and links to Support → advertise.
+- **Changes:** edit the file (or point `SPONSORS_FILE` at another one). The server re-reads it when it changes.
+- Managing sponsors from the `/stats` admin through Upstash isn't built yet. The JSON file is the source of truth.
+
+### Environment variables (all optional, everything off by default)
+
+| Variable | Default | What it does |
+|---|---|---|
+| `PUBLIC_BASE_URL` | the request origin | The site's public address, e.g. `https://chisme.co`. Canonical, OG/Twitter, robots, sitemap, the QR code, the in-app Share link and the address in the Privacy and Terms pages all use it. |
+| `DOMAIN_REDIRECT` | off | `1` sends a **301** from the old host to `PUBLIC_BASE_URL` for **page navigations only**: `/`, `/about`, `/support`, `/privacy`, `/terms`. The path and query are kept. `/sw.js`, the manifest, `/api/*`, `/static/*`, `/stats`, `/healthz`, `fetch()`es and the installed app's start URL (`/?source=pwa`) are never redirected, so installed copies keep updating and working. |
+| `REDIRECT_FROM_HOSTS` | `chisme.onrender.com` | Comma-separated hosts that `DOMAIN_REDIRECT` moves. |
+| `MOVED_BANNER` | off | `1` shows installed users (Home Screen, any screen size) on the old origin a dismissible "Chisme moved to chisme.co, add it to your Home Screen again" banner. "Later" hides it for 3 days. Browser tabs never see it. |
+| `APP_STORE_GOAL_RAISED` | unset | Dollars raised so far toward the $99 App Store goal. When set, it shows a progress bar. |
+| `SPONSORS_FILE` | `data/sponsors.json` | Where the sponsor list lives. |
+
+### Moving to chisme.co (checklist)
+
+1. Add `chisme.co` as a custom domain on the Render service. Keep `chisme.onrender.com` working.
+2. Set `PUBLIC_BASE_URL=https://chisme.co` and redeploy. Share links, OG tags, the sitemap and the QR code now point to
+   chisme.co. Nothing redirects yet.
+3. Set `MOVED_BANNER=1`. Home Screen installs and push subscriptions belong to the old origin and can't be moved, so
+   installed users are asked to open chisme.co and add it again. Alerts on the new install need a new opt-in.
+4. Once people have moved over, set `DOMAIN_REDIRECT=1` so browser visits and search engines land on chisme.co. The
+   old service worker, manifest and API keep answering on the old host, so installs that haven't moved don't break.
+5. Submit `https://chisme.co/sitemap.xml` in Search Console.
+
+### Checks
+
+`BASE=http://localhost:8211 python desktop_site_test.py` covers:
+
+- Chromium at 1440×900 and 1024×768: nav, hero, QR, grid, sidebar, reader panel, footer links, keyboard, alt text,
+  contrast, no yellow (light, dark and Día de Muertos) and no console errors.
+- Sponsors (the Sponsored tag and 21+ gating), meta/OG tags, robots, sitemap, the redirect flag and the moved banner. For
+  these it starts a second copy of the server with the flags on and a fixture sponsors file.
+- WebKit iPhone 13, confirming the phone app is unchanged.
+
+Screenshots go to `$SHOTS` (default `/workspace/chisme-desktop-shots`).
+
 ## Deploy
 
 The app is one Python process with an in-memory cache (alerts keep their subscriber list in Upstash Redis, see Alerts setup). Both options below give you HTTPS, which the phone install needs.

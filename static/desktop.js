@@ -142,12 +142,14 @@
   function wrap() {
     var view = $("#view-chisme");
     if (!view || !mainCol) return;
+    if (mainCol.parentNode !== view) view.append(mainCol, side);
     Array.prototype.slice.call(view.children).forEach(function (c) { if (c !== mainCol && c !== side && c.id !== "dk-hero") mainCol.append(c); });
   }
   function unwrap() {
     var view = $("#view-chisme");
     if (!view || !mainCol || mainCol.parentNode !== view) return;
     while (mainCol.firstChild) view.insertBefore(mainCol.firstChild, mainCol);
+    mainCol.remove(); side.remove();   // the phone layout gets its own DOM back, exactly
   }
 
   // ---------------------------------------------------------------- 4. sidebar widgets
