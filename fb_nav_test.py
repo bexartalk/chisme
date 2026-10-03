@@ -23,8 +23,10 @@ Desktop (1024 px and up) must be exactly as before.
     (.fb-safe) stays put in the bar's colour; Reduce motion = no sliding, only a short fade
   • v49.15.3 the phone top bar has the city skyline (the old header's art) behind its buttons, no ¿Oyistes?, the same height;
     the tab bar is Chisme · ¿Y la dieta? (Ofrendas in the Día de Muertos season) · Weather · Juegos
+  • v49.15.3 (temporary) the Muertos top bar keeps the skyline's drifting helicopter and lit (marigold-orange) window squares,
+    the papel picado strip, and no ¿Oyistes? in or over it, light + dark
 Screenshots: SHOTS (default /workspace/chisme-navbar-shots/): top, scrolled, scroll-up, tia-open, dark, chismetv, muertos, weather,
-desktop-1440, muertos-logo (phone), muertos-logo-desktop, top-skyline, top-skyline-dark, tabbar-offseason, tabbar-season,
+desktop-1440, muertos-logo (phone), muertos-logo-desktop, top-skyline, top-skyline-dark, top-muertos, top-muertos-dark, tabbar-offseason, tabbar-season,
 slide-in-1-start, slide-in-2-mid, slide-in-3-end.
     URL=http://127.0.0.1:8297/ REF_URL=http://127.0.0.1:8298/ ./venv/bin/python fb_nav_test.py"""
 import asyncio, os, sys
@@ -404,6 +406,50 @@ SVG_STRICT = "async (names) => { " + STRICT_YELLOW_JS + r""" const out = {};
       return yellow([parseInt(x.slice(0, 2), 16), parseInt(x.slice(2, 4), 16), parseInt(x.slice(4, 6), 16), 1]); }); }
   return out; }"""
 
+MQ_TOP = """() => { const d = document.documentElement, top = document.querySelector('#fbtop'), sky = top && top.querySelector('svg.fb-sky');
+  const R = (e) => { const r = e.getBoundingClientRect(); return { l: r.left, t: r.top, r: r.right, b: r.bottom, w: r.width, h: r.height }; };
+  const shown = (e) => { if (!e || !e.getClientRects().length) return false; for (let n = e; n && n.nodeType === 1; n = n.parentElement) { const cs = getComputedStyle(n);
+    if (cs.display === 'none' || cs.visibility === 'hidden' || +cs.opacity === 0) return false; } return true; };
+  const tb = R(top), inBar = (r) => r.w > 0 && r.h > 0 && r.t >= tb.t - 0.5 && r.b <= tb.b + 0.5 && r.l < tb.r && r.r > tb.l;
+  const over = (r) => r.w > 0 && r.h > 0 && r.t < tb.b && r.b > tb.t && r.l < tb.r && r.r > tb.l;
+  const oy = []; const tw = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let n = tw.nextNode(); n; n = tw.nextNode()) if (/Oyistes/i.test(n.nodeValue) && shown(n.parentElement)) { const r = R(n.parentElement); if (over(r)) oy.push(n.parentElement.className || n.parentElement.tagName); }
+  const g = sky ? [...sky.querySelectorAll('g[class^="sky-"]')].find((x) => getComputedStyle(x).display !== 'none') : null;
+  const win = g && g.querySelector('.sky-win'), heli = sky && sky.querySelector('.heli-drift'), hp = heli && heli.querySelector('.heli');
+  const pic = top && top.querySelector('.fb-picado');
+  return { season: d.dataset.season || '', theme: d.dataset.theme, topText: top ? top.textContent.replace(/\\s+/g, ' ').trim() : '', oy,
+    tagline: getComputedStyle(document.querySelector('body > .tagline')).display, header: getComputedStyle(document.querySelector('header.topbar')).display,
+    heli: heli ? { shown: shown(heli) && shown(hp), box: R(hp), inBar: inBar(R(hp)), fill: getComputedStyle(hp).fill, anim: getComputedStyle(heli).animationName } : null,
+    win: win ? { shown: shown(win), box: R(win), inBar: inBar(R(win)), fill: getComputedStyle(win).fill, op: +getComputedStyle(win).opacity, n: (win.getAttribute('d') || '').split('M').length - 1 } : null,
+    sky: sky ? { fill: getComputedStyle(sky).fill, op: +getComputedStyle(sky).opacity } : null,
+    picado: pic && shown(pic) ? getComputedStyle(pic).backgroundImage : '' }; }"""
+
+async def muertos_top_bar(b, bname, dev, shots):
+    """v49.15.3 (Goonie, temporary): in the Muertos season the phone top bar is the city skyline WITH the drifting helicopter and
+    the lit window squares, papel picado + marigold orange (no yellow), and no ¿Oyistes? anywhere in it, light + dark."""
+    print(f"\n== Día de Muertos phone top bar: skyline, helicopter, windows, no ¿Oyistes? ({bname})")
+    import re
+    rgb = lambda c: [float(x) for x in re.findall(r"[\d.]+", str(c))[:3]]
+    yellowish = lambda c: (lambda r, g, b_: r > 180 and g > 150 and b_ < 110 and abs(r - g) < 90)(*rgb(c)) if len(rgb(c)) == 3 else False
+    for theme in ("light", "dark"):
+        ctx, pg = await new_page(b, 390, 844, theme=theme, season="muertos", dev=dev); await ready(pg); await pg.wait_for_timeout(400)
+        m = await pg.evaluate(MQ_TOP)
+        check(m["season"] == "muertos", f"{bname} {theme}: the Muertos season is on ({m['season']!r})")
+        check("Oyistes" not in m["topText"] and not m["oy"] and m["tagline"] == "none" and m["header"] == "none",
+              f"{bname} {theme}: no ¿Oyistes? in or over the phone top bar (bar text {m['topText']!r}, over it: {m['oy']}, tagline {m['tagline']}, old header {m['header']})")
+        h = m["heli"]
+        check(bool(h) and h["shown"] and h["inBar"] and h["box"]["w"] >= 6 and not yellowish(h["fill"]) and rgb(h["fill"]) != rgb(m["sky"]["fill"]),
+              f"{bname} {theme}: the helicopter flies over the skyline in Muertos, in the bar, pale against the night sky, not yellow {h}")
+        check(bool(h) and h["anim"] == "heli-drift", f"{bname} {theme}: …and it drifts ({h and h['anim']})")
+        w = m["win"]
+        check(bool(w) and w["shown"] and w["inBar"] and w["n"] >= 10 and w["op"] >= 0.5 and rgb(w["fill"]) == [255, 138, 0] and not yellowish(w["fill"]),
+              f"{bname} {theme}: the lit window squares show, marigold orange #FF8A00 (no yellow) {w}")
+        check("linear-gradient" in m["picado"] and m["picado"].count("rgb") >= 3 and not any(yellowish(c) for c in re.findall(r"rgba?\([^)]*\)", m["picado"])),
+              f"{bname} {theme}: the papel picado strip is still there ({m['picado'][:90]})")
+        if shots:
+            await pg.screenshot(path=f"{OUT}/top-muertos{'' if theme == 'light' else '-dark'}.png", clip={"x": 0, "y": 0, "width": 390, "height": 140})
+        await ctx.close()
+
 async def muertos_no_yellow(b, bname, dev, shots):
     print(f"\n== Día de Muertos: no yellow anywhere ({bname})")
     for theme in ("light", "dark"):
@@ -491,6 +537,7 @@ async def main():
         await reels(b, "android-chromium", cdev, True)
         await desktop(b, True)
         await muertos_logo(b, "android-chromium", cdev, True)
+        await muertos_top_bar(b, "android-chromium", cdev, True)
         await muertos_no_yellow(b, "android-chromium", cdev, True)
         await muertos_desktop(b, True)
         await b.close()
@@ -501,6 +548,7 @@ async def main():
             await motion(w, "iphone-webkit", wdev, False)
             await reels(w, "iphone-webkit", wdev, False)
             await muertos_logo(w, "iphone-webkit", wdev, False)
+            await muertos_top_bar(w, "iphone-webkit", wdev, False)
             await muertos_no_yellow(w, "iphone-webkit", wdev, False)
             await w.close()
     print("\n" + ("ALL OK" if not fails else f"{len(fails)} FAILED:\n  - " + "\n  - ".join(fails)))

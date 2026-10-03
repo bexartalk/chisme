@@ -1621,7 +1621,9 @@ html[data-season="muertos"][data-theme="light"]{--bg:#f6f1f8;--line:#d6c3e6;--ne
   background:radial-gradient(110px 70px at 5% 100%,rgba(255,170,60,.5),transparent 70%),radial-gradient(110px 70px at 95% 100%,rgba(255,170,60,.5),transparent 70%),linear-gradient(180deg,#0e0520 0%,#2a1250 100%)}
 [data-season="muertos"] .skyline,[data-season="muertos"][data-theme="dark"] .skyline{fill:#09030f}
 [data-season="muertos"] .sky-win,[data-season="muertos"][data-theme="dark"] .sky-win{fill:var(--marigold);opacity:.7}
-[data-season="muertos"] .heli-drift{display:none}
+/* v49.15.3 (temporary, Goonie): the helicopter flies in the Muertos season too, a pale lavender silhouette so it reads on the
+   midnight sky (the skyline stays dark with its marigold-orange windows; no yellow) */
+[data-season="muertos"] .heli,[data-season="muertos"][data-theme="dark"] .heli{fill:#cdbde8}
 [data-season="muertos"] .bubble-edge,[data-season="muertos"][data-theme="dark"] .bubble-edge{fill:#2a1250;stroke:var(--marigold);stroke-width:14}
 [data-season="muertos"] .ip{fill:#ff3d8b} [data-season="muertos"] .io{fill:#ff8a00} [data-season="muertos"] .il{fill:#FF6A0B} [data-season="muertos"] .it{fill:#1fd1d6}
 [data-season="muertos"] .picado,[data-season="muertos"][data-theme="dark"] .picado{background:repeating-linear-gradient(90deg,#ff3d8b 0 30px,#ff8a00 30px 60px,#fff 60px 90px,#1fd1d6 90px 120px,#9b5de5 120px 150px)}
@@ -1853,6 +1855,7 @@ dialog.reel-share[open]{animation:rs-up .22s ease-out}
   #fbtop[data-skyline="dallas"] .sky-dallas,#fbtop[data-skyline="miami"] .sky-miami{display:inline}
   [data-theme="dark"] .fbtop .fb-sky{fill:#0a8f93;opacity:.6}
   [data-season="muertos"] .fbtop .fb-sky,[data-season="muertos"][data-theme="dark"] .fbtop .fb-sky{fill:#09030f;opacity:.95}
+  [data-season="muertos"] .fbtop .fb-sky .sky-win{opacity:.9}   /* v49.15.3: the lit windows read at the bar's small size */
 
   /* --- bottom tab bar: the app's own #tabs (same buttons, same ids, same handlers), moved to the bottom */
   .tabs{top:auto;bottom:0;padding-top:0;padding-bottom:env(safe-area-inset-bottom,0px);box-shadow:0 -2px 12px rgba(0,0,0,.3);
