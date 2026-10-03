@@ -190,7 +190,8 @@ async def webkit_tests(p, data):
     check(st["autoL"] == "Autoplay videos" and st["sndL"] == "Play with sound" and st["legend"] == "Video reels", f"Settings → '{st['legend']}': '{st['autoL']}', '{st['sndL']}'")
     await open_settings(pg); await pg.evaluate("document.querySelector('#set-feed-sound-group').scrollIntoView({ block: 'center' })")
     await pg.wait_for_timeout(400); os.makedirs(SHOTS, exist_ok=True)
-    await pg.screenshot(path=os.path.join(SHOTS, "reels-settings-toggles.png"))
+    sr = await pg.evaluate("(() => { const t = Math.max(0, document.querySelector('#settings .set-head').getBoundingClientRect().top); return { x: 0, y: t, width: innerWidth, height: innerHeight - t }; })()")
+    await pg.screenshot(path=os.path.join(SHOTS, "reels-settings-toggles.png"), clip=sr)   # just the Settings sheet
     await pg.tap("#set-feed-autoplay + span"); await pg.tap("#set-feed-sound + span"); await pg.wait_for_timeout(200); await close_settings(pg)
     ls = await pg.evaluate("[localStorage.getItem('chisme-feed-autoplay'), localStorage.getItem('chisme-feed-sound')]")
     check(ls == ["off", "off"], f"turning both off is saved ({ls})")
