@@ -445,7 +445,16 @@ def http_checks(FLAGS):
         check(st == 200 and meta(page, "property", "og:title") and 'href="/about"' in page and 'href="/support"' in page and page.count("<h1") == 1,
               f"{path}: the v49.12 page + OG + the site footer")
     # v49.15.3: /about, /support and the legal pages share the 1200×630 og-banner link preview (was og-image.png)
-    check(get(BASE + "/static/site/og-banner.png")[0] == 200, "og banner served")
+    st_b, hd_b, _ = get(BASE + "/static/site/og-banner.png")
+    import struct
+    with open(os.path.join(HERE, "static", "site", "og-banner.png"), "rb") as f: png = f.read()
+    check(st_b == 200 and png[:8] == b"\x89PNG\r\n\x1a\n" and struct.unpack(">II", png[16:24]) == (1200, 630) and len(png) <= 300_000,
+          f"og banner served: a 1200×630 PNG under 300 KB ({len(png) // 1024} KB)")
+    for path in ("/", "/about", "/support", "/privacy", "/terms"):
+        _, _, page = get(BASE + path)
+        alt = meta(page, "property", "og:image:alt") or ""
+        check("Oyistes" not in alt and "San Antonio skyline" in alt and (meta(page, "name", "twitter:image:alt") in (None, alt)),
+              f"{path}: the og:image:alt describes the new banner, no ¿Oyistes? ({alt!r})")
     for path in ("/about", "/support", "/privacy", "/terms"):
         _, _, page = get(BASE + path)
         img = base + "/static/site/og-banner.png"
