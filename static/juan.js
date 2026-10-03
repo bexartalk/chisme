@@ -1142,6 +1142,7 @@
         <h3 class="juan-hs-t" id="juan-hs-t"><span aria-hidden="true">🏆</span> Top 10</h3>
         <ol class="juan-hs-list" id="juan-hs-list" aria-live="polite"></ol>
         <p class="juan-hs-note" id="juan-hs-note" hidden></p>
+        <p class="juan-affil">Parody. All characters are original; any resemblance to other works is parody. Not affiliated with any government agency (including ICE).</p>
         <p class="juan-hs-report"><a href="mailto:bexartalkradio@gmail.com?subject=${encodeURIComponent("Report a Top 10 name (Chisme)")}&amp;body=${encodeURIComponent("Which name, and why:\n")}">Report a name</a> · nicknames are public; no real names or slurs</p>
       </section>`;
     const cv = el.querySelector("#juan-cv"), g = cv.getContext("2d", { alpha: false }), ov = el.querySelector("#juan-ov"), wrap = el.querySelector(".juan-wrap"), $ = (s) => el.querySelector(s);

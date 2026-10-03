@@ -1578,3 +1578,5 @@ dialog.juan-skins button.juan-sk-done{position:sticky;bottom:8px;z-index:2}
 .juan-hs-fine{margin:-2px 0 6px;font-size:.85rem;opacity:.9}
 .juan-hs-report{margin:8px 0 0;font-size:.85rem}
 .juan-hs-report a{color:inherit;text-decoration:underline;font-weight:800;display:inline-block;padding:8px 0}
+/* v49.12 legal (L1/M8): non-affiliation lines (footer, Juan's page) */
+.foot-affil,.juan-affil{font-size:.82rem;line-height:1.4;opacity:.85}
