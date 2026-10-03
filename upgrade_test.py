@@ -11,7 +11,7 @@ import os as _os, sys as _sys; _sys.path.insert(0, _os.path.dirname(_os.path.abs
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PY = os.path.join(HERE, "venv", "bin", "python")
-PORT = 8230
+PORT = int(os.environ.get("CHISME_TEST_PORT", "8230"))   # override when 8230 is taken (e.g. CHISME_TEST_PORT=8311)
 URL = f"http://localhost:{PORT}/"
 OUT = os.path.join(HERE, "screenshots")
 OLD = sys.argv[1:] or ["f0f68c2", "a3c1b3c", "4ca7393", "777a9f9", "fb94c22", "2170477", "2e3b9bd", "fa28328"]   # v15, v17, v19, v21, v22, v23, v24, v25
@@ -35,6 +35,20 @@ def stop(p):
     try: p.wait(5)
     except Exception: p.kill()
 
+async def nav_click(pg, sel):
+    """The phone bars (v49.15 fb-nav: the bottom tab bar, the top bar and the Chisme tab's chip row) slide away on a scroll
+    down, so a tab or chip click can land off screen. Same approach as update_test's tab_click: if they're hidden, scroll
+    up 120 px like a person would (a scroll up of 8 px+ brings them back), wait, then go to the very top if they're still
+    hidden (at the top they always show), then click."""
+    hidden = "() => document.documentElement.classList.contains('fb-hide') || document.querySelector('#tabs').getBoundingClientRect().top >= innerHeight"
+    if await pg.evaluate(hidden):
+        await pg.evaluate("window.scrollBy(0, -120)")
+        await pg.wait_for_timeout(400)
+        if await pg.evaluate(hidden):
+            await pg.evaluate("window.scrollTo(0, 0)")
+            await pg.wait_for_timeout(400)
+    await pg.click(sel)
+
 async def tab_check(pg, errs, label, shots=False):
     # An old page may reload itself onto the new build in the middle of the check (the expected
     # auto-update). That destroys the JS context; wait for the new page and check it instead.
@@ -56,9 +70,9 @@ async def _tab_check(pg, errs, label, shots=False):
     res = {}
     for v in ["sports", "weather"]:
         if v == "sports":   # v49.12: Sports is a chip inside the Chisme tab
-            await pg.click('#tabs [data-view="chisme"]'); await pg.wait_for_timeout(600)
-            await pg.click('.view.active .mq-chip[data-go="sports"]')
-        else: await pg.click(f'#tabs [data-view="{v}"]')
+            await nav_click(pg, '#tabs [data-view="chisme"]'); await pg.wait_for_timeout(600)
+            await nav_click(pg, '.view.active .mq-chip[data-go="sports"]')
+        else: await nav_click(pg, f'#tabs [data-view="{v}"]')
         await pg.wait_for_timeout(900)
         vis = await pg.evaluate(f"""() => {{ const el = document.querySelector('#view-{v}'); const r = el.getBoundingClientRect();
             const cur = document.querySelector('#tabs [aria-current="page"]');
@@ -167,7 +181,7 @@ async def next_deploy(p):
         await pg.wait_for_function("() => window.__chisme && window.__chisme.ready", timeout=60000)
         b = await pg.evaluate("() => [window.CHISME_BUILD, window.CHISME_APP_BUILD]")
         check(b == [nxt, nxt], f"open page reloaded itself onto the new build ({b})")
-        await pg.click('#tabs [data-view="chisme"]'); await pg.click('.view.active .mq-chip[data-go="sports"]'); await pg.wait_for_timeout(1000)
+        await nav_click(pg, '#tabs [data-view="chisme"]'); await nav_click(pg, '.view.active .mq-chip[data-go="sports"]'); await pg.wait_for_timeout(1000)
         check(await pg.evaluate("() => window.__chisme.view") == "sports", "Sports tab works after the self-reload")
         check(not errs, f"no page errors ({errs[:3]})")
     finally:
