@@ -11,6 +11,7 @@ a{color:var(--link)}
 button{font:inherit;font-weight:700;color:var(--ink);background:#fff;border:2px solid var(--ink);border-radius:10px;padding:.35em .8em;cursor:pointer;min-height:44px}
 button.primary{background:var(--brand);color:#fff;border-color:var(--brand)}
 button:focus-visible,a:focus-visible,summary:focus-visible{outline:4px solid var(--focus);outline-offset:2px}
+::placeholder{color:currentColor;opacity:.62}   /* v49.12: readable hints in every box (iPhone's default grey was ~2.3:1 on white); follows the box's own text colour, light or dark */
 
 /* header — matches the app icon: turquoise ground, black type, hot-pink + orange accents (papel picado strip) */
 /* the header scrolls away; the section buttons below it (.tabs) stay stuck to the top */
