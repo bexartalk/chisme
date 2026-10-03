@@ -3,7 +3,8 @@
 What's counted, and how it stays anonymous:
   • The app sends small batches of events with navigator.sendBeacon (POST /api/stats): opens (installed app vs the
     browser), tab views, story opens (the headline + link of the public news story), game plays, food video views,
-    Tía chats (a count only, never the text), donate taps, the Add to Home Screen tutorial's outcome, and the city of
+    Tía chats (a count only, never the text), donate taps, v49.13 reel likes / shares / watched-to-the-end / skips (per
+    public video id, for /api/reels/popular), the Add to Home Screen tutorial's outcome, and the city of
     the location setting (city level only, e.g. "San Antonio, TX").
   • Unique visitors: the app makes a random ID on the phone (localStorage "chisme-anon-id", not a cookie, not tied to
     anything). The server never keeps it: it's hashed with a secret salt and added to a Redis HyperLogLog per day
@@ -37,6 +38,9 @@ A2HS_NAMES = {"shown": "Opened from Settings", "shown_auto": "Shown by itself", 
 KINDS = ("all", "app", "web")
 ID_RX = re.compile(r"^[A-Za-z0-9_-]{16,64}$")
 WORD_RX = re.compile(r"^[a-z][a-z0-9_-]{0,23}$")
+REEL_ID_RX = re.compile(r"^(?:[\w-]{11}|\d{15,20})$")   # v49.13: a reel = a YouTube id or a TikTok number
+REEL_ACTS = {"like": 3, "share": 5, "complete": 2, "rewatch": 2, "skip": -1}   # → reel:<act> counts + the rp:<id> popularity score
+SHARE_WAYS = ("native", "copy", "sms", "whatsapp", "facebook", "x", "email")
 CITY_RX = re.compile(r"^[^\x00-\x1f<>{}\[\]\\/@#$%^*=+|~`\"]{2,60}$")
 
 
@@ -101,6 +105,10 @@ def tally(body: dict) -> dict | None:
             add("a2hs:" + v)
         elif t == "city" and isinstance(v, str) and CITY_RX.match(v.strip()):
             add("city:" + clean_text(v, 60))
+        elif t == "reel" and isinstance(v, dict) and v.get("a") in REEL_ACTS and isinstance(v.get("id"), str) and REEL_ID_RX.match(v["id"]):
+            a = v["a"]; add("reel:" + a); add("rp:" + v["id"], REEL_ACTS[a])   # v49.13: anonymous per-video counts for /api/reels/popular
+            if a == "share" and v.get("m") in SHARE_WAYS:
+                add("reel:share:" + v["m"])
     if not counts and not uniq:
         return None
     return {"counts": counts, "uniq": uniq, "stories": stories}

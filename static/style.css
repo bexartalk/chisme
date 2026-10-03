@@ -1722,3 +1722,75 @@ html[data-season="muertos"][data-launch="events"] .tab[data-view="chisme"],html[
 
 /* v49.12: the tagline under the header (one line on most phones, wraps on the smallest) */
 .tagline{margin:0;padding:6px 10px 0;text-align:center;font-size:clamp(13px,3.7vw,.9rem);font-weight:800;color:var(--ink2);line-height:1.3;text-wrap:balance}
+/* ---------- v49.13 video reels: like + share on every video, a progress bar, a double-tap heart, skeletons, broken-video
+   skip, and the share sheet. Fiesta colors only (turquoise, pink, orange, black, silver): no yellow anywhere. */
+.vf-rail .vf-like,.vf-rail .vf-share{font-size:.7rem}
+.vf-rail .ic,.vf-act .ic{width:1.5rem;height:1.5rem}
+.vf-like .ic path{fill:none;stroke:#fff;stroke-width:2;stroke-linejoin:round;transition:fill .15s,stroke .15s}
+.vf-like[aria-pressed="true"] .ic path{fill:var(--pink,#EF426F);stroke:var(--pink,#EF426F)}
+.vf-share .ic path{fill:#fff}
+/* while it plays the rail hides; Like + Share stay on the video (TikTok-style), bottom right, above the progress bar */
+.vf-act{position:absolute;z-index:3;right:8px;bottom:calc(env(safe-area-inset-bottom) + 26px);display:none;flex-direction:column;gap:14px;align-items:center}
+.vf-slide.vf-playing .vf-act{display:flex}
+.vf-slide.vf-playing:has(.vf-info :focus-visible,.vf-rail :focus-visible) .vf-act{display:none}
+.vf-act button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;width:60px;min-height:60px;padding:6px 2px;border:0;border-radius:999px;
+  background:rgba(0,0,0,.45);color:#fff;font-weight:900;font-size:.68rem;text-shadow:0 1px 2px #000;-webkit-tap-highlight-color:transparent}
+.vf-act .ic{width:1.9rem;height:1.9rem}
+.vf-act .vf-like .ic path{stroke-width:2.2}
+.vf-act button:active{transform:scale(.92)}
+.vf-act button:focus-visible{outline:4px solid var(--focus,#00C9CD);outline-offset:2px}
+.vf-like[aria-pressed="true"] .vf-lab{color:#fff}
+/* progress: a thin turquoise → pink bar along the bottom of the video on screen */
+.vf-prog{position:absolute;z-index:3;left:0;right:0;bottom:env(safe-area-inset-bottom);height:3px;background:rgba(167,169,172,.35);pointer-events:none}
+.vf-prog i{display:block;height:100%;background:linear-gradient(90deg,var(--turq,#00C9CD),var(--pink,#EF426F));transform-origin:0 50%;transform:scaleX(0);transition:transform .3s linear}
+.vf-slide:not(.vf-playing):not(.vf-paused) .vf-prog i{transition:none}
+/* the double-tap heart */
+.vf-heart{position:absolute;z-index:4;width:110px;height:110px;margin:-55px 0 0 -55px;pointer-events:none;animation:vf-heart .9s ease-out forwards}
+.vf-heart .ic{width:100%;height:100%}
+.vf-heart .ic path{fill:var(--pink,#EF426F);stroke:#fff;stroke-width:1}
+@keyframes vf-heart{0%{transform:scale(.3) rotate(-12deg);opacity:0}15%{transform:scale(1.15) rotate(-8deg);opacity:1}30%{transform:scale(.95) rotate(-8deg)}70%{opacity:1}100%{transform:translateY(-60px) scale(1.25) rotate(-8deg);opacity:0}}
+.reduce-motion .vf-heart{animation:vf-heart-still .5s linear forwards}
+@media (prefers-reduced-motion:reduce){ .vf-heart{animation:vf-heart-still .5s linear forwards} }
+@keyframes vf-heart-still{0%,80%{opacity:1}100%{opacity:0}}
+/* loading skeleton: where a video has no picture (none in the feed, or it failed), a soft shimmer until it plays. Only a
+   transform moves (compositor only: no repaint per frame, so it never slows a video starting on iPhone), and only on the
+   video on screen (.vf-loading) */
+.vf-media.vf-noimg{background:#0b0b0d;overflow:hidden}
+.vf-slide.vf-loading .vf-media.vf-noimg::before{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:linear-gradient(100deg,rgba(0,0,0,0) 30%,rgba(0,201,205,.16) 45%,rgba(239,66,111,.16) 55%,rgba(0,0,0,0) 70%);transform:translateX(-100%);animation:vf-skel 1.3s linear infinite}
+@keyframes vf-skel{to{transform:translateX(100%)}}
+.reduce-motion .vf-slide.vf-loading .vf-media.vf-noimg::before{animation:none;transform:none}
+@media (prefers-reduced-motion:reduce){ .vf-slide.vf-loading .vf-media.vf-noimg::before{animation:none;transform:none} }
+/* a video that can't play: said so, then the next one */
+.vf-errmsg{position:absolute;left:16px;right:16px;top:38%;z-index:4;margin:0;padding:12px 14px;border-radius:14px;background:rgba(0,0,0,.8);border:2px solid var(--orange,#FF8200);
+  color:#fff;font-weight:800;text-align:center}
+/* the held-sound hint: no yellow hand emoji */
+#feed.sound-held .feed-top::after{content:"🔊 Tap anywhere for sound";background:var(--pink,#EF426F)}
+/* ---------- the share sheet (Copy link, Text, WhatsApp, Facebook, X, Email) */
+dialog.reel-share{width:min(440px,calc(100vw - 20px));max-height:calc(100dvh - 40px);margin:auto auto calc(env(safe-area-inset-bottom) + 10px);padding:16px 16px 18px;
+  border:0;border-radius:22px;background:#0d0d10;color:#fff;box-shadow:0 -4px 30px rgba(0,0,0,.6);overflow:auto;
+  background-image:linear-gradient(90deg,var(--turq,#00C9CD),var(--pink,#EF426F),var(--orange,#FF8200));background-size:100% 4px;background-repeat:no-repeat}
+dialog.reel-share::backdrop{background:rgba(0,0,0,.55)}
+dialog.reel-share[open]{animation:rs-up .22s ease-out}
+@keyframes rs-up{from{transform:translateY(40px);opacity:0}}
+.reduce-motion dialog.reel-share[open]{animation:none}
+.rs-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:4px}
+.rs-head h2{margin:0;color:#fff;font-size:1.15rem;font-weight:900}
+.rs-x{min-width:44px;min-height:44px;border:2px solid #a7a9ac;border-radius:999px;background:transparent;color:#fff;font-weight:900;font-size:1rem}
+.rs-msg{margin:.7em 0 .9em;padding:10px 12px;border-radius:14px;background:#1a1a1f;border:1px solid #2c2c33;color:#e9e9ec;font-size:.88rem;line-height:1.35;
+  overflow-wrap:anywhere;-webkit-user-select:text;user-select:text}
+.rs-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.rs-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:84px;padding:8px 4px;border:2px solid #2c2c33;border-radius:16px;
+  background:#16161a;color:#fff;font:inherit;font-weight:800;font-size:.82rem;text-decoration:none;text-align:center;cursor:pointer}
+.rs-btn:active{transform:scale(.96)}
+.rs-btn:focus-visible,.rs-x:focus-visible{outline:4px solid var(--focus,#00C9CD);outline-offset:2px}
+.rs-ic{display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;font-weight:900;font-size:1rem;color:#fff}
+.rs-copy .rs-ic{background:var(--turq,#00C9CD);color:#000}.rs-copy .rs-ic::before{content:"🔗"}
+.rs-sms .rs-ic{background:var(--pink,#EF426F)}.rs-sms .rs-ic::before{content:"💬"}
+.rs-wa .rs-ic{background:#1a8f5a}.rs-wa .rs-ic::before{content:"WA";font-size:.85rem}
+.rs-fb .rs-ic{background:#1b5fd1}.rs-fb .rs-ic::before{content:"f";font-size:1.4rem;font-family:Georgia,serif}
+.rs-tw .rs-ic{background:#000;border:2px solid #a7a9ac}.rs-tw .rs-ic::before{content:"𝕏"}
+.rs-mail .rs-ic{background:var(--orange,#FF8200);color:#000}.rs-mail .rs-ic::before{content:"✉"}
+.rs-more .rs-ic{background:#a7a9ac;color:#000}.rs-more .rs-ic::before{content:"•••";font-size:.8rem}
+.rs-note{min-height:1.2em;margin:.8em 0 0;color:var(--turq,#00C9CD);font-weight:800;font-size:.88rem;text-align:center}
+.rs-note:empty{display:none}

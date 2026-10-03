@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Chisme. ¿Oyistes?</title>
   <meta name="description" content="Chisme. ¿Oyistes? Local news, NWS weather, alerts, live rain radar, sports and events for wherever you are.">
+  <!--og:start--><meta property="og:type" content="website">
+  <meta property="og:site_name" content="Chisme">
+  <meta property="og:title" content="Chisme — San Antonio's news, food &amp; chisme">
+  <meta property="og:description" content="Local news, weather, events and a feed of short food videos from San Antonio's creators. Get the Chisme app.">
+  <meta property="og:url" content="https://chisme.onrender.com/">
+  <meta property="og:image" content="https://chisme.onrender.com/static/icons/icon-512.png">
+  <meta name="twitter:card" content="summary"><!--og:end-->
   <meta name="theme-color" content="#00C9CD">
   <meta name="application-name" content="Chisme">
   <meta name="mobile-web-app-capable" content="yes">
@@ -528,6 +535,17 @@
     <p>By using Chisme you agree to our <a href="/terms" target="_blank" rel="noopener">Terms</a> and <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>.</p>
     <button type="button" id="terms-ok" class="terms-ok">OK</button>
   </div>
+
+  <dialog id="reel-share" class="reel-share" aria-labelledby="rs-title">
+    <div class="rs-head">
+      <h2 id="rs-title">Share this video</h2>
+      <button type="button" id="rs-close" class="rs-x" aria-label="Close">✕</button>
+    </div>
+    <p class="rs-msg" id="rs-msg"></p>
+    <div class="rs-grid" id="rs-grid"></div>
+    <p class="rs-note" id="rs-note" role="status" aria-live="polite"></p>
+  </dialog>
+
   <button type="button" id="tia-btn" class="tia-fab" aria-haspopup="dialog" aria-controls="tia-menu">
     <img src="/static/mascot/avatar-64.webp?art=3" srcset="/static/mascot/avatar-64.webp?art=3 1x, /static/mascot/avatar-128.webp?art=3 2x, /static/mascot/avatar-192.webp?art=3 3x" width="60" height="60" alt="">
     <span class="sr-only">Tía Chismosa: Settings and chat</span>
@@ -681,9 +699,10 @@
         <p class="set-note" id="set-motion-note">Turns off swipe animations, the pulsing location dot, radar autoplay and the food videos' autoplay.</p>
       </fieldset>
       <fieldset class="set-group" id="set-feed-sound-group">
-        <legend>Food videos</legend>
-        <label class="switch"><input type="checkbox" id="set-feed-sound"><span>Food videos: sound on</span></label>
-        <p class="set-note" id="set-feed-sound-note">¿Y la dieta?'s videos play by themselves as you scroll, muted. Turn this on to hear them (the 🔇 button in the feed does the same). On iPhone, Safari needs one tap in the feed before the first sound; after that, the next videos keep it.</p>
+        <legend>Video reels</legend>
+        <label class="switch"><input type="checkbox" id="set-feed-autoplay" checked><span>Autoplay videos</span></label>
+        <label class="switch"><input type="checkbox" id="set-feed-sound" checked><span>Play with sound</span></label>
+        <p class="set-note" id="set-feed-sound-note">The food reels play by themselves as you swipe, with sound. Turn Autoplay off to tap each one to play; turn sound off to watch them muted (the 🔊 button in the feed does the same). On iPhone, Safari needs one tap in the feed before the first sound; after that, the next videos keep it. Reduce motion and your phone's Data Saver also stop autoplay.</p>
       </fieldset>
       <fieldset class="set-group">
         <legend>Bigger the Pansa, Better the Chansa feed</legend>

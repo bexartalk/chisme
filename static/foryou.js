@@ -9,13 +9,21 @@
    Weights fade with a 14-day half-life. Score = interest + freshness (10-day half-life) − repeats − already saved,
    then hard variety rules (many creators, many different places: see rank()) and ~20% exploration
    slots (every 5th card is something new or different), with a seeded shuffle so the order is
-   stable while you scroll. */
+   stable while you scroll.
+
+   v49.13 reels: more signals per video (kept in p.s[url]) and per category / creator / tag (p.f):
+     like +2.5 (unlike takes it back), share +4, watched to the end +1.2, rewatched (looped) +1.5, skipped in under
+     2 s −0.6 (as before). A category feature ("t:local" | "t:recipe" | "t:world") learns which kind you like.
+   Score also favors short videos (YouTube Shorts / TikTok / anything ≤ 60 s), pushes down what you've already seen
+   (harder if seen in the last 6 h), and can add a small boost from the server's anonymous popularity counts (opts.pop).
+   next() hands out the next batch for the endless feed: unseen videos first, never one shown in the last few. */
 (function (root) {
   "use strict";
   const KEY = "chisme-foryou", VERSION = 1, DAY = 864e5;
   const HALF_LIFE = 14 * DAY, FRESH_HALF = 10 * DAY;
-  const DELTA = { open: 1, save: 3, unsave: -2, skip: -0.6, not_interested: -4 };
-  const IMPORTANCE = { c: 1.0, k: 1.2, n: 0.7, p: 0.6 };
+  const DELTA = { open: 1, save: 3, unsave: -2, skip: -0.6, not_interested: -4, like: 2.5, unlike: -2.5, share: 4, complete: 1.2, rewatch: 1.5 };
+  const IMPORTANCE = { c: 1.0, k: 1.2, n: 0.7, p: 0.6, t: 0.5 };
+  const SEEN_RECENT = 6 * 3600e3, SHORT_MAX = 60;
   const EXPLORE_EVERY = 5;   // 1 in 5 cards (~20%) is exploration
 
   // dish / cuisine keywords (label, how to count saves: "2 taco spots", matches)
@@ -72,7 +80,25 @@
     if (!hood) { const z = /\b(7[89]\d{3})\b/.exec(text); if (z && ZIPS[z[1]]) hood = ZIPS[z[1]]; }
     if (hood) f.push("n:" + hood);
     if (SPLURGE.test(text)) f.push("p:splurge"); else if (CHEAP.test(text)) f.push("p:cheap");
+    f.push("t:" + categoryOf(it));   // v49.13: the category (it doesn't count toward the many-tags scaling below)
     return f;
+  }
+  // v49.13: the reel's id (YouTube's 11 characters, or TikTok's number): the deep link /?reel=<id> and the server's counts use it
+  function reelId(u) {
+    u = String(u || "");
+    const y = /(?:youtube(?:-nocookie)?\.com\/(?:watch\?(?:[^#]*&)?v=|shorts\/|embed\/|live\/)|youtu\.be\/)([\w-]{11})/.exec(u);
+    if (y) return y[1];
+    const t = /tiktok\.com\/(?:@[\w.]+\/video|player\/v1|embed(?:\/v2)?)\/(\d{15,20})/.exec(u);
+    return t ? t[1] : null;
+  }
+  const categoryOf = (it) => (isRecipe(it) ? "recipe" : isWorld(it) ? "world" : "local");
+  // short: a known duration ≤ 60 s, else a YouTube Shorts / TikTok link. 1 short, 0 unknown, -1 long
+  function shortness(it, s) {
+    const d = (it && it.dur) || (s && s.d) || 0;
+    if (d) return d <= SHORT_MAX ? 1 : d <= 90 ? 0 : -1;
+    const u = String((it && it.url) || "");
+    if (/youtube\.com\/shorts\/|tiktok\.com\//.test(u)) return 1;
+    return /youtube\.com\/watch|youtu\.be\//.test(u) ? -1 : 0;
   }
 
   // ---------- profile (what this phone has learned)
@@ -92,13 +118,14 @@
   const decayed = (x, now) => (x ? x.w * Math.pow(0.5, Math.max(0, now - x.t) / HALF_LIFE) : 0);
 
   // kind: open | watch (with seconds) | save | unsave | skip | not_interested | undo_not_interested
+  //       v49.13: like | unlike | share | complete | rewatch (opts.duration: the video's length in seconds, when known)
   function signal(p, kind, it, opts) {
     opts = opts || {};
     const now = opts.now || Date.now(), url = it.url;
     let d = DELTA[kind] || 0;
     if (kind === "watch") d = 0.5 + 1.5 * Math.min(1, Math.max(0, (opts.seconds || 0) - 3) / 27);   // 3 s … 30 s → +0.5 … +2
     if (kind === "undo_not_interested") d = -DELTA.not_interested;
-    const feats = featuresOf(it), scale = 1 / Math.sqrt(Math.max(1, feats.length));   // a video with many tags doesn't swamp the profile
+    const feats = featuresOf(it), scale = 1 / Math.sqrt(Math.max(1, feats.filter((k) => k[0] !== "t").length));   // a video with many tags doesn't swamp the profile
     for (const k of feats) {
       const x = p.f[k] || { w: 0, t: now, sv: 0, wt: 0 };
       x.w = decayed(x, now) + d * scale; x.t = now;
@@ -115,6 +142,13 @@
     if (kind === "save") s.sv = 1;
     if (kind === "unsave") delete s.sv;
     if (kind === "undo_not_interested") delete s.ni;
+    if (kind === "like") s.lk = 1;
+    if (kind === "unlike") delete s.lk;
+    if (kind === "share") s.sh = (s.sh || 0) + 1;
+    if (kind === "complete") s.c = (s.c || 0) + 1;
+    if (kind === "rewatch") s.rw = (s.rw || 0) + 1;
+    if (kind === "watch") s.wt = Math.round(((s.wt || 0) + Math.min(600, opts.seconds || 0)) * 10) / 10;
+    if (opts.duration > 0 && opts.duration < 36000) s.d = Math.round(opts.duration);
     p.s[url] = s; p.n = (p.n || 0) + 1;
     return p;
   }
@@ -122,12 +156,16 @@
   function contributions(p, it, now) {
     return featuresOf(it).map((k) => ({ k, v: decayed(p.f[k], now) * (IMPORTANCE[k[0]] || 1), x: p.f[k] })).filter((c) => c.v !== 0);
   }
-  function scoreOf(p, it, now) {
+  function scoreOf(p, it, now, pop) {
     const interest = contributions(p, it, now).reduce((a, c) => a + c.v, 0);
     const age = it.published ? Math.max(0, now - it.published * 1000) : 30 * DAY;
     const fresh = Math.pow(0.5, age / FRESH_HALF);
     const s = p.s[it.url] || {};
-    return interest + 1.5 * fresh - 0.8 * (s.v || 0) - 0.5 * (s.sk || 0) - (s.sv ? 1.5 : 0);   // already saved: make room for new finds
+    // v49.13: short videos first; seen in the last 6 h (or skipped again): further down; the crowd's favorites a bit up
+    const sh = shortness(it, s), recent = s.v && now - (s.t || 0) < SEEN_RECENT ? 1.5 : 0;
+    const crowd = pop ? Math.min(1.2, 0.35 * Math.log1p(Math.max(0, +pop[reelId(it.url)] || 0))) : 0;
+    return interest + 1.5 * fresh - 0.8 * (s.v || 0) - 0.5 * (s.sk || 0) - (s.sv ? 1.5 : 0)   // already saved: make room for new finds
+      - (sh > 0 ? 0 : sh < 0 ? 1.4 : 0.6) - recent - 0.4 * Math.max(0, (s.sk || 0) - 1) + crowd;   // (shorts: no change; unknown −0.6, long −1.4)
   }
   const familiarity = (p, it, now) => featuresOf(it).reduce((a, k) => a + Math.abs(decayed(p.f[k], now)), 0) + 2 * ((p.s[it.url] || {}).v || 0);
 
@@ -142,7 +180,7 @@
       const k = featuresOf(it).find((f) => f[0] === "k");
       return { text: k ? `Something different: ${labelOf(k.slice(2))}` : `Something new from ${norm(it.creator) || (isRecipe(it) ? "a home cook" : isWorld(it) ? "a food reviewer" : "a local creator")}`, kind: "explore" };
     }
-    const top = contributions(p, it, now).filter((c) => c.v > 0.05).sort((a, b) => b.v - a.v)[0];
+    const top = contributions(p, it, now).filter((c) => c.v > 0.05 && c.k[0] !== "t").sort((a, b) => b.v - a.v)[0];
     if (top) {
       const t = top.k[0], name = top.k.slice(2), x = top.x || {};
       if (t === "k") {
@@ -201,7 +239,7 @@
     const now = opts.now || Date.now(), rand = rng(opts.seed == null ? Math.floor(now / DAY) : opts.seed);
     const urls = new Set();
     const pool = items.filter((it) => it && it.url && !((p.s[it.url] || {}).ni) && !urls.has(it.url) && urls.add(it.url));
-    let scored = pool.map((it) => ({ it, score: scoreOf(p, it, now), fam: familiarity(p, it, now), crew: crewOf(it), place: placeKey(it), j: rand() }));
+    let scored = pool.map((it) => ({ it, score: scoreOf(p, it, now, opts.pop), fam: familiarity(p, it, now), crew: crewOf(it), place: placeKey(it), j: rand() }));
     // a video with no place of its own but whose title names a known spot is about that spot
     const known = [...new Set(scored.map((x) => x.place).filter((k) => k && k.length >= 6))];
     for (const x of scored) if (!x.place) { const t = " " + keyText(x.it.title) + " "; const k = known.find((k) => t.includes(" " + k + " ")); if (k) x.place = k; }
@@ -278,10 +316,29 @@
   // top interests, for the banner ("Tuned to you: tacos, BBQ …")
   function interests(p, n, now) {
     now = now || Date.now();
-    return Object.entries(p.f).map(([k, x]) => ({ k, v: decayed(x, now) })).filter((e) => e.v > 0.2 && e.k[0] !== "p")
+    return Object.entries(p.f).map(([k, x]) => ({ k, v: decayed(x, now) })).filter((e) => e.v > 0.2 && e.k[0] !== "p" && e.k[0] !== "t")
       .sort((a, b) => b.v - a.v).slice(0, n || 3).map((e) => (e.k[0] === "k" ? labelOf(e.k.slice(2)) : e.k.slice(2)));
   }
-  const api = { KEY, isRecipe, isWorld, MIX_EVERY, crewOf, placeKey, featuresOf, load, save, reset, signal, scoreOf, rank, why, interests, labelOf, EXPLORE_EVERY };
+  // v49.13, the endless feed: the next `n` videos to append. opts.recent: urls shown in the last few slides (never again
+  // right away); opts.shown: urls shown this session (unseen ones go first; once they run out, the best seen ones come back).
+  // Same rules as rank() (variety, the recipe mix, ~20% exploration once it has learned), with opts.pop for the crowd boost.
+  function next(p, items, opts) {
+    opts = opts || {};
+    const n = opts.n || 10, recent = opts.recent || new Set(), shown = opts.shown || new Set();
+    const pool = items.filter((it) => it && it.url && !((p.s[it.url] || {}).ni) && !recent.has(it.url));
+    if (!pool.length) return [];
+    const fresh = pool.filter((it) => !shown.has(it.url));
+    const use = fresh.length >= Math.min(n, 3) ? fresh : pool;
+    const out = rank(p, use, opts).slice(0, n);
+    if (out.length < n && use !== pool) {   // not enough unseen ones: top up with the best of the seen ones
+      const have = new Set(out.map((r) => r.item.url));
+      out.push(...rank(p, pool.filter((it) => !have.has(it.url)), opts).slice(0, n - out.length));
+    }
+    return out;
+  }
+  const liked = (p, url) => !!((p.s[url] || {}).lk);
+  const api = { KEY, isRecipe, isWorld, MIX_EVERY, crewOf, placeKey, featuresOf, load, save, reset, signal, scoreOf, rank, why, interests, labelOf, EXPLORE_EVERY,
+    reelId, shortness, categoryOf, next, liked, DELTA };
   root.ChismeForYou = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);

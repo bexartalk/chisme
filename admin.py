@@ -149,7 +149,7 @@ def _period_cards(S: dict, n: int) -> str:
     c, u = S[n]["c"], S[n]["u"]
     items = [("Visitors", u["all"], "different phones"), ("Installed app", u["app"], "phones opening from the Home Screen"),
              ("In Safari / browser", u["web"], "phones in the browser"), ("Opens", c.get("open", 0), f"{fmt(c.get('open:app', 0))} app · {fmt(c.get('open:web', 0))} browser"),
-             ("Food video views", c.get("food", 0), f"{fmt(c.get('food:yt', 0))} YouTube · {fmt(c.get('food:tt', 0))} TikTok"),
+             ("Food video views", c.get("food", 0), f"{fmt(c.get('food:yt', 0))} YouTube · {fmt(c.get('food:tt', 0))} TikTok · ♥ {fmt(c.get('reel:like', 0))} likes · {fmt(c.get('reel:share', 0))} shares"),
              ("Game plays", c.get("game", 0), ""), ("Donate taps", c.get("donate", 0), " · ".join(f"{e(k)} {fmt(v)}" for k, v in stats._top(c, "donate:"))),
              ("Tía chats", c.get("tia", 0), "messages (never the text)")]
     return "".join(f'<div class="stat"><div class="n">{fmt(v)}</div><div class="l">{e(l)}</div><div class="s">{s}</div></div>' for l, v, s in items)

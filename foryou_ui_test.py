@@ -4,8 +4,8 @@ overlaid Save / Directions / Not for me / Details; signals (skip-fast, watch, sa
 localStorage; the 'Why you're seeing this' chip learns ("Because you saved 2 … spots"); Back button and the browser's
 back close the feed; reduced motion → tap-to-play thumbnail; Settings → Reset my feed; creator cards (Instagram-only
 labeled). v40: the feed is named "Bigger the Pansa, Better the Chansa" (banner, feed top bar, aria, Settings).
-v41: sound is ON by default (remembered; 🔇 Muted turns it off). v49.12: the feed starts MUTED until you turn sound on (🔊 or
-Settings → Food videos); the sound runs below turn it on first. The video on screen tries sound first; when the browser refuses
+v41: sound is ON by default (remembered; 🔇 Muted turns it off). v49.12 started it MUTED; v49.13 (the owner's call) is back to sound ON by default
+(Settings → Video reels → Play with sound); the sound runs below turn it on explicitly too. The video on screen tries sound first; when the browser refuses
 (Chrome without a tap, iPhone Safari), it plays muted with a "Tap anywhere for sound" hint, and the first tap in the feed unmutes it.
 v42: persistent YouTube players for the whole feed (loadVideoById), one on screen and others warming the next videos (muted,
 held on its first frame, waiting under the slide on screen), swapping as you swipe; never an iframe per video.
@@ -339,7 +339,9 @@ async def sound(p):
     await p0.wait_for_function("() => window.__chisme && window.__chisme.foodReady && !document.querySelector('#foryou-card').hidden", timeout=90000)
     await p0.wait_for_timeout(1000); await p0.evaluate("window.__chisme.openFeed(null, 0)"); await p0.wait_for_timeout(1500)
     d0 = await p0.evaluate(SND)
-    check(not d0["wanted"] and d0["pref"] is None and not d0["setting"] and d0["btn"] == "🔇 Muted", f"v49.12: nothing chosen yet: the feed starts muted (🔇 Muted, Settings → Food videos: sound on unchecked) ({d0['btn']!r})")
+    # v49.13: the owner wants the reels to autoplay WITH sound by default again (reverses v49.12 legal M4/L20; the browser may still
+    # hold the sound until a tap: then it plays muted with the hint)
+    check(d0["wanted"] and d0["pref"] is None and d0["setting"], f"v49.13: nothing chosen yet: sound is wanted (Settings → Video reels → Play with sound checked) ({d0['btn']!r})")
     await c0.close()
     await ctx.add_init_script(INIT % "localStorage.setItem('chisme-feed-sound','on');"); pg = await ctx.new_page(); errs = []
     pg.on("console", lambda m: errs.append(m.text[:160]) if own_error(m) else None)
@@ -436,7 +438,7 @@ async def settings_toggle(p):
     await pg.wait_for_function("() => window.__chisme && window.__chisme.foodReady && !document.querySelector('#foryou-card').hidden", timeout=90000)
     await pg.tap("#settings-btn"); await pg.wait_for_timeout(500)
     st = await pg.evaluate("({ on: document.querySelector('#set-feed-sound').checked, label: document.querySelector('#set-feed-sound').closest('label').textContent.trim(), legend: document.querySelector('#set-feed-sound-group legend').textContent })")
-    check(not st["on"] and st["label"] == "Food videos: sound on" and st["legend"] == "Food videos", f"Settings has 'Food videos: sound on', unchecked by default (v49.12: muted until you turn it on) ({st})")
+    check(st["on"] and st["label"] == "Play with sound" and st["legend"] == "Video reels", f"Settings → Video reels has 'Play with sound', checked by default (v49.13 wording; was 'Food videos: sound on') ({st})")
     await pg.evaluate("document.querySelector('#set-feed-sound').scrollIntoView({ block: 'center' })"); await pg.wait_for_timeout(300)
     await pg.screenshot(path=os.path.join(OUT, "settings-food-sound.png"))
     await pg.tap("#set-feed-sound"); await pg.wait_for_timeout(200)

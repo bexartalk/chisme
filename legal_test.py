@@ -5,7 +5,7 @@
     OK hides it for good (also after a reload)
   • Settings → Privacy and the footer link both pages; the footer says who Chisme isn't affiliated with
   • the weather disclaimer sits under the alerts and in Settings → Notifications; tip buttons say tips aren't charity
-  • the food feed is muted by default; the API calls carry 2-decimal coordinates (/api/place keeps 3)"""
+  • the food feed plays with sound by default (v49.13, the owner's call; v49.12 had it muted); the API calls carry 2-decimal coordinates (/api/place keeps 3)"""
 import asyncio, os, re, sys, urllib.request
 from playwright.async_api import async_playwright
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); import pw_csp  # noqa: E401,F401
@@ -62,7 +62,7 @@ async def main():
                     check(all(k in t["affil"] for k in ("Spurs", "NBA", "Lotería publisher", "National Weather Service", "Immigration and Customs Enforcement")), "footer: not affiliated with the Spurs/NBA, Lotería publishers, NWS/ICE")
                     check("isn't an official warning service" in t["wx"] and t["after"] == "wx-disclaimer" and "weather.gov" in t["wxs"], "weather disclaimer under the alerts and in Settings → Notifications")
                     check(t["tips"] >= 7 and t["tipsTxt"] == "Tips go to the Chisme creator; not a charity, not tax-deductible, unlocks nothing.", f"tip note under every set of tip buttons ({t['tips']})")
-                    check(not t["sound"] and await pg.evaluate("localStorage.getItem('chisme-feed-sound')") is None, "food videos: sound off by default")
+                    check(t["sound"] and await pg.evaluate("localStorage.getItem('chisme-feed-sound')") is None, "food videos: sound ON by default (v49.13: the owner's call, reverses v49.12 legal M4/L20 — review)")
                     check("Google" in t["tia"] and "Chats stay on this phone" not in t["tia"] and "No names" not in t["priv"] and "public" in t["priv"], f"accurate privacy wording (Tía: {t['tia'][:60]}…)")
                     qs = [re.search(r"lat=([-\d.]+)&lon=([-\d.]+)", u) for u in calls]
                     dec = {(u.split("/api/")[1].split("?")[0], len(m.group(1).split(".")[1]) if "." in m.group(1) else 0) for u, m in zip(calls, qs) if m}

@@ -1,7 +1,7 @@
 /* Chisme — frontend (location-aware) */
 // Build of this file. Must equal the number in sw.js VERSION ("chisme-v22"); the page compares it
 // with the build the HTML was served for and reloads once if an old cached app.js got mixed in.
-window.CHISME_APP_BUILD = "49.12";
+window.CHISME_APP_BUILD = "49.13";
 (() => {
   "use strict";
   const WEATHER_MS = 10 * 60 * 1000;
@@ -1449,7 +1449,7 @@ window.CHISME_APP_BUILD = "49.12";
   document.addEventListener("click", (e) => {
     if (e.defaultPrevented || e.button > 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     const a = e.target.closest && e.target.closest("a[href]");
-    if (!a || a.matches(".donate-btn, .orig-link, .legal-link")) return;   // v49.12: YouTube/Google terms links open as themselves
+    if (!a || a.matches(".donate-btn, .orig-link, .legal-link, .share-out")) return;   // v49.12: YouTube/Google terms links open as themselves; v49.13: share targets leave on purpose
     let u; try { u = new URL(a.href); } catch { return; }
     if (DIRECT_HOSTS.has(u.hostname.replace(/^www\./, ""))) return;   // donate links leave on purpose
     if (u.origin === location.origin || !/^https?:$/.test(u.protocol)) return;
@@ -1569,7 +1569,10 @@ window.CHISME_APP_BUILD = "49.12";
   const feedVideos = () => (foodData && foodData.items ? foodData.items.concat(foodData.recipes || [], foodData.world || []).filter((i) => vidOf(i)) : []);
   // v42: the feed autoplays unless you turned on Reduce motion in Chisme's own Settings (the phone's system-wide
   // Reduce Motion alone no longer stops it: you opened the feed to watch, and a tap pauses), you're offline, or Data Saver is on
-  const canAutoplay = () => navigator.onLine && lsGet("chisme-reduce-motion") !== "1" && !(navigator.connection && navigator.connection.saveData);
+  // v49.13: + Settings → Video reels → Autoplay videos (on unless you turn it off; off = a "Tap to play" on every video)
+  const FEED_AUTOPLAY_KEY = "chisme-feed-autoplay";
+  const autoplayWanted = () => lsGet(FEED_AUTOPLAY_KEY) !== "off";
+  const canAutoplay = () => navigator.onLine && autoplayWanted() && lsGet("chisme-reduce-motion") !== "1" && !(navigator.connection && navigator.connection.saveData);
   // Rotation: every visit (and every time you close the feed) a different creator leads, and the one who led
   // last time never leads again. The banner cover and the feed come from the same ranked list, so they match.
   const lsGet = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
@@ -1579,8 +1582,34 @@ window.CHISME_APP_BUILD = "49.12";
   // v42, iPhone/iPad: the YouTube videos first (one player, so the sound stays on from video to video), then the TikToks
   // (each TikTok is its own player there and needs its own tap for sound). Each group is ranked on its own, so the
   // creator mix and the every-3rd recipe still hold.
+  // v49.13: reelPop = the crowd's favorites this week (/api/reels/popular: anonymous counts; a small boost in the ranker);
+  // reelLead = a shared reel's id from the link /?reel=<id>: the feed opens on that video
+  // The visit's first ranking (the cover + the feed) only uses the favorites saved on an earlier visit, so the order never
+  // changes under you mid-visit; a fresh answer is saved for next time and used right away for the endless feed's batches.
+  const POP_KEY = "chisme-reels-pop";
+  let reelLead = null, reelPop = null;
+  let reelPopSaved = (() => { try { const j = JSON.parse(lsGet(POP_KEY) || "null"); return j && j.pop && Date.now() - j.t < 3 * 864e5 ? j.pop : null; } catch { return null; } })();
+  function loadPop() {
+    if (reelPop || !navigator.onLine) return;
+    reelPop = {};
+    fetch("/api/reels/popular").then((r) => r.json()).then((j) => {
+      if (j && j.pop && typeof j.pop === "object") { reelPop = j.pop; lsSet(POP_KEY, JSON.stringify({ t: Date.now(), pop: j.pop })); }
+    }).catch(() => {});
+  }
+  function sharedReel(id) {   // a shared video that isn't in this phone's lists (another city's, or an older one)
+    const tt = /^\d+$/.test(id);
+    return { item: { url: tt ? `https://www.tiktok.com/@chisme/video/${id}` : `https://www.youtube.com/shorts/${id}`, title: "A video shared with you on Chisme",
+      creator: "", video: true, kind: "creator", platform: tt ? "tiktok" : "youtube", image: tt ? null : `https://i.ytimg.com/vi/${id}/hqdefault.jpg`, published: null },
+      score: 0, explore: false, crew: "shared", place: null };
+  }
+  function leadWith(list, id) {
+    const k = list.findIndex((r) => FY.reelId(r.item.url) === id);
+    const r = k >= 0 ? list.splice(k, 1)[0] : sharedReel(id);
+    list.unshift({ ...r, explore: false, why: { text: "Shared with you", kind: "fresh" } });
+    return list;
+  }
   const fyRank = () => {
-    const prof = fyProfile || FY.load(), vids = feedVideos(), opts = { rot: fyRot, lastLead: fyAvoid };
+    const prof = fyProfile || FY.load(), vids = feedVideos(), opts = { rot: fyRot, lastLead: fyAvoid, pop: reelPopSaved || undefined };
     if (!IOS_FEED) return FY.rank(prof, vids, opts);
     const tt = vids.filter((i) => ttId(i.url)), yt = vids.filter((i) => !ttId(i.url));
     return FY.rank(prof, yt, opts).concat(tt.length ? FY.rank(prof, tt, opts) : []);
@@ -1622,7 +1651,8 @@ window.CHISME_APP_BUILD = "49.12";
       : likes.length ? `Tuned to you: ${likes.join(", ")}. ${n} videos ready.`
       : `${n} videos ready. No account: what it learns stays on this phone.`;
     $("#fy-start").disabled = !vids.length;
-    preparePlayer();
+    preparePlayer(); loadPop();
+    if (reelLead && vids.length && !feed.open) setTimeout(() => { if (reelLead && !feed.open) openFeed(null, 0); }, 0);   // v49.13: a shared reel's link
   }
   // ---------- the players, TikTok-style (v42). The video on screen plays by itself, WITH SOUND by default (Settings →
   // Food videos: sound, or the 🔊/🔇 button in the feed, turns it off).
@@ -1650,7 +1680,7 @@ window.CHISME_APP_BUILD = "49.12";
   const ytPool = () => Math.min(YT_POOL_MAX, aheadN() + 2);     // + the one on screen + the one behind
   const prefetchN = () => (slowNet() ? 2 : 6);                  // slides ahead whose thumbnails are fetched (and decoded) now
   const FEED_SOUND_KEY = "chisme-feed-sound";
-  let soundWanted = lsGet(FEED_SOUND_KEY) === "on";   // v49.12: muted until you turn sound on (Settings, 🔇 in the feed, or a tap)
+  let soundWanted = lsGet(FEED_SOUND_KEY) !== "off";   // v49.13: sound ON by default (the owner's call for the reels, Oct 3 2026; v49.12 had it muted)
   let feedUnlocks = 0, feedGesture = false;   // feedGesture: true while handling a real tap (Start, a play button, the sound button)
   const IOS = IOS_FEED;
   const YT_HOST = "https://www.youtube-nocookie.com";
@@ -1839,13 +1869,21 @@ window.CHISME_APP_BUILD = "49.12";
   function addShield(slide, it) {   // the shield takes the touches so vertical swipes scroll the feed; a tap pauses/plays and shows/hides the info
     if (slide.querySelector(".vf-shield")) return;
     const shield = el("button", { type: "button", class: "vf-shield", "aria-label": "Pause or play" }), st = el("span", { class: "vf-state", "aria-hidden": "true" });
-    shield.onclick = () => {
-      if (!isCur(slide)) return;
-      if (slide.classList.contains("vf-tap")) { tapPlay(slide, it); return; }
+    const toggle = () => {
       feedPlaying = !feedPlaying;
       if (feedPlaying) { feedGesture = true; try { feedCommand(slide, "play"); if (soundWanted) { if (slide._soundBlocked) feedUnlocks++; applySound(slide); } } finally { feedGesture = false; } }
       else feedCommand(slide, "pause");
       setUi(slide, feedPlaying); updateSoundBtn();
+    };
+    shield.onclick = (e) => {
+      if (!isCur(slide)) return;
+      // v49.13: a double-tap likes it (♥ where you tapped); its first tap already paused/played, so the second puts that back
+      const now = Date.now(), dbl = !!slide._tapAt && now - slide._tapAt < 330;
+      slide._tapAt = dbl ? 0 : now;
+      if (dbl) { if (slide._tapToggled) toggle(); slide._tapToggled = false; toggleLike(slide, it, true, e); return; }
+      slide._tapToggled = false;
+      if (slide.classList.contains("vf-tap")) { tapPlay(slide, it); return; }
+      toggle(); slide._tapToggled = true;
     };
     slide.querySelector(".vf-media").append(shield, st);
   }
@@ -1864,7 +1902,7 @@ window.CHISME_APP_BUILD = "49.12";
   function unlockSound(e) {
     const s = slides()[feedCur], onShield = !!(e.target.closest && e.target.closest(".vf-shield"));
     // the click that follows the unlocking touch is part of the same tap: it doesn't also pause the video
-    if (e.type === "click" && onShield && s && s._unlockAt && Date.now() - s._unlockAt < 900) { s._unlockAt = 0; e.stopPropagation(); e.preventDefault(); return; }
+    if (e.type === "click" && onShield && s && s._unlockAt && Date.now() - s._unlockAt < 900) { s._unlockAt = 0; s._tapAt = Date.now(); s._tapToggled = false; e.stopPropagation(); e.preventDefault(); return; }   // (v49.13: a 2nd tap right after is still a double-tap ♥)
     if (!feed.open || !soundWanted || !s) return;
     if (!s._soundBlocked || s.classList.contains("vf-tap")) { if (YT.some((p) => p.ready && !p.unlocked)) { feedGesture = true; try { unlockPlayers(); } finally { feedGesture = false; } } return; }
     if (e.target.closest && e.target.closest("#feed-sound, #feed-close")) return;   // those buttons do their own thing
@@ -1872,7 +1910,7 @@ window.CHISME_APP_BUILD = "49.12";
     feedPlaying = true; feedGesture = true;
     try { applySound(s); feedCommand(s, "play"); } finally { feedGesture = false; }
     setUi(s, true); watchStart(s);
-    if (e.type === "click" && onShield) { e.stopPropagation(); e.preventDefault(); }   // that tap means "sound", not "pause"
+    if (e.type === "click" && onShield) { s._tapAt = Date.now(); s._tapToggled = false; e.stopPropagation(); e.preventDefault(); }   // that tap means "sound", not "pause"
   }
   for (const t of ["touchend", "pointerup", "click", "keydown"]) feed.addEventListener(t, unlockSound, true);
   function onPlayerState(s, state) {   // s: the slide this player is on (the one on screen)
@@ -1885,8 +1923,8 @@ window.CHISME_APP_BUILD = "49.12";
       if (!s._counted) { s._counted = true; Stats.ev("food", kindOf(s)); }   // a food video view (once per time it comes on screen)
       if (!s._playedAt) { s._playedAt = now; warmSoon(300); }   // it's going: now warm the next one
       setUi(s, true);
-    } else if (state === 0 && isCur(s) && feedPlaying) {   // ended: loop it
-      feedCommand(s, "rewind"); feedCommand(s, "play");
+    } else if (state === 0 && isCur(s) && feedPlaying) {   // ended: loop it (v49.13: watched to the end / rewatched)
+      videoLooped(s); feedCommand(s, "rewind"); feedCommand(s, "play");
     } else if (state === 2 && isCur(s) && feedPlaying && soundWanted && !s._soundBlocked && s._playedAt && s._triedSound && now - s._triedSound < 2500) {
       soundBlocked(s);   // the browser stopped it as soon as sound went on (iPhone Safari does this without a tap): back to muted, keep playing
     }
@@ -1923,6 +1961,8 @@ window.CHISME_APP_BUILD = "49.12";
         else p.pending = null;
       }
       if (d.info && typeof d.info === "object" && typeof d.info.muted === "boolean") p.ytMuted = d.info.muted;
+      if (d.event === "onError" && p.slide) { reelError(p.slide); return; }   // v49.13: removed / private / not embeddable: skip it
+      if (d.info && typeof d.info === "object" && typeof d.info.currentTime === "number" && p.slide && !p.warm) onProgress(p.slide, d.info.currentTime, d.info.duration);
       const st = d.event === "onStateChange" ? d.info : d.event === "infoDelivery" && d.info && "playerState" in d.info ? d.info.playerState : null;
       if (st != null && st !== p.st) onYTState(p, st);
       return;
@@ -1932,6 +1972,8 @@ window.CHISME_APP_BUILD = "49.12";
     if (!s) return;
     if (d.type === "onPlayerReady" && s._ttKick) s._ttKick();
     if (d.type === "onMute" && typeof d.value === "boolean") s._ttMuted = d.value;
+    if (d.type === "onCurrentTime" && d.value && typeof d.value.currentTime === "number") onProgress(s, d.value.currentTime, d.value.duration);
+    if (d.type === "onError") reelError(s);
     if (d.type === "onStateChange") onPlayerState(s, d.value);
   });
   function unmountFrame(slide) {
@@ -1954,11 +1996,11 @@ window.CHISME_APP_BUILD = "49.12";
     const it = r.item, v = vidOf(it), tall = !!(v.tt || isShort(it.url));
     const saved = savedSpots.find((s) => s.url === it.url);
     const p = saved ? saved.place : it.place ? cleanPlace({ ...it.place, guessed: it.place.guessed !== false }) : null;
-    const media = el("div", { class: "vf-media" });
+    const media = el("div", { class: "vf-media" + (it.image ? "" : " vf-noimg") });
     if (it.image) {
       const bg = el("img", { class: "vf-bg", src: it.image, alt: "", referrerpolicy: "no-referrer", loading: i < 2 ? "eager" : "lazy" });
       const th = el("img", { class: "vf-thumb", src: it.image, alt: "", referrerpolicy: "no-referrer", loading: i < 2 ? "eager" : "lazy" });
-      bg.onerror = () => bg.remove(); th.onerror = () => th.remove();
+      bg.onerror = () => bg.remove(); th.onerror = () => { th.remove(); media.classList.add("vf-noimg"); };   // v49.13: no picture: the shimmer skeleton
       media.append(bg, th);
     }
     const whyId = "why" + i;
@@ -1992,7 +2034,7 @@ window.CHISME_APP_BUILD = "49.12";
     full.onclick = () => { unmountFrame(slides()[feedCur]); openPlayer(it, full); };
     rail.append(ni, full);
     const slide = el("section", { class: "vf-slide" + (tall ? " tall" : ""), "data-url": it.url, "data-kind": v.tt ? "tt" : "yt", "aria-roledescription": "video", "aria-label": `${i + 1} of ${feedList.length}: ${it.title}` }, media, info, rail);
-    return slide;
+    return slide;   // (v49.13: Like / Share / the progress bar are added when it comes near the screen: ensureReelUi)
   }
   const slides = () => [...feedScroll.querySelectorAll(".vf-slide")];
   // v46: after every 7 videos, a donate slide of its own (no video: it plays nothing, like the end card)
@@ -2021,11 +2063,12 @@ window.CHISME_APP_BUILD = "49.12";
     const it = feedList.find((x) => x.item.url === s.dataset.url)?.item, secs = (Date.now() - feedT0) / 1000;
     feedT0 = 0;
     if (!it) return;
-    if (secs >= 3) fySignal("watch", it, { seconds: secs });
-    else if (moving && secs < 2) fySignal("skip", it);
+    if (secs >= 3) fySignal("watch", it, { seconds: secs, duration: s._dur || 0 });
+    else if (moving && secs < 2) { fySignal("skip", it); reelStat("skip", it); }
   }
   function startSlide(s, it) {   // the video on screen: from the top, with sound if wanted and allowed; the info hides while it plays
     s._triedSound = 0; s._soundBlocked = false; s._playedAt = 0; feedPlaying = true;
+    s._loops = 0; s._lastT = null; s._loopAt = 0; const pb = s.querySelector(".vf-prog i"); if (pb) pb.style.transform = "scaleX(0)";
     s.querySelector(".vf-play")?.remove(); s.querySelector(".vf-off")?.remove();
     const v = vidOf(it), media = s.querySelector(".vf-media");
     if (!navigator.onLine) { media.append(el("p", { class: "vf-off", role: "status", text: "📡 You're offline — this video plays as soon as you're back." })); return; }
@@ -2043,6 +2086,7 @@ window.CHISME_APP_BUILD = "49.12";
   function syncWindow() {   // keep the slide behind (paused) for a quick swipe back and the next ones warming; unload the rest; fetch the next pictures
     const all = slides(), ahead = aheadSlides(), back = behindSlide(), pf = prefetchN();
     all.forEach((s, k) => {
+      if (s.dataset.url && k >= feedCur - 1 && k <= feedCur + pf) ensureReelUi(s);   // v49.13: Like / Share / progress, near the screen only (keeps the feed light)
       if (!s.dataset.url || k === feedCur) return;
       if (k > feedCur && k <= feedCur + pf) s.querySelectorAll("img.vf-thumb, img.vf-bg").forEach((im) => { if (im.loading !== "eager") { im.loading = "eager"; im.decode?.().catch(() => {}); } });   // v47: decoded ahead, on screen at once
       const behind = s === back && KEEP_BEHIND > 0, next = ahead.includes(s) && ((ytOf(s) && ytOf(s).warm) || (kindOf(s) === "tt" && s.dataset.warm));
@@ -2065,12 +2109,15 @@ window.CHISME_APP_BUILD = "49.12";
     }
     feedCur = i;
     const s = all[i], r = s && feedList.find((x) => x.item.url === s.dataset.url);
+    if (r) feedShown.add(r.item.url);   // v49.13: the seen list (the endless feed brings unseen videos first)
+    if (r && s._bad) { skipAhead(s); for (const q of YT) if (q.slide && !q.warm) ytSend(q, "pauseVideo"); syncWindow(); updateSoundBtn(); return; }
     if (r) {
       feedT0 = Date.now();
       if (canAutoplay() || s.querySelector(".vf-frame") || ytOf(s)) startSlide(s, r.item);
       else { s.querySelector(".vf-play")?.remove(); addPlayButton(s); for (const q of YT) if (q.slide && !q.warm) ytSend(q, "pauseVideo"); }
     } else for (const q of YT) if (q.slide && !q.warm) ytSend(q, "pauseVideo");   // the end card
     syncWindow(); updateSoundBtn(); if (r && canAutoplay()) warmSoon(1500);
+    moreSoon();
   }
   const nearest = () => Math.round(feedScroll.scrollTop / Math.max(1, feedScroll.clientHeight));
   // v47: a scroll that has come to rest exactly on a slide (the snap) starts that video right away; mid-swipe, the 140 ms wait as before
@@ -2078,7 +2125,7 @@ window.CHISME_APP_BUILD = "49.12";
   feedScroll.addEventListener("scroll", () => { clearTimeout(feedTimer); feedTimer = setTimeout(() => activate(nearest()), snapped() ? 30 : 140); }, { passive: true });
   feedScroll.addEventListener("scrollend", () => { if (snapped()) { clearTimeout(feedTimer); activate(nearest()); } });
   function notInterested(r) {
-    const s = slides().find((x) => x.dataset.url === r.item.url);
+    const s = (slides()[feedCur] && slides()[feedCur].dataset.url === r.item.url ? slides()[feedCur] : null) || slides().find((x) => x.dataset.url === r.item.url);
     if (!s) return;
     const idx = feedList.indexOf(r);
     feedT0 = 0; fySignal("not_interested", r.item);
@@ -2100,6 +2147,8 @@ window.CHISME_APP_BUILD = "49.12";
     if (!vids.length) return;
     fyProfile = FY.load();
     feedList = fyRank();   // same list as the banner cover
+    if (reelLead) { feedList = leadWith(feedList, reelLead); reelLead = null; startAt = 0; }   // v49.13: opened from a shared link
+    feedShown = new Set(); feedBatches = 0;
     feedOpener = opener || document.activeElement;
     slides().forEach((x) => x.remove()); feedScroll.prepend(...withE7(feedList.map(feedSlide)), endSlide());   // before the players' layers
     feedCur = -1; $("#feed-toast").replaceChildren();
@@ -2113,6 +2162,156 @@ window.CHISME_APP_BUILD = "49.12";
     try { activate(at); } finally { feedGesture = false; }
     $("#feed-close").focus({ preventScroll: true });
   }
+  // ---------- v49.13 reels: likes, sharing, progress, loops, broken videos, the endless feed
+  let feedShown = new Set(), feedBatches = 0, moreT = 0;
+  const itemOf = (s) => (s ? feedList.find((x) => x.item.url === s.dataset.url)?.item || null : null);
+  const reelStat = (a, it, m) => { const id = FY && it && FY.reelId(it.url); if (id) Stats.ev("reel", m ? { a, id, m } : { a, id }); };
+  const SVGNS = "http://www.w3.org/2000/svg";
+  function svgIc(d) { const g = document.createElementNS(SVGNS, "svg"), p = document.createElementNS(SVGNS, "path"); g.setAttribute("viewBox", "0 0 24 24"); g.setAttribute("aria-hidden", "true"); g.setAttribute("class", "ic"); p.setAttribute("d", d); g.append(p); return g; }
+  const HEART = "M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 4.5 6.7 4.5c2.1 0 3.6 1.2 4.3 2.4h2c.7-1.2 2.2-2.4 4.3-2.4 3.7 0 5.8 3.9 4.3 7.3C19.5 16.4 12 21 12 21z";
+  const SHARE_IC = "M14 4l7 7-7 7v-4.1c-5 0-8.5 1.6-11 5.1 1-5 4-10 11-11V4z";
+  const isLiked = (it) => !!(FY && FY.liked(fyProfile || FY.load(), it.url));
+  function likeButton(it) {
+    const b = el("button", { type: "button", class: "vf-like", "aria-pressed": String(isLiked(it)), "data-url": it.url }, svgIc(HEART), el("span", { class: "vf-lab", text: "Like" }));
+    b.setAttribute("aria-label", "Like: " + it.title);
+    b.onclick = (e) => { const s = e.currentTarget.closest(".vf-slide"); toggleLike(s, it, null, null); };
+    return b;
+  }
+  function shareButton(it) {
+    const b = el("button", { type: "button", class: "vf-share", "aria-haspopup": "dialog" }, svgIc(SHARE_IC), el("span", { class: "vf-lab", text: "Share" }));
+    b.setAttribute("aria-label", "Share: " + it.title);
+    b.onclick = (e) => shareReel(it, e.currentTarget);
+    return b;
+  }
+  // Like + Share in the rail (with the other buttons, when paused) and floating on the video while it plays, + the progress bar
+  function ensureReelUi(s) {
+    if (!s || s._reelUi || !s.dataset.url) return;
+    const it = itemOf(s); if (!it) return;
+    s._reelUi = true;
+    s.querySelector(".vf-rail")?.prepend(likeButton(it), shareButton(it));
+    s.append(el("div", { class: "vf-act" }, likeButton(it), shareButton(it)), el("div", { class: "vf-prog", "aria-hidden": "true" }, el("i")));
+  }
+  function heartBurst(s, e) {
+    const m = s && s.querySelector(".vf-media"); if (!m) return;
+    const r = m.getBoundingClientRect(), x = e && e.clientX ? e.clientX - r.left : r.width / 2, y = e && e.clientY ? e.clientY - r.top : r.height / 2;
+    const h = el("span", { class: "vf-heart", "aria-hidden": "true" }, svgIc(HEART)); h.style.left = x + "px"; h.style.top = y + "px";
+    m.append(h); setTimeout(() => h.remove(), reducedMotion() ? 500 : 900);
+  }
+  function toggleLike(s, it, on, e) {   // on: true = like (a double-tap), null = toggle (the ♥ button)
+    if (!FY || !it) return;
+    const was = isLiked(it), want = on == null ? !was : !!on;
+    if (want) heartBurst(s, e);
+    if (want !== was) { fySignal(want ? "like" : "unlike", it); if (want) reelStat("like", it); }
+    feed.querySelectorAll(".vf-like").forEach((b) => { if (b.dataset.url === it.url) b.setAttribute("aria-pressed", String(want)); });
+  }
+  // sharing: the phone's own share sheet (Messages, WhatsApp, Instagram …), else Chisme's sheet. Every share carries the
+  // video's Chisme link (/?reel=<id>: it opens the app on that video) and a line inviting people to get Chisme.
+  const SITE = "https://chisme.onrender.com";
+  const reelLink = (it) => { const id = FY && FY.reelId(it.url); return (/^https?:$/.test(location.protocol) ? location.origin : SITE) + "/" + (id ? "?reel=" + encodeURIComponent(id) : ""); };
+  const PROMO = `Get the Chisme app for San Antonio's news, food & chisme: ${SITE}`;
+  const reelMsg = (it) => `Mira este video en Chisme 👀 ${reelLink(it)} — ${PROMO}`;
+  const rsDlg = $("#reel-share");
+  let rsOpener = null;
+  async function shareReel(it, btn) {
+    const url = reelLink(it), title = "Chisme: " + String(it.title || "a food video").replace(/\s+/g, " ").trim().slice(0, 90);
+    const data = { title, text: `Mira este video en Chisme 👀 — ${PROMO}`, url };
+    const native = !!navigator.share && matchMedia("(pointer: coarse)").matches && (!navigator.canShare || navigator.canShare(data));
+    if (native) {
+      try { await navigator.share(data); fySignal("share", it); reelStat("share", it, "native"); return; }
+      catch (err) { if (err && err.name === "AbortError") return; }   // closed without sharing: nothing to count
+    }
+    openShareSheet(it, btn);
+  }
+  function openShareSheet(it, btn) {
+    rsOpener = btn || document.activeElement;
+    const url = reelLink(it), msg = reelMsg(it), enc = encodeURIComponent, subj = "Mira este video en Chisme 👀";
+    const out = (cls, label, href, way, blank) => {
+      const a = el("a", { class: "rs-btn share-out " + cls, href, "data-way": way }, el("span", { class: "rs-ic", "aria-hidden": "true" }), el("span", { text: label }));
+      if (blank) { a.target = "_blank"; a.rel = "noopener"; }
+      a.setAttribute("aria-label", label + " (leaves Chisme)");
+      a.addEventListener("click", () => { fySignal("share", it); reelStat("share", it, way); });
+      return a;
+    };
+    const copy = el("button", { type: "button", class: "rs-btn rs-copy", "data-way": "copy" }, el("span", { class: "rs-ic", "aria-hidden": "true" }), el("span", { text: "Copy link" }));
+    copy.onclick = async () => {
+      let ok = false;
+      try { await navigator.clipboard.writeText(msg); ok = true; } catch {}
+      if (!ok) { const t = el("textarea", { class: "sr-only", readonly: "" }); t.value = msg; rsDlg.append(t); t.select(); try { ok = document.execCommand("copy"); } catch {} t.remove(); }
+      $("#rs-note").textContent = ok ? "Copied — the link and the invite are ready to paste." : "Couldn't copy here. Press and hold the message above to copy it.";
+      if (ok) { fySignal("share", it); reelStat("share", it, "copy"); }
+    };
+    const kids = [copy,
+      out("rs-sms", "Text message", `sms:?&body=${enc(msg)}`, "sms", false),
+      out("rs-wa", "WhatsApp", `https://wa.me/?text=${enc(msg)}`, "whatsapp", true),
+      out("rs-fb", "Facebook", `https://www.facebook.com/sharer/sharer.php?u=${enc(url)}&quote=${enc("Mira este video en Chisme 👀 — " + PROMO)}`, "facebook", true),
+      out("rs-tw", "X", `https://twitter.com/intent/tweet?text=${enc("Mira este video en Chisme 👀 — " + PROMO)}&url=${enc(url)}`, "x", true),
+      out("rs-mail", "Email", `mailto:?subject=${enc(subj)}&body=${enc(String(it.title || "").trim() + "\n\n" + msg)}`, "email", false)];
+    if (navigator.share) {
+      const more = el("button", { type: "button", class: "rs-btn rs-more", "data-way": "native" }, el("span", { class: "rs-ic", "aria-hidden": "true" }), el("span", { text: "More apps…" }));
+      more.onclick = async () => { try { await navigator.share({ title: "Chisme", text: `Mira este video en Chisme 👀 — ${PROMO}`, url }); fySignal("share", it); reelStat("share", it, "native"); rsDlg.close(); } catch {} };
+      kids.push(more);
+    }
+    $("#rs-msg").textContent = msg; $("#rs-note").textContent = "";
+    $("#rs-grid").replaceChildren(...kids);
+    if (!rsDlg.open) rsDlg.showModal();
+    copy.focus({ preventScroll: true });
+  }
+  rsDlg.addEventListener("click", (e) => { if (e.target === rsDlg) rsDlg.close(); });
+  $("#rs-close").onclick = () => rsDlg.close();
+  rsDlg.addEventListener("close", () => { if (rsOpener && rsOpener.isConnected) rsOpener.focus({ preventScroll: true }); });
+  // the progress bar (YouTube's infoDelivery / TikTok's onCurrentTime) and the loops it reveals (TikTok loops by itself)
+  function onProgress(s, t, dur) {
+    if (!s || !isCur(s)) return;
+    if (dur > 0) s._dur = dur;
+    const D = s._dur || 0; if (!D) return;
+    const bar = s.querySelector(".vf-prog i"); if (bar) bar.style.transform = `scaleX(${Math.max(0, Math.min(1, t / D)).toFixed(4)})`;
+    if (s._lastT != null && s._lastT > D - 1.6 && t < 1.2) videoLooped(s);
+    s._lastT = t;
+  }
+  function videoLooped(s) {   // the 1st time it ends: watched to the end; the 2nd: a rewatch (each a signal, once per viewing)
+    const now = Date.now(); if (s._loopAt && now - s._loopAt < 2500) return; s._loopAt = now;
+    const it = itemOf(s); if (!it) return;
+    s._loops = (s._loops || 0) + 1;
+    if (s._loops === 1) { fySignal("complete", it, { duration: s._dur || 0 }); reelStat("complete", it); }
+    else if (s._loops === 2) { fySignal("rewatch", it, { duration: s._dur || 0 }); reelStat("rewatch", it); }
+  }
+  // a video that can't play (removed, private, not embeddable): say so and go on to the next one
+  function reelError(s) {
+    if (!s || !s.isConnected || s._bad) return;
+    s._bad = true; clearTimeout(s._wd); s.classList.remove("vf-loading", "vf-tap");
+    s.querySelector(".vf-media")?.append(el("p", { class: "vf-errmsg", role: "status", text: "This video can't play right now. On to the next one…" }));
+    if (isCur(s)) skipAhead(s);
+  }
+  function skipAhead(s) {
+    clearTimeout(s._skipT);
+    s._skipT = setTimeout(() => {
+      if (!feed.open || !isCur(s)) return;
+      const all = slides(), t = all[all.indexOf(s) + 1];
+      if (t) feedScroll.scrollTo({ top: t.offsetTop, behavior: reducedMotion() ? "instant" : "smooth" });
+    }, 1300);
+  }
+  // the endless feed: 4 videos before the end, the next batch is ranked (unseen first, nothing from the last 12) and added
+  // before the end card, with a donate slide after every 7th video as before
+  function moreSoon() { clearTimeout(moreT); moreT = setTimeout(moreReels, 250); }
+  function moreReels() {
+    if (!feed.open || !FY) return;
+    const all = slides(), endEl = feedScroll.querySelector(".vf-end"), end = endEl ? all.indexOf(endEl) : all.length;
+    if (feedCur < end - 4) return;
+    const vids = feedVideos(); if (!vids.length) return;
+    const tail = all.slice(Math.max(0, end - 12), end).map((x) => x.dataset.url).filter(Boolean);
+    const batch = FY.next(fyProfile || FY.load(), vids, { n: 10, recent: new Set(tail), shown: feedShown, pop: (reelPop && Object.keys(reelPop).length ? reelPop : reelPopSaved) || undefined,
+      rot: fyRot + (++feedBatches), lastLead: tail[tail.length - 1] ? crewOfUrl(tail[tail.length - 1]) : null, seed: (Date.now() % 1e9) + feedBatches });
+    if (!batch.length) return;
+    let n = all.filter((x) => x.dataset.url).length;
+    const base = feedList.length, nodes = [];
+    feedList.push(...batch);
+    batch.forEach((r, j) => {
+      nodes.push(feedSlide(r, base + j)); n++;
+      if (!e7Gone() && n % E7 === 0) { nodes.push(el("section", { class: "vf-slide vf-donate", "aria-label": "Support Chisme" }, e7Card(true))); e7Where.feed++; }
+    });
+    if (endEl) endEl.before(...nodes); else (all[all.length - 1] ? all[all.length - 1].after(...nodes) : feedScroll.prepend(...nodes));
+  }
+  const crewOfUrl = (u) => { const r = feedList.find((x) => x.item.url === u); return r ? r.crew : null; };
   function closeFeed(fromHistory) {
     if (!feed.open) return;
     finishCurrent(false); slides().forEach(unmountFrame);
@@ -2829,6 +3028,7 @@ window.CHISME_APP_BUILD = "49.12";
       ? "Your device already asks for reduced motion, so Chisme keeps things still. (The food videos still play when you open their feed; switch this on to stop that too.)"
       : "Turns off swipe animations, the pulsing location dot, radar autoplay and the food videos' autoplay.";
     $("#set-feed-sound").checked = soundWanted;
+    $("#set-feed-autoplay").checked = autoplayWanted();
     $("#set-loc-status").textContent = ""; $("#set-loc-results").replaceChildren();
     showFs(); renderLocLabel(); syncUI();
   }
@@ -2842,6 +3042,7 @@ window.CHISME_APP_BUILD = "49.12";
     if (reducedMotion()) setPlaying(false);
   };
   $("#set-feed-sound").onchange = (e) => setSoundWanted(e.target.checked);
+  $("#set-feed-autoplay").onchange = (e) => { lsSet(FEED_AUTOPLAY_KEY, e.target.checked ? "on" : "off"); if (e.target.checked) preparePlayer(); };
   $("#set-gps").onclick = () => requestGPS(true);
   $("#set-refresh").onclick = () => { refreshNow(); $("#set-refresh-note").textContent = "Updating…"; };
   $("#set-fy-reset").onclick = () => {
@@ -3054,6 +3255,10 @@ window.CHISME_APP_BUILD = "49.12";
     }
   }
   if (navigator.serviceWorker) navigator.serviceWorker.addEventListener("message", (e) => { if (e.data && typeof e.data.chismeOpen === "string") openFromAlert(e.data.chismeOpen); });
+  {
+    const rid = new URLSearchParams(location.search).get("reel");
+    if (rid && /^(?:[\w-]{11}|\d{15,20})$/.test(rid)) { reelLead = rid; history.replaceState(history.state, "", location.pathname + "#cual-dieta"); }
+  }
   if (new URLSearchParams(location.search).has("story")) {
     const href = location.href;
     history.replaceState(history.state, "", location.pathname + location.hash);   // a reload doesn't reopen it
@@ -3745,7 +3950,7 @@ window.CHISME_APP_BUILD = "49.12";
     get fresh() { return rendered.weather === q() && rendered.news === q(); },
     get newsReady() { return secs.news.shownUrl === secs.news.url(); }, get sportsReady() { return secs.sports.shownUrl === secs.sports.url(); }, get eventsReady() { return secs.events.shownUrl === secs.events.url(); }, get foodReady() { return !!foodData; },
     get sync() { return { busy: [...Sync.busy], failed: [...Sync.failed.keys()], lastOk: Sync.lastOk }; }, refreshNow, get evCat() { return evCat; }, get view() { return VIEWS[cur]; }, radarColor: (r, g, b) => radarColor(r, g, b), get notif() { return { ...notif, phase: notifPhase, open: !$("#push-ask").hidden, kind: $("#push-ask").dataset.kind || null, due: notifDue() }; }, get wxHidden() { return wxHidden(); },
-    get tiaMenu() { return { open: tiaMenu.open }; }, get settingsTip() { return { shown: !!tipEl && !tipEl.hidden, done: tipDone(), saved: lsGet(TIP_KEY), shownAt: tipShownAt }; }, get a2hs() { return { ...a2, open: !a2Sheet.hidden, ipad: isIPad, safari: isIOSSafari, standalone, kind: a2Kind(), shown: a2Shown, claim: a2Claim, visits }; }, get donateMid() { const c = document.getElementById("donate-mid"); return { opens: midLaunch.opens, line: midLaunch.line, tab: midTab, where: midWhere, placed: !!(c && c.isConnected), dismissed: midGone() }; }, goView, get juegos() { return juegosOpen(); }, get forYou() { return { profile: FY && FY.load(), feed: feedList.map((r) => ({ url: r.item.url, title: r.item.title, creator: r.item.creator, crew: r.crew, place: r.place, why: r.why.text, explore: r.explore, recipe: !!r.item.recipe, world: !!r.item.world, where: r.item.where || null })), cur: feedCur, open: feed.open, sound: { wanted: soundWanted, muted: feedMuted, unlocks: feedUnlocks, held: feed.classList.contains("sound-held") }, get player() { const sl = slides(), c = YT.find((p) => p.slide && !p.warm && sl.indexOf(p.slide) === feedCur) || YT.find((p) => p.slide && !p.warm) || YT[0] || {}, w = YT.find((p) => p.warm && p.slide);
+    get tiaMenu() { return { open: tiaMenu.open }; }, get settingsTip() { return { shown: !!tipEl && !tipEl.hidden, done: tipDone(), saved: lsGet(TIP_KEY), shownAt: tipShownAt }; }, get a2hs() { return { ...a2, open: !a2Sheet.hidden, ipad: isIPad, safari: isIOSSafari, standalone, kind: a2Kind(), shown: a2Shown, claim: a2Claim, visits }; }, get donateMid() { const c = document.getElementById("donate-mid"); return { opens: midLaunch.opens, line: midLaunch.line, tab: midTab, where: midWhere, placed: !!(c && c.isConnected), dismissed: midGone() }; }, goView, get juegos() { return juegosOpen(); }, get forYou() { return { profile: FY && FY.load(), feed: feedList.map((r) => ({ url: r.item.url, title: r.item.title, creator: r.item.creator, crew: r.crew, place: r.place, why: r.why.text, explore: r.explore, recipe: !!r.item.recipe, world: !!r.item.world, where: r.item.where || null })), cur: feedCur, open: feed.open, reels: { autoplay: autoplayWanted(), canAutoplay: canAutoplay(), shown: feedShown.size, batches: feedBatches, lead: reelLead, pop: reelPop, slides: slides().length }, sound: { wanted: soundWanted, muted: feedMuted, unlocks: feedUnlocks, held: feed.classList.contains("sound-held") }, get player() { const sl = slides(), c = YT.find((p) => p.slide && !p.warm && sl.indexOf(p.slide) === feedCur) || YT.find((p) => p.slide && !p.warm) || YT[0] || {}, w = YT.find((p) => p.warm && p.slide);
       return { made: YT.length > 0, ready: !!c.ready, vid: c.vid || null, st: c.st ?? -1, ytMuted: c.ytMuted ?? null, unlocked: !!c.unlocked, slide: c.slide ? sl.indexOf(c.slide) : -1, frames: document.querySelectorAll("iframe.vf-yt").length,
         players: YT.map((p) => ({ slide: p.slide ? sl.indexOf(p.slide) : -1, warm: p.warm, vid: p.vid, st: p.st, ready: p.ready, unlocked: p.unlocked, muted: p.ytMuted })), warm: w ? sl.indexOf(w.slide) : -1, ios: IOS_FEED,
         warms: YT.filter((p) => p.warm && p.slide).map((p) => sl.indexOf(p.slide)).sort((a, b) => a - b), pool: ytPool(), ahead: aheadN(), slow: slowNet() }; }, cover: fyList.slice(0, 3).map((r) => r.item.url), coverCrews: fyList.slice(0, 3).map((r) => r.crew) }; }, openFeed, closeFeed,

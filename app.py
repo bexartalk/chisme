@@ -3100,12 +3100,83 @@ async def api_theme():
     return JSONResponse({"override": theme_override(), "at": int(time.time() * 1000)}, headers={"Cache-Control": "no-store"})
 
 
+# ---------------------------------------------------------------- v49.13: shared reels (/?reel=<id>)
+# A shared food video's link is https://chisme.onrender.com/?reel=<YouTube id | TikTok number>: the app opens straight to
+# that video in the reels feed, and link previews (iMessage, WhatsApp, Facebook, X) get the video's own title + picture.
+REEL_RX = re.compile(r"^(?:[\w-]{11}|\d{15,20})$")
+_REEL_URL_RX = re.compile(r"(?:youtube(?:-nocookie)?\.com/(?:watch\?(?:[^#]*&)?v=|shorts/|embed/|live/)|youtu\.be/)([\w-]{11})"
+                          r"|tiktok\.com/(?:@[\w.]+/video|player/v1|embed(?:/v2)?)/(\d{15,20})")
+
+
+def reel_id_of(url: str) -> str | None:
+    m = _REEL_URL_RX.search(url or "")
+    return (m.group(1) or m.group(2)) if m else None
+
+
+def reel_item(rid: str) -> dict | None:
+    """The video with this id from any food list already in the memory cache (no fetching: the page must stay fast)."""
+    for key, hit in list(_cache.items()):
+        if not key.startswith("foodlist:") or not isinstance(hit[1], dict):
+            continue
+        for k in ("items", "recipes", "world"):
+            for it in hit[1].get(k) or []:
+                if isinstance(it, dict) and it.get("video") and reel_id_of(it.get("url", "")) == rid:
+                    return it
+    return None
+
+
+def reel_og(request: Request, rid: str) -> str:
+    it = reel_item(rid) or {}
+    host = request.headers.get("host") or "chisme.onrender.com"
+    base = ("https" if _https(request) or host.endswith("onrender.com") else "http") + "://" + host
+    title = re.sub(r"\s+", " ", str(it.get("title") or "")).strip()
+    title = (title[:88] + "…") if len(title) > 90 else title
+    who = str(it.get("creator") or "").strip()[:60]
+    img = (f"https://i.ytimg.com/vi/{rid}/hqdefault.jpg" if not rid.isdigit()
+           else it.get("image") if str(it.get("image") or "").startswith("https://") else f"{base}/static/icons/icon-512.png")
+    desc = ("Mira este video en Chisme 👀" + (f" by {who}" if who else "")
+            + ". Get the Chisme app for San Antonio's news, food & chisme.")
+    e = lambda v: html.escape(str(v), quote=True)
+    return (f'<meta property="og:type" content="video.other">\n  <meta property="og:site_name" content="Chisme">\n'
+            f'  <meta property="og:title" content="{e(title or "A food video on Chisme")}">\n'
+            f'  <meta property="og:description" content="{e(desc)}">\n'
+            f'  <meta property="og:url" content="{e(base + "/?reel=" + rid)}">\n'
+            f'  <meta property="og:image" content="{e(img)}">\n'
+            f'  <meta name="twitter:card" content="summary_large_image">\n'
+            f'  <meta name="twitter:title" content="{e(title or "A food video on Chisme")}">\n'
+            f'  <meta name="twitter:description" content="{e(desc)}">\n  <meta name="twitter:image" content="{e(img)}">')
+
+
+@app.get("/api/reels/popular")
+async def reels_popular():
+    """v49.13: the reels the crowd liked, shared and watched to the end in the last 7 days ({id: score}, top 100), from the
+    anonymous stats counts (rp:<id>). The phone's ranker adds a small boost for these; it still ranks everything itself."""
+    async def build():
+        try:
+            data = await stats.store().read(stats.last_days(7))
+        except Exception:
+            return {"pop": {}}
+        tot: dict[str, int] = {}
+        for d in data.get("per", {}).values():
+            for k, v in (d.get("c") or {}).items():
+                if k.startswith("rp:") and REEL_RX.match(k[3:]):
+                    tot[k[3:]] = tot.get(k[3:], 0) + int(v)
+        top = sorted(((k, v) for k, v in tot.items() if v > 0), key=lambda x: -x[1])[:100]
+        return {"pop": dict(top)}
+    return JSONResponse(await cached("reels:popular", 600, build), headers={"Cache-Control": "public, max-age=300"})
+
+
 @app.get("/")
 async def index(request: Request):
     # app.js / style.css are requested with ?v=<build>, so the page never runs with an older cached script
     # v49.11: the page's own inline scripts get this response's CSP nonce (the file itself has no user content)
     page = (BASE / "static" / "index.html").read_text().replace("__BUILD__", app_build()).replace("<script>", f'<script nonce="{_nonce(request)}">')
     page = page.replace("__THEME_OVERRIDE__", theme_override()).replace("__THEME_AT__", str(int(time.time() * 1000)))
+
+
+    rid = request.query_params.get("reel") or ""
+    if REEL_RX.match(rid):   # v49.13: a shared reel: the link preview shows that video
+        page = re.sub(r"<!--og:start-->.*?<!--og:end-->", lambda m: "<!--og:start-->" + reel_og(request, rid) + "<!--og:end-->", page, count=1, flags=re.S)
     return HTMLResponse(page, headers={"Cache-Control": "no-cache"})
 
 
