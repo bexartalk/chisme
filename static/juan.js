@@ -1,8 +1,8 @@
 /* Chisme · Juegos game 2: "The Juan That Got Away" (v44; first called "Juan's Long Day"), a side-scrolling runner with smooth vector art on a canvas
    (paths, gradients and anti-aliasing, drawn at the phone's devicePixelRatio so it stays crisp; no image files, no requests).
    v47 story: it's FRIDAY, and Juan grinds through his workday to get to Noche Caliente for beers with the crew. 6 levels:
-   Hon Dipo (v47, was Home Dehole; our own parody hardware store: beige building, bright orange trim, a square orange sign
-   with heavy condensed white letters, no real logo) → La Chamba (v47: downtown San Antonio, the most ICE agents and
+   Hon Dipo (v47, was Home Dehole; our own parody hardware store. v49.15: repainted as a Southside ferretería with turquoise +
+   pink trim, papel picado and a hand-painted arched sign, no orange square, plus a DJ out front on a row of tool chests) → La Chamba (v47: downtown San Antonio, the most ICE agents and
    background SUVs; it ends at a construction site with a cement mixer, a yellow excavator + loader, fencing, cones and a blue
    "COMING SOON Gualmart" parody sign) → Don Pedroes (a Southside Mexican restaurant: cream stucco, red tile roofs, the tall pole sign with the
    specials) → O'Reillees (a green-and-white parody auto-parts store, no real logo) → Juan's Casa (quitting time: wash up,
@@ -394,6 +394,168 @@
     box(c, "#fff6e0", x + 1, -15, 4, 2, 1); box(c, "#ff3d3d", x + w - 4, -16, 3.5, 2, 1);
     for (const wx of [x + 15, x + w - 16]) { ell(c, "#14161a", wx, -7, 7, 7); ell(c, lin(c, wx - 4, -11, wx + 4, -3, ["#ffffff", "#9aa3ad"]), wx, -7, 3.8, 3.8); }
   }
+  // ================= v49.15 the Hon Dipo DJ (level 1, outside the store): a spoof of the Southside DJ-at-the-hardware-store video.
+  // A made-up DJ (backwards flat-brim cap, dark tee, headphones) spinning on a row of black rolling tool chests rolled out onto the
+  // sidewalk, PA speakers (one on a tripod, one up on the chests) that thump on the beat, a light bar with sweeping beams + a mini
+  // disco ball, lumber + stacks of red product boxes. Scenery only: drawn live over the cached building, behind Juan, no hitboxes.
+  // Reduce motion: everything holds still (no bob, thump, sweep or floating notes). Fiesta light colors; no real brand anywhere.
+  const DJ_COL = ["#00C9CD", "#FF1A7F", "#FF6A0B", "#9b4dff", "#2a7bff"];
+  const rgba = (hex, a) => { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${Math.max(0, Math.min(1, a)).toFixed(3)})`; };
+  function djBeam(c, x, y, ang, len, w0, w1, col, a) {   // a soft cone of light; ang 0 = straight up, + = to the right
+    const dx = Math.sin(ang), dy = -Math.cos(ang), px = -dy, py = dx, ex = x + dx * len, ey = y + dy * len;
+    const gr = c.createLinearGradient(x, y, ex, ey); gr.addColorStop(0, rgba(col, a)); gr.addColorStop(0.55, rgba(col, a * 0.45)); gr.addColorStop(1, rgba(col, 0));
+    c.fillStyle = gr; c.beginPath(); c.moveTo(x + px * w0, y + py * w0); c.lineTo(ex + px * w1, ey + py * w1); c.lineTo(ex - px * w1, ey - py * w1); c.lineTo(x - px * w0, y - py * w0); c.closePath(); c.fill();
+    const g2 = c.createLinearGradient(x, y, ex, ey); g2.addColorStop(0, rgba("#ffffff", a * 0.9)); g2.addColorStop(0.4, rgba(col, a * 0.35)); g2.addColorStop(1, rgba(col, 0));   // the bright core
+    c.fillStyle = g2; c.beginPath(); c.moveTo(x + px * w0 * 0.35, y + py * w0 * 0.35); c.lineTo(ex + px * w1 * 0.3, ey + py * w1 * 0.3); c.lineTo(ex - px * w1 * 0.3, ey - py * w1 * 0.3); c.lineTo(x - px * w0 * 0.35, y - py * w0 * 0.35); c.closePath(); c.fill();
+  }
+  function djGlow(c, x, y, r, col, a) { const gr = c.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, rgba(col, a)); gr.addColorStop(1, rgba(col, 0)); c.fillStyle = gr; c.fillRect(x - r, y - r, r * 2, r * 2); }
+  function djSpeaker(c, x, y, w, h, kick, rm) {   // a black PA cabinet: x = center, y = bottom
+    box(c, "rgba(0,0,0,.22)", x - w / 2 + 2, y - h + 2, w, h, 3);
+    box(c, lin(c, x - w / 2, 0, x + w / 2, 0, ["#34373f", "#1b1d22", "#0e0f12"]), x - w / 2, y - h, w, h, 3);
+    box(c, "rgba(255,255,255,.10)", x - w / 2 + 1.5, y - h + 1.2, w - 3, 1.6, 0.8);
+    const hy = y - h + h * 0.2; box(c, "#08090b", x - w * 0.34, hy - h * 0.1, w * 0.68, h * 0.2, 2); ell(c, "#30333b", x, hy, w * 0.12, h * 0.055);   // the horn
+    const wy = y - h * 0.4, R0 = w * 0.38, R = R0 * (1 + 0.1 * kick);
+    ell(c, "#050506", x, wy, R0 + 1.6, R0 + 1.6); ell(c, lin(c, x - R, wy - R, x + R, wy + R, ["#565b66", "#22252b", "#121317"]), x, wy, R, R);
+    ell(c, "#0b0c0f", x, wy, R * 0.6, R * 0.6); ell(c, lin(c, x - 3, wy - 3, x + 3, wy + 3, ["#e8edf2", "#7d848e"]), x, wy, R * 0.24, R * 0.24);
+    c.strokeStyle = "rgba(255,255,255,.12)"; c.lineWidth = 0.8; c.beginPath(); c.arc(x, wy, R * 0.82, -2.6, -1.2); c.stroke();
+    for (let k = 0; k < 4; k++) box(c, "#2a2d34", x - w / 2 + 2 + k * (w - 4) / 3 - 0.6, y - 3.2, 1.2, 1.2, 0.6);   // the bass-port slots
+    ell(c, kick > 0.45 ? "#00C9CD" : "#0b6e70", x + w / 2 - 3, y - h + 4, 1, 1);
+    if (!rm && kick > 0.15) { c.strokeStyle = `rgba(255,255,255,${(0.75 * kick).toFixed(2)})`; c.lineWidth = 1.3; c.lineCap = "round";   // cartoon thump lines
+      for (const s of [-1, 1]) for (let k = 0; k < 2; k++) { const r = w * 0.62 + k * 4 + (1 - kick) * 5; c.beginPath(); c.arc(x, wy, r, s < 0 ? Math.PI - 0.45 : -0.45, s < 0 ? Math.PI + 0.45 : 0.45); c.stroke(); } }
+  }
+  function djChest(c, x, w, h, glint) {   // a black rolling tool chest (no brand): x = left, ground at 0
+    for (const cx of [x + 6, x + w - 6]) { box(c, "#454952", cx - 3, -6.5, 6, 2.6, 0.6); ell(c, "#0b0c0e", cx, -2.8, 2.8, 2.8); ell(c, "#7d848e", cx, -2.8, 1, 1); }
+    const top = -h, body = h - 5.5;
+    box(c, lin(c, 0, top, 0, top + body, ["#383b43", "#1c1e23", "#101115"]), x, top, w, body, 2);
+    box(c, lin(c, 0, top - 3.5, 0, top + 0.5, ["#5a5e68", "#25272d"]), x - 1.2, top - 3.5, w + 2.4, 4, 1.4);   // the lid
+    const rows = [4, 4, 4, 5, 5, 6.5, 8], tot = rows.reduce((a, b) => a + b, 0), k = (body - 3) / tot; let yy = top + 2;
+    for (const r of rows) { const rh = r * k; box(c, "rgba(0,0,0,.55)", x + 1.5, yy + rh - 0.7, w - 3, 0.8);
+      box(c, lin(c, 0, yy + 1, 0, yy + 2.6, ["#f2f5f8", "#8a929c"]), x + w * 0.12, yy + 1, w * 0.76, 1.5, 0.75); yy += rh; }
+    box(c, "rgba(255,255,255,.07)", x + w * 0.62, top + 1, w * 0.1, body - 2);   // the glossy reflection
+    if (glint) { box(c, glint, x + 1, top, w - 2, body); }   // the party lights reflected in the gloss
+    line(c, "#c9d0d8", 1.6, [x + w + 1.2, top + 6, x + w + 2.6, top + 6, x + w + 2.6, top + 16, x + w + 1.2, top + 16]);   // the side handle
+  }
+  function djNote(c, x, y, s, col, dbl) {   // a little eighth note (or two beamed)
+    c.save(); c.translate(x, y); c.scale(s, s); c.fillStyle = col; c.strokeStyle = col; c.lineWidth = 1.3; c.lineCap = "round";
+    ell(c, col, 0, 0, 2.6, 2, -0.4); line(c, col, 1.3, [2.3, -0.6, 2.3, -9]);
+    if (dbl) { ell(c, col, 6.5, -1.5, 2.6, 2, -0.4); line(c, col, 1.3, [8.8, -2.1, 8.8, -10.5]); line(c, col, 2.4, [2.3, -9, 8.8, -10.5], "butt"); }
+    else { c.beginPath(); c.moveTo(2.3, -9); c.quadraticCurveTo(6.5, -7, 5.5, -3.5); c.stroke(); }
+    c.restore();
+  }
+  function djDude(c, x, by, t, rm, part) {   // the made-up DJ, facing us; by = the chest top. part "body" (behind the decks) | "hand" (on the decks)
+    const beat = rm ? 0.5 : mod(t * 2, 1), nod = rm ? 0 : Math.sin(beat * Math.PI) * 1.6, sway = rm ? 0 : Math.sin(t * Math.PI) * 1.2;
+    const SK = "#b98157", SK2 = "#93603c", TEE = "#25272d", TEE2 = "#17181c";
+    c.save(); c.translate(x, by); c.scale(1.5, 1.5);
+    if (part === "hand") {   // the right hand scratching the left deck (in front of the controller)
+      const sc = rm ? 0 : Math.sin(t * 9) * 2.2, hx = -9 + sc, hy = -4.2;
+      line(c, SK, 4.4, [-12 + sway * 0.4, -12, hx, hy]); line(c, TEE, 6.2, [-13.5 + sway * 0.4, -20 + nod * 0.3, -12.6 + sway * 0.4, -13]);
+      ell(c, SK, hx, hy, 2.8, 2.3); c.restore(); return; }
+    const sy = nod * 0.45;   // the body dips a little on the beat, the head nods more
+    c.translate(sway, 0);
+    c.fillStyle = lin(c, -12, -24 + sy, 12, 6, [TEE, TEE2]); rr(c, -12, -23.5 + sy, 24, 30, 7); c.fill();   // the dark tee
+    line(c, "rgba(255,255,255,.07)", 1, [3, -18 + sy, 6, -6 + sy]);
+    ell(c, "#00C9CD", 5.2, -14.5 + sy, 2.6, 2.6); ell(c, TEE, 5.2, -14.5 + sy, 1.5, 1.5); ell(c, "#FF1A7F", 5.2, -14.5 + sy, 0.6, 0.6);   // a little record print
+    box(c, SK2, -3, -27 + sy, 6, 5, 2);   // the neck
+    // the left arm: up, holding one headphone cup to his ear
+    const hx = 9.2, hy = -31 + nod;
+    line(c, TEE, 6.2, [10.5, -20 + sy, 13.5, -14 + sy]); line(c, SK, 4.4, [13.2, -15 + sy, 15.5, -21, hx + 2.5, hy + 1.5]);
+    // the head
+    c.save(); c.translate(0, nod);
+    const X = 0, Y = -32;
+    ell(c, SK2, X - 7.6, Y + 0.5, 1.8, 2.6); ell(c, SK2, X + 7.6, Y + 0.5, 1.8, 2.6);
+    ell(c, lin(c, X - 7, Y - 7, X + 7, Y + 8, ["#c99167", SK, SK2]), X, Y, 7.6, 8.6);
+    ell(c, "#24160e", X, Y + 7.4, 2.2, 1.3);   // a little chin-strip goatee
+    line(c, "#24160e", 1.1, [X - 4.4, Y - 3.4, X - 1.4, Y - 2.9]); line(c, "#24160e", 1.1, [X + 1.4, Y - 2.9, X + 4.4, Y - 3.4]);
+    line(c, "#1b120c", 1.2, [X - 4.2, Y - 0.6, X - 2.8, Y - 1.4, X - 1.4, Y - 0.6]); line(c, "#1b120c", 1.2, [X + 1.4, Y - 0.6, X + 2.8, Y - 1.4, X + 4.2, Y - 0.6]);   // eyes shut, feeling it
+    ell(c, SK2, X, Y + 1.8, 1.3, 1);
+    c.fillStyle = "#3a1d12"; c.beginPath(); c.moveTo(X - 3.2, Y + 3.4); c.quadraticCurveTo(X, Y + 6.6, X + 3.2, Y + 3.4); c.closePath(); c.fill();   // a big grin
+    c.fillStyle = "#ffffff"; c.beginPath(); c.moveTo(X - 2.7, Y + 3.6); c.quadraticCurveTo(X, Y + 4.9, X + 2.7, Y + 3.6); c.closePath(); c.fill();
+    // the cap, on backwards: the flat brim sticks out behind, the crown with the strap gap over the forehead
+    poly(c, "#0d0e10", [X + 2, Y - 8.6, X + 13.5, Y - 10.8, X + 14, Y - 8.4, X + 3, Y - 6]);
+    c.fillStyle = lin(c, X - 8, Y - 14, X + 8, Y - 5, ["#2a2c32", "#141519", "#0b0c0e"]); c.beginPath(); c.ellipse(X, Y - 5.2, 8.3, 8.8, 0, Math.PI, 0); c.closePath(); c.fill();
+    box(c, "#0b0c0e", X - 8.3, Y - 6.2, 16.6, 2, 0.8);
+    c.fillStyle = "#24160e"; c.beginPath(); c.ellipse(X, Y - 5.2, 2.6, 2.4, 0, Math.PI, 0); c.fill();   // the snapback gap (hair)
+    line(c, "#c9d0d8", 0.9, [X - 2.6, Y - 5.2, X + 2.6, Y - 5.2]); ell(c, "#2a2c32", X, Y - 14, 1.1, 0.7);
+    // the headphones: a silver band over the cap, his right cup on, the left one held to the ear
+    c.strokeStyle = "#c9d0d8"; c.lineWidth = 1.5; c.beginPath(); c.ellipse(X, Y - 3, 9.6, 11.6, 0, Math.PI * 1.05, Math.PI * 1.95); c.stroke();
+    ell(c, "#17181c", X - 9, Y + 0.5, 2.8, 3.8); ell(c, "#FF1A7F", X - 9.6, Y + 0.5, 1, 2.2);
+    ell(c, "#17181c", X + 9.4, Y + 1, 2.8, 3.8); ell(c, "#00C9CD", X + 10, Y + 1, 1, 2.2);
+    c.restore();
+    ell(c, SK, hx + 2.6, hy + 1.6, 2.7, 2.4);   // the hand on the cup
+    c.restore();
+  }
+  function djFan(c, x, t, rm) {   // a shopper who stopped to dance (feet at x, 0; facing us): ponytail, pink tee, jeans, a paint can
+    const b = rm ? 0.25 : mod(t * 2, 1), up = Math.sin(b * Math.PI), sw = rm ? 0 : Math.sin(t * Math.PI), SK = "#d9a173", SK2 = "#b98157";
+    c.save(); c.translate(x, 0); c.scale(1.55, 1.55);
+    const hip = -25 + up * 1.4;
+    line(c, "#2f5291", 4.6, [-2.6, hip, -3.6 - sw, -12, -3, -1]); line(c, "#2f5291", 4.6, [2.6, hip, 4 - sw * 0.5, -12 + up, 3.2, -1]);
+    box(c, "#f4f6f8", -6.4, -2.4, 5.6, 2.6, 1.2); box(c, "#f4f6f8", 0.8, -2.4, 5.6, 2.6, 1.2); box(c, "#00C9CD", -6.4, -0.6, 5.6, 0.9); box(c, "#00C9CD", 0.8, -0.6, 5.6, 0.9);
+    c.save(); c.translate(sw * 0.8, hip); c.rotate(sw * 0.06);
+    c.fillStyle = lin(c, -7, -20, 7, 2, ["#ff4d97", "#e01a6e"]); rr(c, -6.5, -19, 13, 21, 5); c.fill();
+    const wave = rm ? 0 : Math.sin(t * Math.PI * 2);   // arms up, waving on the beat; one holds a paint can
+    line(c, SK, 3, [-5.5, -16, -10, -24, -9 + wave * 2, -32]); ell(c, SK, -9 + wave * 2, -33, 1.9, 1.9);
+    line(c, SK, 3, [5.5, -16, 10, -23, 8.5 - wave * 2, -31]); ell(c, SK, 8.5 - wave * 2, -32, 1.9, 1.9);
+    box(c, lin(c, 0, -40, 0, -32, ["#c9d0d8", "#8a939c"]), 5.5 - wave * 2, -40, 6.5, 7.5, 1); box(c, "#00C9CD", 5.5 - wave * 2, -37.5, 6.5, 2.4); line(c, "#5b6270", 0.6, [5.5 - wave * 2, -40, 8.8 - wave * 2, -43, 12 - wave * 2, -40]);
+    box(c, SK2, -1.6, -22, 3.2, 4, 1.2);
+    const Y = -27.5 - up * 0.8; ell(c, "#2a1810", 0, Y - 1, 6.6, 6.8); ell(c, "#2a1810", 5.5 + sw * 1.5, Y - 6, 3, 2.4, 0.5);   // hair + a bouncing ponytail
+    ell(c, lin(c, -5, Y - 5, 5, Y + 6, ["#e6b48a", SK, SK2]), 0, Y + 0.6, 5.4, 6.2);
+    c.fillStyle = "#2a1810"; c.beginPath(); c.ellipse(0, Y - 2.6, 5.8, 3.8, 0, Math.PI, 0); c.fill();
+    line(c, "#1b120c", 0.9, [-3.2, Y + 0.4, -2.2, Y - 0.4, -1.2, Y + 0.4]); line(c, "#1b120c", 0.9, [1.2, Y + 0.4, 2.2, Y - 0.4, 3.2, Y + 0.4]);
+    c.fillStyle = "#7a2a1a"; c.beginPath(); c.moveTo(-2, Y + 2.8); c.quadraticCurveTo(0, Y + 5.2, 2, Y + 2.8); c.closePath(); c.fill();
+    ell(c, "rgba(255,90,120,.35)", -3.4, Y + 2.2, 1.3, 0.8); ell(c, "rgba(255,90,120,.35)", 3.4, Y + 2.2, 1.3, 0.8);
+    c.restore(); c.restore();
+  }
+  function djRig(c, t, rm) {   // in the building's units (360 wide, ground at 0); called each frame for level 1 once the store is on screen
+    const beat = rm ? 0.5 : mod(t * 2, 1), kick = rm ? 0.35 : Math.max(0, 1 - beat * 3.2), C = DJ_COL;
+    const sweep = (i, sp, amp) => (rm ? 0 : Math.sin(t * sp + i * 1.7) * amp);
+    // lumber on a pallet + stacks of red product boxes (left of the door)
+    box(c, "#8a6a44", 8, -6, 54, 6); for (let x = 10; x < 60; x += 9) box(c, "#6e5232", x, -5, 4, 5);
+    for (let r = 0; r < 7; r++) { const y = -10 - r * 4.4; box(c, lin(c, 0, y, 0, y + 4, ["#f0d29c", "#d6ad6c"]), 9 + (r % 2), y, 52, 4, 0.8); box(c, "rgba(120,80,30,.35)", 9, y + 3.4, 54, 0.8); }
+    for (const sx of [20, 48]) box(c, "#9c7748", sx, -41, 2.4, 31);   // the straps
+    box(c, "#8a6a44", 66, -6, 34, 6); for (let x = 68; x < 98; x += 8) box(c, "#6e5232", x, -5, 4, 5);
+    for (let r = 0; r < 3; r++) for (let k = 0; k < 3; k++) { const bx = 67 + k * 11, by = -17 - r * 11;
+      box(c, lin(c, 0, by, 0, by + 11, ["#e5322e", "#b81f22"]), bx, by, 10.6, 10.6, 1); box(c, "#ffffff", bx + 1, by + 6.2, 8.6, 2); box(c, "rgba(0,0,0,.25)", bx + 2, by + 2, 5, 1); }
+    box(c, lin(c, 0, -50, 0, -39, ["#e5322e", "#b81f22"]), 78, -50, 10.6, 10.6, 1); box(c, "#ffffff", 79, -43.8, 8.6, 2);
+    // party light washing the wall behind the booth (it pulses on the beat)
+    djGlow(c, 292, -78, 78, C[Math.floor(rm ? 1 : t) % 2 ? 1 : 0], 0.22 + 0.16 * kick); djGlow(c, 330, -110, 50, C[3], 0.2 + 0.1 * kick);
+    djFan(c, 112, t, rm);
+    // the light bar on its stand (behind the booth), the disco ball hanging off it
+    box(c, lin(c, 340, 0, 345, 0, ["#5b6270", "#c9d0d8", "#5b6270"]), 340.5, -134, 3, 90);
+    box(c, lin(c, 0, -137, 0, -131, ["#c9d0d8", "#6c737d"]), 266, -137, 88, 4, 1.5);
+    line(c, "#9aa3ad", 0.6, [272, -133, 272, -122]);
+    const db = 272, dby = -116; djGlow(c, db, dby, 16, "#ffffff", 0.35);
+    c.save(); c.beginPath(); c.arc(db, dby, 6.2, 0, Math.PI * 2); c.clip(); box(c, lin(c, db - 6, dby - 6, db + 6, dby + 6, ["#f4f7fa", "#9aa3ad", "#5b6270"]), db - 7, dby - 7, 14, 14);
+    const spin = rm ? 0 : t * 3; for (let r = -3; r <= 3; r++) for (let k = -4; k <= 4; k++) { const fx = db + k * 2 + mod(spin * 2 + r, 2) - 1, fy = dby + r * 2;
+      box(c, ["#ffffff", "#c9d0d8", C[(r + k + 9) % 4], "#8a939c"][Math.abs(r * 3 + k + Math.floor(spin)) % 4], fx - 0.8, fy - 0.8, 1.6, 1.6); } c.restore();
+    for (let i = 0; i < 5; i++) { const a = (rm ? 0 : t * 1.4) + i * 1.26, r = 22 + (i % 3) * 13; ell(c, rgba(C[i % 4], 0.85), db + Math.cos(a) * r * 1.4, dby + Math.sin(a) * r * 0.5 + 10, 1.4, 1.4); }   // the sparkles it throws
+    // two pars on the bar wash down toward the door (behind the booth, so the chests stay black), with pools of light on the sidewalk
+    const pars = [[290, 0, 1.75], [314, 1, 1.95], [338, 3, 2.15]];
+    for (const [px, i, base] of pars) { const ang = -(base + 0.45 + sweep(i, 1.3, 0.3)); djBeam(c, px, -128, ang, 175, 2.5, 26, C[i], 0.3 + 0.14 * kick);
+      const fx = px + Math.sin(ang) * 128 / -Math.cos(ang); c.save(); c.scale(1, 0.22); djGlow(c, fx, -3 / 0.22, 30, C[i], 0.5 + 0.25 * kick); c.restore(); }
+    // the DJ behind his booth: a row of black rolling tool chests, the controller on top
+    djDude(c, 300, -46, t, rm, "body");
+    const glint = rgba(C[Math.floor(rm ? 0 : t * 2) % 3], 0.05 + 0.05 * kick);
+    box(c, "#00C9CD", 262, -6, 96, 6); ell(c, "rgba(0,0,0,.3)", 310, -1, 50, 3);   // the store's turquoise base stripe again (hides the cart corral behind the chests) + a shadow
+    djChest(c, 264, 45, 46, glint); djChest(c, 310.5, 45, 46, glint);
+    poly(c, "#121317", [271, -46, 329, -46, 326, -52, 274, -52]); box(c, lin(c, 0, -53, 0, -51, ["#3a3d44", "#202227"]), 274, -53.2, 52, 2, 1);
+    for (const [px, ph] of [[283.5, 0], [316.5, 1.3]]) { ell(c, "#2a2d34", px, -53.6, 8.6, 2.5); ell(c, "#9aa3ad", px, -54, 7.4, 2.1); ell(c, "#1b1d22", px, -54, 5.6, 1.6);
+      const a = (rm ? 0.6 : t * 7) + ph; ell(c, "#FF1A7F", px + Math.cos(a) * 4.6, -54 + Math.sin(a) * 1.3, 0.9, 0.5); ell(c, "#c9d0d8", px, -54, 0.9, 0.4); }
+    for (let k = 0; k < 4; k++) { const lv = rm ? 2 : Math.round(1 + 3 * kick * (0.6 + 0.4 * Math.sin(k * 2.1 + t * 5))); for (let j = 0; j < 4; j++) box(c, j < lv ? (j > 2 ? "#FF1A7F" : "#00C9CD") : "#2a2d34", 296.5 + k * 2, -48 - j * 1.3, 1.4, 0.9); }
+    djDude(c, 300, -46, t, rm, "hand");
+    // the speakers: one up on the chests, one on a tripod by the door
+    djSpeaker(c, 344, -46, 22, 34, kick, rm);
+    line(c, "#1b1d22", 1.6, [250, -34, 238, 0]); line(c, "#1b1d22", 1.6, [250, -34, 262, 0]); line(c, "#2a2d34", 1.6, [250, -34, 251, 0]);
+    box(c, lin(c, 248, 0, 252, 0, ["#3a3d44", "#7d848e", "#3a3d44"]), 248.6, -80, 2.8, 48);
+    djSpeaker(c, 250, -76, 24, 38, kick, rm);
+    // the lights: two pars on the bar wash down toward the door, a moving head on each speaker sweeps a beam up into the sky
+    for (const [px, i, base] of pars) { box(c, "#17181c", px - 4, -132, 8, 7, 2); ell(c, C[i], px, -125.5, 3.4, 1.6); djGlow(c, px, -125, 9, C[i], 0.7); }
+    [[250, -114, 4, 0.28], [344, -80, 0, -0.32]].forEach(([mx, my, i, base]) => { const ang = base + sweep(i, 0.9, 0.42);
+      djBeam(c, mx, my - 6, ang, 280, 2.2, 26, C[i], 0.5 + 0.14 * kick);
+      box(c, "#17181c", mx - 5, my - 3, 10, 3, 1); c.save(); c.translate(mx, my - 6); c.rotate(ang); box(c, "#22252b", -3.6, -5, 7.2, 8, 2.5); ell(c, C[i], 0, -5, 2.6, 1.1); c.restore(); djGlow(c, mx + Math.sin(ang) * 6, my - 6 - Math.cos(ang) * 6, 8, C[i], 0.8); });
+    // notes floating up off the speakers
+    if (!rm) for (let i = 0; i < 6; i++) { const u = mod(t * 0.45 + i / 6, 1), src = i % 2 ? [344, -80] : [250, -116];
+      c.globalAlpha = Math.min(1, u * 5) * (1 - u); djNote(c, src[0] + (i % 2 ? -14 - u * 16 : 6 + u * 18) + Math.sin(u * 9 + i) * 4, src[1] - 6 - u * 56, 0.9 + (i % 3) * 0.15, C[i % 4], i % 3 === 0); c.globalAlpha = 1; }   // drifting up, clear of the sign
+  }
   function destination(c, n, night) {
     if (n === 7) {   // v49.5 Playa Neón: the finish is the beach: sand, surf, umbrellas, giant inflatable dice and a cheering cartoon crowd in swimwear (PG)
       box(c, lin(c, 0, -150, 0, -40, ["#5fd9e0", "#2bb4c4"]), 0, -150, 360, 112); c.fillStyle = "rgba(255,255,255,.55)"; for (let k = 0; k < 9; k++) { const wx = 8 + k * 42; c.beginPath(); c.ellipse(wx, -60 - (k % 3) * 22, 14, 2, 0, 0, Math.PI * 2); c.fill(); }   // the ocean
@@ -467,21 +629,37 @@
       for (const cx of [204, 262, 352]) { poly(c, "#ff6a00", [cx - 7, 0, cx + 7, 0, cx + 3, -22, cx - 3, -22]); box(c, "#ffffff", cx - 5, -14, 10, 4); box(c, "#3a3f4a", cx - 9, -2, 18, 2); }
       return;
     }
-    if (n === 1) {   // v47 Hon Dipo: our own parody big-box hardware store (beige block, bright orange trim, a square orange sign with heavy condensed white letters; no real logo)
-      const OR = "#f96302", OR2 = "#d95400";
+    if (n === 1) {   // Hon Dipo (v47; v49.15 repainted so it looks nothing like a real big-box store): our own Southside ferretería. Beige stucco,
+      // turquoise + pink Fiesta trim, papel picado under the roofline, and a hand-painted, taquería-style arched sign board (cream, pink +
+      // turquoise borders, "Hon Dipo" in painted serif letters with a drop shadow, FERRETERÍA under it). No orange square, no stencil wordmark.
+      const TQ = "#00C9CD", TQ2 = "#0a9ea2", PK = "#FF1A7F", PK2 = "#c8125f", OJ = "#FF6A0B", INK = "#3a1d3a";
       box(c, lin(c, 0, -196, 0, 0, ["#e6d7c1", "#d2bfa4"]), 0, -196, 360, 196);
       c.fillStyle = "rgba(120,96,70,.16)"; for (let x = 24; x < 360; x += 24) c.fillRect(x, -180, 1.2, 180);
-      box(c, OR, 0, -196, 360, 12); box(c, OR2, 0, -184, 360, 3);   // the orange roof trim
-      box(c, OR, 0, -112, 360, 6); box(c, OR, 0, -6, 360, 6);         // …a stripe across the front and along the bottom
-      for (const [x0, txt] of [[14, "LUMBER · TOOLS"], [242, "PAINT · GARDEN"]]) { box(c, OR, x0, -158, 104, 22, 3); say(c, txt, x0 + 52, -147, 10, "#ffffff", { weight: 900, max: 96 }); }
-      // the square sign: bright orange, rounded corners, a thin darker edge, HON over DIPO in heavy condensed white letters
-      box(c, "rgba(0,0,0,.18)", 135, -187, 96, 96, 7); box(c, OR2, 132, -190, 96, 96, 7); box(c, lin(c, 0, -188, 0, -96, ["#ff7a1f", OR, "#ec5a00"]), 134, -188, 92, 92, 6);
-      const HV = '"Avenir Next Condensed","Roboto Condensed","Arial Narrow","Helvetica Neue",Arial,sans-serif';
-      for (const [txt, y] of [["HON", -163], ["DIPO", -123]]) { c.save(); c.translate(180, y); c.scale(0.84, 1); say(c, txt, 0, 0, 38, "#ffffff", { font: HV, weight: 900, max: 100 }); c.restore(); }
-      line(c, "rgba(255,255,255,.85)", 2, [146, -143, 214, -143]);   // a little rule between the words
-      box(c, lin(c, 0, -90, 0, -80, ["#ff8a1a", OR2]), 112, -90, 136, 10, 3); box(c, "#6c757d", 120, -80, 120, 74);
+      box(c, TQ, 0, -196, 360, 12); box(c, TQ2, 0, -184, 360, 3);   // the turquoise roof trim
+      box(c, PK, 0, -112, 360, 5); box(c, TQ, 0, -6, 360, 6);        // a pink stripe across the front, turquoise along the bottom
+      // papel picado strung under the roofline, both sides of the sign
+      for (const [x0, x1] of [[0, 108], [252, 360]]) { const sag = (x) => -178 + 6 * Math.sin(Math.PI * (x - x0) / (x1 - x0));
+        line(c, "rgba(60,40,60,.5)", 0.7, [x0, -178, (x0 + x1) / 2, -172, x1, -178]);
+        for (let x = x0 + 4, i = 0; x < x1 - 8; x += 11, i++) { const y = sag(x + 4), col = [PK, TQ, OJ, "#9b4dff"][i % 4];
+          poly(c, col, [x, y, x + 9, y, x + 9, y + 9, x + 4.5, y + 12, x, y + 9]); ell(c, "rgba(255,255,255,.55)", x + 4.5, y + 4.5, 1.4, 1.4); } }
+      for (const [x0, txt, col] of [[10, "LUMBER · TOOLS", PK], [256, "PAINT · GARDEN", TQ2]]) { box(c, col, x0, -158, 94, 22, 11); say(c, txt, x0 + 47, -147, 10, "#ffffff", { weight: 900, max: 84 }); }
+      // the hand-painted sign board: an arched top, a pink frame, a turquoise pinstripe, cream inside
+      const arch = (x0, x1, top, bot) => { c.beginPath(); c.moveTo(x0, bot); c.lineTo(x0, top + 22); c.quadraticCurveTo((x0 + x1) / 2, top - 14, x1, top + 22); c.lineTo(x1, bot); c.closePath(); };
+      c.fillStyle = "rgba(0,0,0,.18)"; arch(111, 255, -191, -97); c.fill();
+      c.fillStyle = lin(c, 0, -194, 0, -100, [PK, PK2]); arch(108, 252, -194, -100); c.fill();
+      c.fillStyle = TQ; arch(113, 247, -189, -105); c.fill();
+      c.fillStyle = lin(c, 0, -186, 0, -108, ["#fff8ec", "#f6e8d2"]); arch(116, 244, -186, -108); c.fill();
+      for (const sx of [126, 234]) for (const sy of [-160, -118]) { c.save(); c.translate(sx, sy); c.rotate(Math.PI / 4); poly(c, OJ, [0, -4, 1, -1, 4, 0, 1, 1, 0, 4, -1, 1, -4, 0, -1, -1]); c.restore(); }   // painted sparkles
+      c.save(); c.translate(180, -150); c.rotate(-0.04);
+      say(c, "Hon Dipo", 2.2, 2.6, 31, TQ2, { font: WEST, weight: 900, italic: true, max: 102 });   // the painted drop shadow
+      say(c, "Hon Dipo", 0, 0, 31, PK, { font: WEST, weight: 900, italic: true, max: 102, stroke: INK, sw: 2.6 });
+      c.restore();
+      c.strokeStyle = OJ; c.lineWidth = 2.4; c.lineCap = "round"; c.beginPath(); c.moveTo(134, -130); c.quadraticCurveTo(180, -138, 226, -131); c.stroke();   // a brushy swash
+      say(c, "FERRETERÍA", 180, -118, 10.5, INK, { weight: 900, max: 92 });
+      box(c, lin(c, 0, -90, 0, -80, [TQ, TQ2]), 112, -90, 136, 10, 3); box(c, "#6c757d", 120, -80, 120, 74);
       glass(c, 124, -76, 54, 70, false); glass(c, 182, -76, 54, 70, false); box(c, "#6c757d", 178, -76, 4, 70);
-      for (let k = 0; k < 3; k++) for (const cx of [26, 62, 270, 306]) { const y = -16; box(c, OR, cx + k * 4, y - 22, 30, 4, 1); c.strokeStyle = OR; c.lineWidth = 1.2; rr(c, cx + k * 4, y - 20, 30, 18, 2); c.stroke(); for (let g = 4; g < 30; g += 5) { c.beginPath(); c.moveTo(cx + k * 4 + g, y - 20); c.lineTo(cx + k * 4 + g, y - 2); c.stroke(); } ell(c, "#111", cx + k * 4 + 5, -1, 2.5, 2.5); ell(c, "#111", cx + k * 4 + 26, -1, 2.5, 2.5); }
+      const RL = "#7d848e";   // the cart corrals: plain silver rails
+      for (let k = 0; k < 3; k++) for (const cx of [26, 62, 270, 306]) { const y = -16; box(c, RL, cx + k * 4, y - 22, 30, 4, 1); c.strokeStyle = RL; c.lineWidth = 1.2; rr(c, cx + k * 4, y - 20, 30, 18, 2); c.stroke(); for (let g = 4; g < 30; g += 5) { c.beginPath(); c.moveTo(cx + k * 4 + g, y - 20); c.lineTo(cx + k * 4 + g, y - 2); c.stroke(); } ell(c, "#111", cx + k * 4 + 5, -1, 2.5, 2.5); ell(c, "#111", cx + k * 4 + 26, -1, 2.5, 2.5); }
       for (let k = 0; k < 3; k++) box(c, ["#c9b29a", "#b39b81", "#d6c2ab"][k], 92 - k * 2, -12 - k * 10, 22, 10, 3);
       return;
     }
@@ -1613,7 +1791,8 @@
       blit(cache.mid, 0.4, GS - 26, (level - 1) * 520);
       if (L().beach) { bgRoofs(reduced()); if (!reduced()) bgChase(); }   // v49.5 Playa Neón: background only, no effect on the game
       g.setTransform(S, 0, 0, S, sx * S, GS * S); road();
-      const dx = destX() - camX; if (dx < VW + 10) { g.setTransform(1, 0, 0, 1, Math.round((dx + sx) * S), 0); g.drawImage(cache.dest, 0, Math.round((GS - 12 - 360) * S)); }
+      const dx = destX() - camX; if (dx < VW + 10) { g.setTransform(1, 0, 0, 1, Math.round((dx + sx) * S), 0); g.drawImage(cache.dest, 0, Math.round((GS - 12 - 360) * S));
+        if (L().d === 1) { const ds = Math.min(1, (GS - 12 - 70) / DEST_H[level - 1]); g.setTransform(S * ds, 0, 0, S * ds, Math.round((dx + sx) * S) + (VW * (1 - ds) / 2) * S, (GS - 12) * S); djRig(g, t, reduced()); } }   // v49.15: the Hon Dipo DJ, live (it moves), same spot + scale as the store
       g.setTransform(S, 0, 0, S, (sx - camX) * S, GS * S);
       const rm = reduced();
       if (L().beach && camX < ARCH_X + 260) diceArch(g, ARCH_X, t, rm);   // v49.5: the PLAYA NEÓN arch at the start of level 7
