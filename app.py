@@ -2982,6 +2982,18 @@ async def juan_scores_all(request: Request):
     return JSONResponse({"ok": True, "scores": await juanscores.everything()}, headers=STATS_HEADERS)
 
 
+@app.get("/stats/juan/god.js", include_in_schema=False)
+async def juan_god_js(request: Request):
+    """v49.15.x: the owner's god-mode panel for The Juan That Got Away (bug hunting: immortal, fly, noclip, speed, level
+    select). Guarded like GET /stats/juan/scores (the /stats sign-in: HttpOnly cookie, path=/stats), so only the signed-in
+    owner ever gets the code; everyone else gets the usual 401 (404 with no ADMIN_TOKEN). Not in /static, not precached by
+    the service worker (it never touches /stats/), never cached anywhere (no-store)."""
+    if not await _juan_admin(request, json_only=False):
+        return _nope()
+    return Response((BASE / "private" / "juan_god.js").read_text(encoding="utf-8"), media_type="text/javascript; charset=utf-8",
+                    headers={**STATS_HEADERS, "Cache-Control": "no-store, private"})
+
+
 @app.post("/api/juan/scores/clear", include_in_schema=False)
 @app.post("/stats/juan/scores/clear", include_in_schema=False)
 async def juan_scores_clear(request: Request):

@@ -24,7 +24,11 @@
    they look up "?"); dark unmarked SUVs are parked along the way (hop onto the roof) and, once Juan runs past one, an
    agent hops out and chases him ("¡Vámonos, amigo!") until he's out of breath ("¡Fuera!", Juan got away). Getting
    caught is a big "¡Ay no!" and back to the last 🚩. Old slapstick kept: agents trip over traffic cones (cap rolls off,
-   "!?"), and the 🩴 flip-flops power-up is a shield: the next agent who reaches Juan just gets dizzy (stars). */
+   "!?"), and the 🩴 flip-flops power-up is a shield: the next agent who reaches Juan just gets dizzy (stars).
+   v49.15.x admin god mode (owner only, for bug hunting): this file only has the switches (immortal, fly, noclip, speed,
+   level select), all off. The panel itself (private/juan_god.js) is served by GET /stats/juan/god.js to the signed-in owner
+   only, never from /static, never in the native app; a run that ever had god mode on never saves a best score or goes on
+   the Top 10. */
 (function (root) {
   "use strict";
   // v49.11: anything that isn't our own fixed text goes into innerHTML only through num() (numbers) or escH() (text)
@@ -72,6 +76,7 @@
   const FUERA = "¡Fuera!", VAMONOS = "¡Vámonos, amigo!";   // v46: the old Ice Ice Bebé lines (kept in Spanish on purpose)
   // v47: caught by ICE → one of these, picked at random, never the same one twice in a row (the user's picks; the original "¡Ay no!" stays in)
   const CAUGHT = ["¡Ay no!", "¡Ay cabrón!", "¡Chingao!", "¡Pinche ICE!", "¡Ay, vengo mamá!"];
+  let godLoaded = false;   // v49.15.x: the owner's god-mode panel script came from the server (200 = signed in as the owner)
   let lastCaught = "";   // module-wide, so even a fresh game doesn't open with the last one again
   function pickCaught(prev = lastCaught, rnd = Math.random) {
     const pool = CAUGHT.filter((l) => l !== prev);
@@ -1419,6 +1424,9 @@
     let bgIce = [], bgNext = 4, bgN = 0;   // v46: the ICE SUVs in the far lane (decor: not in ents, they never touch Juan)
     let fx = [], fxMade = 0, dustT = 0, paused = false, beersGot = 0, fueraT = 0, fueras = 0, caughtN = 0, caughtBy = "", forceCaught = "";
     let S = 1, VH = 580, GS = VH - ROADH, dpr = 1, dprCap = 3, cssW = VW, cache = {}, perf = { n: 0, sum: 0 };
+    // v49.15.x admin god mode: null for everyone; only the owner's panel (served by the server to the signed-in owner) sets it
+    let god = null, godUi = null, godHeld = false, godSafe = null;
+    const immortal = () => !!(god && god.on);
     const cam = (x) => Math.min(x - HERO_X, CAM_END);
     const L = () => LEVELS[level - 1], P = () => SKY[L().time], isNight = () => L().time === "night";
     const par = () => (reduced() ? 0 : 1);
@@ -1446,17 +1454,18 @@
     }
     function startLevel(n, keepScore) {
       if (n !== level) cache = {};
-      if (!keepScore) run = { sent: false, offered: 0 };   // v49.5: a fresh run (its score can go on the board once)
+      if (!keepScore) run = { sent: false, offered: 0, god: immortal() };   // v49.5: a fresh run (its score can go on the board once; v49.15.x: never if god mode is on)
       level = n; ck = 0; paused = false; if (!keepScore) ckScore = 0; if (n === 1 && !keepScore) beersGot = 0; spawn(0); mode = "run"; overlay(null); fs.enter(); fit(); healthCheck();
       $("#juan-note").textContent = `Level ${n}: ${L().name}. ${L().hint}`; loop(); ctrl();
     }
     function overlay(html, cls = "") { ov.className = "juan-ov" + (html ? " on " + cls : ""); ov.innerHTML = html || ""; }
-    const speed = () => L().speed * (reduced() ? 0.88 : 1) * (hero.boost > 0 ? 1.4 : 1) * (hero.stumble > 0 ? 0.55 : 1);
+    const speed = () => L().speed * (reduced() ? 0.88 : 1) * (hero.boost > 0 ? 1.4 : 1) * (hero.stumble > 0 ? 0.55 : 1) * (immortal() ? god.speed || 1 : 1);
     const played = () => { try { root.dispatchEvent(new CustomEvent("chisme-game-play", { detail: "juan" })); } catch (e) {} };   // v42: anonymous counts
     function jump() {
       if (mode === "title") { played(); startLevel(1); return; }
       if (mode !== "run") return;
       audio();
+      if (immortal() && god.fly) { godHeld = true; return; }   // v49.15.x god mode: fly (hold to rise, let go to drift down)
       if (hero.ground) { hero.vy = JUMP; hero.ground = false; hero.jumps = 1; hero.jumpAt = t; SFX.jump(); puff(hero.x + 10, 0 + (hero.y + hero.h), skinNow() === "classic" ? 10 : 4, "dust"); }
       else if (hero.jumps > 0) { hero.vy = JUMP2; hero.jumps = 0; hero.jumpAt = t; SFX.jump2(); puff(hero.x + 13, hero.y + hero.h, 6, "spark"); }
     }
@@ -1464,7 +1473,7 @@
       h.landAt = t; h.landX = h.x + h.w / 2; h.landY = h.y + h.h;
       if (skinNow() === "lowrider" && !reduced()) { shake = Math.max(shake, 0.16); puff(h.landX - 6, h.landY, 6, "dust"); }
     }
-    function release() { if (mode === "run") hero.vy = trim(hero.vy); }   // a short tap = a slightly shorter hop (v49.7: still clears an agent)
+    function release() { godHeld = false; if (mode === "run" && !(immortal() && god.fly)) hero.vy = trim(hero.vy); }   // a short tap = a slightly shorter hop (v49.7: still clears an agent)
     // ---- particles (none with reduce motion)
     function puff(x, y, n, kind) {
       if (reduced()) return;
@@ -1478,9 +1487,10 @@
       if (fx.length > 200) fx.splice(0, fx.length - 200);
     }
     function oops(by) {   // out of health, or (v46) an agent caught up with him: a big "¡Ay no!" (v47: or ¡Ay cabrón! / ¡Chingao! / ¡Pinche ICE! / ¡Ay, vengo mamá!), then back to the last 🚩
+      if (immortal()) return;   // v49.15.x god mode: never caught, never worn out
       mode = "oops"; oopsMsg = by ? (forceCaught ? (lastCaught = forceCaught) : pickCaught()) : OOPS[Math.floor(Math.random() * OOPS.length)]; forceCaught = ""; SFX.oops(); if (!reduced()) shake = 0.3;
       if (by) { caughtN++; caughtBy = by.t; by.st = "grab"; } fueraT = 0;
-      st.best = Math.max(st.best, score); save(st); stats();
+      if (!run.god) { st.best = Math.max(st.best, score); save(st); stats(); }   // v49.15.x: a god-mode run never sets the best
       const where = ck ? "checkpoint 🚩" : "start";
       overlay(`<p class="sr-only">${oopsMsg}</p><p class="juan-oops">${by ? `Caught! Juan tries again from the ${where}.` : `Juan's worn out. Try again from the ${where}.`}</p>`, "soft oops");
       setTimeout(() => { if (mode === "oops") { spawn(ck); mode = "run"; overlay(null); } }, 1400);
@@ -1489,7 +1499,7 @@
       const h = hero, [dmg, label] = HAZ[e.t];
       e.hit = true; if (e.t === "cone") e.down = true; if (e.t === "cart") e.bonk = 0.01; if (e.t === "chancla") e.gone = true;
       if (e.t === "sprinkler") { SFX.splash(); for (let i = 0; i < 6; i++) puff(h.x + 13, h.y + 20, 1, "drop"); } else if (e.t === "chihuahua") SFX.yap(); else SFX.ouch();
-      if (h.inv > 0) return;   // still blinking from the last bump
+      if (h.inv > 0 || immortal()) return;   // still blinking from the last bump (v49.15.x: or god mode: no damage)
       h.health = Math.max(0, h.health - dmg); h.inv = 1.0; h.stumble = 0.45; msg = `${label} −${dmg}`; msgT = 1.3; if (!reduced()) shake = 0.12;
       puff(h.x + 13, h.y + h.h - 4, 5, "dust");
       if (h.health <= 0) oops();
@@ -1529,7 +1539,7 @@
         else if (e.st === "dizzy" && e.tt === 0) e.st = "tired";
       }
       const danger = (e.t === "agent" && e.st === "walk") || (e.t === "chaser" && e.st === "chase");
-      if (danger && h.inv <= 0 && hit(h, e, 5)) {
+      if (danger && h.inv <= 0 && !immortal() && hit(h, e, 5)) {   // v49.15.x god mode: agents can't catch him
         if (h.shield > 0) { h.shield = 0; h.inv = 1.2; e.st = "dizzy"; e.tt = 2.5; SFX.shield(); msg = "Flip-flops! He's dizzy"; msgT = 1.3; score += 100; puff(e.x + 15, e.y + 6, 10, "spark"); if (e.t === "chaser") escape(e); }
         else { oops(e); return true; }
       }
@@ -1537,18 +1547,18 @@
       return false;
     }
     function clear() {
-      const name = L().name; score += 500; ckScore = score; st.best = Math.max(st.best, score);
+      const name = L().name, real = !run.god; score += 500; ckScore = score; if (real) st.best = Math.max(st.best, score);   // v49.15.x: god-mode runs save nothing
       SFX.clear(); puff(hero.x + 13, hero.y + 10, 18, "spark");
       if (level === LEVELS.length) {
-        mode = "win"; st.levelMax = LEVELS.length; st.beers = Math.max(st.beers || 0, beersGot); save(st); stats();
+        mode = "win"; if (real) { st.levelMax = LEVELS.length; st.beers = Math.max(st.beers || 0, beersGot); save(st); } stats();
         if (!reduced()) for (let i = 0; i < 120; i++) parts.push({ x: Math.random() * VW, y: -Math.random() * VH, vy: 40 + Math.random() * 70, vx: Math.random() * 30 - 15, r: Math.random() * 6, c: ["#00b8b0", "#ff3d8b", "#ff8a00", "#c9d0d8", "#ffffff"][i % 5] });
         overlay(`<p class="juan-big">Cheers, Juan!</p><p class="juan-win-line">From Noche Caliente to the beach at Playa Neón: the Juan That Got Away made it to his vacation. Beach time!</p><p class="juan-win-score">Final score <b>${num(score)}</b></p><button type="button" class="lot-btn lot-main" data-act="again">▶ Play again</button><p class="juan-btns">${skinBtn()}${skinHint()}</p>`, "win");
         const final = score; setTimeout(() => { if (el.isConnected) offer(final, LEVELS.length); }, reduced() ? 600 : 1800);   // v49.5: the run's done → the board?
         $("#juan-note").innerHTML = `🎉 Friday shift done, cold ones at Noche Caliente, then a vacation at Playa Neón, from the hotel to the beach. Cheers! <span class="juan-score">Final score <b>${num(score)}</b> · Best <b>${num(st.best)}</b></span> <button type="button" class="lot-btn lot-main" data-act="again">▶ Play again</button>`;
         return;
       }
-      if (level === 6) st.wins++;   // v49.5: made it to Noche Caliente (Playa Neón is the celebration after)
-      st.levelMax = Math.max(st.levelMax, level + 1); save(st); stats();
+      if (real) { if (level === 6) st.wins++;   // v49.5: made it to Noche Caliente (Playa Neón is the celebration after)
+        st.levelMax = Math.max(st.levelMax, level + 1); save(st); } stats();
       mode = "clear";
       overlay(`<p class="juan-big">You made it to ${name}!</p><p class="juan-story">${L().done}</p><p>+500 · Score <b>${num(score)}</b></p><button type="button" class="lot-btn lot-main" data-act="next">▶ Level ${level + 1}: ${LEVELS[level].name}</button><p class="juan-btns">${OVER}${skinBtn()}${skinHint()}</p>`, "clear");
       $("#juan-note").textContent = `Next up: ${LEVELS[level].name}. ${LEVELS[level].hint}`;
@@ -1562,8 +1572,9 @@
       const h = hero, vx = speed(), wasGround = h.ground;
       h.boost = Math.max(0, h.boost - dt); h.stumble = Math.max(0, h.stumble - dt); h.inv = Math.max(0, h.inv - dt); fueraT = Math.max(0, fueraT - dt);
       h.x += vx * dt; h.frame += vx * dt * 0.09;
-      const prevBottom = h.y + h.h;
-      h.vy = fall(h.vy, dt); h.y += h.vy * dt; h.ground = false;
+      const prevBottom = h.y + h.h, fly = immortal() && god.fly;
+      h.vy = fly ? (godHeld ? -260 : Math.min(160, h.vy + 900 * dt)) : fall(h.vy, dt); h.y += h.vy * dt; h.ground = false;   // v49.15.x god mode fly
+      if (fly && h.y < -(GS - 96)) { h.y = -(GS - 96); h.vy = 0; }   // …not up under the HUD (his hat sits above the box)
       if (h.y + h.h >= 0) { h.y = -h.h; h.vy = 0; h.ground = true; h.jumps = 2; if (!wasGround) landed(h); }
       for (const e of ents) {
         if (e.gone || e.x > h.x + 760 || e.x + e.w < h.x - 260) continue;
@@ -1578,6 +1589,7 @@
         }
         if (e.t === "flag") { if (!e.done && h.x >= e.x) { e.done = true; ck = CHECKS.indexOf(e.x); ckScore = score; SFX.check(); msg = "Checkpoint! 🚩"; msgT = 1.2; puff(e.x + 16, -60, 12, "spark"); } continue; }
         if (SOLID.includes(e.t)) {
+          if (immortal() && god.noclip) continue;   // v49.15.x god mode noclip: straight through pallets, tires and cars
           if (h.x + h.w - 3 > e.x && h.x + 3 < e.x + e.w) {
             if (h.vy >= 0 && prevBottom <= e.y + 6 && h.y + h.h >= e.y) { h.y = e.y - h.h; h.vy = 0; h.ground = true; h.jumps = 2; if (!wasGround) landed(h); }   // landed on top
             else if (h.y + h.h > e.y + 6 && h.x + h.w - 3 < e.x + 14) { h.x = e.x - h.w + 3; h.stumble = 0.35; }   // bumped the side: a stumble
@@ -1599,6 +1611,10 @@
       }
       if (h.ground && !wasGround) puff(h.x + 13, h.y + h.h, 6, "dust");
       else if (h.ground) { dustT -= dt; if (dustT <= 0) { dustT = h.boost > 0 ? 0.06 : 0.14; puff(h.x + 4, h.y + h.h, 1, "dust"); } }
+      if (immortal()) {   // v49.15.x god mode: if Juan ever ends up somewhere broken (off the map, NaN), back to the last safe spot
+        if (!Number.isFinite(h.x) || !Number.isFinite(h.y) || h.y + h.h > 1 || h.y < -GS) { const sp = godSafe || { x: CHECKS[ck] + 8, y: -HERO_H }; h.x = sp.x; h.y = sp.y; h.vy = 0; }
+        else if (h.ground) godSafe = { x: h.x, y: h.y };
+      }
       camX = cam(h.x); bgTick(dt);
       if (h.x >= END) clear();
       msgT = Math.max(0, msgT - dt); shake = Math.max(0, shake - dt);
@@ -1769,7 +1785,7 @@
       if (on) box(g, "#3ee8eb", cx - 7, 52.5, 14 * hero.boost / 5, 2, 1);
       const sOn = hero.shield > 0, fx2 = 282;   // 🩴 shield slot
       g.save(); g.translate(fx2, 43.5); g.rotate(-0.4); ell(g, sOn ? "#3ee8eb" : "#5a6078", 0, 0, 3.6, 6.2); line(g, sOn ? "#ff3d8b" : "#3a4058", 1.3, [-2.4, 1, 0, -3, 2.4, 1]); g.restore();
-      say(g, `HI ${Math.max(st.best, score)}`, VW - 14, 45, 10.5, "#9aa3b5", { font: UI, weight: 800, align: "right" });
+      say(g, `HI ${run.god ? st.best : Math.max(st.best, score)}`, VW - 14, 45, 10.5, "#9aa3b5", { font: UI, weight: 800, align: "right" });
       if (msgT > 0) { g.font = `800 13px ${UI}`; const w = g.measureText(msg).width + 26; box(g, "rgba(13,15,26,.85)", (VW - w) / 2, 68, w, 26, 13); say(g, msg, VW / 2, 81.5, 13, "#3ee8eb", { font: UI, weight: 800 }); }
     }
     // v49.9: the safety net. If a frame throws, or ~2 s after the game starts the canvas has no size, never drew, or the full-screen
@@ -1923,7 +1939,7 @@
     const makes = (sc, rows) => sc > 0 && (rows.length < 10 || sc > rows[rows.length - 1].score);
     let offering = false;
     async function offer(sc, lvl) {
-      if (offering || hsDlg || run.sent || sc <= run.offered || sc <= 0) return false;
+      if (run.god || offering || hsDlg || run.sent || sc <= run.offered || sc <= 0) return false;   // v49.15.x: never a god-mode run
       offering = true; let rows;
       try { rows = navigator.onLine ? await loadBoard() : merged(); } finally { offering = false; }
       if (!makes(sc, rows) || hsDlg || !el.isConnected) return false;
@@ -1953,7 +1969,7 @@
         const name = inp.value.replace(/\s+/g, " ").trim().slice(0, 12) || "Juan";
         if (nameBlocked(name, await loadBlockList())) { msgEl.textContent = NAME_NO; inp.focus(); return; }
         lsSet(HS_NAME, name === "Juan" ? lsGet(HS_NAME, "") : name);
-        const entry = { name, score: sc, level: lvl, t: Math.floor(Date.now() / 1000) };
+        const entry = { name, score: sc, level: lvl, t: Math.floor(Date.now() / 1000), ...(run.god ? { god: true } : {}) };   // v49.15.x: the server refuses god: true
         btn.disabled = true; btn.textContent = "Saving…"; msgEl.textContent = "";
         let res = null; try { res = await postScore(entry); } catch (err) { res = null; }
         if (res && res.ok) { run.sent = true; hiId = res.id; if (res.rank && res.rank <= 10) unlockSkins(res); await loadBoard(); done(d, `You're <b>#${res.rank || "?"}</b> on the board!`); return; }
@@ -2032,6 +2048,29 @@
     function skinHint() { return skinsOpen() ? "" : '<span class="juan-sk-hint" aria-hidden="true">🔒 Make the Top 10 to unlock</span>'; }
     function skinLabel() { const b = $("#juan-ov [data-act=skins]"); if (b) b.setAttribute("aria-label", skinAria()); }
 
+    // ---- v49.15.x admin god mode (owner only). Nothing here does anything on its own: the owner's panel script is served only by
+    // GET /stats/juan/god.js, which answers 200 only to the signed-in /stats owner (the HttpOnly session cookie, path=/stats; the
+    // same check as GET /stats/juan/scores). Only asked for when the harmless chisme_admin=1 marker is there (so everyone else
+    // makes no request), never in the native app (window.ChismeNative). A URL flag or localStorage never turns it on.
+    const godHooks = {
+      levels: LEVELS.map((l) => l.name),
+      get: () => ({ on: immortal(), fly: !!(god && god.fly), noclip: !!(god && god.noclip), speed: (god && god.speed) || 1, level, mode, paused, godRun: !!run.god }),
+      set(o) { god = Object.assign(god || { on: false, fly: false, noclip: false, speed: 1 }, o || {});
+        if (!god.on) Object.assign(god, { fly: false, noclip: false, speed: 1 }); else run.god = true;   // a run that ever had it on stays out of the Top 10
+        godHeld = false; if (!raf) draw(); },
+      level(n) { n = Math.max(1, Math.min(LEVELS.length, n | 0)); paused = false; ckScore = 0; startLevel(n); run.god = true; ctrl(); },   // a level jump is never a real run
+      pause, resume, el, wrap,
+    };
+    function loadGod() {
+      if (root.ChismeNative || godUi || !el.isConnected) return;
+      const attach = () => { if (godUi || !el.isConnected || !root.ChismeJuanGod) return; try { godUi = root.ChismeJuanGod.attach(godHooks) || null; } catch (e) { godUi = null; } };
+      if (godLoaded) { attach(); return; }
+      const s = document.createElement("script"); s.src = "/stats/juan/god.js"; s.async = true;
+      s.onload = () => { godLoaded = true; attach(); }; s.onerror = () => s.remove();   // 401/404: not the owner, nothing happens
+      document.head.appendChild(s);
+    }
+    if (!root.ChismeNative && /(?:^|;\s*)chisme_admin=1(?:;|$)/.test(document.cookie)) loadGod();
+
     // ---- input: tap / click the game, the Jump button, Space / ↑ / W
     cv.addEventListener("pointerdown", (e) => { e.preventDefault(); jump(); });
     cv.addEventListener("pointerup", release);
@@ -2072,13 +2111,13 @@
       pause, resume, jump,
       fs, exitFullscreen: (quiet) => fs.exit(quiet),
       destroy() { fs.exit(true); cancelAnimationFrame(raf); clearTimeout(hcT); if (brokeEl) brokeEl.remove(); document.removeEventListener("keydown", onKey); document.removeEventListener("keyup", onKeyUp); root.removeEventListener("resize", onWin); if (ro) ro.disconnect(); if (vv) vv.removeEventListener("resize", onWin); root.removeEventListener("orientationchange", onWin); root.removeEventListener("pageshow", onWin); document.removeEventListener("visibilitychange", onVis); clearTimeout(refitT); el.removeEventListener("click", onAct);
-        document.removeEventListener("visibilitychange", onShow); root.removeEventListener("pageshow", repaint); root.removeEventListener("online", onOnline); if (hsDlg) hsDlg.remove(); if (skDlg) skDlg.remove(); cache = {}; },
+        document.removeEventListener("visibilitychange", onShow); root.removeEventListener("pageshow", repaint); root.removeEventListener("online", onOnline); if (hsDlg) hsDlg.remove(); if (skDlg) skDlg.remove(); if (godUi && godUi.destroy) godUi.destroy(); godUi = null; god = null; cache = {}; },
       skins: { open: openSkins, get now() { return skinNow(); }, get unlocked() { return skinsOpen(); }, get owner() { return owner; }, list: JSKINS.map((k) => k[0]) },   // v49.5 (tests)
       hs: { loadBoard, offer, flushPending, get rows() { return merged(); }, get live() { return boardLive; }, get hi() { return hiId; }, get run() { return { ...run }; } },   // v49.5 (tests)
       repaint,
       get state() { return { oopsMsg, msg, mode, level, name: L().name, outfit: L().outfit, x: hero.x, y: hero.y, hw: hero.w, hh: hero.h, skin: skinNow(), ja: hero.jumpAt != null ? t - hero.jumpAt : null, la: hero.landAt != null ? t - hero.landAt : null, view: { S, GS, VH, dpr }, ground: hero.ground, score, ck, best: st.best, muted: st.muted, boost: hero.boost, health: hero.health, beers: beersGot, shield: hero.shield, fuera: fueraT > 0, fueras, caught: caughtN, caughtBy,
         chase: ents.some((e) => e.t === "chaser" && e.st === "chase"),
-        levelMax: st.levelMax, parallax: !reduced(), overlay: ov.textContent.trim(), fullscreen: fs.on, W: VW, H: VH, dpr, cssW, backing: [cv.width, cv.height], fx: fx.length, fxMade }; },
+        levelMax: st.levelMax, god: immortal(), godRun: !!run.god, godPanel: !!godUi, parallax: !reduced(), overlay: ov.textContent.trim(), fullscreen: fs.on, W: VW, H: VH, dpr, cssW, backing: [cv.width, cv.height], fx: fx.length, fxMade }; },
       // test hooks: jump to a spot in a level (as if you'd run there), set the health bar
       warp(n, x) { if (n !== level || mode === "title" || mode === "win" || mode === "clear") startLevel(n, true); if (paused) resume(); hero.x = x; hero.y = -HERO_H; hero.vy = 0; camX = cam(x);
         for (const e of ents) if (e.t === "flag" && e.x <= x) { e.done = true; ck = CHECKS.indexOf(e.x); }

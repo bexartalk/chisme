@@ -46,6 +46,8 @@ def clean_name(v) -> str:
 
 
 def clean_entry(body: dict) -> dict | None:
+    if body.get("god"):
+        return None   # v49.15.x: a run with the owner's god mode on never goes on the board
     try:
         score = int(body.get("score"))
         level = int(body.get("level") or 1)
