@@ -1,8 +1,8 @@
 /* Chisme · Juegos game 2: "The Juan That Got Away" (v44; first called "Juan's Long Day"), a side-scrolling runner with smooth vector art on a canvas
    (paths, gradients and anti-aliasing, drawn at the phone's devicePixelRatio so it stays crisp; no image files, no requests).
    v47 story: it's FRIDAY, and Juan grinds through his workday to get to Noche Caliente for beers with the crew. 6 levels:
-   Hon Dipo (v47, was Home Dehole; our own parody hardware store. v49.15: repainted as a Southside ferretería with turquoise +
-   pink trim, papel picado and a hand-painted arched sign, no orange square, plus a DJ out front on a row of tool chests) → La Chamba (v47: downtown San Antonio, the most ICE agents and
+   Hon Dipo (v47, was Home Dehole; our own parody hardware store: beige building, bright orange trim, a square orange sign
+   with heavy condensed white letters, no real logo; v49.15 made it much bigger, with a DJ out front up on a stack of tool chests) → La Chamba (v47: downtown San Antonio, the most ICE agents and
    background SUVs; it ends at a construction site with a cement mixer, a yellow excavator + loader, fencing, cones and a blue
    "COMING SOON Gualmart" parody sign) → Don Pedroes (a Southside Mexican restaurant: cream stucco, red tile roofs, the tall pole sign with the
    specials) → O'Reillees (a green-and-white parody auto-parts store, no real logo) → Juan's Casa (quitting time: wash up,
@@ -63,7 +63,7 @@
       hint: "Vacation! Juan runs from his hotel to the beach at sunset, with ICE agents and cartoon gangsters on his tail. Martinis and tacos keep him going.", done: "Beach time!", martinis: true,
       mix: { lowcar: 2, sportscar: 2, cone: 3, pothole: 3, chihuahua: 1, agent: 2, suv: 1 }, power: [[1100, "coffee"], [2300, "flipflops"], [3000, "taco"], [4600, "taco"]] },
   ];
-  const DEST_H = [336, 256, 312, 150, 150, 232, 240];   // how tall each stop's building is (units), so a short screen can shrink it to fit under the HUD
+  const DEST_H = [352, 256, 312, 150, 150, 232, 240];   // how tall each stop's building is (units), so a short screen can shrink it to fit under the HUD
   const DIM = { feria: [24, 26], cone: [24, 32], pothole: [56, 8], cart: [52, 46], chancla: [30, 14], chihuahua: [36, 28], sprinkler: [18, 12], pallet: [70, 38], tires: [46, 48],
     concha: [22, 16], beer: [24, 32], coffee: [22, 28], taco: [32, 20], flipflops: [30, 18], flag: [10, 70], agent: [30, 64], chaser: [30, 64], suv: [124, 54], lowcar: [92, 30], sportscar: [84, 26] };
   const HAZ = { cone: [10, "Bonk! A cone"], pothole: [15, "¡Híjole! A pothole"], cart: [20, "Runaway cart!"], chancla: [10, "¡La chancla!"], chihuahua: [15, "Yap yap yap!"], sprinkler: [8, "Soaked!"] };
@@ -648,36 +648,26 @@
       for (const cx of [204, 262, 352]) { poly(c, "#ff6a00", [cx - 7, 0, cx + 7, 0, cx + 3, -22, cx - 3, -22]); box(c, "#ffffff", cx - 5, -14, 10, 4); box(c, "#3a3f4a", cx - 9, -2, 18, 2); }
       return;
     }
-    if (n === 1) {   // Hon Dipo (v47; v49.15 repainted so it looks nothing like a real big-box store, and made much bigger): our own Southside
-      // ferretería. A tall beige stucco block, turquoise + pink Fiesta trim, papel picado, a big hand-painted, taquería-style arched sign up top
-      // (cream, pink + turquoise borders, "Hon Dipo" in painted serif letters, FERRETERÍA under it), a door at each end. The DJ stage (djRig)
-      // stands in the middle. No orange square, no stencil wordmark, nothing from a real store.
-      const TQ = "#00C9CD", TQ2 = "#0a9ea2", PK = "#FF1A7F", PK2 = "#c8125f", OJ = "#FF6A0B", INK = "#3a1d3a";
-      box(c, lin(c, 0, -336, 0, 0, ["#e9dbc6", "#d2bfa4"]), 0, -336, 360, 336);
-      c.fillStyle = "rgba(120,96,70,.16)"; for (let x = 24; x < 360; x += 24) c.fillRect(x, -318, 1.2, 312);
-      box(c, TQ, 0, -336, 360, 14); box(c, TQ2, 0, -322, 360, 3);   // the turquoise roof trim
-      for (const [x0, x1] of [[0, 72], [288, 360]]) { const sag = (x) => -317 + 6 * Math.sin(Math.PI * (x - x0) / (x1 - x0));   // papel picado either side of the sign
-        line(c, "rgba(60,40,60,.5)", 0.7, [x0, -317, (x0 + x1) / 2, -311, x1, -317]);
-        for (let x = x0 + 4, i = x0 ? 1 : 0; x < x1 - 9; x += 12.5, i++) { const y = sag(x + 5), col = [PK, TQ, OJ, "#9b4dff"][i % 4];
-          poly(c, col, [x, y, x + 10, y, x + 10, y + 10, x + 5, y + 13, x, y + 10]); ell(c, "rgba(255,255,255,.55)", x + 5, y + 5, 1.5, 1.5); } }
-      box(c, PK, 0, -178, 360, 14);   // a pink band across the front
+    if (n === 1) {   // Hon Dipo (v47: our own parody big-box hardware store; v49.15 made much bigger for the DJ out front): a tall beige block with
+      // bright orange trim, a raised entry tower carrying the square orange sign with HON over DIPO in heavy condensed white letters (as v47),
+      // an orange band with the departments, a door with an orange canopy at each end. The DJ stage (djRig) stands in the middle, under the sign.
+      const OR = "#f96302", OR2 = "#d95400";
+      box(c, lin(c, 0, -322, 0, 0, ["#e6d7c1", "#d2bfa4"]), 0, -322, 360, 322);
+      c.fillStyle = "rgba(120,96,70,.16)"; for (let x = 24; x < 360; x += 24) c.fillRect(x, -306, 1.2, 300);
+      box(c, lin(c, 0, -352, 0, -322, ["#e9dbc6", "#ddcbb1"]), 116, -352, 128, 32);   // the raised entry tower behind the sign
+      box(c, OR, 0, -322, 360, 12); box(c, OR2, 0, -310, 360, 3);   // the orange roof trim…
+      box(c, OR, 112, -352, 136, 10); box(c, OR2, 112, -342, 136, 3);   // …and on the tower
+      box(c, OR, 0, -178, 360, 14);   // an orange band across the front with the departments
       say(c, "LUMBER · TOOLS", 52, -170.6, 9, "#ffffff", { weight: 900, max: 90 }); say(c, "PAINT · GARDEN", 308, -170.6, 9, "#ffffff", { weight: 900, max: 90 });
-      box(c, TQ, 0, -6, 360, 6);   // turquoise along the bottom
-      // the big hand-painted sign board up top: an arched top, a pink frame, a turquoise pinstripe, cream inside
-      const arch = (x0, x1, top, bot) => { c.beginPath(); c.moveTo(x0, bot); c.lineTo(x0, top + 20); c.quadraticCurveTo((x0 + x1) / 2, top - 14, x1, top + 20); c.lineTo(x1, bot); c.closePath(); };
-      c.fillStyle = "rgba(0,0,0,.18)"; arch(77, 289, -317, -251); c.fill();
-      c.fillStyle = lin(c, 0, -324, 0, -254, [PK, PK2]); arch(74, 286, -324, -254); c.fill();
-      c.fillStyle = TQ; arch(79, 281, -319, -259); c.fill();
-      c.fillStyle = lin(c, 0, -316, 0, -262, ["#fff8ec", "#f6e8d2"]); arch(83, 277, -316, -262); c.fill();
-      for (const [sx, sy] of [[96, -292], [264, -292], [96, -272], [264, -272]]) { c.save(); c.translate(sx, sy); c.rotate(Math.PI / 4); poly(c, OJ, [0, -5, 1.2, -1.2, 5, 0, 1.2, 1.2, 0, 5, -1.2, 1.2, -5, 0, -1.2, -1.2]); c.restore(); }   // painted sparkles
-      c.save(); c.translate(180, -297); c.rotate(-0.03);
-      say(c, "Hon Dipo", 2.6, 3, 40, TQ2, { font: WEST, weight: 900, italic: true, max: 140 });   // the painted drop shadow
-      say(c, "Hon Dipo", 0, 0, 40, PK, { font: WEST, weight: 900, italic: true, max: 140, stroke: INK, sw: 3 });
-      c.restore();
-      c.strokeStyle = OJ; c.lineWidth = 2.8; c.lineCap = "round"; c.beginPath(); c.moveTo(118, -277); c.quadraticCurveTo(180, -285, 242, -277); c.stroke();   // a brushy swash
-      say(c, "FERRETERÍA", 180, -268, 10.5, INK, { weight: 900, max: 110 });
-      // a door at each end: a turquoise canopy, glass doors
-      for (const x0 of [12, 266]) { box(c, lin(c, 0, -146, 0, -134, [TQ, TQ2]), x0 - 6, -146, 94, 12, 3); box(c, "#6c757d", x0, -134, 82, 128);
+      box(c, OR, 0, -6, 360, 6);   // orange along the bottom
+      // the square sign (v47 look, bigger): bright orange, rounded corners, a thin darker edge, HON over DIPO in heavy condensed white letters
+      box(c, "rgba(0,0,0,.18)", 139, -337, 88, 88, 7); box(c, OR2, 136, -340, 88, 88, 7); box(c, lin(c, 0, -338, 0, -254, ["#ff7a1f", OR, "#ec5a00"]), 138, -338, 84, 84, 6);
+      const HV = '"Avenir Next Condensed","Roboto Condensed","Arial Narrow","Helvetica Neue",Arial,sans-serif';
+      for (const [txt, y] of [["HON", -316], ["DIPO", -278]]) { c.save(); c.translate(180, y); c.scale(0.84, 1); say(c, txt, 0, 0, 36, "#ffffff", { font: HV, weight: 900, max: 92 }); c.restore(); }
+      line(c, "rgba(255,255,255,.85)", 2, [150, -297, 210, -297]);   // a little rule between the words
+      box(c, "#8a939c", 224, -258, 38, 3, 1); box(c, "#6c757d", 222, -262, 4, 10, 1);   // a steel arm off the sign (the disco ball hangs from it)
+      // a door at each end: an orange canopy, glass doors
+      for (const x0 of [12, 266]) { box(c, lin(c, 0, -146, 0, -134, ["#ff8a1a", OR2]), x0 - 6, -146, 94, 12, 3); box(c, "#6c757d", x0, -134, 82, 128);
         glass(c, x0 + 4, -130, 36, 124, false); glass(c, x0 + 42, -130, 36, 124, false); box(c, "#6c757d", x0 + 40, -130, 2, 124);
         for (const hx of [x0 + 36, x0 + 46]) box(c, "#c9d0d8", hx - 1, -74, 2, 18, 1); }
       return;
