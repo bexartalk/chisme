@@ -4,7 +4,8 @@ overlaid Save / Directions / Not for me / Details; signals (skip-fast, watch, sa
 localStorage; the 'Why you're seeing this' chip learns ("Because you saved 2 … spots"); Back button and the browser's
 back close the feed; reduced motion → tap-to-play thumbnail; Settings → Reset my feed; creator cards (Instagram-only
 labeled). v40: the feed is named "Bigger the Pansa, Better the Chansa" (banner, feed top bar, aria, Settings).
-v41: sound is ON by default (remembered; 🔇 Muted turns it off). The video on screen tries sound first; when the browser refuses
+v41: sound is ON by default (remembered; 🔇 Muted turns it off). v49.12: the feed starts MUTED until you turn sound on (🔊 or
+Settings → Food videos); the sound runs below turn it on first. The video on screen tries sound first; when the browser refuses
 (Chrome without a tap, iPhone Safari), it plays muted with a "Tap anywhere for sound" hint, and the first tap in the feed unmutes it.
 v42: persistent YouTube players for the whole feed (loadVideoById), one on screen and others warming the next videos (muted,
 held on its first frame, waiting under the slide on screen), swapping as you swipe; never an iframe per video.
@@ -277,7 +278,7 @@ async def wk(p):
 async def cr(p):   # a real finger swipe on the video itself scrolls to the next one (the player doesn't eat the touch)
     b = await p.chromium.launch(executable_path="/usr/bin/google-chrome", args=["--no-sandbox", "--autoplay-policy=no-user-gesture-required"])
     ctx = await b.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True, device_scale_factor=3)
-    await ctx.add_init_script(INIT % "")
+    await ctx.add_init_script(INIT % "localStorage.setItem('chisme-feed-sound','on');")   # v49.12: sound turned on (the default is muted)
     pg = await ctx.new_page(); await pg.goto(URL + "#cual-dieta")
     await pg.wait_for_function("() => window.__chisme && window.__chisme.foodReady && !document.querySelector('#foryou-card').hidden", timeout=90000)
     await pg.tap("#fy-start"); await pg.wait_for_function("document.querySelector('#feed').open", timeout=5000); await pg.wait_for_timeout(1200)
@@ -294,7 +295,7 @@ async def cr(p):   # a real finger swipe on the video itself scrolls to the next
         check(w["sl"][1] == "ready" and wp and wp["slide"] == 1 and wp["st"] == 2 and wp["muted"] is True, f"Chromium: video 2 (YouTube) is loaded in the second player, muted and held on its first frame ({w['sl']}, {wp})")
     else:
         check(w["sl"][1] == "ready" and w["tt"], f"Chromium: video 2 (TikTok) is loaded in its own player, muted and held on its first frame ({w['sl']})")
-    check(await pg.evaluate("document.querySelector('#feed-sound').textContent.trim()") == "🔊 Sound on", "Chromium (autoplay allowed): sound is on by default")
+    check(await pg.evaluate("document.querySelector('#feed-sound').textContent.trim()") == "🔊 Sound on", "Chromium (autoplay allowed): with sound turned on, it plays with sound")
     for want in (1, 2):
         under = await pg.evaluate("document.elementFromPoint(195, 380).className")
         await swipe(380, -450)
@@ -329,17 +330,24 @@ SND = """() => { const f = window.__chisme.forYou, s = document.querySelectorAll
     unlocked: P.unlocked, vid: P.vid, cur: f.cur, loading: !!s && s.classList.contains('vf-loading'), players: P.frames, setting: document.querySelector('#set-feed-sound').checked,
     playing: !!s && s.classList.contains('vf-playing'), hint: h.content, pref: localStorage.getItem('chisme-feed-sound') }; }"""
 async def sound(p):
-    print("\n== v41: sound on by default")
+    print("\n== v41: sound (v49.12: muted by default, then turned on)")
     # Chrome with its normal autoplay rule (sound needs a tap on the page); the feed opened without a tap, like a browser that says no
     b = await p.chromium.launch(executable_path="/usr/bin/google-chrome", args=["--no-sandbox", "--autoplay-policy=document-user-activation-required"])
     ctx = await b.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True, device_scale_factor=1)
-    await ctx.add_init_script(INIT % ""); pg = await ctx.new_page(); errs = []
+    c0 = await b.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True, device_scale_factor=1)   # v49.12: nothing chosen yet = muted
+    await c0.add_init_script(INIT % ""); p0 = await c0.new_page(); await p0.goto(URL + "#cual-dieta")
+    await p0.wait_for_function("() => window.__chisme && window.__chisme.foodReady && !document.querySelector('#foryou-card').hidden", timeout=90000)
+    await p0.wait_for_timeout(1000); await p0.evaluate("window.__chisme.openFeed(null, 0)"); await p0.wait_for_timeout(1500)
+    d0 = await p0.evaluate(SND)
+    check(not d0["wanted"] and d0["pref"] is None and not d0["setting"] and d0["btn"] == "🔇 Muted", f"v49.12: nothing chosen yet: the feed starts muted (🔇 Muted, Settings → Food videos: sound on unchecked) ({d0['btn']!r})")
+    await c0.close()
+    await ctx.add_init_script(INIT % "localStorage.setItem('chisme-feed-sound','on');"); pg = await ctx.new_page(); errs = []
     pg.on("console", lambda m: errs.append(m.text[:160]) if own_error(m) else None)
     await pg.goto(URL + "#cual-dieta")
     await pg.wait_for_function("() => window.__chisme && window.__chisme.foodReady && !document.querySelector('#foryou-card').hidden", timeout=90000)
     await pg.wait_for_timeout(1500); await pg.evaluate("window.__chisme.openFeed(null, 0)")
     s0 = await pg.evaluate(SND)
-    check(s0["wanted"] and s0["pref"] is None and s0["setting"], f"nothing chosen yet: sound is wanted (Settings → Food videos: sound on is checked), and the video on screen tries to start WITH sound")
+    check(s0["wanted"] and s0["pref"] == "on" and s0["setting"], f"sound turned on: sound is wanted (Settings → Food videos: sound on is checked), and the video on screen tries to start WITH sound")
     try: await pg.wait_for_function("window.__chisme.forYou.sound.held", timeout=12000)
     except Exception: pass
     try: await pg.wait_for_function("() => { const f = window.__chisme.forYou, s = document.querySelectorAll('#feed-scroll .vf-slide')[f.cur]; return s && (s.dataset.kind === 'yt' ? f.player.st === 1 : s._st === 1); }", timeout=10000)   # (past any buffering)
@@ -377,7 +385,7 @@ async def ios_five(p, slow):
     label = "players slow to load" if slow else "players ready"
     print(f"\n== v42 WebKit iPhone: scroll through 5 videos ({label})")
     b = await p.webkit.launch(); dev = dict(p.devices["iPhone 13"]); dev.pop("default_browser_type", None)
-    ctx = await b.new_context(**dev); await ctx.add_init_script(INIT % ""); pg = await ctx.new_page(); errs = []
+    ctx = await b.new_context(**dev); await ctx.add_init_script(INIT % "localStorage.setItem('chisme-feed-sound','on');"); pg = await ctx.new_page(); errs = []   # v49.12: sound turned on
     pg.on("console", lambda m: errs.append(m.text[:160]) if own_error(m) else None)
     gate = asyncio.Event()
     if slow:   # YouTube's player page arrives only 3 s after Start is tapped (so the players can't be ready for that tap)
@@ -428,11 +436,13 @@ async def settings_toggle(p):
     await pg.wait_for_function("() => window.__chisme && window.__chisme.foodReady && !document.querySelector('#foryou-card').hidden", timeout=90000)
     await pg.tap("#settings-btn"); await pg.wait_for_timeout(500)
     st = await pg.evaluate("({ on: document.querySelector('#set-feed-sound').checked, label: document.querySelector('#set-feed-sound').closest('label').textContent.trim(), legend: document.querySelector('#set-feed-sound-group legend').textContent })")
-    check(st["on"] and st["label"] == "Food videos: sound on" and st["legend"] == "Food videos", f"Settings has 'Food videos: sound on', checked by default ({st})")
+    check(not st["on"] and st["label"] == "Food videos: sound on" and st["legend"] == "Food videos", f"Settings has 'Food videos: sound on', unchecked by default (v49.12: muted until you turn it on) ({st})")
     await pg.evaluate("document.querySelector('#set-feed-sound').scrollIntoView({ block: 'center' })"); await pg.wait_for_timeout(300)
     await pg.screenshot(path=os.path.join(OUT, "settings-food-sound.png"))
     await pg.tap("#set-feed-sound"); await pg.wait_for_timeout(200)
-    check(await pg.evaluate("localStorage.getItem('chisme-feed-sound')") == "off", "unchecking it turns the videos' sound off (remembered)")
+    check(await pg.evaluate("localStorage.getItem('chisme-feed-sound')") == "on", "checking it turns the videos' sound on (remembered)")
+    await pg.tap("#set-feed-sound"); await pg.wait_for_timeout(200)
+    check(await pg.evaluate("localStorage.getItem('chisme-feed-sound')") == "off", "unchecking it turns the videos' sound off again (remembered)")
     await pg.tap("#settings-close"); await pg.wait_for_timeout(300)
     await pg.tap("#fy-start"); await pg.wait_for_function("document.querySelector('#feed').open", timeout=5000)
     try: await pg.wait_for_function("window.__chisme.forYou.player.st === 1", timeout=15000)

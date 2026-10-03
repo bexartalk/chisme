@@ -433,7 +433,8 @@ async def webkit(p):
     await pg.screenshot(path=os.path.join(OUT, "juan-win.png"))
     await pg.click(".gfs-x"); await pg.wait_for_timeout(300)
     check(msgs <= OOPS, f"worn-out lines seen (kept in Spanish): {sorted(msgs)}")
-    check(await pg.evaluate("document.querySelectorAll('#game-stage a').length") == 0, "no links in the games")
+    lk = await pg.evaluate("[...document.querySelectorAll('#game-stage a')].map(a => a.getAttribute('href'))")
+    check(all(h.startswith("mailto:") and "Report" in h for h in lk) and len(lk) <= 1, f"no links in the games (v49.12: only the Top 10's Report-a-name email link) ({lk})")
     check(not outside, f"no outside requests while playing (besides other tabs' images) ({outside[:3]})")
     # a fresh The Juan That Got Away (title screen), then News: Space there must not start the game
     await pg.click('.game-pick[data-game="loteria"]'); await pg.click('.game-pick[data-game="juan"]'); await pg.wait_for_timeout(200)
