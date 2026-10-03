@@ -3178,10 +3178,8 @@ window.CHISME_APP_BUILD = "49.12";
   // so the two never share the screen; it shows right after, once, until OK
   function showTerms() {
     if (lsGet(TERMS_KEY) || firstRun() || !$("#loc-panel").hidden) return;
-    const bar = $("#terms-bar"), root = document.documentElement; bar.hidden = false;
-    const lift = () => root.style.setProperty("--terms-h", bar.hidden ? "0px" : bar.offsetHeight + 8 + "px");   // the sync toast sits above it
-    lift(); addEventListener("resize", lift);
-    $("#terms-ok").onclick = () => { lsSet(TERMS_KEY, String(Date.now())); bar.hidden = true; lift(); };
+    const bar = $("#terms-bar"); bar.hidden = false;
+    $("#terms-ok").onclick = () => { lsSet(TERMS_KEY, String(Date.now())); bar.hidden = true; };
   }
   if (!lsGet(TERMS_KEY)) { showTerms(); document.addEventListener("chisme-setup-done", () => setTimeout(showTerms, 0)); }
   Stats.ev("open", isStandalone() ? "app" : "web"); statsTab(VIEWS[cur]); statsCity();
