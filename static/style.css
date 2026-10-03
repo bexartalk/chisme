@@ -105,7 +105,7 @@ h2{margin:0;font-size:1.55rem;font-weight:900;color:var(--ink);letter-spacing:-.
 .tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
 .tag{font-size:max(15px,.78rem);font-weight:900;background:#1f1f1f;color:#fff;border-radius:999px;padding:.12em .65em;line-height:1.3}  /* v40: bigger, easier to read */
 .feeds-status{margin-top:14px;font-size:.85rem}
-.feeds-status summary{cursor:pointer;font-weight:800}
+.feeds-status summary{cursor:pointer;font-weight:800;padding:11px 0;margin:-6px 0}   /* v49.12: a 44 px tap target (was 23 px), same spot on the page */
 .feeds-status li.bad{color:var(--accent)}
 .foot{font-size:.8rem;color:var(--muted);padding-bottom:30px}
 
@@ -1289,7 +1289,7 @@ html.game-fs .views{position:relative}
 .gfs-juan{display:flex;align-items:center;gap:.4em;padding:.2em .8em .25em .55em;border:2px solid #00b8b0;border-radius:999px;background:#000;color:#fff;box-shadow:0 3px 0 #ff3d8b;white-space:nowrap}
 .gfs-juan-hat{width:26px;height:16px;flex:none}
 .gfs-juan-t{font-size:clamp(.86rem,4vw,1.02rem);font-weight:900;letter-spacing:.02em}
-.gfs-juan-t b{color:#fff;background:#ff3d8b;border-radius:6px;padding:0 .3em;margin-left:.1em}
+.gfs-juan-t b{color:#fff;background:#d81b60;border-radius:6px;padding:0 .3em;margin-left:.1em}
 .gfs-lot{padding:.2em .75em .25em;border:2px solid #00b8b0;border-radius:999px;background:#ff3d8b;color:#fff;box-shadow:0 3px 0 #000;white-space:nowrap}
 .gfs-lot-emo{font-size:1.05rem;line-height:1}
 .gfs-lot-t{font-size:clamp(.82rem,3.9vw,1rem);font-weight:900;letter-spacing:.02em;text-shadow:0 1px 0 rgba(0,0,0,.35)}
