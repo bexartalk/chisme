@@ -33,7 +33,7 @@ async def wk(p):
     check(tabs == ["News", "Sports", "Weather", "¿Cuál dieta?", "Juegitos", "Events"], f"nav is News · Sports · Weather · ¿Cuál dieta? · Juegitos · Events ({tabs})")
     panes = await pg.evaluate("[...document.querySelectorAll('#track > .view')].map(v => v.dataset.view)")
     check(panes == ["news", "sports", "weather", "antojos", "juegos", "events"], f"swipe panes in the same order ({panes})")
-    opts = await pg.evaluate("[...document.querySelectorAll('#settings input[name=deftab]')].map(i => i.value)")
+    opts = await pg.evaluate("[...document.querySelectorAll('#settings input[name=deftab]')].map(i => i.value).filter(v => v !== 'random')")
     check(opts == ["news", "sports", "weather", "antojos", "juegos", "events"], f"Settings 'Open Chisme to' in the same order ({opts})")
     check(await pg.evaluate("document.querySelector('#antojos-title').textContent.trim()") == "🌮 ¿Cuál dieta?", "section title is 🌮 ¿Cuál dieta?")
     check(await pg.evaluate("document.querySelector('#settings input[name=deftab][value=antojos]').parentElement.textContent.trim()") == "🌮 ¿Cuál dieta?", "Settings option reads 🌮 ¿Cuál dieta?")

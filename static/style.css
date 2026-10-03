@@ -192,6 +192,11 @@ body{padding-top:var(--tabs-h,calc(66px + env(safe-area-inset-top,0px)))}
 .track{display:flex;align-items:flex-start;gap:24px;will-change:transform}
 .track.animating{transition:transform .32s cubic-bezier(.2,.8,.2,1)}
 .view{flex:0 0 100%;min-width:0}
+/* v49.12: until app.js has moved to the launch tab (index.html picks it before the first paint): no News flash */
+html[data-launch] .track{opacity:0}
+html[data-launch] .tab[aria-current="page"]{background:#000;color:#fff;border-color:#000}
+html[data-launch="sports"] .tab[data-view="sports"],html[data-launch="weather"] .tab[data-view="weather"],html[data-launch="antojos"] .tab[data-view="antojos"],
+html[data-launch="juegos"] .tab[data-view="juegos"],html[data-launch="events"] .tab[data-view="events"]{background:var(--turq);color:#000;border-color:var(--turq)}
 .view:not(.active):not(.peek){height:0;overflow:hidden;visibility:hidden}
 .view.peek{visibility:visible}
 main{padding-top:0}
@@ -476,6 +481,7 @@ body { overscroll-behavior-y: contain; }
 .seg label{flex:1 1 auto;min-width:min-content;max-width:100%;position:relative;display:flex}
 .seg label > span{flex:1}
 .seg4 label{flex:1 1 40%}
+.seg4 label.seg-full{flex-basis:100%}   /* v49.12: 🔀 Surprise me, a row of its own above the six tabs */
 .seg input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
 .seg span{display:flex;align-items:center;justify-content:center;min-height:48px;padding:.2em .3em;border:2px solid var(--ink);border-radius:12px;
   font-weight:900;font-size:.9rem;background:var(--card);color:var(--ink);text-align:center;white-space:nowrap;column-gap:.25em}

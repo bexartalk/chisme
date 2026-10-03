@@ -2707,7 +2707,7 @@ window.CHISME_APP_BUILD = "49.12";
   const THEME_KEY = "chisme-theme", TAB_KEY = "chisme-default-tab";
   const themePref = () => localStorage.getItem(THEME_KEY) || "system";
   const darkMQ = matchMedia("(prefers-color-scheme: dark)");
-  function defaultTab() { const t = localStorage.getItem(TAB_KEY); return VIEWS.includes(t) ? t : "news"; }
+  function defaultTab() { const t = localStorage.getItem(TAB_KEY); return VIEWS.includes(t) ? t : "random"; }   // v49.12: 🔀 Surprise me unless a tab was picked
   function applyTheme() {
     const pref = themePref();
     const dark = pref === "dark" || (pref === "system" && darkMQ.matches);
@@ -2973,9 +2973,31 @@ window.CHISME_APP_BUILD = "49.12";
   initMap();
   const LG_HASH = { "#spurs": "nba", "#nba": "nba-all", "#cowboys": "cowboys", "#nfl": "nfl", "#mlb": "mlb", "#missions": "missions" };
   if (LG_HASH[location.hash]) { spLg = LG_HASH[location.hash]; localStorage.setItem(SP_KEY, spLg); }
-  const hv = HASH_VIEW[location.hash] || [defaultTab()];
+  // v49.12: a random main tab on every launch (Settings → Open Chisme to → 🔀 Surprise me, the default), never the same one
+  // twice in a row (chisme-launch-last). The first launch stays News with the location card; deep links (#weather, #juan,
+  // ?tab=, a story from a notification or a share) and a tab picked in Settings win; a reload Chisme does itself (an
+  // update, 'Refresh everyone') comes back to the tab you were on (sessionStorage, this tab only).
+  const LAUNCH_LAST = "chisme-launch-last", RELOAD_TAB = "chisme-reload-tab";
+  function launchTab() {
+    if (VIEWS.includes(window.__chismeLaunch)) return window.__chismeLaunch;   // index.html picked it before the first paint
+    let back = null;
+    try { back = sessionStorage.getItem(RELOAD_TAB); sessionStorage.removeItem(RELOAD_TAB); } catch {}
+    if (VIEWS.includes(back)) return back;
+    const q = new URLSearchParams(location.search);
+    if (q.has("story")) return "news";
+    if (VIEWS.includes(q.get("tab"))) return q.get("tab");
+    const fixed = defaultTab();
+    if (fixed !== "random") return fixed;
+    if (firstRun()) return "news";
+    const last = localStorage.getItem(LAUNCH_LAST), pool = VIEWS.filter((v) => v !== last);
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+  function reloadHere() { try { sessionStorage.setItem(RELOAD_TAB, VIEWS[cur]); } catch {} location.reload(); }
+  const hv = HASH_VIEW[location.hash] || [launchTab()];
+  lsSet(LAUNCH_LAST, hv[0]);
   juegosWant = hv[2] || null;
   if (hv[0] !== "news") goView(hv[0], { instant: true });
+  delete document.documentElement.dataset.launch;   // v49.12: the launch tab is in place, show the track
   Stats.ev("open", isStandalone() ? "app" : "web"); statsTab(VIEWS[cur]); statsCity();
   if (window.ChismeDonate) midLaunch = window.ChismeDonate.launch();
   if (midLaunch.line) { midTab = VIEWS[cur]; placeMid(); }   // a 5th open: the launch tab gets the one mid-list donate card
@@ -3055,7 +3077,7 @@ window.CHISME_APP_BUILD = "49.12";
       .then((r) => { reg = r; lastCheck = Date.now(); }).catch((e) => console.warn("SW failed", e)));
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "hidden") return;
-      if (pendingReload) { location.reload(); return; }
+      if (pendingReload) { reloadHere(); return; }
       if (reg && Date.now() - lastCheck > 60e3) { lastCheck = Date.now(); reg.update().catch(() => {}); }
     });
     // A new version took over. Ask it which build it is: if it isn't this page's build, reload once
@@ -3065,7 +3087,7 @@ window.CHISME_APP_BUILD = "49.12";
       const v = e.data && e.data.chismeVersion;
       if (!v || v === "chisme-v" + window.CHISME_APP_BUILD) return;
       const busy = $("#settings").open || $("#player").open || (document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName));
-      if (!busy && document.visibilityState === "visible") { location.reload(); return; }
+      if (!busy && document.visibilityState === "visible") { reloadHere(); return; }
       pendingReload = true;
       $("#update-toast").hidden = false;
     });
@@ -3073,7 +3095,7 @@ window.CHISME_APP_BUILD = "49.12";
     navigator.serviceWorker.addEventListener("controllerchange", () => { if (hadController) askVersion(); });
     if (navigator.serviceWorker.startMessages) navigator.serviceWorker.startMessages();   // WebKit queues them otherwise
     askVersion();                            // also catches a page that opened under an older worker
-    $("#update-reload").onclick = () => location.reload();
+    $("#update-reload").onclick = () => reloadHere();
   }
   // ---------- v49.10: "🔄 Refresh everyone now" (the owner's button on /stats). The token this page loaded with is the
   // baseline; on focus, coming back to the tab and about once a minute while visible we ask GET /api/refresh (tiny,
@@ -3100,7 +3122,7 @@ window.CHISME_APP_BUILD = "49.12";
       }
       msg.textContent = "✨ Tía has fresh chisme, refreshing…"; btn.style.display = "none"; box.classList.add("rf-pill"); box.hidden = false;
       const upd = "serviceWorker" in navigator ? navigator.serviceWorker.getRegistration().then((r) => r && r.update()).catch(() => {}) : null;
-      Promise.race([upd, new Promise((r) => setTimeout(r, 2500))]).then(() => setTimeout(() => location.reload(), 1200));
+      Promise.race([upd, new Promise((r) => setTimeout(r, 2500))]).then(() => setTimeout(() => reloadHere(), 1200));
     };
     const check = async (force) => {
       if (document.visibilityState !== "visible" || pending || (!force && Date.now() - last < 15e3)) return;
@@ -3515,7 +3537,7 @@ window.CHISME_APP_BUILD = "49.12";
   const SHARE_E7 = { title: "Chisme", text: "Tía found the best chisme in town and she can't keep it to herself. ☕", url: "https://chisme.onrender.com/" };
   document.addEventListener("click", (e) => { const b = e.target.closest && e.target.closest(".share-chisme"); if (b) { e.preventDefault(); shareChisme(SHARE_E7).then((r) => { lastShare = r; }); } });
   let lastShare = null;
-  window.__chisme = { get every() { return { gone: e7Gone(), news: e7Where.news, events: e7Where.events, feed: e7Where.feed, lastShare, share: SHARE_E7 }; }, stats: Stats, get newsPill() { return { held: !!newsHold, n: newsHoldN, shown: !$("#news-pill").hidden }; }, checkNews: () => { loadNews(); lastNews = Date.now(); }, openFromAlert, get pushPrefs() { return pushPrefs(); },
+  window.__chisme = { reloadHere, get every() { return { gone: e7Gone(), news: e7Where.news, events: e7Where.events, feed: e7Where.feed, lastShare, share: SHARE_E7 }; }, stats: Stats, get newsPill() { return { held: !!newsHold, n: newsHoldN, shown: !$("#news-pill").hidden }; }, checkNews: () => { loadNews(); lastNews = Date.now(); }, openFromAlert, get pushPrefs() { return pushPrefs(); },
     get frames() { return frames; }, get map() { return map; }, get loc() { return loc; },
     // ready = showing this location's news + weather (fresh or the saved copy); fresh = straight from the server
     get ready() { return secs.weather.shownUrl === secs.weather.url() && secs.news.shownUrl === secs.news.url(); },

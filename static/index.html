@@ -36,6 +36,28 @@
       if (fs) d.style.setProperty("--fs", fs + "px");
       if (rm === "1") d.classList.add("reduce-motion");
     })();
+    /* v49.12: which main tab this launch opens, decided before the first paint so the old News default never flashes.
+       app.js (launchTab) uses window.__chismeLaunch; html[data-launch] keeps the swipe track invisible and lights the right
+       tab until app.js has moved there (a known #hash deep link is resolved by app.js). Same order as app.js launchTab. */
+    (function () {
+      var V = ["news", "sports", "weather", "antojos", "juegos", "events"], d = document.documentElement, t = null;
+      try {
+        var back = sessionStorage.getItem("chisme-reload-tab"); sessionStorage.removeItem("chisme-reload-tab");
+        var q = new URLSearchParams(location.search), fixed = localStorage.getItem("chisme-default-tab");
+        if (V.indexOf(back) >= 0) t = back;
+        else if (q.has("story")) t = "news";
+        else if (V.indexOf(q.get("tab")) >= 0) t = q.get("tab");
+        else if (V.indexOf(fixed) >= 0) t = fixed;
+        else if (!localStorage.getItem("chisme-location-setup")) t = "news";
+        else { var last = localStorage.getItem("chisme-launch-last"), pool = V.filter(function (v) { return v !== last; }); t = pool[Math.floor(Math.random() * pool.length)]; }
+      } catch (e) { t = null; }
+      if (!t) return;
+      window.__chismeLaunch = t;
+      if (location.hash.length > 1 || t !== "news") {
+        d.dataset.launch = location.hash.length > 1 ? "hash" : t;
+        setTimeout(function () { delete d.dataset.launch; }, 4000);   // never leave the page invisible if app.js didn't start
+      }
+    })();
     /* v48 safety net: if Chisme hasn't started 8 s after opening (a script that never arrived or crashed, an old cache,
        a sleeping server), a friendly full-screen card says so with one big button that clears the saved app files and
        reloads. Inline styles: it works even when style.css never loaded. It goes away by itself if the app starts after
@@ -525,6 +547,7 @@
       <fieldset class="set-group">
         <legend>Open Chisme to</legend>
         <div class="seg seg4" role="radiogroup" aria-label="Default opening tab">
+          <label class="seg-full"><input type="radio" name="deftab" value="random"><span><i class="emo" aria-hidden="true">🔀</i> Surprise me (a different tab each time)</span></label>
           <label><input type="radio" name="deftab" value="news"><span><i class="emo" aria-hidden="true">📰</i> News</span></label>
           <label><input type="radio" name="deftab" value="sports"><span><i class="emo" aria-hidden="true">🏀</i> Sports</span></label>
           <label><input type="radio" name="deftab" value="weather"><span><i class="emo" aria-hidden="true">🌤️</i> Weather</span></label>

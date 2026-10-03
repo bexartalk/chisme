@@ -129,7 +129,7 @@ async def main():
             await ctx.close()
 
         print("== narrow phone (320 px) + default tab")
-        ctx, pg, errs = await new(p, b, width=320, init="if (!localStorage.getItem('chisme-default-tab')) { localStorage.setItem('chisme-location-setup', '1'); localStorage.setItem('chisme-default-tab', 'weather'); }")
+        ctx, pg, errs = await new(p, b, width=320, init="if (!localStorage.getItem('chisme-location-setup')) { localStorage.setItem('chisme-location-setup', '1'); localStorage.setItem('chisme-default-tab', 'weather'); }")
         await pg.goto(URL); await ready(pg); await pg.wait_for_timeout(800)
         check(await pg.evaluate("() => window.__chisme.view") == "weather", "default tab 'Weather' opens on Weather")
         wide = await pg.evaluate("() => ({ doc: document.documentElement.scrollWidth, tabs: [...document.querySelectorAll('#tabs .tab')].map(t => Math.round(t.getBoundingClientRect().right)) })")
