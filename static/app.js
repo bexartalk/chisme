@@ -3005,6 +3005,13 @@ window.CHISME_APP_BUILD = "49.12";
   juegosWant = hv[2] || null;
   if (hv[0] !== "news") goView(hv[0], { instant: true });
   delete document.documentElement.dataset.launch;   // v49.12: the launch tab is in place, show the track
+  // v49.12 legal: a one-time bar at the bottom: "By using Chisme you agree to our Terms and Privacy Policy" + OK (remembered).
+  // Non-modal, so the first launch's location card works as before; existing users see it once too.
+  const TERMS_KEY = "chisme-terms-ok";
+  if (!lsGet(TERMS_KEY)) {
+    const bar = $("#terms-bar"); bar.hidden = false;
+    $("#terms-ok").onclick = () => { lsSet(TERMS_KEY, String(Date.now())); bar.hidden = true; };
+  }
   Stats.ev("open", isStandalone() ? "app" : "web"); statsTab(VIEWS[cur]); statsCity();
   if (window.ChismeDonate) midLaunch = window.ChismeDonate.launch();
   if (midLaunch.line) { midTab = VIEWS[cur]; placeMid(); }   // a 5th open: the launch tab gets the one mid-list donate card

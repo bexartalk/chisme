@@ -1580,3 +1580,11 @@ dialog.juan-skins button.juan-sk-done{position:sticky;bottom:8px;z-index:2}
 .juan-hs-report a{color:inherit;text-decoration:underline;font-weight:800;display:inline-block;padding:8px 0}
 /* v49.12 legal (L1/M8): non-affiliation lines (footer, Juan's page) */
 .foot-affil,.juan-affil{font-size:.82rem;line-height:1.4;opacity:.85}
+/* v49.12 legal: the one-time Terms bar (bottom, left of Tía, non-modal) */
+.terms-bar{position:fixed;left:max(10px,env(safe-area-inset-left));right:calc(92px + env(safe-area-inset-right));bottom:calc(12px + env(safe-area-inset-bottom));z-index:43;
+  display:flex;align-items:center;gap:10px;padding:10px 12px;background:#000;color:#fff;border:2px solid var(--turq);border-radius:14px;box-shadow:0 4px 0 rgba(0,0,0,.35);font-size:.9rem;line-height:1.35}
+.terms-bar[hidden]{display:none}
+.terms-bar p{margin:0;flex:1}
+.terms-bar a{color:#fff;font-weight:800;text-decoration:underline}
+.terms-ok{flex:0 0 auto;min-width:56px;min-height:44px;background:var(--turq);color:#000;border:2px solid var(--turq);border-radius:12px;font-weight:900;font-size:1rem}
+[data-theme="dark"] .terms-ok{background:var(--turq);color:#000;border-color:var(--turq)}
