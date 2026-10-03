@@ -215,7 +215,10 @@ window.CHISME_APP_BUILD = "49.12";
 
   // ---------- location state
   let loc = (() => { try { const s = JSON.parse(localStorage.getItem(LOC_KEY)); if (s && isFinite(s.lat) && isFinite(s.lon)) return s; } catch {} return { ...DEFAULT_LOC }; })();
-  const q = () => `lat=${(+loc.lat).toFixed(3)}&lon=${(+loc.lon).toFixed(3)}`;
+  // v49.12: requests carry your location rounded to 2 decimals (about 1 km); the server caches by 0.01° cells anyway.
+  // Only the neighborhood-name lookup (/api/place) gets 3 decimals (about 100 m).
+  const q = () => `lat=${(+loc.lat).toFixed(2)}&lon=${(+loc.lon).toFixed(2)}`;
+  const qPlace = () => `lat=${(+loc.lat).toFixed(3)}&lon=${(+loc.lon).toFixed(3)}`;
   const placeName = () => loc.label || "your area";
   // v39: greetings and chatty lines (Tía, the Events/concert intros, loading quips) name only the city, e.g.
   // "San Antonio", never a neighborhood like "Port San Antonio (Kelly), San Antonio". Settings/alerts keep the full label.
@@ -254,7 +257,7 @@ window.CHISME_APP_BUILD = "49.12";
   async function lookupPlace() {
     const forQ = q();
     try {
-      const p = await getJSON(`/api/place?${forQ}`);
+      const p = await getJSON(`/api/place?${qPlace()}`);
       if (forQ !== q()) return;  // location changed while we were waiting
       if (p.tz) TZ = p.tz;       // the new place's time zone, before its weather arrives
       loc.place = { neighborhood: p.neighborhood, city: p.city, county: p.county, state: p.state_abbr || p.state, country_code: p.country_code, metro: p.metro || null };
@@ -2768,7 +2771,7 @@ window.CHISME_APP_BUILD = "49.12";
     if (!r.ok || j.ok === false) throw new Error(j.error || "the server said " + r.status);
     return j;
   }
-  const pushBody = (sub) => { const p = pushPrefs(); return { subscription: sub.toJSON(), lat: loc.lat, lon: loc.lon, tz: DEVICE_TZ, news: p.news, weather: p.wx }; };
+  const pushBody = (sub) => { const p = pushPrefs(); return { subscription: sub.toJSON(), lat: +(+loc.lat).toFixed(2), lon: +(+loc.lon).toFixed(2), tz: DEVICE_TZ, news: p.news, weather: p.wx }; };
   let pushLocKey = null;
   async function pushResync() {   // every open and every move: the server's copy follows you (and heals if it was lost)
     const p = pushPrefs();
@@ -3431,7 +3434,7 @@ window.CHISME_APP_BUILD = "49.12";
       const r = await fetch("/api/mascot/chat", { method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: h.slice(-12).map((m) => ({ role: m.role, text: String(m.text || "").slice(0, 800) })), hour: new Date().getHours(),
           // v39: the server adds everything it has for this spot (all news sections, sports, weather, events, food)
-          loc: { lat: +(+loc.lat).toFixed(3), lon: +(+loc.lon).toFixed(3) }, tz: (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return null; } })(),
+          loc: { lat: +(+loc.lat).toFixed(2), lon: +(+loc.lon).toFixed(2) }, tz: (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return null; } })(),
           // v49.11: summaries clipped, so the whole request stays well under the server's 32 KB cap
           context: { stories: tiaSlim(items.stories), weather: items.weather, events: tiaSlim(items.events), sports: tiaSlim(items.sports), food: tiaSlim(items.food) } }) });
       const j = await r.json();
