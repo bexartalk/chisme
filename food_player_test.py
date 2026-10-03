@@ -207,7 +207,12 @@ async def chrome(p):
     await pg.evaluate("window.__chisme.goView('antojos', { instant: true })"); await pg.wait_for_timeout(500)
     await pg.evaluate("document.querySelector('#food-creators .fr h4 a').click()")
     await pg.wait_for_function("document.querySelector('#player').open", timeout=5000)
+    # v49.12: measure the top bar only once the sheet has finished sliding up (sheet-up, .22 s). Measured mid-animation, the
+    # point sat below the bar's final spot, on the video: a 16:9 YouTube iframe takes those touches (by design), so the
+    # swipe "didn't close" whenever the first card was a YouTube video (v49.10/v49.11). The gesture itself was fine.
+    await pg.wait_for_function("() => !document.querySelector('#player').getAnimations().length", timeout=3000)
     hb = await pg.evaluate("(() => { const r = document.querySelector('.player-head').getBoundingClientRect(); return [r.left + 40, r.top + r.height / 2]; })()")
+    check(await pg.evaluate("([x, y]) => !!document.elementFromPoint(x, y).closest('.player-head')", hb), "the drag starts on the sheet's top bar")
     await vdrag(cdp, hb[0], hb[1], 40); await pg.wait_for_timeout(400)
     check(await pg.evaluate("document.querySelector('#player').open"), "a short drag on the sheet snaps back")
     await vdrag(cdp, hb[0], hb[1], 220); await pg.wait_for_timeout(500)
