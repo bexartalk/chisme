@@ -98,10 +98,21 @@
     inner.prepend(logo);
     var get = h("button", { type: "button", class: "dk-get", id: "dk-get", on: { click: function () { goHome(function () { var c = $("#dk-getapp"); scrollToEl(c, $("#dk-getapp-t")); if (c) { c.classList.remove("dk-flash"); void c.offsetWidth; c.classList.add("dk-flash"); } }); } } },
       emo("📲"), " Get the app");
-    var end = mark(h("div", { class: "dk-navend" }, h("span", { class: "dk-set-slot" }), get));
+    var end = mark(h("div", { class: "dk-navend" }, h("span", { class: "dk-sync-slot" }), h("span", { class: "dk-set-slot" }), get));
     inner.append(end);
     var skip = mark(h("a", { class: "dk-skip", href: "#mix", text: "Skip to the latest chisme", on: { click: function (e) { e.preventDefault(); goHome(function () { scrollToEl($("#mix"), $("#mix-title")); }); } } }));
     document.body.prepend(skip);
+  }
+  var syncHome = null;
+  function moveSync(intoNav) {   // the sync pill ("Updated 4:06 AM") is a chip in the nav on desktop, so it never covers the page
+    var p = $("#sync"), slot = $(".dk-sync-slot");
+    if (!p || !slot) return;
+    if (intoNav) {
+      if (!syncHome) syncHome = { parent: p.parentNode, next: p.nextSibling };
+      slot.append(p);
+    } else if (syncHome && p.parentNode === slot) {
+      syncHome.parent.insertBefore(p, syncHome.next && syncHome.next.parentNode === syncHome.parent ? syncHome.next : null);
+    }
   }
   function moveSettings(intoNav) {   // the header's Settings button (the Chisme bubble) sits in the nav on desktop
     var b = $("#settings-btn"), slot = $(".dk-set-slot");
@@ -340,7 +351,7 @@
   function enter() {
     if (!built) build();
     nodes.forEach(function (n) { n.hidden = false; });
-    wrap(); moveSettings(true);
+    wrap(); moveSettings(true); moveSync(true);
     d.classList.add("dk");
     var l = $("#dk-dieta-t"); if (l) l.replaceChildren(emo("🌮 "), dietaName());
     loadWx(); loadFood(); loadSponsors(); loadSite();
@@ -350,7 +361,7 @@
   function leave() {
     if (!built) return;
     d.classList.remove("dk");
-    unwrap(); moveSettings(false);
+    unwrap(); moveSettings(false); moveSync(false);
     nodes.forEach(function (n) { n.hidden = true; });
     timers.forEach(clearInterval); timers = [];
     window.dispatchEvent(new Event("resize"));

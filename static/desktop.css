@@ -226,5 +226,16 @@ html.dk .mq-v-nav button{border-color:var(--marigold)}
 html.dk .mix-sports .mix-tag{background:#ffd9cc;color:#6b2000}
 html.dk[data-theme="dark"] .mix-sports .mix-tag{background:#4a160a;color:#ffd3c4}
 html.dk body > .tagline,html.dk .tagline{display:none}   /* v49.12 tagline under the phone header: the desktop hero says it */
-/* v49.12's sync pill (a bottom toast left of Tía): on desktop it sits in the bottom-left corner, clear of the nav, the hero and Tía */
-html.dk .sync{left:24px;right:auto;margin-inline:0;max-width:380px;bottom:calc(20px + var(--terms-h, 0px))}
+/* v49.12's sync pill (a bottom toast on phones): on desktop it's a small chip in the nav, left of Settings, so it covers nothing */
+html.dk .dk-sync-slot{display:flex;align-items:center}
+html.dk .dk-sync-slot .sync{position:static;transform:none;margin:0;max-width:240px;width:auto;flex-wrap:nowrap;white-space:nowrap;
+  padding:.3em .75em;font-size:.72rem;border-radius:999px;box-shadow:none;border:1.5px solid rgba(255,255,255,.3);visibility:visible}
+html.dk .dk-sync-slot .sync #sync-msg{flex:0 1 auto;overflow:hidden;text-overflow:ellipsis}
+html.dk .dk-sync-slot .sync[data-state="done"]{display:none}
+html.dk .dk-sync-slot .sync[data-state="busy"]{background:#1a1a1a}
+@media (max-width:1180px){
+  html.dk .dk-sync-slot .sync{padding:.45em}
+  html.dk .dk-sync-slot .sync #sync-msg{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}   /* icon only; still read out */
+  html.dk .dk-sync-slot #sync-retry{font-size:0;min-width:30px;min-height:30px;padding:0 .5em}   /* "Retry now" stays its accessible name */
+  html.dk .dk-sync-slot #sync-retry::before{content:"↻";font-size:.9rem;line-height:1}
+}

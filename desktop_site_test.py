@@ -163,12 +163,15 @@ async def desktop_checks(browser, w, h, tag):
     check(len(nav["tabs"]) == 4 and any("Chisme" in t for t in nav["tabs"]) and any("Weather" in t for t in nav["tabs"])
           and any(("dieta" in t) or ("Ofrendas" in t) for t in nav["tabs"]) and any("Juegos" in t for t in nav["tabs"]), f"{tag}: the 4 tabs {nav['tabs']}")
     check(not nav["over"] and nav["topbar"] == "none", f"{tag}: nav fits, the phone header is hidden")
-    # the sync pill ("Updated 3:44 AM") never covers the nav, the hero or the "Get the app" card
-    pill = await pg.evaluate("""() => { const s = document.querySelector('.sync'); if (!s) return null; s.dataset.state = 'ok';
-      const r = s.getBoundingClientRect(), hit = (q) => { const e = document.querySelector(q); if (!e) return false; const o = e.getBoundingClientRect();
-        return !(r.right <= o.left || r.left >= o.right || r.bottom <= o.top || r.top >= o.bottom); };
-      const out = { top: r.top, nav: hit('#tabs'), hero: hit('.dk-hero-copy') || hit('#dk-getapp') || hit('#dk-hero h1') }; s.dataset.state = 'done'; return out; }""")
-    check(pill is None or (not pill["nav"] and not pill["hero"] and pill["top"] > h / 2), f"{tag}: the sync pill sits at the bottom, clear of the nav and hero {pill}")
+    # the sync pill ("Updated 4:06 AM") is a chip in the nav on desktop: it never covers the page, and the nav still fits
+    pill = await pg.evaluate("""async () => { const s = document.querySelector('#sync'), prev = [s.dataset.state, s.hidden];
+      const t = document.querySelector('#tabs'), out = {};
+      for (const st of ['busy', 'ok', 'fail']) { s.hidden = false; s.dataset.state = st; document.querySelector('#sync-retry').hidden = st !== 'fail';
+        if (!document.querySelector('#sync-msg').textContent) document.querySelector('#sync-msg').textContent = 'Updated 4:06 AM';
+        await new Promise((r) => requestAnimationFrame(r)); const r = s.getBoundingClientRect(), n = t.getBoundingClientRect();
+        out[st] = { inNav: !!s.closest('#tabs') && r.top >= n.top && r.bottom <= n.bottom, fits: t.scrollWidth <= t.clientWidth + 1 && document.querySelector('#dk-get').getBoundingClientRect().right <= innerWidth }; }
+      s.dataset.state = prev[0]; s.hidden = prev[1]; document.querySelector('#sync-retry').hidden = true; return out; }""")
+    check(all(v["inNav"] and v["fits"] for v in pill.values()), f"{tag}: the sync pill is a chip inside the nav (busy / ok / fail) and the nav still fits {pill}")
     # hero
     hero = await pg.evaluate("""() => { const q = (s) => document.querySelector(s); const qr = q('#dk-getapp img');
       return { h1: (q('#dk-hero h1') || {}).textContent || '', hola: (q('#dk-hero') || {}).textContent || '', qr: qr ? [qr.naturalWidth, qr.alt, qr.getAttribute('src')] : null,
@@ -261,8 +264,8 @@ async def desktop_checks(browser, w, h, tag):
     await pg.set_viewport_size({"width": 800, "height": 900}); await pg.wait_for_timeout(600)
     back = await pg.evaluate("""() => ({ dk: document.documentElement.classList.contains('dk'), main: !!document.querySelector('.dk-main'),
       shown: [...document.querySelectorAll('#dk-hero, #dk-getapp, .dk-side, .dk-foot, .dk-navend, .dk-logo')].filter((e) => e.getClientRects().length).length,
-      set: !!document.querySelector('#topbar #settings-btn'), topbar: getComputedStyle(document.querySelector('#topbar')).display !== 'none' })""")
-    check(not back["dk"] and not back["main"] and back["shown"] == 0 and back["set"] and back["topbar"], f"{tag}: narrowed to 800px → the phone layout {back}")
+      set: !!document.querySelector('#topbar #settings-btn'), sync: !document.querySelector('#sync').closest('#tabs'), topbar: getComputedStyle(document.querySelector('#topbar')).display !== 'none' })""")
+    check(not back["dk"] and not back["main"] and back["shown"] == 0 and back["set"] and back["sync"] and back["topbar"], f"{tag}: narrowed to 800px → the phone layout {back}")
     await pg.set_viewport_size({"width": w, "height": h}); await pg.wait_for_timeout(600)
     check(await pg.evaluate("document.documentElement.classList.contains('dk') && !!document.querySelector('#view-chisme > .dk-main #mix-list') && !document.querySelector('#dk-hero').hidden"), f"{tag}: widened again → desktop")
     # (v49.12's radar preloads RainViewer tiles in the background; expired frames come back without CORS headers. That's
