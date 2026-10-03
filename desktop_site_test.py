@@ -348,8 +348,8 @@ async def sponsor_checks(browser, FLAGS):
     check(await pg.evaluate("localStorage.getItem('chisme-21plus')") == "1", "the 21+ setting is saved on the device")
     errs = real_errors(pg.errs); check(not errs, f"sponsors: no console errors {errs[:4]}")
     # meta on the flags server: absolute URLs from PUBLIC_BASE_URL
-    og = await pg.evaluate("() => [document.querySelector('meta[property=\"og:url\"]').content, document.querySelector('link[rel=canonical]').href, (document.querySelector('meta[name=\"chisme-share-url\"]') || {}).content]")
-    check(og == ["https://chisme.co/", "https://chisme.co/", "https://chisme.co/"], f"PUBLIC_BASE_URL drives og:url, canonical and the share link {og}")
+    og = await pg.evaluate("() => [document.querySelector('meta[property=\"og:url\"]').content, document.querySelector('link[rel=canonical]').href, (document.querySelector('meta[name=\"chisme-base\"]') || {}).content]")
+    check(og == ["https://chisme.co/", "https://chisme.co/", "https://chisme.co"], f"PUBLIC_BASE_URL drives og:url, canonical and v49.13's share base {og}")
     await ctx.close()
     # the moved banner: installed (standalone) on the old origin only
     ctx, pg = await new_page(browser, 1440, 900, "Object.defineProperty(Navigator.prototype, 'standalone', { get: () => true, configurable: true });")
@@ -410,15 +410,21 @@ def http_checks(FLAGS):
     check(bool(d) and d.startswith(TAGLINE) and "metiches" not in d and html.count('name="description"') == 1, f"/ meta description (one): {d}")
     for k in ("og:title", "og:description", "og:image", "og:url", "og:type", "og:site_name"):
         check(bool(meta(html, "property", k)), f"/ {k}")
-    check((meta(html, "property", "og:image") or "").startswith(base + "/static/site/og-image.png"), "og:image is absolute (request origin)")
-    check(meta(html, "name", "twitter:card") == "summary_large_image" and meta(html, "name", "twitter:image"), "Twitter card")
+    check((meta(html, "property", "og:image") or "").startswith(base + "/"), f"og:image is absolute (request origin) {meta(html, 'property', 'og:image')}")
+    check(bool(meta(html, "name", "twitter:card")), "Twitter card (v49.13's)")
     check(f'<link rel="canonical" href="{base}/">' in html, "canonical = request origin + /")
     check('rel="icon"' in html and get(BASE + "/static/icons/favicon.ico")[0] == 200, "favicon")
     check(get(BASE + "/static/site/og-image.png")[0] == 200, "og image served")
     lst, _, svg = get(BASE + "/static/site/chisme-bubble-logo.svg")
     check(lst == 200 and svg.lstrip().startswith("<svg") and "#FF1A7F" in svg and "#FF6A0B" in svg, "bubble logo SVG served (icon pink + orange confetti)")
     check(get(BASE + "/static/fonts/chewy-site.woff")[0] == 200, "Chewy display font served")
-    check(st == 200 and "chisme-share-url" not in html, "no share-url override without PUBLIC_BASE_URL")
+    check(st == 200 and meta(html, "name", "chisme-base") == base, "v49.13's chisme-base (share links) = request origin without PUBLIC_BASE_URL")
+    check(html.count('property="og:title"') == 1 and html.count('name="twitter:card"') == 1 and meta(html, "property", "og:title") == TAGLINE
+          and "<!--og:start-->" in html,
+          f"/ one Open Graph set: v49.13's own block, kept as is ({meta(html, 'property', 'og:title')!r})")
+    st_r, _, reel = get(BASE + "/?reel=dQw4w9WgXcQ", NAV)
+    check(st_r == 200 and reel.count('property="og:title"') == 1 and meta(reel, "property", "og:type") == "video.other" and "ChismeTV" in (meta(reel, "property", "og:title") or ""),
+          f"/?reel= keeps v49.13's ChismeTV video card (one og:title: {meta(reel, 'property', 'og:title')!r})")
     for path, h1 in (("/about", "About Chisme"), ("/support", "Support")):
         st, _, page = get(BASE + path)
         check(st == 200 and h1 in page and meta(page, "property", "og:title") and meta(page, "name", "description"), f"{path} 200 with title/OG/description")

@@ -206,16 +206,17 @@ def esc(s) -> str:
     return html.escape(str(s), quote=True)
 
 
-def head_tags(base: str, path: str, title: str, desc: str, og_type: str = "website") -> str:
+def head_tags(base: str, path: str, title: str, desc: str, og_type: str = "website", og_title: str = "", og_desc: str = "") -> str:
     url = base + path
     img = base + OG_IMAGE
+    title, desc_og = og_title or title, og_desc or desc
     return "\n".join([
         f'<meta name="description" content="{esc(desc)}">',
         f'<link rel="canonical" href="{esc(url)}">',
         '<meta property="og:site_name" content="Chisme">',
         f'<meta property="og:type" content="{og_type}">',
         f'<meta property="og:title" content="{esc(title)}">',
-        f'<meta property="og:description" content="{esc(desc)}">',
+        f'<meta property="og:description" content="{esc(desc_og)}">',
         f'<meta property="og:url" content="{esc(url)}">',
         f'<meta property="og:image" content="{esc(img)}">',
         '<meta property="og:image:width" content="1200">',
@@ -224,7 +225,7 @@ def head_tags(base: str, path: str, title: str, desc: str, og_type: str = "websi
         '<meta property="og:locale" content="en_US">',
         '<meta name="twitter:card" content="summary_large_image">',
         f'<meta name="twitter:title" content="{esc(title)}">',
-        f'<meta name="twitter:description" content="{esc(desc)}">',
+        f'<meta name="twitter:description" content="{esc(desc_og)}">',
         f'<meta name="twitter:image" content="{esc(img)}">',
         f'<meta name="twitter:image:alt" content="{esc(OG_ALT)}">',
     ])
@@ -313,7 +314,7 @@ def page_shell(request: Request, path: str, title: str, desc: str, body: str, em
 
 # ---------------------------------------------------------------- the pages
 ABOUT_TITLE = f"About Chisme · {TAGLINE}"
-ABOUT_DESC = "Chisme is a free San Antonio app for local news, sports, events, weather, food videos and games, hosted by Tía Chismosa."
+ABOUT_DESC = "Chisme is a free San Antonio app for local news, sports, events, weather, ChismeTV food videos and games, hosted by Tía Chismosa."
 SUPPORT_TITLE = "Support & contact · Chisme"
 SUPPORT_DESC = "Get help with Chisme, report a problem, ask about a local sponsor spot or request a takedown. We read every email."
 
@@ -324,12 +325,12 @@ def about_body() -> str:
 <p class="kicker"><img src="/static/mascot/avatar-64.webp?art=3" srcset="/static/mascot/avatar-64.webp?art=3 1x, /static/mascot/avatar-128.webp?art=3 2x" alt="Tía Chismosa, Chisme's mascot" width="44" height="44"> <span>¡Hola, metiche!</span></p>
 <h1>About Chisme</h1>
 <p class="lead">{esc(TAGLINE)} It's San Antonio's local news, sports, events, weather, food and games in one free app.</p>
-<p>Stuck in the waiting room at your doctor's appointment? That's what Chisme is for. Open it, catch up on what's happening around town, watch a local food review, play a quick game, and you're chismeando before they call your name.</p>
+<p>Stuck in the waiting room at your doctor's appointment? That's what Chisme is for. Open it, catch up on what's happening around town, watch a local food review on ChismeTV, play a quick game, and you're chismeando before they call your name.</p>
 <h2>What's inside</h2>
 <ul class="feat">
 <li><b>📰 Chisme</b>: local news, sports and events mixed into one feed, closest to you first. Stories open inside Chisme, credited to the outlet that reported them.</li>
 <li><b>🌤️ Weather</b>: National Weather Service forecasts and alerts, plus live rain radar.</li>
-<li><b>🌮 ¿Y la dieta?</b>{" (Ofrendas during Día de Muertos)" if d == "Ofrendas" else ""}: San Antonio's food creators taste-test so you don't have to guess. Save the spots worth the drive.</li>
+<li><b>🌮 ¿Y la dieta?</b>{" (Ofrendas during Día de Muertos)" if d == "Ofrendas" else ""}: San Antonio's food creators taste-test so you don't have to guess. Swipe through their videos on 📺 ChismeTV and save the spots worth the drive.</li>
 <li><b>🎲 Juegos</b>: Chismería, our take on Lotería, and The Juan That Got Away. They work offline.</li>
 <li><b>☕ Tía Chismosa</b>: the app's mascot. Ask her what's going on and she answers from what's in Chisme, with the source.</li>
 </ul>
@@ -395,9 +396,15 @@ def decorate_index(page: str, request: Request) -> str:
     nonce = getattr(request.state, "csp_nonce", "") or ""
     page = re.sub(r"<title>.*?</title>", f"<title>{esc(TITLE)}</title>", page, count=1, flags=re.S)
     page = re.sub(r'\s*<meta name="description"[^>]*>', "", page, count=1)
-    extra = [head_tags(base, "/", TITLE, DESC), f'<meta name="chisme-tagline" content="{esc(TAGLINE)}">']
-    if configured_base():   # app.js shares this link (otherwise it keeps its built-in https://chisme.onrender.com/)
-        extra.append(f'<meta name="chisme-share-url" content="{esc(configured_base() + "/")}">')
+    # v49.13's index.html has its own Open Graph block (<!--og:start-->…<!--og:end-->, filled from PUBLIC_BASE_URL; app.py
+    # swaps in a shared ChismeTV video's card for /?reel=). Keep it exactly as it is (one set of tags, her wording and
+    # image) and add only what it lacks: the search description and the canonical link. /about, /support and the legal
+    # pages use head_tags() with the 1200×630 static/site/og-image.png.
+    if "<!--og:start-->" in page:
+        extra = [f'<meta name="description" content="{esc(DESC)}">', f'<link rel="canonical" href="{esc(base)}/">']
+    else:
+        extra = [head_tags(base, "/", TITLE, DESC)]
+    extra.append(f'<meta name="chisme-tagline" content="{esc(TAGLINE)}">')
     extra.append(f'<link rel="stylesheet" href="/static/desktop.css?v={b}" media="(min-width: {DESKTOP_MIN}px)">')
     extra.append(f'<script src="/static/desktop.js?v={b}" defer></script>')
     page = page.replace("</head>", "\n".join(extra) + "\n</head>", 1)

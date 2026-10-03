@@ -454,7 +454,10 @@ does nothing below that width.
   - The latest chisme as a multi-column grid.
   - A sidebar with weather, the sponsor spot, Juegos, ¿Y la dieta? (Ofrendas in season) and the
     "Help get Chisme on the App Store, $99" Buy Me a Coffee card.
-- **The reader:** opens as a right-hand side panel for stories, food videos and Chisme's own pages (`?embed=1`).
+- **The reader:** opens as a right-hand side panel for stories, ChismeTV food videos and Chisme's own pages (`?embed=1`).
+- **Open Graph:** `/` keeps v49.13's `<!--og:start-->` block exactly as it is (her wording and image; a `/?reel=` link
+  keeps its ChismeTV video card) and only adds the search description and canonical link. `/about`, `/support` and the
+  legal pages use the 1200×630 `static/site/og-image.png`.
 - **Pages:** `/about` and `/support` (`/contact` redirects to `/support`). The support page uses mailto links to the
   repo's existing contact address. The v49.12 `/privacy` and `/terms` pages get the site footer, Open Graph tags and
   `site.css`. Their content is unchanged. The footer (Home · About · Support & contact · Privacy · Terms · Get the app)
