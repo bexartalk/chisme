@@ -3038,11 +3038,29 @@ async def terms_page():
     return FileResponse(BASE / "static" / "legal" / "terms.html", media_type="text/html; charset=utf-8", headers={"Cache-Control": "no-cache"})
 
 
+# v49.12: the seasonal theme (Día de los Muertos). The page turns it on and off by itself (Chicago time, see the season
+# script in index.html); THEME_OVERRIDE lets the owner force it: auto (default: follow the dates), off (kill it now),
+# muertos (keep it on). Read on every request, so a Render env change (which restarts the service) applies right away;
+# phones pick it up from the page and from GET /api/theme (never cached here, the service worker asks the network first).
+THEME_MODES = ("auto", "off", "muertos")
+
+
+def theme_override() -> str:
+    v = (os.environ.get("THEME_OVERRIDE") or "auto").strip().lower()
+    return v if v in THEME_MODES else "auto"
+
+
+@app.get("/api/theme")
+async def api_theme():
+    return JSONResponse({"override": theme_override(), "at": int(time.time() * 1000)}, headers={"Cache-Control": "no-store"})
+
+
 @app.get("/")
 async def index(request: Request):
     # app.js / style.css are requested with ?v=<build>, so the page never runs with an older cached script
-    # v49.11: the page's own two inline scripts get this response's CSP nonce (the file itself has no user content)
+    # v49.11: the page's own inline scripts get this response's CSP nonce (the file itself has no user content)
     page = (BASE / "static" / "index.html").read_text().replace("__BUILD__", app_build()).replace("<script>", f'<script nonce="{_nonce(request)}">')
+    page = page.replace("__THEME_OVERRIDE__", theme_override()).replace("__THEME_AT__", str(int(time.time() * 1000)))
     return HTMLResponse(page, headers={"Cache-Control": "no-cache"})
 
 

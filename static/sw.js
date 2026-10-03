@@ -33,6 +33,8 @@ ART.push(...["spurs-arena", "spurs-bluehour", "missions-wolff", "missions-game",
 // Tía Chismosa's avatar + chat header (~85 KB), so her button shows offline too.
 // ?art=N changes whenever tools/make_mascot_assets.py rebuilds her (same query in index.html, app.js, juegos.js)
 ART.push(...["avatar-64", "avatar-128", "avatar-192", "header-480", "header-960"].map((n) => `/static/mascot/${n}.webp?art=3`));
+// v49.12 Día de Muertos season art (~10 KB of SVG) + the gallery's list; its photos load only in season, when shown.
+ART.push(...["papel-picado", "marigold", "sugar-skull", "candle"].map((n) => `/static/season/${n}.svg`), "/static/season/gallery.json");
 // v49.3: the 3 KB display face for "Tía Chismosa" in her chat header
 ART.push("/static/fonts/chewy-tia.woff2");
 // v41: Chismería's (was Lotería Chismosa) recorded Spanish calls (57 short mp3s, ~1.3 MB; tools/make_loteria_audio.py), best-effort too.
