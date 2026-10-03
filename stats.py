@@ -29,8 +29,9 @@ TZ = ZoneInfo("America/Chicago")
 P = "chisme:st:"
 KEEP_DAYS = 40
 MAX_EVENTS, MAX_BODY = 60, 16384
-TABS = ("news", "sports", "weather", "antojos", "juegos", "events")
-TAB_NAMES = {"news": "News", "sports": "Sports", "weather": "Weather", "antojos": "¿Y la dieta?", "juegos": "Juegos", "events": "Events"}
+TABS = ("chisme", "news", "sports", "events", "weather", "antojos", "juegos")   # v49.12: + the Chisme tab's All view
+TAB_NAMES = {"chisme": "Chisme · All", "news": "Chisme · News", "sports": "Chisme · Sports", "events": "Chisme · Events", "weather": "Weather",
+             "antojos": "¿Y la dieta?", "juegos": "Juegitos"}
 A2HS = ("shown", "shown_auto", "got_it", "later")
 A2HS_NAMES = {"shown": "Opened from Settings", "shown_auto": "Shown by itself", "got_it": "“Got it”", "later": "“Maybe later”"}
 KINDS = ("all", "app", "web")
