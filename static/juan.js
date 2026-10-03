@@ -63,7 +63,7 @@
       hint: "Vacation! Juan runs from his hotel to the beach at sunset, with ICE agents and cartoon gangsters on his tail. Martinis and tacos keep him going.", done: "Beach time!", martinis: true,
       mix: { lowcar: 2, sportscar: 2, cone: 3, pothole: 3, chihuahua: 1, agent: 2, suv: 1 }, power: [[1100, "coffee"], [2300, "flipflops"], [3000, "taco"], [4600, "taco"]] },
   ];
-  const DEST_H = [210, 256, 312, 150, 150, 232, 240];   // how tall each stop's building is (units), so a short screen can shrink it to fit under the HUD
+  const DEST_H = [336, 256, 312, 150, 150, 232, 240];   // how tall each stop's building is (units), so a short screen can shrink it to fit under the HUD
   const DIM = { feria: [24, 26], cone: [24, 32], pothole: [56, 8], cart: [52, 46], chancla: [30, 14], chihuahua: [36, 28], sprinkler: [18, 12], pallet: [70, 38], tires: [46, 48],
     concha: [22, 16], beer: [24, 32], coffee: [22, 28], taco: [32, 20], flipflops: [30, 18], flag: [10, 70], agent: [30, 64], chaser: [30, 64], suv: [124, 54], lowcar: [92, 30], sportscar: [84, 26] };
   const HAZ = { cone: [10, "Bonk! A cone"], pothole: [15, "¡Híjole! A pothole"], cart: [20, "Runaway cart!"], chancla: [10, "¡La chancla!"], chihuahua: [15, "Yap yap yap!"], sprinkler: [8, "Soaked!"] };
@@ -442,46 +442,58 @@
     else { c.beginPath(); c.moveTo(2.3, -9); c.quadraticCurveTo(6.5, -7, 5.5, -3.5); c.stroke(); }
     c.restore();
   }
-  function djDude(c, x, by, t, rm, part) {   // the made-up DJ, facing us; by = the chest top. part "body" (behind the decks) | "hand" (on the decks)
-    const beat = rm ? 0.5 : mod(t * 2, 1), nod = rm ? 0 : Math.sin(beat * Math.PI) * 1.6, sway = rm ? 0 : Math.sin(t * Math.PI) * 1.2;
-    const SK = "#b98157", SK2 = "#93603c", TEE = "#25272d", TEE2 = "#17181c";
-    c.save(); c.translate(x, by); c.scale(1.5, 1.5);
-    if (part === "hand") {   // the right hand scratching the left deck (in front of the controller)
-      const sc = rm ? 0 : Math.sin(t * 9) * 2.2, hx = -9 + sc, hy = -4.2;
-      line(c, SK, 4.4, [-12 + sway * 0.4, -12, hx, hy]); line(c, TEE, 6.2, [-13.5 + sway * 0.4, -20 + nod * 0.3, -12.6 + sway * 0.4, -13]);
-      ell(c, SK, hx, hy, 2.8, 2.3); c.restore(); return; }
-    const sy = nod * 0.45;   // the body dips a little on the beat, the head nods more
-    c.translate(sway, 0);
-    c.fillStyle = lin(c, -12, -24 + sy, 12, 6, [TEE, TEE2]); rr(c, -12, -23.5 + sy, 24, 30, 7); c.fill();   // the dark tee
-    line(c, "rgba(255,255,255,.07)", 1, [3, -18 + sy, 6, -6 + sy]);
-    ell(c, "#00C9CD", 5.2, -14.5 + sy, 2.6, 2.6); ell(c, TEE, 5.2, -14.5 + sy, 1.5, 1.5); ell(c, "#FF1A7F", 5.2, -14.5 + sy, 0.6, 0.6);   // a little record print
-    box(c, SK2, -3, -27 + sy, 6, 5, 2);   // the neck
-    // the left arm: up, holding one headphone cup to his ear
-    const hx = 9.2, hy = -31 + nod;
-    line(c, TEE, 6.2, [10.5, -20 + sy, 13.5, -14 + sy]); line(c, SK, 4.4, [13.2, -15 + sy, 15.5, -21, hx + 2.5, hy + 1.5]);
-    // the head
+  function djDude(c, x, by, t, rm, part, K) {   // the made-up DJ, facing us: a big, heavyset Southside guy (broad shoulders, a round belly resting on the
+    // table), backwards black cap, thick black glasses, black tee, headphones. by = the DJ table's top (about his hips); K = his size (Juan is 1.5)
+    const beat = rm ? 0.5 : mod(t * 2, 1), nod = rm ? 0 : Math.sin(beat * Math.PI) * 1.4, sway = rm ? 0 : Math.sin(t * Math.PI) * 0.9;
+    const SK = "#a86f47", SK2 = "#8a5634", HAIR = "#1e130c", TEE = "#1d1e23", TEE2 = "#0f1013", INK = "#08080a";
+    c.save(); c.translate(x, by); c.scale(K, K);
+    if (part === "hand") {   // his left hand (our left) scratching the left deck, in front of the controller
+      const sc = rm ? 0 : Math.sin(t * 9) * 2, hx = -10.5 + sc + sway * 0.5, hy = -2.6;
+      line(c, SK, 5.6, [-16.5 + sway, -13, hx, hy]); line(c, TEE, 8.4, [-16.6 + sway, -21, -16.4 + sway, -13.4]);
+      ell(c, SK, hx, hy, 3.4, 2.8); line(c, "rgba(0,0,0,.18)", 0.6, [hx - 1.6, hy + 0.6, hx + 1.6, hy + 0.6]); c.restore(); return; }
+    const sy = nod * 0.4; c.translate(sway, 0);
+    c.fillStyle = lin(c, -18, -26, 18, 8, ["#2c2e35", TEE, TEE2]);   // the body: broad shoulders, a big round belly
+    c.beginPath(); c.moveTo(-14, -26 + sy); c.lineTo(14, -26 + sy); c.quadraticCurveTo(18.5, -25 + sy, 17.5, -19 + sy);
+    c.quadraticCurveTo(22.5, -6 + sy, 16, 7); c.lineTo(-16, 7); c.quadraticCurveTo(-22.5, -6 + sy, -17.5, -19 + sy); c.quadraticCurveTo(-18.5, -25 + sy, -14, -26 + sy); c.closePath(); c.fill();
+    c.strokeStyle = "rgba(255,255,255,.09)"; c.lineWidth = 1.2; c.beginPath(); c.arc(0, -3 + sy, 14, -2.7, -0.45); c.stroke();
+    c.lineWidth = 1.3; c.lineCap = "round";   // the party lights catch the edges of his shirt (pink on our left, turquoise on our right)
+    c.strokeStyle = "rgba(255,26,127,.75)"; c.beginPath(); c.moveTo(-14, -25.6 + sy); c.quadraticCurveTo(-18.2, -24.6 + sy, -17.3, -19 + sy); c.quadraticCurveTo(-21.8, -7 + sy, -18.5, 0); c.stroke();
+    c.strokeStyle = "rgba(0,201,205,.8)"; c.beginPath(); c.moveTo(14, -25.6 + sy); c.quadraticCurveTo(18.2, -24.6 + sy, 17.3, -19 + sy); c.quadraticCurveTo(21.8, -7 + sy, 18.5, 0); c.stroke();
+    ell(c, "#00C9CD", -7, -16 + sy, 2.6, 2.6); ell(c, TEE, -7, -16 + sy, 1.5, 1.5); ell(c, "#FF1A7F", -7, -16 + sy, 0.55, 0.55);   // a little record print
+    box(c, SK2, -5.5, -31 + sy, 11, 7, 3.5);   // the neck
+    const hx = 12, hy = -37 + nod;   // his right arm (our right): up, holding the right headphone cup
+    line(c, TEE, 8.6, [14.5, -23.5 + sy, 18.5, -16.5 + sy]); line(c, SK, 5.6, [18, -17.5 + sy, 20.5, -26, hx + 2, hy + 1.6]);
     c.save(); c.translate(0, nod);
-    const X = 0, Y = -32;
-    ell(c, SK2, X - 7.6, Y + 0.5, 1.8, 2.6); ell(c, SK2, X + 7.6, Y + 0.5, 1.8, 2.6);
-    ell(c, lin(c, X - 7, Y - 7, X + 7, Y + 8, ["#c99167", SK, SK2]), X, Y, 7.6, 8.6);
-    ell(c, "#24160e", X, Y + 7.4, 2.2, 1.3);   // a little chin-strip goatee
-    line(c, "#24160e", 1.1, [X - 4.4, Y - 3.4, X - 1.4, Y - 2.9]); line(c, "#24160e", 1.1, [X + 1.4, Y - 2.9, X + 4.4, Y - 3.4]);
-    line(c, "#1b120c", 1.2, [X - 4.2, Y - 0.6, X - 2.8, Y - 1.4, X - 1.4, Y - 0.6]); line(c, "#1b120c", 1.2, [X + 1.4, Y - 0.6, X + 2.8, Y - 1.4, X + 4.2, Y - 0.6]);   // eyes shut, feeling it
-    ell(c, SK2, X, Y + 1.8, 1.3, 1);
-    c.fillStyle = "#3a1d12"; c.beginPath(); c.moveTo(X - 3.2, Y + 3.4); c.quadraticCurveTo(X, Y + 6.6, X + 3.2, Y + 3.4); c.closePath(); c.fill();   // a big grin
-    c.fillStyle = "#ffffff"; c.beginPath(); c.moveTo(X - 2.7, Y + 3.6); c.quadraticCurveTo(X, Y + 4.9, X + 2.7, Y + 3.6); c.closePath(); c.fill();
-    // the cap, on backwards: the flat brim sticks out behind, the crown with the strap gap over the forehead
-    poly(c, "#0d0e10", [X + 2, Y - 8.6, X + 13.5, Y - 10.8, X + 14, Y - 8.4, X + 3, Y - 6]);
-    c.fillStyle = lin(c, X - 8, Y - 14, X + 8, Y - 5, ["#2a2c32", "#141519", "#0b0c0e"]); c.beginPath(); c.ellipse(X, Y - 5.2, 8.3, 8.8, 0, Math.PI, 0); c.closePath(); c.fill();
-    box(c, "#0b0c0e", X - 8.3, Y - 6.2, 16.6, 2, 0.8);
-    c.fillStyle = "#24160e"; c.beginPath(); c.ellipse(X, Y - 5.2, 2.6, 2.4, 0, Math.PI, 0); c.fill();   // the snapback gap (hair)
-    line(c, "#c9d0d8", 0.9, [X - 2.6, Y - 5.2, X + 2.6, Y - 5.2]); ell(c, "#2a2c32", X, Y - 14, 1.1, 0.7);
-    // the headphones: a silver band over the cap, his right cup on, the left one held to the ear
-    c.strokeStyle = "#c9d0d8"; c.lineWidth = 1.5; c.beginPath(); c.ellipse(X, Y - 3, 9.6, 11.6, 0, Math.PI * 1.05, Math.PI * 1.95); c.stroke();
-    ell(c, "#17181c", X - 9, Y + 0.5, 2.8, 3.8); ell(c, "#FF1A7F", X - 9.6, Y + 0.5, 1, 2.2);
-    ell(c, "#17181c", X + 9.4, Y + 1, 2.8, 3.8); ell(c, "#00C9CD", X + 10, Y + 1, 1, 2.2);
+    const X = 0, Y = -38;
+    ell(c, SK2, X - 9.6, Y + 1, 2, 2.8); ell(c, SK2, X + 9.6, Y + 1, 2, 2.8);
+    ell(c, lin(c, X - 8, Y - 8, X + 8, Y + 10, ["#c48a5e", SK, SK2]), X, Y, 9.8, 10.2);
+    line(c, "rgba(90,50,30,.5)", 0.8, [X - 4.5, Y + 9.6, X, Y + 10.9, X + 4.5, Y + 9.6]);   // a little double chin
+    ell(c, SK2, X, Y + 1.4, 1.9, 1.5);
+    ell(c, "#1b120c", X - 3.7, Y - 1.4, 1, 1.15); ell(c, "#1b120c", X + 3.7, Y - 1.4, 1, 1.15);
+    c.fillStyle = "#3a1d12"; c.beginPath(); c.moveTo(X - 3.8, Y + 5.2); c.quadraticCurveTo(X, Y + 9, X + 3.8, Y + 5.2); c.closePath(); c.fill();   // a big grin
+    c.fillStyle = "#ffffff"; c.beginPath(); c.moveTo(X - 3.2, Y + 5.4); c.quadraticCurveTo(X, Y + 6.8, X + 3.2, Y + 5.4); c.closePath(); c.fill();
+    c.fillStyle = HAIR; c.beginPath(); c.moveTo(X - 5.8, Y + 5); c.quadraticCurveTo(X - 3.2, Y + 2.3, X, Y + 3.1); c.quadraticCurveTo(X + 3.2, Y + 2.3, X + 5.8, Y + 5);
+    c.quadraticCurveTo(X + 2.6, Y + 4.2, X, Y + 4.7); c.quadraticCurveTo(X - 2.6, Y + 4.2, X - 5.8, Y + 5); c.fill();   // a thick mustache
+    ell(c, HAIR, X, Y + 9.3, 1.9, 1);   // + a chin-strip
+    line(c, HAIR, 1.4, [X - 7.2, Y - 6.6, X - 2.4, Y - 7.2]); line(c, HAIR, 1.4, [X + 2.4, Y - 7.2, X + 7.2, Y - 6.6]);
+    // thick black glasses
+    c.fillStyle = "rgba(200,230,255,.18)"; rr(c, X - 8.3, Y - 4.8, 6.9, 5.8, 2); c.fill(); rr(c, X + 1.4, Y - 4.8, 6.9, 5.8, 2); c.fill();
+    c.strokeStyle = INK; c.lineWidth = 1.6; c.lineJoin = "round"; rr(c, X - 8.3, Y - 4.8, 6.9, 5.8, 2); c.stroke(); rr(c, X + 1.4, Y - 4.8, 6.9, 5.8, 2); c.stroke();
+    line(c, INK, 1.4, [X - 1.4, Y - 2.6, X + 1.4, Y - 2.6]); line(c, INK, 1.3, [X - 8.3, Y - 3.4, X - 9.8, Y - 2.6]); line(c, INK, 1.3, [X + 8.3, Y - 3.4, X + 9.8, Y - 2.6]);
+    line(c, "rgba(255,255,255,.75)", 0.6, [X - 6.8, Y - 2.4, X - 5.4, Y - 3.8]); line(c, "rgba(255,255,255,.75)", 0.6, [X + 2.9, Y - 2.4, X + 4.3, Y - 3.8]);
+    // the cap, on backwards: the flat brim sticks out behind, the crown with the snapback gap over the forehead
+    poly(c, INK, [X + 2.5, Y - 9.6, X + 16.5, Y - 12.4, X + 17, Y - 9.6, X + 3.5, Y - 6.6]);
+    c.fillStyle = lin(c, X - 9, Y - 16, X + 9, Y - 6, ["#2a2c32", "#141519", INK]); c.beginPath(); c.ellipse(X, Y - 6, 10, 10.2, 0, Math.PI, 0); c.closePath(); c.fill();
+    box(c, INK, X - 10, Y - 7.2, 20, 2.4, 1);
+    c.fillStyle = HAIR; c.beginPath(); c.ellipse(X, Y - 6, 3.1, 2.7, 0, Math.PI, 0); c.fill(); line(c, "#c9d0d8", 1, [X - 3.1, Y - 6, X + 3.1, Y - 6]);
+    ell(c, "#2a2c32", X, Y - 16.1, 1.3, 0.8);
+    // the headphones: a silver band over the cap, the cups on his ears
+    c.strokeStyle = "#7d848e"; c.lineWidth = 2; c.beginPath(); c.ellipse(X, Y - 3, 11.2, 12.8, 0, Math.PI * 1.06, Math.PI * 1.94); c.stroke();
+    c.strokeStyle = "#d5dbe1"; c.lineWidth = 0.7; c.beginPath(); c.ellipse(X, Y - 3, 11.2, 12.8, 0, Math.PI * 1.2, Math.PI * 1.5); c.stroke();
+    ell(c, "#17181c", X - 10.8, Y + 1, 3.2, 4.4); ell(c, "#FF1A7F", X - 11.5, Y + 1, 1.2, 2.6);
+    ell(c, "#17181c", X + 11.2, Y + 1, 3.2, 4.4); ell(c, "#00C9CD", X + 11.9, Y + 1, 1.2, 2.6);
     c.restore();
-    ell(c, SK, hx + 2.6, hy + 1.6, 2.7, 2.4);   // the hand on the cup
+    ell(c, SK, hx + 1.8, hy + 1.4, 3.4, 3);   // the hand on the cup
     c.restore();
   }
   function djFan(c, x, t, rm) {   // a shopper who stopped to dance (feet at x, 0; facing us): ponytail, pink tee, jeans, a paint can
@@ -505,56 +517,63 @@
     ell(c, "rgba(255,90,120,.35)", -3.4, Y + 2.2, 1.3, 0.8); ell(c, "rgba(255,90,120,.35)", 3.4, Y + 2.2, 1.3, 0.8);
     c.restore(); c.restore();
   }
+  function djPallet(c, x, w, y) {   // a wooden pallet: top at y − 8, bottom at y
+    box(c, "#8a6a44", x, y - 1.8, w, 1.8);
+    for (const bx of [x + 2, x + w / 2 - 4, x + w - 10]) box(c, "#9c7748", bx, y - 6, 8, 4.4);
+    box(c, "#6e5232", x, y - 8, w, 2.4); for (let k = x + 1.5; k < x + w - 4; k += 9) box(c, lin(c, 0, y - 8, 0, y - 5.4, ["#d9b077", "#b98d55"]), k, y - 8, 7.4, 2.6, 0.6);
+  }
+  function djTripod(c, x, top) {   // a black tripod stand from the ground up to `top`
+    line(c, "#1b1d22", 1.8, [x, -40, x - 12, 0]); line(c, "#1b1d22", 1.8, [x, -40, x + 12, 0]); line(c, "#2a2d34", 1.8, [x, -40, x + 1, 0]);
+    box(c, lin(c, x - 2, 0, x + 2, 0, ["#3a3d44", "#7d848e", "#3a3d44"]), x - 1.6, top, 3.2, -top - 38);
+  }
   function djRig(c, t, rm) {   // in the building's units (360 wide, ground at 0); called each frame for level 1 once the store is on screen
     const beat = rm ? 0.5 : mod(t * 2, 1), kick = rm ? 0.35 : Math.max(0, 1 - beat * 3.2), C = DJ_COL;
     const sweep = (i, sp, amp) => (rm ? 0 : Math.sin(t * sp + i * 1.7) * amp);
-    // lumber on a pallet + stacks of red product boxes (left of the door)
-    box(c, "#8a6a44", 8, -6, 54, 6); for (let x = 10; x < 60; x += 9) box(c, "#6e5232", x, -5, 4, 5);
-    for (let r = 0; r < 7; r++) { const y = -10 - r * 4.4; box(c, lin(c, 0, y, 0, y + 4, ["#f0d29c", "#d6ad6c"]), 9 + (r % 2), y, 52, 4, 0.8); box(c, "rgba(120,80,30,.35)", 9, y + 3.4, 54, 0.8); }
-    for (const sx of [20, 48]) box(c, "#9c7748", sx, -41, 2.4, 31);   // the straps
-    box(c, "#8a6a44", 66, -6, 34, 6); for (let x = 68; x < 98; x += 8) box(c, "#6e5232", x, -5, 4, 5);
-    for (let r = 0; r < 3; r++) for (let k = 0; k < 3; k++) { const bx = 67 + k * 11, by = -17 - r * 11;
-      box(c, lin(c, 0, by, 0, by + 11, ["#e5322e", "#b81f22"]), bx, by, 10.6, 10.6, 1); box(c, "#ffffff", bx + 1, by + 6.2, 8.6, 2); box(c, "rgba(0,0,0,.25)", bx + 2, by + 2, 5, 1); }
-    box(c, lin(c, 0, -50, 0, -39, ["#e5322e", "#b81f22"]), 78, -50, 10.6, 10.6, 1); box(c, "#ffffff", 79, -43.8, 8.6, 2);
-    // party light washing the wall behind the booth (it pulses on the beat)
-    djGlow(c, 292, -78, 78, C[Math.floor(rm ? 1 : t) % 2 ? 1 : 0], 0.22 + 0.16 * kick); djGlow(c, 330, -110, 50, C[3], 0.2 + 0.1 * kick);
-    djFan(c, 112, t, rm);
-    // the light bar on its stand (behind the booth), the disco ball hanging off it
-    box(c, lin(c, 340, 0, 345, 0, ["#5b6270", "#c9d0d8", "#5b6270"]), 340.5, -134, 3, 90);
-    box(c, lin(c, 0, -137, 0, -131, ["#c9d0d8", "#6c737d"]), 266, -137, 88, 4, 1.5);
-    line(c, "#9aa3ad", 0.6, [272, -133, 272, -122]);
-    const db = 272, dby = -116; djGlow(c, db, dby, 16, "#ffffff", 0.35);
-    c.save(); c.beginPath(); c.arc(db, dby, 6.2, 0, Math.PI * 2); c.clip(); box(c, lin(c, db - 6, dby - 6, db + 6, dby + 6, ["#f4f7fa", "#9aa3ad", "#5b6270"]), db - 7, dby - 7, 14, 14);
-    const spin = rm ? 0 : t * 3; for (let r = -3; r <= 3; r++) for (let k = -4; k <= 4; k++) { const fx = db + k * 2 + mod(spin * 2 + r, 2) - 1, fy = dby + r * 2;
-      box(c, ["#ffffff", "#c9d0d8", C[(r + k + 9) % 4], "#8a939c"][Math.abs(r * 3 + k + Math.floor(spin)) % 4], fx - 0.8, fy - 0.8, 1.6, 1.6); } c.restore();
-    for (let i = 0; i < 5; i++) { const a = (rm ? 0 : t * 1.4) + i * 1.26, r = 22 + (i % 3) * 13; ell(c, rgba(C[i % 4], 0.85), db + Math.cos(a) * r * 1.4, dby + Math.sin(a) * r * 0.5 + 10, 1.4, 1.4); }   // the sparkles it throws
-    // two pars on the bar wash down toward the door (behind the booth, so the chests stay black), with pools of light on the sidewalk
-    const pars = [[290, 0, 1.75], [314, 1, 1.95], [338, 3, 2.15]];
-    for (const [px, i, base] of pars) { const ang = -(base + 0.45 + sweep(i, 1.3, 0.3)); djBeam(c, px, -128, ang, 175, 2.5, 26, C[i], 0.3 + 0.14 * kick);
-      const fx = px + Math.sin(ang) * 128 / -Math.cos(ang); c.save(); c.scale(1, 0.22); djGlow(c, fx, -3 / 0.22, 30, C[i], 0.5 + 0.25 * kick); c.restore(); }
-    // the DJ behind his booth: a row of black rolling tool chests, the controller on top
-    djDude(c, 300, -46, t, rm, "body");
+    const DX = 180, TOP = -124, K = 2.4;   // the DJ's spot (center stage), his table's top, his size (Juan is 1.5)
+    // party light on the wall behind the stage (it pulses on the beat)
+    djGlow(c, DX, -170, 130, C[Math.floor(rm ? 1 : t) % 2 ? 1 : 0], 0.2 + 0.14 * kick); djGlow(c, DX, -232, 70, C[3], 0.16 + 0.1 * kick);
+    // two light trees (a T-bar on a tall stand) at the ends; their pars cross their beams down over the stage, pools of light on the sidewalk
+    const pars = [[16, 0, 2.55], [44, 1, 2.3], [316, 3, -2.3], [344, 2, -2.55]];
+    for (const px of [30, 330]) { box(c, lin(c, px - 2, 0, px + 2, 0, ["#5b6270", "#c9d0d8", "#5b6270"]), px - 1.5, -236, 3, 236); box(c, lin(c, 0, -240, 0, -235, ["#c9d0d8", "#6c737d"]), px - 22, -240, 44, 4.4, 1.6); }
+    for (const [px, i, base] of pars) { const ang = base + sweep(i, 1.3, 0.2) * Math.sign(base), dn = -Math.cos(ang); djBeam(c, px, -228, ang, 300, 3, 34, C[i], 0.26 + 0.14 * kick);
+      if (dn > 0.2) { const fx = px + Math.sin(ang) * 228 / dn; c.save(); c.scale(1, 0.22); djGlow(c, fx, -3 / 0.22, 34, C[i], 0.5 + 0.25 * kick); c.restore(); } }
+    for (const [px, i] of pars) { box(c, "#17181c", px - 5, -236, 10, 9, 2.5); ell(c, C[i], px, -227.5, 4, 1.8); djGlow(c, px, -227, 11, C[i], 0.7); }
+    // a moving head on each speaker sweeps a beam up into the sky, out to the sides (the beams go behind the DJ, the fixtures come with the speakers)
+    const heads = [[118, -118, 4, -0.5], [242, -118, 0, 0.5]].map(([mx, my, i, base], j) => [mx, my, i, base + sweep(i + j, 0.9, 0.2)]);
+    for (const [mx, my, i, ang] of heads) djBeam(c, mx, my - 7, ang, 320, 2.4, 30, C[i], 0.48 + 0.14 * kick);
+    // the stage: a pallet, two rolling tool chests, a pallet deck on top, and up there his DJ table (a third chest) with the decks
     const glint = rgba(C[Math.floor(rm ? 0 : t * 2) % 3], 0.05 + 0.05 * kick);
-    box(c, "#00C9CD", 262, -6, 96, 6); ell(c, "rgba(0,0,0,.3)", 310, -1, 50, 3);   // the store's turquoise base stripe again (hides the cart corral behind the chests) + a shadow
-    djChest(c, 264, 45, 46, glint); djChest(c, 310.5, 45, 46, glint);
-    poly(c, "#121317", [271, -46, 329, -46, 326, -52, 274, -52]); box(c, lin(c, 0, -53, 0, -51, ["#3a3d44", "#202227"]), 274, -53.2, 52, 2, 1);
-    for (const [px, ph] of [[283.5, 0], [316.5, 1.3]]) { ell(c, "#2a2d34", px, -53.6, 8.6, 2.5); ell(c, "#9aa3ad", px, -54, 7.4, 2.1); ell(c, "#1b1d22", px, -54, 5.6, 1.6);
-      const a = (rm ? 0.6 : t * 7) + ph; ell(c, "#FF1A7F", px + Math.cos(a) * 4.6, -54 + Math.sin(a) * 1.3, 0.9, 0.5); ell(c, "#c9d0d8", px, -54, 0.9, 0.4); }
-    for (let k = 0; k < 4; k++) { const lv = rm ? 2 : Math.round(1 + 3 * kick * (0.6 + 0.4 * Math.sin(k * 2.1 + t * 5))); for (let j = 0; j < 4; j++) box(c, j < lv ? (j > 2 ? "#FF1A7F" : "#00C9CD") : "#2a2d34", 296.5 + k * 2, -48 - j * 1.3, 1.4, 0.9); }
-    djDude(c, 300, -46, t, rm, "hand");
-    // the speakers: one up on the chests, one on a tripod by the door
-    djSpeaker(c, 344, -46, 22, 34, kick, rm);
-    line(c, "#1b1d22", 1.6, [250, -34, 238, 0]); line(c, "#1b1d22", 1.6, [250, -34, 262, 0]); line(c, "#2a2d34", 1.6, [250, -34, 251, 0]);
-    box(c, lin(c, 248, 0, 252, 0, ["#3a3d44", "#7d848e", "#3a3d44"]), 248.6, -80, 2.8, 48);
-    djSpeaker(c, 250, -76, 24, 38, kick, rm);
-    // the lights: two pars on the bar wash down toward the door, a moving head on each speaker sweeps a beam up into the sky
-    for (const [px, i, base] of pars) { box(c, "#17181c", px - 4, -132, 8, 7, 2); ell(c, C[i], px, -125.5, 3.4, 1.6); djGlow(c, px, -125, 9, C[i], 0.7); }
-    [[250, -114, 4, 0.28], [344, -80, 0, -0.32]].forEach(([mx, my, i, base]) => { const ang = base + sweep(i, 0.9, 0.42);
-      djBeam(c, mx, my - 6, ang, 280, 2.2, 26, C[i], 0.5 + 0.14 * kick);
-      box(c, "#17181c", mx - 5, my - 3, 10, 3, 1); c.save(); c.translate(mx, my - 6); c.rotate(ang); box(c, "#22252b", -3.6, -5, 7.2, 8, 2.5); ell(c, C[i], 0, -5, 2.6, 1.1); c.restore(); djGlow(c, mx + Math.sin(ang) * 6, my - 6 - Math.cos(ang) * 6, 8, C[i], 0.8); });
+    djPallet(c, DX - 80, 160, 0);
+    c.save(); c.translate(0, -8); djChest(c, DX - 76, 75, 56, glint); djChest(c, DX + 1, 75, 56, glint); c.restore();
+    djPallet(c, DX - 80, 160, -64);
+    djDude(c, DX, TOP, t, rm, "body", K);
+    c.save(); c.translate(0, -72); djChest(c, DX - 42, 84, 52, glint); c.restore();
+    poly(c, "#121317", [DX - 37, TOP, DX + 37, TOP, DX + 34, TOP - 7, DX - 34, TOP - 7]); box(c, lin(c, 0, TOP - 8.5, 0, TOP - 6, ["#3a3d44", "#202227"]), DX - 34, TOP - 8.4, 68, 2.4, 1);
+    for (const [px, ph] of [[DX - 20, 0], [DX + 20, 1.3]]) { ell(c, "#2a2d34", px, TOP - 8.6, 12, 3.4); ell(c, "#9aa3ad", px, TOP - 9, 10.4, 2.9); ell(c, "#1b1d22", px, TOP - 9, 7.8, 2.2);
+      const a = (rm ? 0.6 : t * 7) + ph; ell(c, "#FF1A7F", px + Math.cos(a) * 6.4, TOP - 9 + Math.sin(a) * 1.8, 1.2, 0.7); ell(c, "#c9d0d8", px, TOP - 9, 1.2, 0.5); }
+    for (let k = 0; k < 4; k++) { const lv = rm ? 2 : Math.round(1 + 3 * kick * (0.6 + 0.4 * Math.sin(k * 2.1 + t * 5))); for (let j = 0; j < 4; j++) box(c, j < lv ? (j > 2 ? "#FF1A7F" : "#00C9CD") : "#2a2d34", DX - 4 + k * 2.2, TOP - 2.5 - j * 1.4, 1.6, 1); }
+    djDude(c, DX, TOP, t, rm, "hand", K);
+    // lumber + red product boxes by the left door, a shopper dancing by the right door
+    djPallet(c, 44, 52, 0);
+    for (let r = 0; r < 4; r++) { const y = -12 - r * 4.4; box(c, lin(c, 0, y, 0, y + 4, ["#f0d29c", "#d6ad6c"]), 45 + (r % 2), y, 50, 4, 0.8); box(c, "rgba(120,80,30,.35)", 45, y + 3.4, 51, 0.8); }
+    for (let r = 0; r < 2; r++) for (let k = 0; k < 4; k++) { const bx = 46 + k * 12, by = -36 - r * 12;
+      box(c, lin(c, 0, by, 0, by + 12, ["#e5322e", "#b81f22"]), bx, by, 11.6, 11.6, 1); box(c, "#ffffff", bx + 1, by + 6.8, 9.6, 2.2); box(c, "rgba(0,0,0,.25)", bx + 2, by + 2, 5, 1.1); }
+    // the speakers: two up on the stage beside him, two on tripods
+    djSpeaker(c, 118, -72, 30, 46, kick, rm); djSpeaker(c, 242, -72, 30, 46, kick, rm);
+    djTripod(c, 30, -110); djSpeaker(c, 30, -106, 28, 44, kick, rm);   // (the light trees' poles carry on up behind them)
+    djTripod(c, 330, -110); djSpeaker(c, 330, -106, 28, 44, kick, rm);
+    heads.forEach(([mx, my, i, ang]) => {
+      box(c, "#17181c", mx - 6, my - 3.5, 12, 3.5, 1); c.save(); c.translate(mx, my - 7); c.rotate(ang); box(c, "#22252b", -4.4, -6, 8.8, 9.6, 3); ell(c, C[i], 0, -6, 3.2, 1.3); c.restore(); djGlow(c, mx + Math.sin(ang) * 7, my - 7 - Math.cos(ang) * 7, 10, C[i], 0.8); });
+    djFan(c, 292, t, rm);
+    // the mini disco ball, hanging off the sign, and the sparkles it throws
+    const db = 254, dby = -232; line(c, "#9aa3ad", 0.7, [db, -254, db, dby - 9]); djGlow(c, db, dby, 22, "#ffffff", 0.35);
+    c.save(); c.beginPath(); c.arc(db, dby, 9, 0, Math.PI * 2); c.clip(); box(c, lin(c, db - 9, dby - 9, db + 9, dby + 9, ["#f4f7fa", "#9aa3ad", "#5b6270"]), db - 10, dby - 10, 20, 20);
+    const spin = rm ? 0 : t * 3; for (let r = -4; r <= 4; r++) for (let k = -5; k <= 5; k++) { const fx = db + k * 2.2 + mod(spin * 2 + r, 2.2) - 1.1, fy = dby + r * 2.2;
+      box(c, ["#ffffff", "#c9d0d8", C[(r + k + 9) % 4], "#8a939c"][Math.abs(r * 3 + k + Math.floor(spin)) % 4], fx - 0.9, fy - 0.9, 1.8, 1.8); } c.restore();
+    for (let i = 0; i < 6; i++) { const a = (rm ? 0 : t * 1.4) + i * 1.05, r = 22 + (i % 3) * 14; ell(c, rgba(C[i % 4], 0.85), db + Math.cos(a) * r * 1.4, dby + Math.sin(a) * r * 0.5 + 16, 1.6, 1.6); }
     // notes floating up off the speakers
-    if (!rm) for (let i = 0; i < 6; i++) { const u = mod(t * 0.45 + i / 6, 1), src = i % 2 ? [344, -80] : [250, -116];
-      c.globalAlpha = Math.min(1, u * 5) * (1 - u); djNote(c, src[0] + (i % 2 ? -14 - u * 16 : 6 + u * 18) + Math.sin(u * 9 + i) * 4, src[1] - 6 - u * 56, 0.9 + (i % 3) * 0.15, C[i % 4], i % 3 === 0); c.globalAlpha = 1; }   // drifting up, clear of the sign
+    if (!rm) for (let i = 0; i < 8; i++) { const u = mod(t * 0.45 + i / 8, 1), src = [[118, -124], [242, -124], [30, -156], [330, -156]][i % 4], side = src[0] < DX ? -1 : 1;
+      c.globalAlpha = Math.min(1, u * 5) * (1 - u); djNote(c, src[0] + side * (4 + u * 16) + Math.sin(u * 9 + i) * 4, src[1] - 6 - u * 50, 1.2 + (i % 3) * 0.2, C[i % 4], i % 3 === 0); c.globalAlpha = 1; }
   }
   function destination(c, n, night) {
     if (n === 7) {   // v49.5 Playa Neón: the finish is the beach: sand, surf, umbrellas, giant inflatable dice and a cheering cartoon crowd in swimwear (PG)
@@ -629,38 +648,38 @@
       for (const cx of [204, 262, 352]) { poly(c, "#ff6a00", [cx - 7, 0, cx + 7, 0, cx + 3, -22, cx - 3, -22]); box(c, "#ffffff", cx - 5, -14, 10, 4); box(c, "#3a3f4a", cx - 9, -2, 18, 2); }
       return;
     }
-    if (n === 1) {   // Hon Dipo (v47; v49.15 repainted so it looks nothing like a real big-box store): our own Southside ferretería. Beige stucco,
-      // turquoise + pink Fiesta trim, papel picado under the roofline, and a hand-painted, taquería-style arched sign board (cream, pink +
-      // turquoise borders, "Hon Dipo" in painted serif letters with a drop shadow, FERRETERÍA under it). No orange square, no stencil wordmark.
+    if (n === 1) {   // Hon Dipo (v47; v49.15 repainted so it looks nothing like a real big-box store, and made much bigger): our own Southside
+      // ferretería. A tall beige stucco block, turquoise + pink Fiesta trim, papel picado, a big hand-painted, taquería-style arched sign up top
+      // (cream, pink + turquoise borders, "Hon Dipo" in painted serif letters, FERRETERÍA under it), a door at each end. The DJ stage (djRig)
+      // stands in the middle. No orange square, no stencil wordmark, nothing from a real store.
       const TQ = "#00C9CD", TQ2 = "#0a9ea2", PK = "#FF1A7F", PK2 = "#c8125f", OJ = "#FF6A0B", INK = "#3a1d3a";
-      box(c, lin(c, 0, -196, 0, 0, ["#e6d7c1", "#d2bfa4"]), 0, -196, 360, 196);
-      c.fillStyle = "rgba(120,96,70,.16)"; for (let x = 24; x < 360; x += 24) c.fillRect(x, -180, 1.2, 180);
-      box(c, TQ, 0, -196, 360, 12); box(c, TQ2, 0, -184, 360, 3);   // the turquoise roof trim
-      box(c, PK, 0, -112, 360, 5); box(c, TQ, 0, -6, 360, 6);        // a pink stripe across the front, turquoise along the bottom
-      // papel picado strung under the roofline, both sides of the sign
-      for (const [x0, x1] of [[0, 108], [252, 360]]) { const sag = (x) => -178 + 6 * Math.sin(Math.PI * (x - x0) / (x1 - x0));
-        line(c, "rgba(60,40,60,.5)", 0.7, [x0, -178, (x0 + x1) / 2, -172, x1, -178]);
-        for (let x = x0 + 4, i = 0; x < x1 - 8; x += 11, i++) { const y = sag(x + 4), col = [PK, TQ, OJ, "#9b4dff"][i % 4];
-          poly(c, col, [x, y, x + 9, y, x + 9, y + 9, x + 4.5, y + 12, x, y + 9]); ell(c, "rgba(255,255,255,.55)", x + 4.5, y + 4.5, 1.4, 1.4); } }
-      for (const [x0, txt, col] of [[10, "LUMBER · TOOLS", PK], [256, "PAINT · GARDEN", TQ2]]) { box(c, col, x0, -158, 94, 22, 11); say(c, txt, x0 + 47, -147, 10, "#ffffff", { weight: 900, max: 84 }); }
-      // the hand-painted sign board: an arched top, a pink frame, a turquoise pinstripe, cream inside
-      const arch = (x0, x1, top, bot) => { c.beginPath(); c.moveTo(x0, bot); c.lineTo(x0, top + 22); c.quadraticCurveTo((x0 + x1) / 2, top - 14, x1, top + 22); c.lineTo(x1, bot); c.closePath(); };
-      c.fillStyle = "rgba(0,0,0,.18)"; arch(111, 255, -191, -97); c.fill();
-      c.fillStyle = lin(c, 0, -194, 0, -100, [PK, PK2]); arch(108, 252, -194, -100); c.fill();
-      c.fillStyle = TQ; arch(113, 247, -189, -105); c.fill();
-      c.fillStyle = lin(c, 0, -186, 0, -108, ["#fff8ec", "#f6e8d2"]); arch(116, 244, -186, -108); c.fill();
-      for (const sx of [126, 234]) for (const sy of [-160, -118]) { c.save(); c.translate(sx, sy); c.rotate(Math.PI / 4); poly(c, OJ, [0, -4, 1, -1, 4, 0, 1, 1, 0, 4, -1, 1, -4, 0, -1, -1]); c.restore(); }   // painted sparkles
-      c.save(); c.translate(180, -150); c.rotate(-0.04);
-      say(c, "Hon Dipo", 2.2, 2.6, 31, TQ2, { font: WEST, weight: 900, italic: true, max: 102 });   // the painted drop shadow
-      say(c, "Hon Dipo", 0, 0, 31, PK, { font: WEST, weight: 900, italic: true, max: 102, stroke: INK, sw: 2.6 });
+      box(c, lin(c, 0, -336, 0, 0, ["#e9dbc6", "#d2bfa4"]), 0, -336, 360, 336);
+      c.fillStyle = "rgba(120,96,70,.16)"; for (let x = 24; x < 360; x += 24) c.fillRect(x, -318, 1.2, 312);
+      box(c, TQ, 0, -336, 360, 14); box(c, TQ2, 0, -322, 360, 3);   // the turquoise roof trim
+      for (const [x0, x1] of [[0, 72], [288, 360]]) { const sag = (x) => -317 + 6 * Math.sin(Math.PI * (x - x0) / (x1 - x0));   // papel picado either side of the sign
+        line(c, "rgba(60,40,60,.5)", 0.7, [x0, -317, (x0 + x1) / 2, -311, x1, -317]);
+        for (let x = x0 + 4, i = x0 ? 1 : 0; x < x1 - 9; x += 12.5, i++) { const y = sag(x + 5), col = [PK, TQ, OJ, "#9b4dff"][i % 4];
+          poly(c, col, [x, y, x + 10, y, x + 10, y + 10, x + 5, y + 13, x, y + 10]); ell(c, "rgba(255,255,255,.55)", x + 5, y + 5, 1.5, 1.5); } }
+      box(c, PK, 0, -178, 360, 14);   // a pink band across the front
+      say(c, "LUMBER · TOOLS", 52, -170.6, 9, "#ffffff", { weight: 900, max: 90 }); say(c, "PAINT · GARDEN", 308, -170.6, 9, "#ffffff", { weight: 900, max: 90 });
+      box(c, TQ, 0, -6, 360, 6);   // turquoise along the bottom
+      // the big hand-painted sign board up top: an arched top, a pink frame, a turquoise pinstripe, cream inside
+      const arch = (x0, x1, top, bot) => { c.beginPath(); c.moveTo(x0, bot); c.lineTo(x0, top + 20); c.quadraticCurveTo((x0 + x1) / 2, top - 14, x1, top + 20); c.lineTo(x1, bot); c.closePath(); };
+      c.fillStyle = "rgba(0,0,0,.18)"; arch(77, 289, -317, -251); c.fill();
+      c.fillStyle = lin(c, 0, -324, 0, -254, [PK, PK2]); arch(74, 286, -324, -254); c.fill();
+      c.fillStyle = TQ; arch(79, 281, -319, -259); c.fill();
+      c.fillStyle = lin(c, 0, -316, 0, -262, ["#fff8ec", "#f6e8d2"]); arch(83, 277, -316, -262); c.fill();
+      for (const [sx, sy] of [[96, -292], [264, -292], [96, -272], [264, -272]]) { c.save(); c.translate(sx, sy); c.rotate(Math.PI / 4); poly(c, OJ, [0, -5, 1.2, -1.2, 5, 0, 1.2, 1.2, 0, 5, -1.2, 1.2, -5, 0, -1.2, -1.2]); c.restore(); }   // painted sparkles
+      c.save(); c.translate(180, -297); c.rotate(-0.03);
+      say(c, "Hon Dipo", 2.6, 3, 40, TQ2, { font: WEST, weight: 900, italic: true, max: 140 });   // the painted drop shadow
+      say(c, "Hon Dipo", 0, 0, 40, PK, { font: WEST, weight: 900, italic: true, max: 140, stroke: INK, sw: 3 });
       c.restore();
-      c.strokeStyle = OJ; c.lineWidth = 2.4; c.lineCap = "round"; c.beginPath(); c.moveTo(134, -130); c.quadraticCurveTo(180, -138, 226, -131); c.stroke();   // a brushy swash
-      say(c, "FERRETERÍA", 180, -118, 10.5, INK, { weight: 900, max: 92 });
-      box(c, lin(c, 0, -90, 0, -80, [TQ, TQ2]), 112, -90, 136, 10, 3); box(c, "#6c757d", 120, -80, 120, 74);
-      glass(c, 124, -76, 54, 70, false); glass(c, 182, -76, 54, 70, false); box(c, "#6c757d", 178, -76, 4, 70);
-      const RL = "#7d848e";   // the cart corrals: plain silver rails
-      for (let k = 0; k < 3; k++) for (const cx of [26, 62, 270, 306]) { const y = -16; box(c, RL, cx + k * 4, y - 22, 30, 4, 1); c.strokeStyle = RL; c.lineWidth = 1.2; rr(c, cx + k * 4, y - 20, 30, 18, 2); c.stroke(); for (let g = 4; g < 30; g += 5) { c.beginPath(); c.moveTo(cx + k * 4 + g, y - 20); c.lineTo(cx + k * 4 + g, y - 2); c.stroke(); } ell(c, "#111", cx + k * 4 + 5, -1, 2.5, 2.5); ell(c, "#111", cx + k * 4 + 26, -1, 2.5, 2.5); }
-      for (let k = 0; k < 3; k++) box(c, ["#c9b29a", "#b39b81", "#d6c2ab"][k], 92 - k * 2, -12 - k * 10, 22, 10, 3);
+      c.strokeStyle = OJ; c.lineWidth = 2.8; c.lineCap = "round"; c.beginPath(); c.moveTo(118, -277); c.quadraticCurveTo(180, -285, 242, -277); c.stroke();   // a brushy swash
+      say(c, "FERRETERÍA", 180, -268, 10.5, INK, { weight: 900, max: 110 });
+      // a door at each end: a turquoise canopy, glass doors
+      for (const x0 of [12, 266]) { box(c, lin(c, 0, -146, 0, -134, [TQ, TQ2]), x0 - 6, -146, 94, 12, 3); box(c, "#6c757d", x0, -134, 82, 128);
+        glass(c, x0 + 4, -130, 36, 124, false); glass(c, x0 + 42, -130, 36, 124, false); box(c, "#6c757d", x0 + 40, -130, 2, 124);
+        for (const hx of [x0 + 36, x0 + 46]) box(c, "#c9d0d8", hx - 1, -74, 2, 18, 1); }
       return;
     }
     if (n === 2) {   // Don Pedroes: low cream stucco, red Spanish-tile roofs, the arched block-pattern entry, the tall pole sign
