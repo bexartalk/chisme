@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "Chisme. Did you hear?",
+  "name": "Chisme. ¿Oyistes?",
   "short_name": "Chisme",
-  "description": "Chisme. Did you hear? Local news, NWS weather, alerts, live rain radar, sports and events for wherever you are, neighborhood stories first.",
+  "description": "Chisme. ¿Oyistes? Local news, NWS weather, alerts, live rain radar, sports and events for wherever you are, neighborhood stories first.",
   "lang": "en-US",
   "dir": "ltr",
   "start_url": "/?source=pwa",

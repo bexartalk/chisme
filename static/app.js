@@ -3712,7 +3712,7 @@ window.CHISME_APP_BUILD = "49.12";
   };
   // ---------- Share Chisme: a small pill in the footer. The phone's own share sheet (Web Share API) where there is
   // one; otherwise the link is copied and a toast says so. Nothing opens outside the app.
-  const SHARE = { title: "Chisme", text: "Chisme. Did you hear? 👀 Local news, weather, food & events:", url: "https://chisme.onrender.com/" };
+  const SHARE = { title: "Chisme", text: "Chisme. ¿Oyistes? 👀 Local news, weather, food & events:", url: "https://chisme.onrender.com/" };
   let shareT = null;
   function shareToast(msg) {
     const t = $("#share-toast"); t.textContent = msg; t.hidden = false;
