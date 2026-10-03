@@ -428,7 +428,8 @@ KIND_WORDS = {"weather": r"\b(weather|rain|raining|hot|cold|storm|temp|temperatu
               "event": r"\b(events?|concerts?|weekend|tonight|festivals?|shows?|eventos?|fiestas?|things to do|what to do|do this|going on|happening this|fin de semana)\b",
               "sports": r"\b(sports?|games?|score|scores|standings?|record|win|won|lose|lost|beat|playoffs?|season|schedule|play|playing|next game|juego|teams?)\b",
               "food": r"\b(food|eat|eating|taco|tacos|restaurants?|hungry|comida|brunch|barbacoa|bbq|dinner|lunch|breakfast|pizza|burger|antojo)\b",
-              "news": r"\b(news|chisme|happening|headlines?|stories|noticias|what's up|whats up|qu[eé] pasa|what's new)\b"}
+              "news": r"\b(news|chisme|happening|headlines?|stories|noticias|novedades|what's up|whats up|qu[eé] pasa|what'?s new|"
+                      r"qu[eé] hay de nuevo|qu[eé] hay|qu[eé] cuentas|qu[eé] hubo|quiubo)\b"}   # v49.12: + the Spanish "what's new?"s
 TEAM_ALIASES = {"spurs": "spurs", "spur": "spurs", "sa spurs": "spurs", "texans": "texans", "cowboys": "cowboys", "astros": "astros",
                 "rangers": "rangers", "missions": "missions", "rockets": "rockets", "mavs": "mavericks", "mavericks": "mavericks"}
 LEAGUE_EMO = {"nba": "🏀", "nfl": "🏈", "mlb": "⚾", "milb": "⚾"}
@@ -647,7 +648,7 @@ LOOKUP = re.compile(r"^\s*(please\s+)?(can you\s+|could you\s+)?(search( for)?|f
 def smart(text: str, src: list[dict], hour: int, why: str = "offline", tz=None, city: str | None = None) -> dict:
     """Intent handling + fuzzy retrieval over every feed item; used with no key and whenever the model can't answer."""
     tz = tz or _tz(None)
-    t = (text or "").strip()
+    t = (text or "").strip().replace("\u2019", "'").replace("\u2018", "'")   # v49.12: iPhone's curly ’ ("what’s new") reads as '
     ft = _fold(t)
     city = city or next((s["title"].split(" in ", 1)[1] for s in src if s["kind"] == "weather" and " in " in s["title"]), "your area")
     note = " (My AI brain is resting, so this is straight from the feeds.)" if why == "quota" else ""
