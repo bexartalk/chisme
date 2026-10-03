@@ -1,7 +1,7 @@
 /* Chisme — frontend (location-aware) */
 // Build of this file. Must equal the number in sw.js VERSION ("chisme-v22"); the page compares it
 // with the build the HTML was served for and reloads once if an old cached app.js got mixed in.
-window.CHISME_APP_BUILD = "49.13";
+window.CHISME_APP_BUILD = "49.14";
 (() => {
   "use strict";
   // v49.13: Chisme's public address for share links + the promo text: one setting on the server (PUBLIC_BASE_URL, else the
@@ -1486,6 +1486,7 @@ window.CHISME_APP_BUILD = "49.13";
     fetch("/api/reader?url=" + encodeURIComponent(url)).then((r) => r.json()).then((j) => { if (!j.limited) readerInfo.set(url, j); done(j); })
       .catch(() => done({ frame: false }));
   }
+  window.__chismeReader = { open: openReader, play: openPlayer };   // v49.14: desktop.js opens stories, food videos and Chisme's own pages here
   // Map sheet: an OpenStreetMap map with a pin, inside Chisme; "Open in Maps" (Apple Maps directions) is the small link below.
   const mapDlg = $("#mapsheet");
   let sheetMap = null, sheetPin = null, mapOpener = null;

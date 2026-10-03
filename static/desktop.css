@@ -1,0 +1,353 @@
+/* v49.14: Chisme as a desktop website. Loaded with media="(min-width: 1024px)" and every rule is under html.dk
+   (desktop.js sets it at >= 1024 px), so phones and narrow windows never see any of this.
+   Fiesta palette only: turquoise, pink, orange, black, silver. No yellow (the Día de Muertos marigold turns orange here). */
+html.dk{font-size:calc(var(--fs,21px) * .84);--dk-silver:#c4ced4;--dk-ink-soft:#3a3a3a;--dk-w:340px;--dk-gap:28px}
+html.dk[data-theme="dark"]{--dk-ink-soft:#c9d3d7}
+html.dk[data-season="muertos"]{--marigold:#ff8a3d;--near-line:var(--cempa)}
+html.dk .wrap{max-width:1360px;padding-left:32px;padding-right:32px}
+@media (max-width:1180px){ html.dk .wrap{padding-left:22px;padding-right:22px} html.dk{font-size:calc(var(--fs,21px) * .78);--dk-w:300px;--dk-gap:22px} html.dk .dk-hero-t{font-size:2.3rem} html.dk .dk-hero{padding:24px 26px 36px} }
+
+/* ---------- top nav: the app's own tab bar, widened (logo · tabs · ⚙️ Settings · Get the app) */
+html.dk .topbar{display:none}
+html.dk .tabs{box-shadow:inset 0 -4px 0 var(--turq),0 3px 12px rgba(0,0,0,.3)}
+html.dk[data-season="muertos"] .tabs{box-shadow:inset 0 -4px 0 var(--mq-pink,#ff3d8b),0 3px 12px rgba(0,0,0,.45)}
+html.dk .tabs-inner{display:flex;align-items:center;gap:6px;padding-top:10px;padding-bottom:14px;overflow:visible}
+html.dk .dk-logo{display:flex;align-items:center;gap:10px;margin-right:18px;color:#fff;text-decoration:none;font-weight:900;font-size:1.45rem;letter-spacing:-.01em;border-radius:12px;padding:2px 6px 2px 2px}
+html.dk .dk-logo img{border-radius:10px;display:block}
+html.dk .dk-logo:hover .dk-word{text-decoration:underline;text-decoration-color:var(--pink);text-decoration-thickness:3px;text-underline-offset:4px}
+html.dk .tab{flex:0 0 auto;flex-direction:row;gap:.4em;min-height:46px;padding:0 16px;font-size:1rem;border-radius:12px}
+html.dk .tab .tl{white-space:nowrap}
+html.dk .dk-navend{margin-left:auto;display:flex;align-items:center;gap:10px}
+html.dk #settings-btn{position:static;transform:none;width:auto;height:auto;min-height:46px;padding:0 14px;margin:0;border-radius:12px;background:transparent;color:#fff;border:2px solid #4b5357;font-weight:800;font-size:.95rem;display:inline-flex;align-items:center;gap:.35em;box-shadow:none;filter:none;animation:none}
+html.dk #settings-btn svg{display:none}
+html.dk #settings-btn:hover{border-color:var(--pink)}
+html.dk .dk-get{min-height:46px;padding:0 18px;border-radius:12px;background:var(--orange);color:#000;border:2px solid var(--orange);font-weight:900;font-size:1rem;white-space:nowrap}
+html.dk .dk-get:hover{background:var(--pink);border-color:var(--pink)}
+html.dk .tabs a:focus-visible,html.dk .tabs button:focus-visible{outline:4px solid var(--pink);outline-offset:2px}
+html.dk[data-season="muertos"] .tabs a:focus-visible,html.dk[data-season="muertos"] .tabs button:focus-visible{outline-color:var(--mq-turq,#1fd1d6)}
+html.dk .dk-skip{position:fixed;left:16px;top:-80px;z-index:2100;background:#000;color:#fff;border:3px solid var(--turq);padding:10px 16px;border-radius:12px;font-weight:900;text-decoration:none}
+html.dk .dk-skip:focus{top:10px}
+@media (max-width:1180px){ html.dk .tab{padding:0 11px} html.dk .dk-logo{margin-right:8px} html.dk #settings-btn .dk-set-l{font-size:0} html.dk #settings-btn .dk-set-l span{font-size:1.1rem} }
+
+/* ---------- the views: wider, the phone-only hints go */
+html.dk .views{padding-top:22px}
+html.dk .swipe-hint,html.dk #install-card,html.dk .ptr{display:none!important}
+html.dk .muertos-banner{margin-top:18px}
+html.dk #view-weather>*,html.dk #view-antojos>*,html.dk #view-juegos>*,html.dk #view-news>*,html.dk #view-sports>*,html.dk #view-events>*{max-width:1080px;margin-left:auto;margin-right:auto}
+html.dk .mq-chips{top:var(--tabs-h,74px);margin:0 0 14px;padding:10px 0;border-radius:0 0 14px 14px}
+html.dk .mq-chip{font-size:.95rem;flex:0 1 auto;padding:.25em 1.2em}
+html.dk .mix-hi{font-size:.95rem}
+
+/* ---------- the homepage: hero across the top, then the grid and the sidebar */
+html.dk #view-chisme{display:grid;grid-template-columns:minmax(0,1fr) var(--dk-w);column-gap:var(--dk-gap);align-items:start}
+html.dk #view-chisme>.dk-hero{grid-column:1/-1}
+html.dk #view-chisme>.dk-main{grid-column:1;min-width:0}
+html.dk #view-chisme>.dk-side{grid-column:2;min-width:0;display:flex;flex-direction:column;gap:16px;padding-top:2px}
+
+html.dk .dk-hero{position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(330px,400px);gap:28px;align-items:center;margin:0 0 22px;padding:30px 34px 40px;border-radius:24px;overflow:hidden;
+  background:radial-gradient(420px 220px at 100% 0%,rgba(239,66,111,.28),transparent 70%),radial-gradient(360px 200px at 0% 100%,rgba(255,130,0,.22),transparent 70%),var(--turq);color:#000;border:3px solid #000}
+html.dk .dk-hero::after{content:"";position:absolute;left:0;right:0;bottom:0;height:14px;background:repeating-linear-gradient(90deg,var(--pink) 0 36px,var(--orange) 36px 72px,#000 72px 108px);
+  -webkit-mask:conic-gradient(from 135deg at top,#000 90deg,#0000 0) 0 0/18px 100%;mask:conic-gradient(from 135deg at top,#000 90deg,#0000 0) 0 0/18px 100%}
+html.dk[data-season="muertos"] .dk-hero{background:radial-gradient(420px 220px at 100% 0%,rgba(255,61,139,.35),transparent 70%),radial-gradient(360px 200px at 0% 100%,rgba(255,138,61,.3),transparent 70%),linear-gradient(135deg,#2a1250,#130827);color:#fff;border-color:#563b84}
+html.dk[data-theme="dark"]:not([data-season="muertos"]) .dk-hero{background:radial-gradient(420px 220px at 100% 0%,rgba(239,66,111,.3),transparent 70%),linear-gradient(135deg,#063a3c,#0b1416);color:#fff;border-color:var(--turq)}
+html.dk .dk-hola{display:flex;align-items:center;gap:12px;margin:0 0 6px;font-weight:900;font-size:1.25rem}
+html.dk .dk-hola img{border-radius:50%;border:3px solid #000;background:#fff;box-shadow:0 3px 0 var(--pink)}
+html.dk[data-season="muertos"] .dk-hola,html.dk[data-theme="dark"] .dk-hola{color:#fff}
+html.dk[data-season="muertos"] .dk-hola img{border-color:var(--mq-pink,#ff3d8b)}
+html.dk .dk-hero-t{margin:0;font-size:2.65rem;line-height:1.05;font-weight:900;letter-spacing:-.02em;color:inherit;max-width:15em}
+html.dk .dk-pitch{margin:12px 0 0;font-size:1.15rem;font-weight:700;line-height:1.4;max-width:34em}
+html.dk .dk-hero-cta{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px}
+html.dk .dk-btn{display:inline-flex;align-items:center;justify-content:center;gap:.3em;min-height:46px;padding:0 18px;border-radius:12px;border:2px solid #000;background:#fff;color:#000;font-weight:900;font-size:.95rem;text-decoration:none;cursor:pointer}
+html.dk .dk-btn.primary{background:#000;color:#fff}
+html.dk .dk-btn:hover{background:var(--pink);color:#000;border-color:#000}
+html.dk .dk-btn.bmc{background:var(--orange);color:#000;border-color:#000}
+html.dk .dk-btn.bmc:hover{background:var(--pink)}
+html.dk[data-season="muertos"] .dk-hero .dk-btn,html.dk[data-theme="dark"] .dk-hero .dk-btn{border-color:#fff}
+html.dk[data-season="muertos"] .dk-hero .dk-btn.primary{background:var(--mq-pink,#ff3d8b);color:#000;border-color:var(--mq-pink,#ff3d8b)}
+html.dk[data-theme="dark"]:not([data-season="muertos"]) .dk-hero .dk-btn.primary{background:var(--turq);color:#000;border-color:var(--turq)}
+html.dk .dk-getapp{position:relative;z-index:1;background:#fff;color:#000;border:3px solid #000;border-radius:20px;padding:16px 18px 14px;box-shadow:0 6px 0 rgba(0,0,0,.85)}
+html.dk .dk-getapp h2{margin:0 0 10px;font-size:1.2rem;color:#000}
+html.dk .dk-getapp h2:focus{outline:none}
+html.dk .dk-getapp h2:focus-visible{outline:4px solid var(--pink);outline-offset:4px;border-radius:6px}
+html.dk[data-season="muertos"] .sec-head h2::after{background-image:none}
+html.dk .dk-getapp h2::after{display:none}
+html.dk .dk-qr-row{display:flex;gap:14px;align-items:center}
+html.dk .dk-qr{flex:0 0 auto;width:148px;height:148px;border-radius:10px;border:2px solid #000;background:#fff;image-rendering:pixelated}
+html.dk .dk-steps{margin:0;padding-left:1.2em;font-size:.86rem;line-height:1.35;font-weight:600}
+html.dk .dk-steps li{margin:0 0 6px}
+html.dk .dk-soon{margin:12px 0 0;padding:8px 12px;border-radius:12px;background:#ffe0ea;color:#5e0a27;font-weight:800;font-size:.86rem}
+html.dk .dk-getapp.dk-flash{animation:dk-flash 1.1s ease-out}
+@keyframes dk-flash{0%{box-shadow:0 0 0 0 rgba(239,66,111,.9),0 6px 0 rgba(0,0,0,.85)}100%{box-shadow:0 0 0 22px rgba(239,66,111,0),0 6px 0 rgba(0,0,0,.85)}}
+html.dk.reduce-motion .dk-getapp.dk-flash{animation:none}
+
+/* the latest chisme: a grid of cards (the app's own story / sports / event cards, stacked: photo on top) */
+html.dk #mix{background:transparent;border:0;padding:0;margin-bottom:22px}
+html.dk[data-season="muertos"] #mix{border:0}
+html.dk #mix>.sec-head{margin-bottom:12px}
+html.dk #mix-title{font-size:1.7rem}
+html.dk #mix-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:18px;align-items:stretch}
+html.dk #mix-list>.loading{grid-column:1/-1}
+html.dk #mix-list>.donate,html.dk #mix-list>aside,html.dk #mix-list>.card{grid-column:1/-1;margin:0}
+html.dk .mix-item{min-width:0;height:100%}
+html.dk .mix-item>article,html.dk .mix-item>.sn,html.dk .mix-item>.ev{flex:1 1 auto;min-width:0}
+html.dk #mix-list .story{flex-direction:column;flex-wrap:nowrap;gap:8px;height:100%;padding:0 0 12px;overflow:hidden;border-radius:16px;transition:box-shadow .15s,transform .15s}
+html.dk #mix-list .story:hover,html.dk #mix-list .sn:hover,html.dk #mix-list .ev:hover{box-shadow:0 8px 22px rgba(0,0,0,.14);transform:translateY(-2px)}
+html.dk.reduce-motion #mix-list .story:hover,html.dk.reduce-motion #mix-list .sn:hover,html.dk.reduce-motion #mix-list .ev:hover{transform:none}
+html.dk #mix-list .story>img{order:-1;width:100%;height:auto;aspect-ratio:16/9;border-radius:0;object-fit:cover}
+html.dk #mix-list .story .body{padding:4px 14px 0;flex:0 0 auto}
+html.dk #mix-list .story h3{font-size:1.08rem;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+html.dk #mix-list .story .sum{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+html.dk #mix-list .story .dig{margin:auto 14px 0;flex:0 0 auto}
+html.dk #mix-list .story .dig .related,html.dk #mix-list .story .dig .related-h{display:none}
+html.dk #mix-list .story.near{border-left-width:2px;border-top:6px solid var(--near-line,var(--turq))}
+html.dk #mix-list .sn{flex-direction:column-reverse;height:100%;padding:0 0 12px;overflow:hidden;border-radius:16px}
+html.dk #mix-list .sn-thumb{width:100%;aspect-ratio:16/9;border-radius:0}
+html.dk #mix-list .sn-body{padding:0 14px}
+html.dk #mix-list .ev{height:100%;border-radius:16px}
+html.dk #mix-list .ev-media{aspect-ratio:16/9}
+html.dk #mix-list .ev .minimap{display:none}
+html.dk #mix-list .ev-body{flex:1 1 auto}
+html.dk #mix-list .ev-body h3{font-size:1.08rem;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+html.dk #mix-list .ev-sum{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+html.dk #mix-list .ev-links{margin-top:auto}
+html.dk #mix-list .ev-links a:not(.primary),html.dk #mix-list .ev-src{display:none}
+html.dk #mix-list .sn-sum{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+html.dk .mix-tag{font-size:.72rem}
+html.dk .mix-more button{min-width:220px}
+
+/* ---------- sidebar widgets */
+html.dk .dk-w{background:var(--card);color:var(--ink);border:2px solid var(--line);border-radius:18px;padding:14px 16px 16px}
+html.dk[data-season="muertos"] .dk-w{border-top:4px solid var(--cempa)}
+html.dk .dk-w-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:2px 10px;margin-bottom:8px}
+html.dk .dk-w h2{margin:0;font-size:1.15rem;font-weight:900}
+html.dk .dk-w-sub{font-size:.78rem;font-weight:700;color:var(--muted)}
+html.dk .dk-dim{margin:4px 0;color:var(--muted);font-size:.9rem}
+html.dk .dk-more{display:flex;width:100%;justify-content:center;align-items:center;gap:.2em;margin-top:12px;min-height:44px;border-radius:12px;font-size:.9rem;font-weight:900;background:transparent;color:var(--ink);border:2px solid var(--ink)}
+html.dk .dk-more:hover{background:var(--turq);color:#000;border-color:#000}
+html.dk[data-theme="dark"] .dk-more{background:transparent;color:var(--ink);border-color:var(--line)}
+/* weather */
+html.dk .dk-wx-now{display:flex;align-items:center;gap:10px}
+html.dk .dk-wx-now img{width:56px;height:56px;border-radius:12px}
+html.dk .dk-wx-temp{font-size:2.6rem;font-weight:900;line-height:1;letter-spacing:-.03em}
+html.dk .dk-wx-txt{font-weight:800;font-size:.95rem;line-height:1.2}
+html.dk .dk-wx-next{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:6px}
+html.dk .dk-wx-next li{display:grid;grid-template-columns:7.2em 3em 1fr;gap:6px;align-items:baseline;font-size:.82rem;padding-top:6px;border-top:1px solid var(--line)}
+html.dk .dk-wx-t{font-weight:900}
+html.dk .dk-wx-s{color:var(--dk-ink-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+html.dk .dk-wx-alert{display:block;width:100%;margin-top:10px;text-align:left;background:var(--accent);color:#fff;border-color:#7a120d;font-size:.88rem}
+/* the sponsor spot */
+html.dk .dk-sponsor{border-color:var(--turq);border-width:2px;position:relative}
+html.dk .dk-sp-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+html.dk .dk-sp-by{margin:0 0 8px;font-size:.8rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+html.dk .dk-sp-tag{flex:0 0 auto;padding:2px 10px;border-radius:999px;background:#000;color:#fff;font-size:.72rem;font-weight:900;letter-spacing:.04em;text-transform:uppercase;border:2px solid #000}
+html.dk[data-theme="dark"] .dk-sp-tag{background:#fff;color:#000;border-color:#fff}
+html.dk .dk-sp-img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:12px;margin:0 0 10px;background:var(--line)}
+html.dk .dk-sp-name{margin:0;font-size:1.25rem;font-weight:900;line-height:1.15}
+html.dk .dk-sp-area{margin:2px 0 0;font-size:.85rem;font-weight:700;color:var(--muted)}
+html.dk .dk-sp-line{margin:6px 0 12px;font-size:.92rem;font-weight:600}
+html.dk .dk-sp-21{margin:-6px 0 12px;font-size:.78rem;font-weight:800;color:var(--muted)}
+html.dk .dk-sponsor .dk-btn{width:100%}
+html.dk .dk-house{border-style:dashed;background:linear-gradient(135deg,#e5fbfb,var(--card) 70%)}
+html.dk[data-theme="dark"] .dk-house{background:linear-gradient(135deg,#0b3c3e,var(--card) 70%)}
+html.dk[data-season="muertos"][data-theme="dark"] .dk-house{background:linear-gradient(135deg,#3a1a66,var(--card) 70%)}
+html.dk[data-theme="dark"] .dk-btn{background:var(--card);color:var(--ink);border-color:var(--ink)}
+html.dk[data-theme="dark"] .dk-btn.primary{background:var(--turq);color:#000;border-color:var(--turq)}
+html.dk[data-theme="dark"] .dk-btn.bmc{background:var(--orange);color:#000;border-color:var(--orange)}
+/* games */
+html.dk .dk-games{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+html.dk .dk-game{display:flex;width:100%;gap:10px;align-items:center;text-align:left;padding:8px 10px;border-radius:14px;border:2px solid var(--line);background:var(--card);color:var(--ink);font-weight:600}
+html.dk .dk-game:hover{border-color:var(--pink)}
+html.dk .dk-game-emo{font-size:1.7rem;line-height:1;flex:0 0 auto}
+html.dk .dk-game b{display:block;font-size:.95rem}
+html.dk .dk-game small{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:.76rem;line-height:1.3;color:var(--dk-ink-soft);font-weight:600}
+/* food */
+html.dk .dk-food{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+html.dk .dk-food-i{display:flex;width:100%;gap:10px;align-items:flex-start;text-align:left;padding:6px;border-radius:14px;border:2px solid transparent;background:transparent;color:var(--ink);font-weight:600}
+html.dk .dk-food-i:hover{border-color:var(--pink);background:transparent}
+html.dk[data-theme="dark"] .dk-food-i{background:transparent;border-color:transparent}
+html.dk .dk-food-th{position:relative;flex:0 0 112px;aspect-ratio:16/9;border-radius:10px;overflow:hidden;background:#000}
+html.dk .dk-food-th img{width:100%;height:100%;object-fit:cover;display:block}
+html.dk .dk-food-play{position:absolute;inset:auto auto 6px 6px;width:26px;height:26px;border-radius:50%;background:rgba(0,0,0,.75);color:#fff;font-size:.7rem;display:grid;place-items:center}
+html.dk .dk-food-txt b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:.84rem;line-height:1.25}
+html.dk .dk-food-txt small{display:block;margin-top:2px;font-size:.74rem;color:var(--muted);font-weight:700}
+/* App Store goal */
+html.dk .dk-goal{border-left:10px solid var(--pink)}
+html.dk .dk-goal h2{font-size:1.08rem;line-height:1.25}
+html.dk .dk-goal p{margin:6px 0 10px;font-size:.88rem}
+html.dk .dk-goal .dk-btn{width:100%}
+html.dk .dk-goal-track{height:12px;border-radius:999px;background:var(--line);overflow:hidden}
+html.dk .dk-goal-fill{display:block;height:100%;background:linear-gradient(90deg,var(--turq),var(--pink));border-radius:999px}
+html.dk .dk-goal-n{font-weight:800}
+html.dk .dk-fine{margin:8px 0 0!important;font-size:.74rem!important;opacity:.85}
+
+/* ---------- the reader: a side panel on the right */
+html.dk dialog#player{margin:0 0 0 auto;width:min(760px,58vw);max-width:none;height:100dvh;max-height:100dvh;border-radius:22px 0 0 22px;box-shadow:-18px 0 50px rgba(0,0,0,.35);animation:dk-panel .24s cubic-bezier(.2,.8,.2,1)}
+html.dk dialog#player::backdrop{background:rgba(0,0,0,.45)}
+html.dk #player .grab{display:none}
+html.dk #player .player-head{padding-top:14px}
+html.dk #player .player-media.framed iframe{height:calc(100dvh - 250px);min-height:420px}
+html.dk #player .player-media.video iframe{max-height:62dvh}
+html.dk #player .player-media.video.tall iframe{height:min(70dvh,720px)}
+html.dk #player .player-title{font-size:1.25rem}
+html.dk #player.dk-page .player-media.framed{margin-bottom:0}
+html.dk #player.dk-page .player-media.framed iframe{height:calc(100dvh - 92px);min-height:0}
+html.dk #player.dk-page #player-title{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+html.dk #player.dk-page #player-by,html.dk #player.dk-page #player-actions{display:none}
+@keyframes dk-panel{from{transform:translateX(60px);opacity:.3}to{transform:none;opacity:1}}
+html.dk.reduce-motion dialog#player{animation:none}
+@media (prefers-reduced-motion:reduce){ html.dk dialog#player{animation:none} html.dk #mix-list .story:hover{transform:none} }
+
+/* ---------- the footer, on every desktop page */
+html.dk .foot{max-width:none;margin-top:28px;padding:0;background:#000;color:var(--dk-silver);box-shadow:inset 0 4px 0 var(--pink)}
+html.dk .foot>*{max-width:1296px;margin-left:auto;margin-right:auto;padding-left:32px;padding-right:32px}
+html.dk body{padding-bottom:0}
+html.dk .foot>p:last-child{padding-bottom:96px}
+html.dk .foot a,html.dk .foot .linkish{color:#fff}
+html.dk .foot .foot-legal{display:none}
+html.dk .foot .share-pill{background:#fff;color:#000}
+html.dk .dk-foot{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,2fr);gap:10px 32px;padding-top:28px;padding-bottom:10px;border-bottom:1px solid #2c3437;margin-bottom:6px;font-size:.95rem}
+html.dk .dk-foot-brand{display:flex;gap:12px;align-items:flex-start}
+html.dk .dk-foot-brand img{border-radius:10px}
+html.dk .dk-foot-name{margin:0;color:#fff;font-weight:900;font-size:1.2rem}
+html.dk .dk-foot-tag{margin:2px 0 0;color:var(--dk-silver);font-weight:600}
+html.dk .dk-foot-links{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:0 20px;align-content:flex-start}
+html.dk .dk-foot-links a,html.dk .dk-foot-links .linkish{display:inline-flex;align-items:center;min-height:44px;color:#fff;font-weight:800;text-decoration:underline;text-underline-offset:3px;background:none;border:0;padding:0;font-size:inherit;cursor:pointer}
+html.dk .dk-foot-links a:hover,html.dk .dk-foot-links .linkish:hover{color:var(--turq)}
+html.dk .dk-foot a:focus-visible,html.dk .dk-foot button:focus-visible{outline:4px solid var(--turq);outline-offset:2px}
+html.dk .dk-foot-tip{grid-column:2;margin:0 0 10px}
+html.dk .dk-foot-bmc{display:inline-flex;align-items:center;min-height:44px;padding:0 16px;border-radius:12px;background:var(--orange);color:#000!important;font-weight:900;text-decoration:none}
+html.dk .dk-foot-bmc:hover{background:var(--pink)}
+
+/* ---------- the rest of the app on a big screen */
+html.dk .terms-bar{left:auto;right:110px;max-width:560px}
+html.dk .mq-v-nav button{border-color:var(--marigold)}
+
+html.dk body > .tagline,html.dk .tagline{display:none}   /* v49.12 tagline under the phone header: the desktop hero says it */
+/* v49.12's sync pill (a bottom toast on phones): on desktop it's a small chip in the nav, left of Settings, so it covers nothing */
+html.dk .dk-sync-slot{display:flex;align-items:center}
+html.dk .dk-sync-slot .sync{position:static;transform:none;margin:0;max-width:240px;width:auto;flex-wrap:nowrap;white-space:nowrap;
+  padding:.3em .75em;font-size:.72rem;border-radius:999px;box-shadow:none;border:1.5px solid rgba(255,255,255,.3);visibility:visible}
+html.dk .dk-sync-slot .sync #sync-msg{flex:0 1 auto;overflow:hidden;text-overflow:ellipsis}
+html.dk .dk-sync-slot .sync[data-state="done"]{display:none}
+html.dk .dk-sync-slot .sync[data-state="busy"]{background:#1a1a1a}
+@media (max-width:1180px){
+  html.dk .dk-sync-slot .sync{padding:.45em}
+  html.dk .dk-sync-slot .sync #sync-msg{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}   /* icon only; still read out */
+  html.dk .dk-sync-slot #sync-retry{font-size:0;min-width:30px;min-height:30px;padding:0 .5em}   /* "Retry now" stays its accessible name */
+  html.dk .dk-sync-slot #sync-retry::before{content:"↻";font-size:.9rem;line-height:1}
+}
+
+/* =====================================================================================================================
+   v49.14 the app-icon look (static/icons/icon-512.png): a turquoise page with a little pink/orange confetti, black and
+   white for the nav, footer and hero (the icon's speech bubble), the icon's exact pink and orange for accents and buttons.
+   Cards, widgets and the reader: a soft turquoise tint (see the block at the end). Dark: near-black, turquoise accents. Muertos: plum hero.
+   Icon colours: turquoise #00C9CD · pink #FF1A7F · orange #FF6A0B · black #000000 · white #FFFFFF. No yellow.
+   ===================================================================================================================== */
+html.dk{--dk-turq:#00C9CD;--dk-pink:#FF1A7F;--dk-orange:#FF6A0B;--pink:#FF1A7F;--orange:#FF6A0B;--turq:#00C9CD}
+html.dk:not([data-theme="dark"]),html.dk[data-season]:not([data-theme="dark"]){--bg:#00C9CD;--focus:#000;--muted:#2b2b2b}
+html.dk body{background:var(--bg) url("/static/site/confetti.svg") 0 0/440px 440px repeat}
+html.dk[data-theme="dark"] body{background:var(--bg) url("/static/site/confetti-dark.svg") 0 0/440px 440px repeat}
+html.dk:not([data-theme="dark"]) .mq-chips{background:#00C9CD}
+/* text that sits right on the turquoise page */
+html.dk:not([data-theme="dark"]) .mix-hi,html.dk:not([data-theme="dark"]) #mix>.sec-head .stamp,html.dk:not([data-theme="dark"]) #mix .mix-end{color:#000}
+html.dk:not([data-theme="dark"]) #mix .mix-end .linkish{color:#000}
+/* cards and widgets: white, with the icon's bold black outline */
+html.dk:not([data-theme="dark"]) .views .card:not(#mix),html.dk:not([data-theme="dark"]) .dk-w,
+html.dk:not([data-theme="dark"]) #mix-list .story,html.dk:not([data-theme="dark"]) #mix-list .sn,html.dk:not([data-theme="dark"]) #mix-list .ev,
+html.dk:not([data-theme="dark"]) #mix-list>.donate{border-color:#000;box-shadow:0 4px 0 rgba(0,0,0,.22)}
+html.dk:not([data-theme="dark"]) .dk-sponsor{border-color:#000}
+html.dk:not([data-theme="dark"]) .dk-house{border-color:#000;background:var(--dk-card)}
+html.dk:not([data-theme="dark"]) .mq-chip:not([aria-current="true"]){border-color:#000}
+html.dk:not([data-theme="dark"]):not([data-season="muertos"]) .mq-chip[aria-current="true"]{background:#000;color:#fff;border-color:#000}
+html.dk .mix-more button{border:2px solid #000}
+/* nav + footer: the icon's black and white, a pink edge */
+html.dk .tabs{background:#000;box-shadow:inset 0 -4px 0 var(--dk-pink),0 3px 12px rgba(0,0,0,.3)}
+html.dk .foot{box-shadow:inset 0 4px 0 var(--dk-pink)}
+html.dk .dk-get{background:var(--dk-orange);border-color:var(--dk-orange);color:#000}
+html.dk .dk-get:hover{background:var(--dk-pink);border-color:var(--dk-pink)}
+html.dk .dk-btn.bmc,html.dk .dk-foot-bmc{background:var(--dk-orange);color:#000}
+
+/* the hero: the icon's black speech bubble (white words, a tail at the bottom-left) */
+html.dk .dk-hero{background:#000;color:#fff;border:0;overflow:visible;margin-bottom:46px;border-radius:30px;box-shadow:none}
+html.dk .dk-hero::after{content:"";position:absolute;left:84px;right:auto;bottom:-30px;width:58px;height:32px;background:#000;-webkit-mask:none;mask:none;clip-path:polygon(0 0,100% 0,12% 100%)}
+html.dk .dk-hola{color:var(--dk-pink)}
+html.dk .dk-pitch{color:#fff}
+html.dk .dk-hero .dk-btn{background:#fff;color:#000;border-color:#fff}
+html.dk .dk-hero .dk-btn.primary{background:var(--dk-pink);color:#000;border-color:var(--dk-pink)}
+html.dk .dk-hero .dk-btn:hover{background:var(--dk-turq);border-color:var(--dk-turq);color:#000}
+html.dk .dk-hero .dk-btn.primary:hover{background:var(--dk-orange);border-color:var(--dk-orange)}
+html.dk .dk-getapp{border-color:#fff;box-shadow:0 6px 0 var(--dk-pink)}
+html.dk .dk-hero .dk-btn:focus-visible,html.dk .dk-hero a:focus-visible{outline:4px solid var(--dk-turq);outline-offset:3px}
+/* Día de Muertos: the plum bubble */
+html.dk[data-season="muertos"] .dk-hero{background:radial-gradient(420px 220px at 100% 0%,rgba(255,61,139,.35),transparent 70%),radial-gradient(360px 200px at 0% 100%,rgba(255,138,61,.3),transparent 70%),linear-gradient(135deg,#2a1250,#130827);border:0}
+html.dk[data-season="muertos"] .dk-hero::after{background:#1d0c3a}
+html.dk[data-season="muertos"] .dk-hola{color:#fff}
+html.dk[data-season="muertos"] .dk-hero .dk-btn.primary{background:var(--mq-pink,#ff3d8b);border-color:var(--mq-pink,#ff3d8b)}
+/* dark: near-black page, the black bubble outlined in turquoise */
+html.dk[data-theme="dark"]:not([data-season="muertos"]) .dk-hero{background:#000;border:2px solid var(--dk-turq)}
+html.dk[data-theme="dark"]:not([data-season="muertos"]) .dk-hero::after{display:none}
+html.dk[data-theme="dark"]:not([data-season="muertos"]) .dk-hero .dk-btn.primary{background:var(--dk-turq);border-color:var(--dk-turq)}
+html.dk[data-theme="dark"]:not([data-season="muertos"]) .dk-hola{color:var(--dk-turq)}
+html.dk[data-theme="dark"] .tabs{box-shadow:inset 0 -4px 0 var(--dk-turq),0 3px 12px rgba(0,0,0,.5)}
+
+/* Tía, smaller: a 44px avatar by "¡Hola, metiche!", a 56px chat bubble that lives in its own right-hand gutter */
+html.dk .dk-hola img{width:44px;height:44px;border-width:2px;box-shadow:0 2px 0 var(--dk-pink)}
+html.dk .dk-hola{font-size:1.1rem;gap:10px}
+html.dk .tia-fab{width:56px;height:56px;right:20px;bottom:20px}
+html.dk .tia-fab-badge{width:22px;height:22px;bottom:-4px;right:-4px;font-size:11px}
+html.dk .tia-flores{top:-11px;height:22px}
+html.dk .wrap:not(.tabs-inner){padding-right:max(32px,calc(96px - max(0px,(100vw - 1360px) / 2)))}
+html.dk .foot>*{padding-right:max(32px,calc(96px - max(0px,(100vw - 1296px) / 2)))}
+html.dk .terms-bar{right:96px}
+
+/* =====================================================================================================================
+   v49.14 the wordmark + the bubble motif.
+   · 'Chisme' is the app icon's own bubble (white chunky letters in the black speech bubble, with its confetti), cut from
+     the icon's vector trace by tools/make_site_logo.py → /static/site/chisme-bubble-logo.svg (sharp at any size).
+     On the black nav/footer the bubble gets a thin turquoise edge so its shape still reads.
+   · Other big display words use Chewy (Apache-2.0, the closest font to the icon's letters), subset to chewy-site.woff.
+   · Not too white: cards and widgets #ECFAFA, the reader + page cards #F4FBFB (a turquoise tint: no bright white, no cream).
+   ===================================================================================================================== */
+@font-face{font-family:"Chisme Site Display";src:url("/static/fonts/chewy-site.woff") format("woff");font-display:swap}
+html.dk{--dk-display:"Chisme Site Display","Chisme Display",system-ui,sans-serif;--dk-card:#ECFAFA;--dk-card2:#F4FBFB;--dk-wline:#000}
+html.dk[data-theme="dark"]{--dk-card:var(--card);--dk-card2:var(--card);--dk-wline:var(--line)}
+html.dk:not([data-theme="dark"]){--card:#ECFAFA}
+/* the logo in the nav */
+html.dk .dk-logo{padding:2px 4px;margin-right:14px}
+html.dk .dk-logo .dk-logo-img{display:block;height:46px;width:auto;border-radius:0;transition:transform .15s}
+html.dk .dk-logo-img,html.dk .dk-foot-logo{filter:drop-shadow(1.5px 0 0 #00C9CD) drop-shadow(-1.5px 0 0 #00C9CD) drop-shadow(0 1.5px 0 #00C9CD) drop-shadow(0 -1.5px 0 #00C9CD)}
+html.dk .dk-logo:hover .dk-logo-img{transform:rotate(-3deg)}
+@media (max-width:1180px){ html.dk .dk-logo .dk-logo-img{height:42px} }
+/* the hero: the big bubble logo + the rest of the tagline in Chewy */
+html.dk .dk-hero-t-logo{display:flex;align-items:flex-end;flex-wrap:wrap;gap:4px 18px;max-width:none;font-family:var(--dk-display);font-weight:400;letter-spacing:.01em}
+html.dk .dk-hero-logo{display:block;width:300px;height:auto;margin:-6px 0 -4px -6px}
+html.dk .dk-hero-q{font-size:4.1rem;line-height:1;padding-bottom:18px;color:#fff;transform:rotate(-3deg);transform-origin:left bottom}
+@media (max-width:1180px){ html.dk .dk-hero-logo{width:240px} html.dk .dk-hero-q{font-size:3.3rem;padding-bottom:14px} }
+/* the footer brand */
+html.dk .dk-foot-brand{align-items:center}
+html.dk .dk-foot-logo{display:block;flex:0 0 auto;width:84px;height:auto;border-radius:0}
+/* not too white */
+html.dk:not([data-theme="dark"]) #mix-list .story,html.dk:not([data-theme="dark"]) #mix-list .sn,html.dk:not([data-theme="dark"]) #mix-list .ev,
+html.dk:not([data-theme="dark"]) .views .story,html.dk:not([data-theme="dark"]) .dk-w,html.dk:not([data-theme="dark"]) .dk-game,
+html.dk:not([data-theme="dark"]) .mq-chip:not([aria-current="true"]),html.dk:not([data-theme="dark"]) .mix-more button{background-color:var(--dk-card)}
+html.dk:not([data-theme="dark"]) .dk-getapp,html.dk:not([data-theme="dark"]) dialog#player,html.dk:not([data-theme="dark"]) dialog.settings{background-color:var(--dk-card2);color:#000}
+html.dk:not([data-theme="dark"]) .dk-btn:not(.primary):not(.bmc){background-color:var(--dk-card)}
+html.dk .dk-hero .dk-btn:not(.primary):not(.bmc){background:#fff}
+/* big headings in Chewy */
+html.dk .views .sec-head h2,html.dk .dk-w h2{font-family:var(--dk-display);font-weight:400;letter-spacing:.01em}
+html.dk .views .sec-head h2{font-size:1.75rem;line-height:1.15}
+html.dk .dk-w h2{font-size:1.35rem}
+html.dk .dk-foot-tag{font-size:.95rem}
+/* "The latest chisme": a small black speech bubble with a tail */
+html.dk #mix>.sec-head{align-items:center;margin-bottom:22px}
+html.dk #mix-title{position:relative;display:inline-block;background:#000;color:#fff;font-size:1.9rem;line-height:1.1;padding:.22em .75em .3em;border-radius:22px;transform:rotate(-1.5deg)}
+html.dk #mix-title::before{content:"";position:absolute;left:28px;bottom:-15px;width:28px;height:17px;background:#000;clip-path:polygon(0 0,100% 0,8% 100%)}
+html.dk[data-theme="dark"] #mix-title{box-shadow:0 0 0 2px var(--dk-turq)}
+html.dk[data-theme="dark"] #mix-title::before{background:var(--dk-turq)}
+html.dk[data-season="muertos"]:not([data-theme="dark"]) #mix-title{background:#2a1250}
+html.dk[data-season="muertos"]:not([data-theme="dark"]) #mix-title::before{background:#2a1250}
+/* widgets: speech bubbles (round 22px corners and a little outlined tail at the bottom-left); story cards: just rounder */
+html.dk .dk-w{position:relative;border-radius:22px;box-shadow:none}
+html.dk .dk-w::after{content:"";position:absolute;left:30px;bottom:-9px;width:16px;height:16px;background:inherit;border:solid var(--dk-wline);border-width:0 2px 2px 0;transform:rotate(45deg) skew(8deg,8deg);pointer-events:none}
+html.dk .dk-w.dk-house::after{border-style:dashed}
+html.dk #mix-list .story,html.dk #mix-list .sn,html.dk #mix-list .ev,html.dk #mix-list>.donate{border-radius:20px}

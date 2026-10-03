@@ -1,0 +1,11 @@
+{
+  "_help": [
+    "v49.14 local sponsor spot on the desktop homepage ('This chisme brought to you by…'). Every entry shows a 'Sponsored' tag.",
+    "Fields: id (a-z, 0-9, dashes), name, url (https only), tagline (up to 140 chars), area (e.g. 'Southtown'), cta (button text),",
+    "image ('/static/…' or https), alt (image description), adult (true = beer / ice-house: only shown with the 21+ setting on),",
+    "active (false hides it), start / end ('YYYY-MM-DD', Chicago dates, both optional), weight (1-10, how often it's picked).",
+    "With no live sponsors the card says 'Your business here, reach local metiches' and links to Support / Contact.",
+    "Edit this file (or point SPONSORS_FILE at another one) and redeploy; the server re-reads it when it changes."
+  ],
+  "sponsors": []
+}

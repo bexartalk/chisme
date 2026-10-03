@@ -1,7 +1,7 @@
 /* Chisme service worker: caches the app shell and the last-loaded news/weather
    so the app opens instantly (and shows the last saved data) even when the server is asleep
    or there's no connection. */
-const VERSION = "chisme-v49.13";   // v49.2 … v49.13: same-day follow-ups (a ".N" after the number is allowed)
+const VERSION = "chisme-v49.14";   // v49.2 … v49.14: same-day follow-ups (a ".N" after the number is allowed)
 const BUILD = VERSION.replace("chisme-v", "");          // index.html asks for app.js?v=<BUILD>
 const SHELL_CACHE = `${VERSION}-shell`;
 const DATA_CACHE = `${VERSION}-data`;
@@ -16,6 +16,8 @@ const SHELL = [
   `/static/juegos.js?v=${BUILD}`,
   `/static/juan.js?v=${BUILD}`,
   `/static/app.js?v=${BUILD}`,
+  `/static/desktop.js?v=${BUILD}`,   // v49.14: the desktop website layer (desktop.css only applies at >= 1024 px)
+  `/static/desktop.css?v=${BUILD}`,
   "/static/vendor/leaflet/leaflet.css",
   "/static/vendor/leaflet/leaflet.js",
   "/static/vendor/leaflet/images/layers.png",
@@ -37,6 +39,8 @@ ART.push(...["avatar-64", "avatar-128", "avatar-192", "header-480", "header-960"
 ART.push(...["papel-picado", "marigold", "sugar-skull", "candle"].map((n) => `/static/season/${n}.svg`), "/static/season/gallery.json");
 // v49.3: the 3 KB display face for "Tía Chismosa" in her chat header
 ART.push("/static/fonts/chewy-tia.woff2");
+// v49.14: the desktop website's art (~40 KB): the icon's "Chisme" bubble logo, the confetti page tiles, the Chewy display face
+ART.push(`/static/site/chisme-bubble-logo.svg?v=${BUILD}`, "/static/site/confetti.svg", "/static/site/confetti-dark.svg", "/static/fonts/chewy-site.woff");
 // v41: Chismería's (was Lotería Chismosa) recorded Spanish calls (57 short mp3s, ~1.3 MB; tools/make_loteria_audio.py), best-effort too.
 ART.push(...[...Array.from({ length: 54 }, (_, i) => String(i + 1).padStart(2, "0")), "intro", "loteria", "over"].map((k) => `/static/loteria/audio/${k}.mp3`));
 // v43: the 54 vintage Lotería cards (tools/make_loteria_cards.py, ~1.3 MB), best-effort too: the tabla works offline
@@ -167,6 +171,7 @@ self.addEventListener("fetch", (event) => {
   if (url.pathname === "/sw.js") return;
   if (url.pathname === "/stats" || url.pathname.startsWith("/stats/")) return;   // the owner's private page: always the server, never the app shell
   if (url.pathname === "/privacy" || url.pathname === "/terms") return;   // v49.12: real pages, never the app shell
+  if (["/about", "/support", "/contact", "/robots.txt", "/sitemap.xml", "/qr.svg"].includes(url.pathname)) return;   // v49.14: real pages too
   if (url.pathname === "/api/refresh") return;   // v49.10: the "refresh everyone" token is never cached here
   if (url.pathname.startsWith("/api/")) { event.respondWith(apiNetworkFirst(req)); return; }
   if (req.mode === "navigate") { event.respondWith(pageCacheFirst(req)); return; }

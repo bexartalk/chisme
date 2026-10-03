@@ -43,6 +43,7 @@ import autopush
 import juanscores
 import push
 import stats
+import website   # v49.14: the desktop website, store pages, SEO, sponsors, domain-move prep (website.py)
 
 # ---------------------------------------------------------------- config
 DEFAULT_LAT, DEFAULT_LON = 29.4241, -98.4936  # San Antonio, TX (used until the user picks)
@@ -140,6 +141,7 @@ JUNK_TITLES = re.compile(r"\bobituar(y|ies)\b|funeral information|\bfor sale\b|h
 
 # ---------------------------------------------------------------- infra
 app = FastAPI(title="Chisme")
+website.install(app)   # v49.14 (first, so its middleware runs inside cache_headers: security headers + CSP still apply)
 _cache: dict[str, tuple[float, Any]] = {}
 _locks: dict[str, asyncio.Lock] = {}
 _client: httpx.AsyncClient | None = None
