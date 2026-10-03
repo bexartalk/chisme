@@ -188,7 +188,7 @@ asyncio.run(prune())
 # ---------------------------------------------------------------- 6. the owner's payload
 P = autopush.admin_payload
 p, _ = P({})
-check(p and p["title"] == "Chisme" and p["body"] == "¡Órale, new chisme! 👀" and p["url"] == "/#news", f"defaults: '{p['title']}' / '{p['body']}' → {p['url']}")
+check(p and p["title"] == "Chisme" and p["body"] == "New chisme! 👀" and p["url"] == "/#news", f"defaults: '{p['title']}' / '{p['body']}' → {p['url']}")
 p, _ = P({"title": "Heads up", "message": "Big story", "link": "https://www.ksat.com/news/local/2026/10/01/x/"})
 check(p["url"].startswith("/?story=https%3A%2F%2Fwww.ksat.com") and p["url"].endswith("#news"), "a story link opens in the in-app reader, not a browser tab")
 check(P({"message": "x", "link": "/#weather"})[0]["url"] == "/#weather", "an app path (/#weather) is kept")
@@ -273,12 +273,12 @@ check(r.status_code == 303 and r.headers.get("location") == "/stats?link=old" an
       "v49.11: /stats?key= never signs in; it drops the key from the address bar")
 c.post("/stats/login", data={"key": "unit-test-admin-token", "remember": "1"}, follow_redirects=False)   # the sign-in form
 r = c.get("/stats")
-check(r.status_code == 200 and "Send a notification" in r.text and "Auto-alerts are off" in r.text and "¡Órale, new chisme! 👀" in r.text and "<b>1</b> phone will get it" in r.text
+check(r.status_code == 200 and "Send a notification" in r.text and "Auto-alerts are off" in r.text and "New chisme! 👀" in r.text and "<b>1</b> phone will get it" in r.text
       and "Off · nothing is sent automatically" in r.text,
       "/stats (admin): send box with the default message, the subscriber count, the auto-send switch (off)")
 r = c.post("/stats/push/send", content="message=hi", headers={"Content-Type": "application/x-www-form-urlencoded"})
 check(r.status_code == 401, "a form post (cross-site style) is refused even with the cookie: JSON only")
-r = c.post("/stats/push/send", json={"title": "Chisme", "message": "¡Órale, new chisme! 👀", "link": "https://example.com/s"})
+r = c.post("/stats/push/send", json={"title": "Chisme", "message": "New chisme! 👀", "link": "https://example.com/s"})
 check(r.status_code == 200 and r.json()["sent"] == 1 and r.json()["failed"] == 0 and r.json()["text"] == "Sent to 1 phone", f"owner send: {r.json()}")
 r = c.post("/stats/push/send", json={"message": "x", "link": "javascript:alert(1)"})
 check(r.status_code == 400 and "https" in r.json()["error"], "a bad link: 400 with a reason")

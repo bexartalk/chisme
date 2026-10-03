@@ -45,22 +45,22 @@
   const UI = '-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif';
   const WEST = 'Rockwell,"American Typewriter",Georgia,"Times New Roman",serif';
   const LEVELS = [
-    { name: "Hon Dipo", speed: 188, time: "morning", outfit: "work", hint: "Friday shift, 7 a.m. Load up the supplies and dodge the runaway carts and the ICE agents. ¡Órale!", done: "Supplies loaded. ¡Órale!", d: 1, seed: 1,
+    { name: "Hon Dipo", speed: 188, time: "morning", outfit: "work", hint: "Friday shift, 7 a.m. Load up the supplies and dodge the runaway carts and the ICE agents. Let's go!", done: "Supplies loaded. Nice work!", d: 1, seed: 1,
       mix: { cone: 3, cart: 3, pothole: 2, pallet: 2, agent: 2, suv: 1 }, power: [[900, "coffee"], [2300, "flipflops"], [2700, "taco"], [4400, "coffee"]] },
     { name: "La Chamba", speed: 194, time: "morning", outfit: "work", d: "site", seed: 23, diff: 3, city: true,   // v47: downtown, the most ICE agents, the SUVs out in force
-      hint: "Supplies in the truck, now downtown to La Chamba. ICE agents on every corner, so hop 'em! ¡Ándale!", done: "Clocked in! Gualmart won't build itself.",
+      hint: "Supplies in the truck, now downtown to La Chamba. ICE agents on every corner, so hop 'em! Go, go, go!", done: "Clocked in! Gualmart won't build itself.",
       mix: { agent: 8, cone: 4, pothole: 3, cart: 2, pallet: 2, suv: 2 }, power: [[1100, "coffee"], [2300, "flipflops"], [2800, "taco"], [4500, "coffee"]] },
-    { name: "Don Pedroes", speed: 198, time: "noon", outfit: "work", d: 2, seed: 2, hint: "Lunch break! The alambre plate is calling, and the weekend's almost here.", done: "Panza full. Back to work!",
+    { name: "Don Pedroes", speed: 198, time: "noon", outfit: "work", d: 2, seed: 2, hint: "Lunch break! The alambre plate is calling, and the weekend's almost here.", done: "Belly full. Back to work!",
       mix: { pothole: 3, chancla: 2, chihuahua: 2, cone: 2, agent: 2, suv: 1 }, power: [[1250, "taco"], [2350, "flipflops"], [3100, "coffee"], [4700, "taco"]] },
-    { name: "O'Reillees", speed: 208, time: "afternoon", outfit: "work", d: 3, seed: 3, hint: "The work truck needs a part before quitting time. Mind the potholes. ¡Ándale!", done: "Part in hand. Almost quitting time!",
+    { name: "O'Reillees", speed: 208, time: "afternoon", outfit: "work", d: 3, seed: 3, hint: "The work truck needs a part before quitting time. Mind the potholes. Hurry!", done: "Part in hand. Almost quitting time!",
       mix: { pothole: 3, tires: 2, cone: 2, cart: 1, chihuahua: 2, agent: 3, suv: 1 }, power: [[1000, "coffee"], [2250, "flipflops"], [2600, "taco"], [4500, "coffee"]] },
-    { name: "Juan's Casa", speed: 216, time: "sunset", outfit: "work", d: 4, seed: 4, hint: "Quitting time! Home to wash up, then boots and cowboy hat on.", done: "Boots on, hat on. ¡Ya es viernes!",
+    { name: "Juan's Casa", speed: 216, time: "sunset", outfit: "work", d: 4, seed: 4, hint: "Quitting time! Home to wash up, then boots and cowboy hat on.", done: "Boots on, hat on. It's Friday!",
       mix: { sprinkler: 3, chihuahua: 2, chancla: 2, pothole: 2, cone: 1, agent: 3, suv: 2 }, power: [[1300, "taco"], [2300, "flipflops"], [3000, "coffee"], [4600, "taco"]] },
-    { name: "Noche Caliente", speed: 222, time: "night", outfit: "western", d: 5, seed: 5, hint: "¡Ya es viernes! The crew's saving him a seat. Jump for the cold ones on the way!",
-      done: "Cold ones with the crew! Next stop: a vacation at Playa Neón. ¡Wepa!",
+    { name: "Noche Caliente", speed: 222, time: "night", outfit: "western", d: 5, seed: 5, hint: "It's Friday! The crew's saving him a seat. Jump for the cold ones on the way!",
+      done: "Cold ones with the crew! Next stop: a vacation at Playa Neón. Woo-hoo!",
       mix: { pothole: 2, cone: 2, chihuahua: 2, chancla: 2, sprinkler: 1, agent: 3, suv: 2 }, power: [[1500, "coffee"], [2300, "flipflops"], [3300, "taco"]], beers: true },
     { name: "Playa Neón", speed: 226, time: "neon", outfit: "western", d: 7, seed: 78, diff: 5, beach: true,   // v49.5: the celebration level, an original neon beach city at sunset
-      hint: "Vacation! Juan runs from his hotel to the beach at sunset, with ICE agents and cartoon gangsters on his tail. Martinis and tacos keep him going.", done: "¡A la playa!", martinis: true,
+      hint: "Vacation! Juan runs from his hotel to the beach at sunset, with ICE agents and cartoon gangsters on his tail. Martinis and tacos keep him going.", done: "Beach time!", martinis: true,
       mix: { lowcar: 2, sportscar: 2, cone: 3, pothole: 3, chihuahua: 1, agent: 2, suv: 1 }, power: [[1100, "coffee"], [2300, "flipflops"], [3000, "taco"], [4600, "taco"]] },
   ];
   const DEST_H = [210, 256, 312, 150, 150, 232, 240];   // how tall each stop's building is (units), so a short screen can shrink it to fit under the HUD
@@ -418,7 +418,7 @@
         c.restore(); };
       fan(214, 1, "trunks", "#ff8a00", "#2a1c14"); fan(238, 3, "bikini", "#ff3d8b", "#e8b830", 0.95); fan(262, 2, "trunks", "#3ee8eb", "#1b120c", 1.05); fan(286, 0, "one", "#7a3fd0", "#5a2a14");
       fan(308, 4, "bikini", "#00b8b0", "#1b120c", 0.95); fan(332, 1, "trunks", "#ff3d8b", "#3a2414"); fan(352, 3, "one", "#ff6f3a", "#8a4a1a", 0.92);
-      say(c, "¡Wepa!", 262, -118, 16, "#ffffff", { weight: 900, stroke: "#ff3d8b", sw: 3 }); say(c, "¡Bienvenido, Juan!", 300, -100, 12, "#ffffff", { weight: 900, stroke: "#00807a", sw: 3 });
+      say(c, "Woo-hoo!", 262, -118, 16, "#ffffff", { weight: 900, stroke: "#ff3d8b", sw: 3 }); say(c, "Welcome, Juan!", 300, -100, 12, "#ffffff", { weight: 900, stroke: "#00807a", sw: 3 });
       return;
     }
     if (n === "site") {   // v47 La Chamba: a construction site downtown: steel frame + crane, a "COMING SOON Gualmart" parody sign (our own art), fencing, cones, a cement mixer, a yellow excavator and loader
@@ -1192,7 +1192,7 @@
       <div class="lot-rules juan-rules">${howList("juan-how-page")}</div>
       <p class="lot-stats" id="juan-stats"></p>
       <section class="juan-hs" id="juan-hs" aria-labelledby="juan-hs-t">
-        <h3 class="juan-hs-t" id="juan-hs-t"><span aria-hidden="true">🏆</span> Top 10</h3>
+        <h3 class="juan-hs-t" id="juan-hs-t"><span aria-hidden="true">🏆</span> Top 10 Metiches</h3>
         <ol class="juan-hs-list" id="juan-hs-list" aria-live="polite"></ol>
         <p class="juan-hs-note" id="juan-hs-note" hidden></p>
         <p class="juan-affil">Parody. All characters are original; any resemblance to other works is parody. Not affiliated with any government agency (including ICE).</p>
@@ -1309,9 +1309,9 @@
     }
     function pickup(e) {
       const h = hero; e.gone = true;
-      if (e.t === "feria") { score += 25; SFX.coin(); msg = "¡La feria! +25"; msgT = 0.9; puff(e.x + 12, e.y + 12, 8, "spark"); }
+      if (e.t === "feria") { score += 25; SFX.coin(); msg = "Money bag! +25"; msgT = 0.9; puff(e.x + 12, e.y + 12, 8, "spark"); }
       else if (e.t === "concha") { score += 10; SFX.coin(); puff(e.x + 11, e.y + 8, 5, "spark"); }
-      else if (e.t === "beer") { h.health = Math.min(HP, h.health + 8); score += 15; if (!e.mt) beersGot++; SFX.salud(); msg = e.mt ? "Martini! +8 health" : "¡Salud! +8 health"; msgT = 1.1; puff(e.x + 12, e.y + 10, 10, "spark"); }
+      else if (e.t === "beer") { h.health = Math.min(HP, h.health + 8); score += 15; if (!e.mt) beersGot++; SFX.salud(); msg = e.mt ? "Martini! +8 health" : "Cheers! +8 health"; msgT = 1.1; puff(e.x + 12, e.y + 10, 10, "spark"); }
       else if (e.t === "coffee") { h.boost = 5; score += 50; SFX.power(); msg = "Coffee! Speed boost"; msgT = 1.5; puff(e.x + 11, e.y + 14, 14, "spark"); }
       else if (e.t === "flipflops") { h.shield = 1; score += 50; SFX.power(); msg = "Flip-flops! Shield on"; msgT = 1.5; puff(e.x + 15, e.y + 9, 14, "spark"); }
       else if (e.t === "taco") { h.health = Math.min(HP, h.health + 30); score += 50; SFX.power(); msg = "Breakfast taco! +30 health"; msgT = 1.5; puff(e.x + 16, e.y + 10, 14, "spark"); }
@@ -1355,9 +1355,9 @@
       if (level === LEVELS.length) {
         mode = "win"; st.levelMax = LEVELS.length; st.beers = Math.max(st.beers || 0, beersGot); save(st); stats();
         if (!reduced()) for (let i = 0; i < 120; i++) parts.push({ x: Math.random() * VW, y: -Math.random() * VH, vy: 40 + Math.random() * 70, vx: Math.random() * 30 - 15, r: Math.random() * 6, c: ["#00b8b0", "#ff3d8b", "#ff8a00", "#c9d0d8", "#ffffff"][i % 5] });
-        overlay(`<p class="juan-big">¡Salud, Juan!</p><p class="juan-win-line">From Noche Caliente to the beach at Playa Neón: the Juan That Got Away made it to his vacation. <span lang="es">¡A la playa!</span></p><p class="juan-win-score">Final score <b>${num(score)}</b></p><button type="button" class="lot-btn lot-main" data-act="again">▶ Play again</button><p class="juan-btns">${skinBtn()}${skinHint()}</p>`, "win");
+        overlay(`<p class="juan-big">Cheers, Juan!</p><p class="juan-win-line">From Noche Caliente to the beach at Playa Neón: the Juan That Got Away made it to his vacation. Beach time!</p><p class="juan-win-score">Final score <b>${num(score)}</b></p><button type="button" class="lot-btn lot-main" data-act="again">▶ Play again</button><p class="juan-btns">${skinBtn()}${skinHint()}</p>`, "win");
         const final = score; setTimeout(() => { if (el.isConnected) offer(final, LEVELS.length); }, reduced() ? 600 : 1800);   // v49.5: the run's done → the board?
-        $("#juan-note").innerHTML = `🎉 <span lang="es">¡Órale!</span> Friday shift done, cold ones at Noche Caliente, then a vacation at Playa Neón, from the hotel to the beach. <span lang="es">¡Salud!</span> <span class="juan-score">Final score <b>${num(score)}</b> · Best <b>${num(st.best)}</b></span> <button type="button" class="lot-btn lot-main" data-act="again">▶ Play again</button>`;
+        $("#juan-note").innerHTML = `🎉 Friday shift done, cold ones at Noche Caliente, then a vacation at Playa Neón, from the hotel to the beach. Cheers! <span class="juan-score">Final score <b>${num(score)}</b> · Best <b>${num(st.best)}</b></span> <button type="button" class="lot-btn lot-main" data-act="again">▶ Play again</button>`;
         return;
       }
       if (level === 6) st.wins++;   // v49.5: made it to Noche Caliente (Playa Neón is the celebration after)
@@ -1651,8 +1651,8 @@
     function title() {
       level = 1; cache = {}; spawn(0); hero.x = 140; camX = cam(hero.x); mode = "title"; fit();
       const cont = st.levelMax > 1 ? `<button type="button" class="lot-btn" data-act="cont">▶ Keep going: level ${num(st.levelMax)}</button>` : "";
-      $("#juan-note").textContent = "¡Ya es viernes! Get Juan through his Friday shift to cold beers at Noche Caliente.";
-      overlay(`<p class="juan-big">The Juan That Got Away</p><p class="juan-story"><span lang="es">¡Ya es viernes!</span> One last shift, then cold ones.</p>
+      $("#juan-note").textContent = "It's Friday! Get Juan through his Friday shift to cold beers at Noche Caliente.";
+      overlay(`<p class="juan-big">The Juan That Got Away</p><p class="juan-story">It's Friday! One last shift, then cold ones.</p>
         ${howList("juan-how-ov")}
         <p class="juan-btns${cont ? " has-cont" : ""}"><button type="button" class="lot-btn lot-main" data-act="start">▶ Start at level 1</button>${skinBtn()}${cont}${skinHint()}</p>`, "title");   // v49.5: a compact skin chip beside Start; the best score lives in the HUD (HI) and under the game
     }
@@ -1780,7 +1780,7 @@
     }
     function done(d, line) {
       const card = d.querySelector(".juan-hs-card");
-      card.innerHTML = `<p class="juan-hs-big" id="juan-hs-big"><span aria-hidden="true">🎉</span> ¡Órale!</p><p class="juan-hs-sub">${line}</p>
+      card.innerHTML = `<p class="juan-hs-big" id="juan-hs-big"><span aria-hidden="true">🎉</span> You made it!</p><p class="juan-hs-sub">${line}</p>
         <ol class="juan-hs-list in-sheet">${listHTML(merged(), hiId)}</ol><button type="submit" class="juan-hs-save" value="done">Done</button>`;
       drawBoard();
       card.querySelector(".juan-hs-save").focus();
@@ -1909,7 +1909,7 @@
     };
   }
 
-  const game = { id: "juan", name: "The Juan That Got Away", emoji: "👢", blurb: "¡Ya es viernes! Get Juan through his Friday shift and on to beers with the crew at Noche Caliente.", mount };
+  const game = { id: "juan", name: "The Juan That Got Away", emoji: "👢", blurb: "It's Friday! Get Juan through his Friday shift and on to beers with the crew at Noche Caliente.", mount };
   const api = { GRAV, JUMP, JUMP2, fall, trim, DIM, drawAgent: iceAgent, AG_TALL, AWAY, KEY, LEVELS, END, CHECKS, VW, HP, HAZ, ICE, CAUGHT, pickCaught, FUERA, buildLevel, load, save, reset, game, drawJuan: juan, groundFx, JS, SKINS: JSKINS };   // v49.5: drawJuan/groundFx for the skin tests
   if (typeof module === "object" && module.exports) module.exports = api;
   else { root.ChismeJuan = api; if (root.ChismeJuegos) root.ChismeJuegos.GAMES.unshift(game); }   // v47: first in the list = the game Juegitos opens on

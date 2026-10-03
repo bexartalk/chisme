@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Chisme — local news &amp; weather near you</title>
-  <meta name="description" content="Chisme: local news, NWS weather, alerts, live rain radar and local events for wherever you are.">
+  <title>Chisme, the community for los metiches</title>
+  <meta name="description" content="Chisme, the community for los metiches. Local news, NWS weather, alerts, live rain radar, sports and events for wherever you are.">
   <meta name="theme-color" content="#00C9CD">
   <meta name="application-name" content="Chisme">
   <meta name="mobile-web-app-capable" content="yes">
@@ -189,11 +189,12 @@
     <div class="picado" aria-hidden="true"></div>
     <div class="mq-picado muertos-only" aria-hidden="true"></div>
   </header>
+  <p class="tagline">Chisme, the community for los metiches.</p>   <!-- v49.12: the tagline under the header -->
   <!-- v49.12: the Día de Muertos greeting (style.css shows it only in season, until ✕; app.js remembers ✕) -->
   <div id="muertos-banner" class="muertos-banner wrap muertos-only" role="note" aria-label="Día de Muertos greeting">
     <div class="mb-inner">
       <img class="mb-skull" src="/static/season/sugar-skull.svg" alt="" width="54" height="59">
-      <div class="mb-text"><p class="mb-t" lang="es">¡Feliz Día de Muertos, San Antonio!</p>
+      <div class="mb-text"><p class="mb-t">Happy Día de Muertos, San Antonio!</p>
         <button type="button" id="mb-photos" class="mb-photos"><span aria-hidden="true">📸</span> See the photos</button></div>
       <span class="mb-candles" aria-hidden="true"><img src="/static/season/candle.svg" alt="" width="20" height="37"><img src="/static/season/candle.svg" alt="" width="16" height="30"></span>
       <button type="button" id="muertos-banner-x" class="mb-x" aria-label="Dismiss the Día de Muertos greeting">✕</button>
@@ -203,7 +204,7 @@
 
   <section id="loc-panel" class="loc-panel wrap" hidden aria-labelledby="loc-title">
     <div class="loc-inner">
-      <h2 id="loc-title">Show news &amp; weather for where you are?</h2>
+      <h2 id="loc-title">Welcome, metiche! Want news &amp; weather for where you are?</h2>
       <p id="loc-msg">Chisme uses your location for your forecast, alerts, radar, nearby stories, sports and Tía. It's saved on this device and sent to Chisme's server, rounded to about 1 km, to look things up; it's never sold. With notifications on, your area (about 1 km) stays on the server until you turn them off. You'll only be asked once: to change it later, tap the Chisme bubble at the top for Settings.</p>
       <div class="loc-actions">
         <button type="button" id="loc-gps" class="install">📍 Use my location</button>
@@ -249,7 +250,7 @@
       <div class="a2hs-head">
         <img src="/static/icons/icon-192.png" alt="" width="52" height="52">
         <div><h2 id="a2hs-title" tabindex="-1">Put Chisme on your Home Screen</h2>
-        <p id="a2hs-sub">Tía wants to move in. ¡Ándale!</p></div>
+        <p id="a2hs-sub">Tía wants to move in. Go on, it takes a second!</p></div>
       </div>
       <ol class="a2hs-steps" id="a2hs-steps"></ol>
       <button type="button" id="a2hs-act" class="a2hs-act" hidden></button>
@@ -284,7 +285,7 @@
           <p class="hint mix-end" id="mix-end" hidden>That's the mix for now. See everything in <button type="button" class="linkish" data-go="news">📰 News</button>, <button type="button" class="linkish" data-go="sports">🏀 Sports</button> or <button type="button" class="linkish" data-go="events">🎉 Events</button>.</p>
         </section>
         <aside class="card donate" id="donate-chisme" aria-labelledby="donate-chisme-t">
-          <p class="donate-text" id="donate-chisme-t">The tea ain’t free! Help a chismoso out — donate now!</p>
+          <p class="donate-text" id="donate-chisme-t">The tea ain’t free! Help a metiche out — donate now!</p>
           <div class="donate-btns"><a class="donate-btn cashapp" href="https://cash.app/$Slurmkaos" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">💸</span> <span class="ca-lbl"><span class="ca-main">Donate on Cash App</span><span class="ca-dot" aria-hidden="true"> · </span><span class="ca-tag">$Slurmkaos</span></span><span class="sr-only"> (opens Cash App)</span></a><a class="donate-btn bmc" href="https://buymeacoffee.com/Chismoso" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">☕</span> Buy Me a Coffee<span class="sr-only"> (opens Buy Me a Coffee)</span></a><!-- room for one more: <a class="donate-btn venmo"> (add venmo.com to DIRECT_HOSTS in app.js) --></div>
           <p class="donate-fine">Tips go to the Chisme creator; not a charity, not tax-deductible, unlocks nothing.</p>
         </aside>
@@ -294,7 +295,7 @@
       <section id="view-news" class="view" aria-label="Chisme: News" data-view="news" inert>
         <nav class="mq-chips" aria-label="Chisme: show"><button type="button" class="mq-chip" data-go="chisme"><span aria-hidden="true">✨</span> All</button><button type="button" class="mq-chip" data-go="news" aria-current="true"><span aria-hidden="true">📰</span> News</button><button type="button" class="mq-chip" data-go="sports"><span aria-hidden="true">🏀</span> Sports</button><button type="button" class="mq-chip" data-go="events"><span aria-hidden="true">🎉</span> Events</button></nav>
         <div class="greet card slim">
-          <p class="greet-hi" id="greet-hi" aria-live="polite">¡Buenos días, chismosos!</p>
+          <p class="greet-hi" id="greet-hi" aria-live="polite">Good morning, metiches!</p>
           <p class="greet-sub" id="greet-sub">Pull up a chair, grab the tea, here’s the latest chisme.</p>
           <p class="swipe-hint" id="swipe-hint">Swipe <span aria-hidden="true">👈</span> for more · pull to refresh · tap the bubble for settings.</p>
         </div>
@@ -323,7 +324,7 @@
           <details class="feeds-status"><summary>News sources for this location</summary><ul id="feeds"></ul></details>
         </section>
         <aside class="card donate" id="donate-news" aria-labelledby="donate-news-t">
-          <p class="donate-text" id="donate-news-t">The tea ain’t free! Help a chismoso out — donate now!</p>
+          <p class="donate-text" id="donate-news-t">The tea ain’t free! Help a metiche out — donate now!</p>
           <div class="donate-btns"><a class="donate-btn cashapp" href="https://cash.app/$Slurmkaos" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">💸</span> <span class="ca-lbl"><span class="ca-main">Donate on Cash App</span><span class="ca-dot" aria-hidden="true"> · </span><span class="ca-tag">$Slurmkaos</span></span><span class="sr-only"> (opens Cash App)</span></a><a class="donate-btn bmc" href="https://buymeacoffee.com/Chismoso" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">☕</span> Buy Me a Coffee<span class="sr-only"> (opens Buy Me a Coffee)</span></a><!-- room for one more: <a class="donate-btn venmo"> (add venmo.com to DIRECT_HOSTS in app.js) --></div>
           <p class="donate-fine">Tips go to the Chisme creator; not a charity, not tax-deductible, unlocks nothing.</p>
         </aside>
@@ -352,7 +353,7 @@
             <ul id="sports-sources"></ul></details>
         </section>
         <aside class="card donate" id="donate-sports" aria-labelledby="donate-sports-t">
-          <p class="donate-text" id="donate-sports-t">The tea ain’t free! Help a chismoso out — donate now!</p>
+          <p class="donate-text" id="donate-sports-t">The tea ain’t free! Help a metiche out — donate now!</p>
           <div class="donate-btns"><a class="donate-btn cashapp" href="https://cash.app/$Slurmkaos" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">💸</span> <span class="ca-lbl"><span class="ca-main">Donate on Cash App</span><span class="ca-dot" aria-hidden="true"> · </span><span class="ca-tag">$Slurmkaos</span></span><span class="sr-only"> (opens Cash App)</span></a><a class="donate-btn bmc" href="https://buymeacoffee.com/Chismoso" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">☕</span> Buy Me a Coffee<span class="sr-only"> (opens Buy Me a Coffee)</span></a><!-- room for one more: <a class="donate-btn venmo"> (add venmo.com to DIRECT_HOSTS in app.js) --></div>
           <p class="donate-fine">Tips go to the Chisme creator; not a charity, not tax-deductible, unlocks nothing.</p>
         </aside>
@@ -400,7 +401,7 @@
           <p class="credit" id="fc-credit">Source: National Weather Service (api.weather.gov)</p>
         </section>
         <aside class="card donate" id="donate-weather" aria-labelledby="donate-weather-t">
-          <p class="donate-text" id="donate-weather-t">The tea ain’t free! Help a chismoso out — donate now!</p>
+          <p class="donate-text" id="donate-weather-t">The tea ain’t free! Help a metiche out — donate now!</p>
           <div class="donate-btns"><a class="donate-btn cashapp" href="https://cash.app/$Slurmkaos" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">💸</span> <span class="ca-lbl"><span class="ca-main">Donate on Cash App</span><span class="ca-dot" aria-hidden="true"> · </span><span class="ca-tag">$Slurmkaos</span></span><span class="sr-only"> (opens Cash App)</span></a><a class="donate-btn bmc" href="https://buymeacoffee.com/Chismoso" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">☕</span> Buy Me a Coffee<span class="sr-only"> (opens Buy Me a Coffee)</span></a><!-- room for one more: <a class="donate-btn venmo"> (add venmo.com to DIRECT_HOSTS in app.js) --></div>
           <p class="donate-fine">Tips go to the Chisme creator; not a charity, not tax-deductible, unlocks nothing.</p>
         </aside>
@@ -454,7 +455,7 @@
             <ul id="food-sources"></ul></details>
         </section>
         <aside class="card donate" id="donate-dieta" aria-labelledby="donate-dieta-t">
-          <p class="donate-text" id="donate-dieta-t">The tea ain’t free! Help a chismoso out — donate now!</p>
+          <p class="donate-text" id="donate-dieta-t">The tea ain’t free! Help a metiche out — donate now!</p>
           <div class="donate-btns"><a class="donate-btn cashapp" href="https://cash.app/$Slurmkaos" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">💸</span> <span class="ca-lbl"><span class="ca-main">Donate on Cash App</span><span class="ca-dot" aria-hidden="true"> · </span><span class="ca-tag">$Slurmkaos</span></span><span class="sr-only"> (opens Cash App)</span></a><a class="donate-btn bmc" href="https://buymeacoffee.com/Chismoso" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">☕</span> Buy Me a Coffee<span class="sr-only"> (opens Buy Me a Coffee)</span></a><!-- room for one more: <a class="donate-btn venmo"> (add venmo.com to DIRECT_HOSTS in app.js) --></div>
           <p class="donate-fine">Tips go to the Chisme creator; not a charity, not tax-deductible, unlocks nothing.</p>
         </aside>
@@ -469,7 +470,7 @@
         </section>
         <section id="game-stage" class="card game-stage" aria-label="Game"><p class="loading">Shuffling the cards…</p></section>
         <aside class="card donate" id="donate-juegos" aria-labelledby="donate-juegos-t">
-          <p class="donate-text" id="donate-juegos-t">The tea ain’t free! Help a chismoso out — donate now!</p>
+          <p class="donate-text" id="donate-juegos-t">The tea ain’t free! Help a metiche out — donate now!</p>
           <div class="donate-btns"><a class="donate-btn cashapp" href="https://cash.app/$Slurmkaos" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">💸</span> <span class="ca-lbl"><span class="ca-main">Donate on Cash App</span><span class="ca-dot" aria-hidden="true"> · </span><span class="ca-tag">$Slurmkaos</span></span><span class="sr-only"> (opens Cash App)</span></a><a class="donate-btn bmc" href="https://buymeacoffee.com/Chismoso" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">☕</span> Buy Me a Coffee<span class="sr-only"> (opens Buy Me a Coffee)</span></a><!-- room for one more: <a class="donate-btn venmo"> (add venmo.com to DIRECT_HOSTS in app.js) --></div>
           <p class="donate-fine">Tips go to the Chisme creator; not a charity, not tax-deductible, unlocks nothing.</p>
         </aside>
@@ -480,7 +481,7 @@
         <nav class="mq-chips" aria-label="Chisme: show"><button type="button" class="mq-chip" data-go="chisme"><span aria-hidden="true">✨</span> All</button><button type="button" class="mq-chip" data-go="news"><span aria-hidden="true">📰</span> News</button><button type="button" class="mq-chip" data-go="sports"><span aria-hidden="true">🏀</span> Sports</button><button type="button" class="mq-chip" data-go="events" aria-current="true"><span aria-hidden="true">🎉</span> Events</button></nav>
         <section id="events" class="card">
           <div class="sec-head"><h2 id="events-title">What's happening</h2><span class="stamp" id="events-updated"></span></div>
-          <p class="blurb" id="events-intro">¡Órale! Here's what's going on around town.</p>
+          <p class="blurb" id="events-intro">Here's what's going on around town.</p>
           <!-- Category filter chips (scroll sideways on small screens; swiping here never switches views) -->
           <div id="ev-chips" class="chips" role="group" aria-label="Show event category">
             <button type="button" class="chip" data-cat="all" aria-pressed="true">All <span class="n" id="n-all"></span></button>
@@ -488,7 +489,7 @@
             <button type="button" class="chip" data-cat="festivals" aria-pressed="false"><span aria-hidden="true">🎉</span> Festivals <span class="n" id="n-festivals"></span></button>
             <button type="button" class="chip" data-cat="free-classes" aria-pressed="false"><span aria-hidden="true">🎓</span> Free classes <span class="n" id="n-free-classes"></span></button>
           </div>
-          <div id="events-list" class="events-list"><p class="loading">Rounding up the pachangas…</p></div>
+          <div id="events-list" class="events-list"><p class="loading">Rounding up the parties…</p></div>
         </section>
         <section id="ongoing-sec" class="card" hidden>
           <details>
@@ -504,7 +505,7 @@
             <p class="hint">Categories are tagged automatically from each listing's title and the source's own categories, so a few may land in the wrong bucket. “Free classes” only shows classes, talks and workshops the listing says are free.</p></details>
         </section>
         <aside class="card donate" id="donate-events" aria-labelledby="donate-events-t">
-          <p class="donate-text" id="donate-events-t">The tea ain’t free! Help a chismoso out — donate now!</p>
+          <p class="donate-text" id="donate-events-t">The tea ain’t free! Help a metiche out — donate now!</p>
           <div class="donate-btns"><a class="donate-btn cashapp" href="https://cash.app/$Slurmkaos" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">💸</span> <span class="ca-lbl"><span class="ca-main">Donate on Cash App</span><span class="ca-dot" aria-hidden="true"> · </span><span class="ca-tag">$Slurmkaos</span></span><span class="sr-only"> (opens Cash App)</span></a><a class="donate-btn bmc" href="https://buymeacoffee.com/Chismoso" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">☕</span> Buy Me a Coffee<span class="sr-only"> (opens Buy Me a Coffee)</span></a><!-- room for one more: <a class="donate-btn venmo"> (add venmo.com to DIRECT_HOSTS in app.js) --></div>
           <p class="donate-fine">Tips go to the Chisme creator; not a charity, not tax-deductible, unlocks nothing.</p>
         </aside>
@@ -547,7 +548,7 @@
     <div class="tia-menu-in">
       <div class="tia-menu-head">
         <span class="tia-menu-emblem" id="tia-menu-emblem" aria-hidden="true"></span>
-        <p class="tia-menu-hi" id="tia-menu-title" tabindex="-1">Hey, it's Tía 👋 What do you need?</p>
+        <p class="tia-menu-hi" id="tia-menu-title" tabindex="-1"><span lang="es">¡Hola, metiche!</span> 👋 What do you need?</p>
         <button type="button" id="tia-menu-x" class="tia-menu-x" aria-label="Close Tía's menu">✕</button>
       </div>
       <button type="button" id="tia-menu-chat" class="tia-menu-btn tm-chat"><span class="tm-big">💬 Chat with Tía</span><span class="tm-sub">Ask about today's chisme</span></button>   <!-- v49.7: chat on top, Settings below -->
@@ -573,7 +574,7 @@
     </div>
     <form id="tia-form" class="tia-form" autocomplete="off">
       <label for="tia-in" class="sr-only">Message Tía Chismosa</label>
-      <input id="tia-in" type="text" maxlength="500" placeholder="Ask la Tía…" enterkeyhint="send">
+      <input id="tia-in" type="text" maxlength="500" placeholder="Ask Tía…" enterkeyhint="send">
       <button type="submit" id="tia-send" class="primary">Send</button>
     </form>
     <!-- v49.4: ⚙️ Settings lives at the bottom of her page, under the Ask box -->
@@ -692,13 +693,13 @@
       </fieldset>
       <fieldset class="set-group" id="set-tia">
         <legend>Tía Chismosa</legend>
-        <p class="set-note">Your chats with la Tía and the interests she learns from what you tap are saved only on this phone (Forget me erases them). Each message you send goes to Chisme's server and to Google's Gemini AI, with the stories the app is showing, to get her answer. Chisme doesn't store it; Google may keep it under its own terms. Don't share private info.</p>
+        <p class="set-note">Your chats with Tía and the interests she learns from what you tap are saved only on this phone (Forget me erases them). Each message you send goes to Chisme's server and to Google's Gemini AI, with the stories the app is showing, to get her answer. Chisme doesn't store it; Google may keep it under its own terms. Don't share private info.</p>
         <button type="button" id="set-forget">Forget me</button>
         <p class="set-note" id="set-forget-note" aria-live="polite"></p>
       </fieldset>
       <fieldset class="set-group set-donate" id="set-donate">
         <legend>Support Chisme</legend>
-        <p class="donate-text" id="set-donate-t">The tea ain’t free! Help a chismoso out — donate now!</p>
+        <p class="donate-text" id="set-donate-t">The tea ain’t free! Help a metiche out — donate now!</p>
         <div class="donate-btns"><a class="donate-btn cashapp" href="https://cash.app/$Slurmkaos" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">💸</span> <span class="ca-lbl"><span class="ca-main">Donate on Cash App</span><span class="ca-dot" aria-hidden="true"> · </span><span class="ca-tag">$Slurmkaos</span></span><span class="sr-only"> (opens Cash App)</span></a><a class="donate-btn bmc" href="https://buymeacoffee.com/Chismoso" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">☕</span> Buy Me a Coffee<span class="sr-only"> (opens Buy Me a Coffee)</span></a><!-- room for one more: <a class="donate-btn venmo"> (add venmo.com to DIRECT_HOSTS in app.js) --></div>
         <p class="donate-fine">Tips go to the Chisme creator; not a charity, not tax-deductible, unlocks nothing.</p>
       </fieldset>
@@ -723,6 +724,7 @@
         <p class="set-note" id="set-privacy-note">Anonymous visit counts, no ads, no tracking cookies. High-score nicknames you enter are public. Full details: Privacy Policy.</p>
         <p class="set-links"><a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a> · <a href="/terms" target="_blank" rel="noopener">Terms of Use</a> · <a href="mailto:bexartalkradio@gmail.com?subject=Chisme">Contact / report a problem</a></p>
       </fieldset>
+      <p class="set-about">Chisme, the community for los metiches.</p>
       <p class="set-foot">Settings are saved on this device only. Chisme <span id="set-version"></span></p>
     </div>
   </dialog>

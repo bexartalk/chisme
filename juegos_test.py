@@ -11,7 +11,7 @@
    confetti + a brag on a win, wins/streak/best in localStorage. The Juan That Got Away (v44, replaces Ice Ice Bebé): run, jump (tap / Space),
    a bump costs health, out of health → a random "¡Ay no!" / "¡Híjole!" / "¡Ándale, otra vez!" (kept in Spanish) and back to the checkpoint,
    v47: caught by ICE → a random "¡Ay no!" / "¡Ay cabrón!" / "¡Chingao!" / "¡Pinche ICE!" / "¡Ay, vengo mamá!", never the same twice in a row; the longest fits 320 px,
-   coffee boost, taco health, beers (+health) at night, level clear, the win at Noche Caliente ("¡Salud, Juan!"), English UI, best score, mute, pause.
+   coffee boost, taco health, beers (+health) at night, level clear, the win ("Cheers, Juan!", v49.12: was ¡Salud, Juan!), English UI, best score, mute, pause.
    Reduce motion (no confetti, no parallax). No links and no outside requests in the games. Settings → default tab Juegitos.
 3. Chromium: offline (service worker), Juegitos still opens and both games run.
 4. v41 full screen: the board fills the width and most of the height at 390×844 and 320×640 with no scrolling; the called card sits small above it.
@@ -51,8 +51,8 @@ TRADITIONAL = ["El Gallo", "El Diablito", "La Dama", "El Catrín", "El Paraguas"
   "El Cazo", "El Mundo", "El Apache", "El Nopal", "El Alacrán", "La Rosa", "La Calavera", "La Campana", "El Cantarito", "El Venado", "El Sol", "La Corona",
   "La Chalupa", "El Pino", "El Pescado", "La Palma", "La Maceta", "El Arpa", "La Rana"]   # #26: El Chocolate replaces the racist "El Negrito"
 # v39: Spanish words that must not show up in the games' UI (v41: the Spanish is the card names and Tía's calls, not the buttons/rules)
-# v43: the user asked for these (the big buttons, the picker and its preset tablas' names)
-ALLOWED_ES = ["Limpiar", "Nueva tabla", "Pick your tabla", "your tabla", "tabla", "La Clásica", "Del Campo", "La Fiesta", "Cielo y Mar", "La Gente"]
+# the preset boards' names (names stay Spanish; v49.12: the buttons and picker are English)
+ALLOWED_ES = ["La Clásica", "Del Campo", "La Fiesta", "Cielo y Mar", "La Gente"]
 SPANISH = ["Empezar", "Pausa", "Seguir", "Otra vez", "Nueva tabla", "Voz", "Lenta", "Rápida", "mija", "Siéntate", "carta", "baraja", "Primero", "Todavía",
   "Ganaste", "Bienvenido", "Llegaste", "Qué", "fiesta", "Mamá", "Cafecito", "Taquería", "Tiendita", "Casa de", "La Plaza", "tabla", "ficha", "esquinas", "fila", "columna"]
 JUAN_LEVELS = ["Hon Dipo", "La Chamba", "Don Pedroes", "O'Reillees", "Juan's Casa", "Noche Caliente", "Playa Neón"]
@@ -174,7 +174,7 @@ async def webkit(p):
     await pg.wait_for_timeout(1500)
     tabs = await pg.evaluate("[...document.querySelectorAll('#tabs .tab')].map(t => t.textContent.trim())")
     fit = await pg.evaluate("(() => { const t = document.querySelector('.tabs-inner'), j = document.querySelector('.tab[data-view=juegos]').getBoundingClientRect(); return t.scrollWidth <= t.clientWidth + 1 && j.right <= innerWidth; })()")
-    check([t.split()[-1] for t in tabs] == ["News", "Sports", "Weather", "dieta?", "Juegitos", "Events"] and tabs[4] == "🎲 Juegitos", f"tab bar: News · Sports · Weather · ¿Y la dieta? · 🎲 Juegitos · Events ({tabs})")
+    check([t.split()[-1] for t in tabs] == ["Chisme", "Weather", "dieta?", "Juegitos"] and tabs[3] == "🎲 Juegitos", f"tab bar: Chisme · Weather · ¿Y la dieta? · 🎲 Juegitos ({tabs})")
     check(fit, "all 4 tabs fit on an iPhone 13 (no sideways scroll)")
     check(await pg.evaluate("__chisme.view") == "juegos" and await pg.evaluate("__chisme.juegos.id") == "loteria", "#loteria opens Juegitos → Chismería")
     games = await pg.evaluate("[...document.querySelectorAll('.game-pick b')].map(b => b.textContent)")
@@ -186,11 +186,11 @@ async def webkit(p):
     # v39: the UI is English (v41: the card names and Tía's calls are the Spanish part)
     UI_TXT = "(() => { const j = document.querySelector('#view-juegos'); return [...j.querySelectorAll('#juegos, .lot-controls, .lot-rules, .lot-stats, #lot-count, .lot-hist-h, #lot-claim, .gfs-bar')].map(e => e.textContent).join(' ') + ' ' + [...j.querySelectorAll('[aria-label]:not(.lot-cell)')].map(e => e.getAttribute('aria-label')).join(' '); })()"
     txt = await pg.evaluate(UI_TXT) + " " + await pg.text_content("#lot-line")
-    has_es = "Limpiar" in txt and "Nueva tabla" in txt   # v43: the two big buttons are Spanish on purpose (like a real tabla app)
+    has_es = "Clear" in txt and "New board" in txt   # v49.12: the two big buttons are English now (v43 had Limpiar / Nueva tabla); only names stay Spanish
     low = txt.lower().replace("lotería", "")
     for w in ALLOWED_ES: low = low.replace(w.lower(), "")
     es = [w for w in SPANISH if w.lower() in low]
-    check(not es and has_es and "Start" in txt and "Sound is on" in txt and "Pull up a chair" in txt and "drop a bean" in txt, f"Lotería's UI is English (▶ Start · 🔊 Sound · the bean rules) besides the Limpiar / Nueva tabla buttons, the preset names and 'tabla' ({es})")
+    check(not es and has_es and "Start" in txt and "Sound is on" in txt and "Pull up a chair" in txt and "drop a bean" in txt, f"Lotería's UI is English (▶ Start · 🔊 Sound · the bean rules) (Clear / New board), only the preset names and ¡Órale! in Spanish ({es})")
     names = await pg.evaluate("[...document.querySelectorAll('#lot-tabla .lc-name')].map(e => e.textContent)")
     check(len(names) == 16 and all(n in TRADITIONAL for n in names) and await pg.evaluate("[...document.querySelectorAll('#lot-tabla .lcard .lc-img')].filter(i => /\\/static\\/loteria\\/cards\\/\\d\\d\\.webp$/.test(i.src) && i.naturalWidth >= 200).length") == 16,
           f"the tabla shows the traditional Spanish names with our own vintage pictures ({names[:4]})")
@@ -283,7 +283,7 @@ async def webkit(p):
     await pg.click('.game-pick[data-game="juan"]'); await to_stage(pg)
     s = await st(pg)
     how = await pg.evaluate("[...document.querySelectorAll('#juan-ov .juan-how li')].map(l => l.textContent.trim())")
-    check(s["mode"] == "title" and "The Juan That Got Away" in s["overlay"] and "¡Ya es viernes! One last shift, then cold ones." in s["overlay"]
+    check(s["mode"] == "title" and "The Juan That Got Away" in s["overlay"] and "It's Friday! One last shift, then cold ones." in s["overlay"]
           and how == ["👆Tap to jump (or twice!)", "🚧Hop cones, carts & ICE", "☕Grab coffee & tacos", "🍻Reach Noche Caliente"], f"v49.4: title screen = a one-line hook + 4 short how-to-play lines ({how})")
     check(await pg.evaluate("document.querySelectorAll('.juan-rules .juan-how li').length") == 4 and "Nobody gets hurt" not in await pg.evaluate("document.querySelector('.juan-rules').textContent"), "v49.4: the same 4 lines under the game (the long rules paragraph is gone)")
     await pg.click('#juan-ov [data-act="start"]'); await pg.wait_for_timeout(700)
@@ -396,7 +396,7 @@ async def webkit(p):
     await pg.evaluate(f"{G}.warp(1, 5900)")
     await until(pg, G + ".state.mode === 'clear'", 6)
     s = await st(pg)
-    check(s["mode"] == "clear" and "You made it to Hon Dipo!" in s["overlay"] and "Supplies loaded. ¡Órale!" in s["overlay"] and s["levelMax"] == 2, f"level 1 cleared at Hon Dipo ({s['overlay'][:40]!r})")
+    check(s["mode"] == "clear" and "You made it to Hon Dipo!" in s["overlay"] and "Supplies loaded. Nice work!" in s["overlay"] and s["levelMax"] == 2, f"level 1 cleared at Hon Dipo ({s['overlay'][:40]!r})")
     await pg.click('#juan-ov [data-act="next"]'); await pg.wait_for_timeout(200)
     check((await st(pg))["level"] == 2 and (await st(pg))["mode"] == "run" and (await st(pg))["name"] == "La Chamba", "▶ on to level 2: La Chamba")
     await pg.click("#juan-pause"); s = await st(pg); await pg.wait_for_timeout(600)
@@ -415,7 +415,7 @@ async def webkit(p):
     check((await st(pg))["muted"] and json.loads(await pg.evaluate("localStorage.getItem('chisme-juegos-juan')"))["muted"], "🔇 Sound mutes the beeps (remembered)")
     # level 6 (Noche Caliente): cowboy clothes, cold ones (+health)
     got = await grab(6, "beer", G + ".state.beers > 0"); s = await st(pg)
-    check(got and s["outfit"] == "western" and s["health"] > 50 and s["msg"] == "¡Salud! +8 health", f"level 6: boots + cowboy hat on; jump for a cold one → a little health ({s['msg']!r}, health {s['health']}, beers {s['beers']})")
+    check(got and s["outfit"] == "western" and s["health"] > 50 and s["msg"] == "Cheers! +8 health", f"level 6: boots + cowboy hat on; jump for a cold one → a little health ({s['msg']!r}, health {s['health']}, beers {s['beers']})")
     await pg.evaluate(f"{G}.warp(6, 5900)")
     cl6 = await until(pg, G + ".state.mode === 'clear'", 6); s = await st(pg)
     check(cl6 and "You made it to Noche Caliente!" in s["overlay"] and "Level 7: Playa Neón" in s["overlay"], f"v49.5: Noche Caliente → on to the celebration level, Playa Neón ({s['overlay'][:90]!r})")
@@ -424,7 +424,7 @@ async def webkit(p):
     await pg.wait_for_timeout(1300)
     s = await st(pg); juan = json.loads(await pg.evaluate("localStorage.getItem('chisme-juegos-juan')"))
     note = await pg.text_content("#juan-note")
-    check(won and "¡Salud, Juan!" in s["overlay"] and "From Noche Caliente to the beach at Playa Neón" in s["overlay"] and "Friday shift done" in note and "Noche Caliente" in note and "Playa Neón" in note, f"level 7: the win after Playa Neón, '¡Salud, Juan!' ({note[:70]!r})")
+    check(won and "Cheers, Juan!" in s["overlay"] and "From Noche Caliente to the beach at Playa Neón" in s["overlay"] and "Friday shift done" in note and "Noche Caliente" in note and "Playa Neón" in note, f"level 7: the win after Playa Neón, '¡Salud, Juan!' ({note[:70]!r})")
     txt = await pg.evaluate("(() => { const j = document.querySelector('#view-juegos'); return [...j.querySelectorAll('#juegos, #game-stage')].map(e => e.textContent).join(' ') + ' ' + [...j.querySelectorAll('[aria-label]')].map(e => e.getAttribute('aria-label')).join(' '); })()")   # textContent: the rules are hidden while full screen
     es = [w for w in SPANISH if w.lower() in txt.lower().replace("lotería", "")]
     check(not es and "Tap to jump (or twice!)" in txt and "Hop cones, carts & ICE" in txt and "Grab coffee & tacos" in txt and "Reach Noche Caliente" in txt, f"The Juan That Got Away's UI is English (v49.4: the 4 short how-to-play lines) ({es})")

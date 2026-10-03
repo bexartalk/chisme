@@ -294,18 +294,21 @@ window.CHISME_APP_BUILD = "49.12";
   // ---------- personality (UI copy only — headlines and story text are never rewritten)
   const pick = (arr) => arr[Math.floor(Date.now() / 36e5) % arr.length];   // changes hourly, stable between renders
   function localHour() { try { return +fmt(new Date(), { hour: "numeric", hourCycle: "h23" }); } catch { return new Date().getHours(); } }
-  // Greeting: "¡Buenos días / Buenas tardes / Buenas noches, chismosos!" (plural, for everyone, by the
-  // place's time of day). The old chismoso/chismosa choice (v22–v23) is gone; its saved key is cleared.
+  // Greeting: "Good morning / Good afternoon / Good evening, metiches!" (plural, for everyone, by the place's time of
+  // day); the first launch says "Welcome, metiche!". v49.12: app copy is English, only names stay Spanish (Chisme, Tía
+  // Chismosa, metiches…). The old chismoso/chismosa choice (v22–v23) is gone; its saved key is cleared.
   try { localStorage.removeItem("chisme-greeting-word"); } catch {}
   function renderGreeting() {
     const h = localHour();
-    $("#greet-hi").textContent = h >= 5 && h < 12 ? "¡Buenos días, chismosos!" : h >= 12 && h < 18 ? "¡Buenas tardes, chismosos!" : "¡Buenas noches, chismosos!";
+    $("#greet-hi").textContent = firstRun() ? "Welcome, metiche!" : h >= 5 && h < 12 ? "Good morning, metiches!" : h >= 12 && h < 18 ? "Good afternoon, metiches!" : "Good evening, metiches!";
+    const mh = $("#mix-hi");
+    if (mh && firstRun() && !mh.querySelector(".mix-welcome")) mh.prepend(el("b", { class: "mix-welcome", text: "Welcome, metiche! " }));
     $("#greet-sub").textContent = "Pull up a chair, grab the tea, here’s the latest chisme.";
   }
 
   // ---------- location panel (friendly pre-prompt, denied fallback, change location)
   const PANEL = {
-    ask: ["Show news & weather for where you are?",
+    ask: ["Welcome, metiche! Want news & weather for where you are?",
       "Chisme uses your location for your forecast, alerts, radar, nearby stories, sports and Tía. It's saved on this device and sent to Chisme's server, rounded to about 1 km, to look things up; it's never sold. With notifications on, your area (about 1 km) stays on the server until you turn them off. You'll only be asked once: to change it later, tap the Chisme bubble at the top for Settings. Until then we're showing San Antonio, TX."],
     denied: ["Location is turned off for Chisme",
       "No problem — type a city or ZIP code below. (To use your location later, allow it for this site in your browser or phone settings, then tap “Use my location.”)"],
@@ -473,14 +476,14 @@ window.CHISME_APP_BUILD = "49.12";
     const sky = (today.shortForecast || "").toLowerCase();
     let line;
     if (/thunder/.test(sky) && pop >= 40) line = "Thunderstorms in the forecast — keep an eye on the radar and the sky. ⛈️";
-    else if (pop >= 50) line = "Rain's in the chisme today — bring the paraguas. ☔";
+    else if (pop >= 50) line = "Rain's in the chisme today — bring an umbrella. ☔";
     else if (t == null) line = pick(["Here's the sky report.", "Your forecast, fresh from the National Weather Service."]);
-    else if (t >= 100) line = "¡Qué calor! Triple digits — agua, shade and sunscreen, mija. 🥵";
-    else if (t >= 90) line = "Hot one out there. Keep the agua fría handy. 🌞";
-    else if (t >= 78) line = "Warm and pleasant — patio weather, ¿qué no? 😎";
+    else if (t >= 100) line = "Triple digits! Water, shade and sunscreen, please. 🥵";
+    else if (t >= 90) line = "Hot one out there. Keep the cold water handy. 🌞";
+    else if (t >= 78) line = "Warm and pleasant — patio weather, right? 😎";
     else if (t >= 62) line = "Sweater-optional weather. Enjoy it while it lasts!";
-    else if (t >= 45) line = "Chilly out — grab a chaqueta on the way out. 🧥";
-    else line = "¡Brrr! Bundle up, it's legit cold out there. 🥶";
+    else if (t >= 45) line = "Chilly out — grab a jacket on the way out. 🧥";
+    else line = "Brrr! Bundle up, it's legit cold out there. 🥶";
     box.textContent = line; box.hidden = false;
   }
   function renderAlerts(w) {
@@ -599,7 +602,7 @@ window.CHISME_APP_BUILD = "49.12";
     loading: () => $("#current").replaceChildren(el("p", { class: "loading", text: `Checking the sky over ${greetCity()}…` })),
     fail: (e) => {
       $("#wx-updated").textContent = "";
-      $("#current").replaceChildren(el("p", { class: "error", text: "¡Ay! Couldn't reach the weather service (" + e.message + "). We'll keep trying." }));
+      $("#current").replaceChildren(el("p", { class: "error", text: "Oops! Couldn't reach the weather service (" + e.message + "). We'll keep trying." }));
     },
     apply: (w, { saved }) => {
       if (!saved) rendered.weather = q();
@@ -802,11 +805,11 @@ window.CHISME_APP_BUILD = "49.12";
   // all for the session. Like the other donate cards it never sits next to a serious story (ChismeDonate.serious).
   const E7_KEY = "chisme-donate-every-x", E7 = 7;
   const E7_LINES = [
-    "Still scrolling? Ay, you love the chisme. Spot Tía a cafecito? ☕",
-    "Tía's been talking all day, mija. A little tip keeps the tea hot. 🫖",
-    "No ads, no paywall, just pura chisme. Help keep the lights on? 💡",
-    "You read it here first, corazón. Toss a coin to your Tía. 💸",
-    "Chisme this good isn't free to brew. Chip in, or share it with your comadres. 💖",
+    "Still scrolling? You really love the chisme. Buy Tía a coffee? ☕",
+    "Tía's been talking all day. A little tip keeps the tea hot. 🫖",
+    "No ads, no paywall, just chisme. Help keep the lights on? 💡",
+    "You read it here first, metiche. Toss a coin to your Tía. 💸",
+    "Chisme this good isn't free to brew. Chip in, or share it with your friends. 💖",
   ];
   let e7n = 0, e7Where = { news: [], events: [], feed: 0 };
   const e7Gone = () => { try { return sessionStorage.getItem(E7_KEY) === "1"; } catch (e) { return false; } };
@@ -967,7 +970,7 @@ window.CHISME_APP_BUILD = "49.12";
   section("news", {
     url: () => `/api/news?${q()}`,
     loading: () => $("#near-list").replaceChildren(el("p", { class: "loading", text: `Gathering the chisme near ${greetCity()}…` })),
-    fail: (e) => $("#near-list").replaceChildren(el("p", { class: "error", text: "¡Ay, no! Couldn't reach the news (" + e.message + "). We'll keep trying." })),
+    fail: (e) => $("#near-list").replaceChildren(el("p", { class: "error", text: "Oops! Couldn't reach the news (" + e.message + "). We'll keep trying." })),
     apply: (n, { saved }) => {
       if (!ART.length && !artWait) { artWait = artReady.then(() => { artWait = null; if (lastNewsData) renderNews(lastNewsData, lastNewsSaved); }); }
       // Already reading live stories for this place? Don't jump the list: new stories wait behind the
@@ -1131,7 +1134,7 @@ window.CHISME_APP_BUILD = "49.12";
       empty: "No concerts on the calendars right now. Hum something to yourself and check back soon. 🎶" },
     festivals: { test: (e) => (e.tags || []).includes("festivals"),
       intro: (k) => `🎉 Fiesta mode: ${k} ${k === 1 ? "festival or market" : "festivals & markets"} on the way.`,
-      empty: "No festivals listed right now — ¡pero ya viene Fiesta! Check back soon." },
+      empty: "No festivals listed right now, but Fiesta is coming! Check back soon." },
     "free-classes": { test: (e) => (e.tags || []).includes("classes") && e.free,
       intro: (k) => `🎓 Learn something, pay nothing: ${k} free ${k === 1 ? "class, talk or workshop" : "classes, talks & workshops"}.`,
       empty: "No free classes or workshops on the calendars right now. Check back soon — or tap “All” for paid ones." },
@@ -1156,7 +1159,7 @@ window.CHISME_APP_BUILD = "49.12";
       if (k !== last) { kids.push(el("h3", { class: "ev-day", text: dayLabel(new Date(e.start)) })); last = k; }
       kids.push(eventCard(e));
     }
-    const empty = evCat === "all" ? "No events on the calendar yet. ¡Ni modo! Try again later." : c.empty;
+    const empty = evCat === "all" ? "No events on the calendar yet. Oh well! Try again later." : c.empty;
     $("#events-list").replaceChildren(...(kids.length ? kids : n.message && evCat === "all" ? []
       : ongoing.length ? [el("p", { class: "loading", text: "Nothing new coming up in this category — see “Still going on” below." })]
       : [el("p", { class: "loading", text: empty })]));
@@ -2001,7 +2004,7 @@ window.CHISME_APP_BUILD = "49.12";
     again.onclick = () => { feedScroll.scrollTo({ top: 0, behavior: "instant" }); };
     const back = el("button", { type: "button", class: "feed-btn", text: "Back to ¿Y la dieta?" });
     back.onclick = () => closeFeed();
-    return el("section", { class: "vf-slide vf-end", "aria-label": "End of the feed" }, el("h3", { text: "¡Ya! You're all caught up." }),
+    return el("section", { class: "vf-slide vf-end", "aria-label": "End of the feed" }, el("h3", { text: "That's it! You're all caught up." }),
       el("p", { text: "Keep saving and skipping — the next batch of videos lines up around what you liked." }), again, back);
   }
   function finishCurrent(moving) {   // turn the time spent on the current video into a signal
@@ -2196,7 +2199,7 @@ window.CHISME_APP_BUILD = "49.12";
     const n = foodData;
     if (!n) return;
     if (n.message) {
-      $("#food-creators").replaceChildren(el("p", { class: "loading", text: n.message + " ¡Lo siento!" }));
+      $("#food-creators").replaceChildren(el("p", { class: "loading", text: n.message + " Sorry!" }));
       $("#food-outlets").replaceChildren(); syncFoodView();
       return;
     }
@@ -2226,7 +2229,7 @@ window.CHISME_APP_BUILD = "49.12";
   section("food", {
     url: () => `/api/food?${q()}`,
     apply: (n, { saved }) => { foodData = n; foodFresh = foodFresh || !saved; renderFood(); $("#food-updated").textContent = stampFor(saved, n); },
-    fail: (e) => { if (!foodData) $("#food-creators").replaceChildren(el("p", { class: "error", text: "¡Ay! Couldn't reach the food feeds (" + e.message + "). We'll keep trying." })); },
+    fail: (e) => { if (!foodData) $("#food-creators").replaceChildren(el("p", { class: "error", text: "Oops! Couldn't reach the food feeds (" + e.message + "). We'll keep trying." })); },
   });
   let foodFresh = false;
   const loadFood = () => load("food");
@@ -2234,8 +2237,8 @@ window.CHISME_APP_BUILD = "49.12";
   let evRetry = null, evRetries = 0;
   section("events", {
     url: () => `/api/events?${q()}`,
-    loading: () => $("#events-list").replaceChildren(el("p", { class: "loading", text: `Rounding up the pachangas near ${shortPlace()}…` })),
-    fail: (e) => $("#events-list").replaceChildren(el("p", { class: "error", text: "¡Ay! Couldn't reach the event calendars (" + e.message + "). We'll keep trying." })),
+    loading: () => $("#events-list").replaceChildren(el("p", { class: "loading", text: `Rounding up the parties near ${shortPlace()}…` })),
+    fail: (e) => $("#events-list").replaceChildren(el("p", { class: "error", text: "Oops! Couldn't reach the event calendars (" + e.message + "). We'll keep trying." })),
     apply: (n, { saved }) => {
       clearTimeout(evRetry);
       if (!saved) rendered.events = q();
@@ -2243,10 +2246,10 @@ window.CHISME_APP_BUILD = "49.12";
       const list = n.events || [], ongoing = n.ongoing || [];
       $("#events-title").textContent = n.place && n.place.city ? `What's happening in ${n.place.city}` : "What's happening";
       $("#events-intro").textContent = list.length
-        ? pick([`¡Órale! ${list.length} things going on around ${where} in the next few weeks.`,
-                `¿Qué hay de nuevo? ${list.length} upcoming events near ${where} — pick your pachanga.`,
+        ? pick([`${list.length} things going on around ${where} in the next few weeks.`,
+                `What's new? ${list.length} upcoming events near ${where} — pick your party.`,
                 `Get off the couch, ${where}! ${list.length} events coming up nearby.`])
-        : n.message ? `${n.message} ¡Lo siento! News, radar and search still work here.`
+        : n.message ? `${n.message} Sorry! News, radar and search still work here.`
         : `Quiet around here, huh? No upcoming events found near ${where} right now — check back soon.`;
       evData = n;
       evIntro = $("#events-intro").textContent;
@@ -2466,13 +2469,13 @@ window.CHISME_APP_BUILD = "49.12";
   const teamList = (ts) => { const n = (ts || []).map((t) => t.short); return n.length > 1 ? n.slice(0, -1).join(", ") + " and " + n[n.length - 1] : n[0] || ""; };
   const isTX = (d) => !d.teams || d.teams.state === "TX";
   const INTROS = {
-    nba: (d) => { const T = d.nba.spurs.team; if (T && T.abbr !== "SA") return d.nba.spurs.live.length ? `¡Ándale! The ${T.short} are on right now. 🏀`
+    nba: (d) => { const T = d.nba.spurs.team; if (T && T.abbr !== "SA") return d.nba.spurs.live.length ? `Game on! The ${T.short} are on right now. 🏀`
         : pick([`Scores, schedule and the real reporting on the ${T.short}, with a side of fan chisme. 🏀`, `The latest on the ${T.name}, then the rest of the league.`]);
       return INTROS.spurs(d); },
     "nba-all": (d) => pick(["The whole Association: today's scores and the league's top stories. 🏀", "Around the NBA: tonight's board and the headlines, from Wemby to the rest of 'em."]),
-    cowboys: (d) => ((d.nfl.cowboys || {}).live || []).length ? "¡Ándale! The Cowboys are on right now. 🏈"
+    cowboys: (d) => ((d.nfl.cowboys || {}).live || []).length ? "Game on! The Cowboys are on right now. 🏈"
       : pick(["How 'bout them Cowboys? Scores, schedule and the real reporting from Big D. 🏈", "America's Team, Texas' chisme: the latest on the Cowboys."]),
-    spurs: (d) => (d.nba.spurs.live.length ? "¡Ándale! The Spurs are on right now. 🏀" : pick(["Go Spurs Go! Scores, schedule and the real reporting, with a side of fan chisme. 🏀",
+    spurs: (d) => (d.nba.spurs.live.length ? "Game on! The Spurs are on right now. 🏀" : pick(["Go Spurs Go! Scores, schedule and the real reporting, with a side of fan chisme. 🏀",
       "Spurs Nation, this one's for you: the latest on Wemby & company, then the rest of the league.", "Silver and black and read all over — your Spurs report."])),
     nfl: (d) => isTX(d) ? pick(["Football, Texas style: Cowboys and Texans first, then everybody else. 🏈", "Tailgate-ready: the scores and stories from around the NFL, Texas teams up top."])
       : `Tailgate-ready: the ${teamList(d.teams.nfl)} up top, then everybody else. 🏈`,
@@ -2483,7 +2486,7 @@ window.CHISME_APP_BUILD = "49.12";
     missions: (d) => { const T = d.missions && d.missions.team; return !T || T.id === 510 ? "San Antonio's own: the Double-A Missions of the Texas League. 🌵"
       : `The home team: the ${d.missions.level || "Minor League"} ${T.name} of the ${T.league}. ⚾`; },
   };
-  // v47 game-day banner: "¡Hoy hay juego!" when your NBA team (the Spurs chip) or the Cowboys play today. No new
+  // v47 game-day banner: "It's game day!" (v49.12, was "¡Hoy hay juego!") when your NBA team (the Spurs chip) or the Cowboys play today. No new
   // requests: the games come from /api/sports (team schedules + the 2-min scoreboards, the fresher copy wins).
   function gameDayGames(d) {
     const today = dayKey(new Date()), out = [];
@@ -2501,12 +2504,12 @@ window.CHISME_APP_BUILD = "49.12";
     const box = $("#gameday"), list = d ? gameDayGames(d) : [];
     box.hidden = !list.length;
     if (!list.length) return box.replaceChildren();
-    box.replaceChildren(el("p", { class: "gd-kick" }, el("span", { "aria-hidden": "true", text: "🎉 " }), "¡Hoy hay juego!"),
+    box.replaceChildren(el("p", { class: "gd-kick" }, el("span", { "aria-hidden": "true", text: "🎉 " }), "It's game day!"),
       ...list.map(({ lg, icon, team, g }) => {
         const home = g.home && g.home.abbr === team.abbr, us = home ? g.home : g.away, opp = (home ? g.away : g.home) || {};
         const w = gameWhen(new Date(g.date)), nm = team.short, on = opp.short || opp.name || "TBD";
         const score = `${nm} ${us.score ?? 0}, ${on} ${opp.score ?? 0}`;
-        const status = g.state === "in" ? el("span", { class: "gd-live" }, el("span", { class: "live-dot", "aria-hidden": "true" }), "EN VIVO")
+        const status = g.state === "in" ? el("span", { class: "gd-live" }, el("span", { class: "live-dot", "aria-hidden": "true" }), "LIVE")
           : g.state === "post" ? el("span", { class: "gd-final", text: "FINAL" }) : null;
         const line = g.state === "pre" ? `${w.time} · ${home ? "Home" : "Away"}${g.tv ? " · " + g.tv : ""}`
           : g.state === "in" ? `${score}${g.detail ? " · " + g.detail : ""}` : `${score}${g.detail && g.detail !== "Final" ? " · " + g.detail : ""}`;
@@ -2553,7 +2556,7 @@ window.CHISME_APP_BUILD = "49.12";
   section("sports", {
     url: () => `/api/sports?${q()}`,   // your teams follow your location
     loading: () => $("#sports-body").replaceChildren(el("p", { class: "loading", text: "Warming up in the bullpen…" })),
-    fail: (e) => $("#sports-body").replaceChildren(el("p", { class: "error", text: "¡Ay! Couldn't reach the scoreboards (" + e.message + "). We'll keep trying." })),
+    fail: (e) => $("#sports-body").replaceChildren(el("p", { class: "error", text: "Oops! Couldn't reach the scoreboards (" + e.message + "). We'll keep trying." })),
     apply: (d, { saved }) => {
       spData = d;
       if (!saved) rendered.sports = true;
@@ -2990,7 +2993,7 @@ window.CHISME_APP_BUILD = "49.12";
   }
   function notifDoneOn() {   // subscribed: say so for a moment, then it's gone for good (alertsOn() keeps it away)
     notif.how = "on"; lsSet(NOTIF_KEY, JSON.stringify(notif));
-    $("#push-ask-t").textContent = "🔔 ¡Listo! You're on the list.";
+    $("#push-ask-t").textContent = "🔔 Done! You're on the list.";
     $("#push-ask-s").textContent = "I'll only buzz you for the big stuff. Change it anytime in Settings (tap the Chisme bubble).";
     $("#push-ask-yes").hidden = true; $("#push-ask-no").textContent = "Close"; $("#push-ask-no").hidden = false;
     setTimeout(() => notifClose(), 4000);
@@ -3375,15 +3378,15 @@ window.CHISME_APP_BUILD = "49.12";
     const k = a2Kind(); a2Shown = k; a2Sheet.dataset.kind = k;
     a2Sheet.classList.toggle("ipad", isIPad && k === "ios"); a2Sheet.classList.toggle("top", k === "android"); a2Sheet.classList.toggle("no-arrow", k === "ios-other" || k === "android-install" || k === "desktop");
     const act = $("#a2hs-act"); act.hidden = true;
-    let title = "Put Chisme on your Home Screen", sub = "Tía wants to move in. 3 taps. ¡Ándale!", steps = "";
+    let title = "Put Chisme on your Home Screen", sub = "Tía wants to move in. Just 3 taps!", steps = "";
     if (k === "ios") steps = STEP("share", IC.share, "Tap <b>Share</b>", `<span id="a2hs-where">${isIPad ? "at the top right of Safari" : "at the bottom of Safari"}</span> · or <b>•••</b> first`)
-      + STEP("plus", IC.plus, "Tap <b>Add to Home Screen</b>", "scroll down a little") + STEP("add", "Add", "Tap <b>Add</b>", "¡Listo!");
+      + STEP("plus", IC.plus, "Tap <b>Add to Home Screen</b>", "scroll down a little") + STEP("add", "Add", "Tap <b>Add</b>", "Done!");
     else if (k === "ios-other") { title = "Open Chisme in Safari"; sub = "Only Safari can put Tía on your Home Screen.";
       steps = STEP("copy", IC.copy, "Tap <b>Copy link</b>") + STEP("share", IC.safari, "Open <b>Safari</b>") + STEP("add", IC.paste, "<b>Paste</b> it and go");
       act.innerHTML = '<span aria-hidden="true">📋</span> Copy link'; act.hidden = false; }
-    else if (k === "android-install") { sub = "One tap. ¡Ándale!"; steps = STEP("plus", IC.phone, "Tap <b>Install</b>", "Tía moves in next to your apps");
+    else if (k === "android-install") { sub = "Just one tap!"; steps = STEP("plus", IC.phone, "Tap <b>Install</b>", "Tía moves in next to your apps");
       act.innerHTML = '<span aria-hidden="true">📲</span> Install'; act.hidden = false; }
-    else if (k === "android") steps = STEP("share", IC.dots, "Tap <b>⋮</b>", "top right of Chrome") + STEP("plus", IC.plus, "Tap <b>Install app</b>", "or Add to Home screen") + STEP("add", "OK", "Tap <b>Install</b>", "¡Listo!");
+    else if (k === "android") steps = STEP("share", IC.dots, "Tap <b>⋮</b>", "top right of Chrome") + STEP("plus", IC.plus, "Tap <b>Install app</b>", "or Add to Home screen") + STEP("add", "OK", "Tap <b>Install</b>", "Done!");
     else { title = "Install Chisme"; sub = "Look for the install icon in the address bar."; }
     $("#a2hs-title").textContent = title; $("#a2hs-sub").textContent = sub; $("#a2hs-steps").innerHTML = steps;
   }
@@ -3414,7 +3417,7 @@ window.CHISME_APP_BUILD = "49.12";
   };
   a2Sheet.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.preventDefault(); a2Close(true); } });
   $("#set-a2hs").onclick = () => { $("#settings").close(); a2Open(false); };
-  if (standalone) { $("#set-a2hs").hidden = true; $("#set-a2hs-note").textContent = "You're already using Chisme from your Home Screen. ¡Eso!"; }
+  if (standalone) { $("#set-a2hs").hidden = true; $("#set-a2hs-note").textContent = "You're already using Chisme from your Home Screen. Nice!"; }
   const A2HS_FIRST = 2;   // v47: the 2nd open
   const a2Eligible = !standalone && a2Kind() !== "desktop";
   a2.opens = visits;
@@ -3548,7 +3551,7 @@ window.CHISME_APP_BUILD = "49.12";
     }
     return out;
   }
-  const tiaGreet = (h) => h >= 5 && h < 12 ? "Buenos días" : h >= 12 && h < 18 ? "Buenas tardes" : "Buenas noches";
+  const TIA_HI = "¡Hola, metiche!";   // v49.12: her greeting (the rest of what she says is English)
   const TIA_EMO = { news: "📰", sports: "🏀", event: "🎉", food: "🌮", weather: "🌤️" };
   function tiaLoad() { try { const h = JSON.parse(localStorage.getItem(TIA_CHAT)); return Array.isArray(h) ? h : []; } catch { return []; } }
   function tiaSave(h) { try { localStorage.setItem(TIA_CHAT, JSON.stringify(h.slice(-TIA_MAX))); } catch {} }
@@ -3584,11 +3587,11 @@ window.CHISME_APP_BUILD = "49.12";
   function tiaDaily() {   // once a day, the first time you open her: a greeting + chisme del día (no AI call needed)
     const today = dayKey(new Date()), h = tiaLoad();
     if (h.some((m) => m.daily === today)) return;
-    const items = tiaItems(), top = chismeDelDia(items), hr = new Date().getHours();
-    const wx = items.weather && items.weather.now ? ` It's ${items.weather.now} in ${items.weather.place}${items.weather.alerts ? ", and fíjate: " + items.weather.alerts : ""}.` : "";
+    const items = tiaItems(), top = chismeDelDia(items);
+    const wx = items.weather && items.weather.now ? ` It's ${items.weather.now} in ${items.weather.place}${items.weather.alerts ? ", and heads up: " + items.weather.alerts : ""}.` : "";
     const text = top.length
-      ? `${tiaGreet(hr)}, mija! ☕ Tía Chismosa here, your comadre.${wx}\nYour chisme del día, picked for you:`
-      : `${tiaGreet(hr)}, mija! ☕ Tía Chismosa here. The feeds are still loading, so ask me in a minute and I'll have the chisme.`;
+      ? `${TIA_HI} ☕ Tía Chismosa here.${wx}\nToday's top chisme, picked for you:`
+      : `${TIA_HI} ☕ Tía Chismosa here. The feeds are still loading, so ask me in a minute and I'll have the chisme.`;
     h.push({ role: "tia", text, cites: top.map(citeOf), daily: today, t: Date.now() });
     tiaSave(h);
   }
@@ -3621,7 +3624,7 @@ window.CHISME_APP_BUILD = "49.12";
     } catch {
       const top = chismeDelDia(items);
       reply = { role: "tia", mode: "offline", t: Date.now(), cites: top.map(citeOf),
-        text: navigator.onLine ? "Ay, my signal is fuzzy right now. Try me again in a minute. Meanwhile, here's what's in the app:" : "You're offline, mija. I'll be back when you are. Here's what I saved:" };
+        text: navigator.onLine ? "Oops, my signal is fuzzy right now. Try me again in a minute. Meanwhile, here's what's in the app:" : "You're offline. I'll be back when you are. Here's what I saved:" };
     }
     typing.remove();
     const h2 = tiaLoad(); h2.push(reply); tiaSave(h2); tiaRender();
@@ -3688,7 +3691,7 @@ window.CHISME_APP_BUILD = "49.12";
   };
   // ---------- Share Chisme: a small pill in the footer. The phone's own share sheet (Web Share API) where there is
   // one; otherwise the link is copied and a toast says so. Nothing opens outside the app.
-  const SHARE = { title: "Chisme", text: "Pull up a chair, grab the tea ☕ Local chisme, weather, food & events:", url: "https://chisme.onrender.com/" };
+  const SHARE = { title: "Chisme", text: "Chisme, the community for los metiches. ☕ Local news, weather, food & events:", url: "https://chisme.onrender.com/" };
   let shareT = null;
   function shareToast(msg) {
     const t = $("#share-toast"); t.textContent = msg; t.hidden = false;

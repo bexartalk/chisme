@@ -55,7 +55,7 @@ async def main():
         print("== an empty board")
         seed([]); ctx, pg, errs = await page(b, p, 390)
         m = await pg.evaluate(BOARD)
-        check(m["title"].endswith("Top 10") and m["empty"] == "Be the first on the board!" and not m["rows"] and m["below"], f"the board at the bottom of the game screen says 'Be the first on the board!' ({m['title']!r}, {m['empty']!r})")
+        check(m["title"].endswith("Top 10 Metiches") and m["empty"] == "Be the first on the board!" and not m["rows"] and m["below"], f"the board at the bottom of the game screen says 'Be the first on the board!' ({m['title']!r}, {m['empty']!r})")
         await ctx.close()
 
         print("== a full board, light + dark, 390 + 320")

@@ -40,7 +40,7 @@ QUIET_FROM, QUIET_TO = 22, 7          # Central time, hard
 MAX_AGE = 3 * 3600                    # only fresh stories
 CANDIDATE_MIN, STRICT_MIN = 8, 11     # score to ask Gemini / score to send without Gemini
 DEDUPE_TTL, LOG_KEEP = 30 * 86400, 30
-DEFAULT_TITLE, DEFAULT_BODY = "Chisme", "¡Órale, new chisme! 👀"
+DEFAULT_TITLE, DEFAULT_BODY = "Chisme", "New chisme! 👀"   # v49.12: English (was ¡Órale, new chisme!)
 AUTO_TITLE = "Breaking news"
 
 

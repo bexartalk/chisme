@@ -23,7 +23,7 @@ env = dict(l.strip().split("=", 1) for l in open(ENV) if "=" in l and not l.star
 STORE = env.get("PUSH_STORE_FILE", "/tmp/chisme-push.json")
 MOCK = int(os.environ.get("PUSH_MOCK_PORT", "8378"))
 INIT = "if (!localStorage.getItem('chisme-location-setup')) { localStorage.setItem('chisme-location-setup','1'); localStorage.setItem('chisme-ios-hint-dismissed','1'); localStorage.setItem('chisme-swiped','1'); %s }"
-TEXT = "The tea ain’t free! Help a chismoso out — donate now!"
+TEXT = "The tea ain’t free! Help a metiche out — donate now!"
 fails = 0
 def check(ok, what):
     global fails

@@ -138,7 +138,7 @@ with sync_playwright() as p:
     check(fs1 != fs0 and page.evaluate("localStorage.getItem('chisme-font-px')"), f"A+ in Settings: {fs0} → {fs1} (saved)")
     page.click("#font-down"); page.wait_for_timeout(200)
     check(not page.query_selector("#settings input[name=greet]") and not page.query_selector(".greet-switch"), "no chismoso/chismosa choice (Settings or home card)")
-    check(page.eval_on_selector("#greet-hi", "e => e.textContent").endswith(", chismosos!"), "greeting is plural: " + page.eval_on_selector("#greet-hi", "e => e.textContent"))
+    check(page.eval_on_selector("#greet-hi", "e => e.textContent").endswith(", metiches!") or page.eval_on_selector("#greet-hi", "e => e.textContent") == "Welcome, metiche!", "greeting: Good morning/afternoon/evening, metiches! (or Welcome, metiche! on the first launch): " + page.eval_on_selector("#greet-hi", "e => e.textContent"))
     page.check("#settings input[name=deftab][value=sports]")
     page.fill("#set-loc-q", "78704"); page.click("#set-loc-form button[type=submit]")
     page.wait_for_function("/Austin/.test(document.querySelector('#set-loc-now').textContent)", timeout=60000)
@@ -168,7 +168,7 @@ with sync_playwright() as p:
     page.reload()
     page.wait_for_function("window.__chisme && __chisme.ready", timeout=120000)
     st = page.evaluate("() => ({ theme: document.documentElement.dataset.theme, view: __chisme.view, greet: document.querySelector('#greet-hi').textContent, ls: {...localStorage} })")
-    check(st["theme"] == "dark" and st["view"] == "sports" and "chismosos" in st["greet"] and "chisme-greeting-word" not in st["ls"], f"settings persist across reload: theme {st['theme']}, opens on {st['view']}, '{st['greet']}'")
+    check(st["theme"] == "dark" and st["view"] == "sports" and "metiche" in st["greet"] and "chisme-greeting-word" not in st["ls"], f"settings persist across reload: theme {st['theme']}, opens on {st['view']}, '{st['greet']}'")
     keys = sorted(k for k in st["ls"] if k.startswith("chisme-"))
     print("    localStorage:", {k: st["ls"][k] for k in keys if k in ("chisme-theme", "chisme-default-tab", "chisme-greeting-word", "chisme-reduce-motion", "chisme-font-px", "chisme-sports-league")})
 

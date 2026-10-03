@@ -145,11 +145,11 @@ check(r1.status_code == 200 and open_msg(A, got[-1][2])["title"] == "Chisme aler
 # ---- 10. the owner's send box; an expired subscription (410 Gone) is removed
 G = Phone("gone1")
 c.post("/api/push/subscribe", json={"subscription": G.sub, "lat": 29.42, "lon": -98.49, "tz": "America/Chicago"})
-n0 = len(got); j = c.post("/stats/push/send", json={"title": "Chisme", "message": "¡Órale, new chisme! 👀", "link": "https://example.com/owner/1"}).json(); time.sleep(0.3)
+n0 = len(got); j = c.post("/stats/push/send", json={"title": "Chisme", "message": "New chisme! 👀", "link": "https://example.com/owner/1"}).json(); time.sleep(0.3)
 mine = [open_msg(A, b) for n, _, b in got[n0:] if n == "phoneA"]
 ids = list(json.load(open(STORE)).keys())
 check(j["ok"] and (j["sent"], j["failed"], j["removed"]) == (1, 1, 1) and len(ids) == 1, f"owner send: sent {j['sent']}, failed {j['failed']} (410 Gone → removed {j['removed']}, {len(ids)} left)")
-check(mine and mine[0]["title"] == "Chisme" and mine[0]["body"] == "¡Órale, new chisme! 👀" and "story=https%3A%2F%2Fexample.com%2Fowner%2F1" in mine[0]["url"], "the owner's note arrives, its link opens in the in-app reader")
+check(mine and mine[0]["title"] == "Chisme" and mine[0]["body"] == "New chisme! 👀" and "story=https%3A%2F%2Fexample.com%2Fowner%2F1" in mine[0]["url"], "the owner's note arrives, its link opens in the in-app reader")
 check(httpx.post(BASE + "/stats/push/send", json={"message": "x"}).status_code == 401, "the send box needs the admin cookie (a client without it: 401)")
 # ---- 11. news off / unsubscribe
 c.post("/api/push/subscribe", json={"subscription": A.sub, "lat": 29.42, "lon": -98.49, "tz": "America/Chicago", "news": False, "weather": True})

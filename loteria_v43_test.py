@@ -4,10 +4,10 @@
    vintage-print colors with a white border (v49.5: the classic-deck look, solid pastel backgrounds, bold black outlines, a cream border); golden yellow only in the art of the 5 cards the classic decks have it in
    (El Diablito, La Estrella, El Alacrán, El Sol, La Corona; the user asked for it), none anywhere else; #26 is El Chocolate,
    #38 El Apache is a dignified Apache man with a bow (v49.5b; was the huaraches); the service worker precaches them. The app's UI stays yellow-free.
-2. WebKit 390×844 full screen: the teal top bar holds the title badge, the "Pick your tabla" picker, the "x / 16" bean count and ✕;
+2. WebKit 390×844 full screen: the teal top bar holds the title badge, the "Pick your board" picker, the "x / 16" bean count and ✕;
    under it a strip with the called card (picture, Spanish verse, count) + ▶/⏸ and ¡Órale!; a 4×4 tabla of big cards filling the
-   width; big Limpiar + Nueva tabla buttons at the bottom; nothing scrolls. A called card tapped → a big pinto bean covers it (the
-   card dimmed) and the count goes up; an uncalled card shakes; Limpiar takes every bean off; Nueva tabla deals a random new mix;
+   width; big Clear + New board buttons (v49.12: were Limpiar / Nueva tabla) at the bottom; nothing scrolls. A called card tapped → a big pinto bean covers it (the
+   card dimmed) and the count goes up; an uncalled card shakes; Clear takes every bean off; New board deals a random new mix;
    the picker's presets deal their 16 cards and are remembered. No yellow in the game's colors. Win + ¡Órale! still work.
 3. WebKit 320×640: the same, shrunk (no scrolling, 44 px buttons, labels not clipped).
 Screenshots (390×844): loteria-v43.png (mid-game, beans on called cards, the called card showing), loteria-v43-cards.png (the art),
@@ -97,7 +97,7 @@ async def big(p):
     check(await pg.evaluate("(await_ => document.documentElement.classList.contains('game-fs'))()") and lay["inBar"], "▶ Start goes full screen; the teal bar holds the title badge, the tabla picker, the bean count and ✕")
     bg = await pg.evaluate("[getComputedStyle(document.querySelector('.gfs-bar')).backgroundColor, getComputedStyle(document.querySelector('#game-stage')).backgroundColor]")
     check(bg[0] != bg[1], f"teal bar over a warm cream page ({bg})")
-    check(lay["order"] and not lay["scroll"] and lay["loaded"], f"bar → called-card strip → tabla → Limpiar / Nueva tabla, all on screen, no scrolling ({lay['bar']} {lay['now']} {lay['t']} {lay['act']})")
+    check(lay["order"] and not lay["scroll"] and lay["loaded"], f"bar → called-card strip → tabla → Clear / New board, all on screen, no scrolling ({lay['bar']} {lay['now']} {lay['t']} {lay['act']})")
     check(lay["t"][2] >= 0.94 * 390 and lay["t"][3] >= 0.6 * 844 and lay["cellH"] >= 130, f"big cards: the tabla is {lay['t'][2]:.0f}×{lay['t'][3]:.0f} (full width, {lay['t'][3] / 844:.0%} of the height), each card {lay['cell']:.0f}×{lay['cellH']:.0f}")
     check(0 < lay["card"] < lay["cell"] and not lay["over"] and not lay["small"], f"the called card sits in the strip ({lay['card']:.0f} px), nothing clipped {lay['over']}, buttons ≥ 40 px {lay['small']}")
     s = await st(pg); first = s["called"][0]
@@ -107,7 +107,7 @@ async def big(p):
     # the tabla picker
     await pg.click("#lot-pick"); await pg.wait_for_timeout(300)
     opts = await pg.evaluate("[...document.querySelectorAll('#lot-picks [data-pick]')].map(b => [b.dataset.pick, b.textContent.trim().slice(0, 24)])")
-    check(not await pg.evaluate("document.querySelector('#lot-sheet').hidden") and len(opts) >= 5 and opts[0][0] == "random", f"'Pick your tabla' opens: 🔀 Random mix + the ready-made tablas ({[o[0] for o in opts]})")
+    check(not await pg.evaluate("document.querySelector('#lot-sheet').hidden") and len(opts) >= 5 and opts[0][0] == "random", f"'Pick your board' opens: 🔀 Random mix + the ready-made tablas ({[o[0] for o in opts]})")
     await pg.screenshot(path=os.path.join(OUT, "loteria-v43-picker.png"))
     await pg.click('#lot-picks [data-pick="fiesta"]'); await pg.wait_for_timeout(300)
     s = await st(pg); want = await pg.evaluate("__chisme.juegos.game && ChismeLoteriaCards.PRESETS.find(p => p.id === 'fiesta').cards")
@@ -117,7 +117,7 @@ async def big(p):
     await pg.click("#lot-new"); await pg.wait_for_timeout(300); s2 = await st(pg)
     await pg.click("#lot-new"); await pg.wait_for_timeout(300); s3 = await st(pg)
     check(s2["pick"] == "random" and len(set(s2["tabla"])) == 16 and s2["tabla"] != want and s3["tabla"] != s2["tabla"] and "Random" in await pg.text_content("#lot-pick-t"),
-          "Nueva tabla: a random new mix of 16 every tap (the picker says 🔀 Random)")
+          "New board: a random new mix of 16 every tap (the picker says 🔀 Random)")
     # play: beans cover called cards, uncalled cards shake, the count goes up
     await pg.click("#lot-play"); await pg.wait_for_timeout(400); await pg.click("#lot-play")
     for _ in range(40):
@@ -140,9 +140,9 @@ async def big(p):
     # colors: no yellow anywhere in the game
     ys = [c for c in await pg.evaluate(COLORS_JS) if yellowish(*c[:3])]
     check(not ys, f"no yellow in the game's colors ({ys[:4]})")
-    # Limpiar
+    # Clear
     await pg.click("#lot-clear"); await pg.wait_for_timeout(300)
-    check(await beans(pg) == 0 and not (await st(pg))["marks"] and await pg.text_content("#lot-marked") == "0 / 16" and (await st(pg))["called"], "Limpiar takes every bean off (the calls stay); 0 / 16")
+    check(await beans(pg) == 0 and not (await st(pg))["marks"] and await pg.text_content("#lot-marked") == "0 / 16" and (await st(pg))["called"], "Clear takes every bean off (the calls stay); 0 / 16")
     # a win still works
     for _ in range(60):
         s = await st(pg)

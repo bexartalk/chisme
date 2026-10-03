@@ -2566,8 +2566,8 @@ async def api_mascot_chat(request: Request):
         return JSONResponse({"error": "bad request"}, status_code=400)
     ok, wait = await MASCOT_LIMIT.hit(client_ip(request))
     if not ok:
-        return JSONResponse({"reply": f"Ay, mija, that's a lot of chisme for one hour! Give me about {max(1, round(wait / 60))} "
-                                      "minutes to refill my cafecito and I'm all yours.",
+        return JSONResponse({"reply": f"Whoa, metiche, that's a lot of chisme for one hour! Give me about {max(1, round(wait / 60))} "
+                                      "minutes to refill my coffee and I'm all yours.",
                              "cites": [], "mode": "limited", "retry_after": wait, "sources": []}, status_code=429)
     try:
         return await tia.chat(client(), body, await tia_knowledge(body))

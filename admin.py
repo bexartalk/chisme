@@ -19,16 +19,16 @@ e = html.escape
 fmt = lambda n: f"{int(n or 0):,}"
 TZ = stats.TZ
 
-# the quick templates (title, message, where tapping it goes); the wording stays plain for news, warm for the rest
+# the quick templates (title, message, where tapping it goes); the wording stays plain for news, warm for the rest (v49.12: English)
 TEMPLATES = [
-    ("news", "👀 New chisme", "Chisme", "¡Órale, new chisme! 👀", "news"),
+    ("news", "👀 New chisme", "Chisme", "New chisme! 👀", "news"),
     ("breaking", "🚨 Breaking news", "Breaking news", "Big news in San Antonio right now. Tap to read the latest.", "link"),
     ("weather", "🌧️ Weather alert", "Weather alert", "Severe weather is heading for San Antonio. Tap for the radar and the latest alerts.", "weather"),
-    ("game", "🎮 New game", "🎮 New game in Chisme", "¡Órale! A new game just dropped in Juegitos. Come play 👀", "juegos"),
-    ("thanks", "💗 Donation thank-you", "💗 ¡Gracias, chismosos!", "Thank you for supporting Chisme. Every cafecito keeps San Antonio's chisme free for everybody.", "news"),
+    ("game", "🎮 New game", "🎮 New game in Chisme", "A new game just dropped in Juegitos. Come play 👀", "juegos"),
+    ("thanks", "💗 Donation thank-you", "💗 Thank you, metiches!", "Thank you for supporting Chisme. Every coffee keeps San Antonio's chisme free for everybody.", "news"),
 ]
 WHERE = [("news", "Chisme · News", "/#news"), ("weather", "Weather (radar + alerts)", "/#weather"), ("juegos", "Juegitos (games)", "/#juegos"),
-         ("events", "Events", "/#events"), ("sports", "Sports", "/#sports"), ("link", "A story or web page (paste a link)", "")]
+         ("events", "Chisme · Events", "/#events"), ("sports", "Chisme · Sports", "/#sports"), ("link", "A story or web page (paste a link)", "")]
 
 
 def plural(n: int, one: str, many: str | None = None) -> str:

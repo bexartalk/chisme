@@ -1,7 +1,8 @@
-"""Greeting card: '¡Buenos días / Buenas tardes / Buenas noches, chismosos!' by the place's time of day, the fixed
-line under it, no chismoso/chismosa toggle (home card or Settings), the old saved choice ignored and cleared,
+"""Greeting card: 'Good morning / Good afternoon / Good evening, metiches!' by the place's time of day (v49.12: English;
+was ¡Buenos días… chismosos!), the first launch says 'Welcome, metiche!' (greeting, location card, the All feed's intro),
+the fixed line under it, no chismoso/chismosa toggle (home card or Settings), the old saved choice ignored and cleared,
 and the short swipe hint fitting in ≤ 2 lines at 390 and 320 px. WebKit, iPhone 13.
-Screen: greeting-chismosos.png"""
+Screen: greeting-metiches.png"""
 import asyncio, os, sys
 from datetime import datetime, timezone
 from playwright.async_api import async_playwright
@@ -26,10 +27,10 @@ async def main():
         b = await p.webkit.launch()
         dev = dict(p.devices["iPhone 13"]); dev.pop("default_browser_type", None)
         # San Antonio (Central time): 9 AM, 3 PM, 9 PM, 2 AM
-        for utc, want in ((datetime(2026, 9, 29, 14, 0, tzinfo=timezone.utc), "¡Buenos días, chismosos!"),
-                          (datetime(2026, 9, 29, 20, 0, tzinfo=timezone.utc), "¡Buenas tardes, chismosos!"),
-                          (datetime(2026, 9, 30, 2, 0, tzinfo=timezone.utc), "¡Buenas noches, chismosos!"),
-                          (datetime(2026, 9, 30, 7, 0, tzinfo=timezone.utc), "¡Buenas noches, chismosos!")):
+        for utc, want in ((datetime(2026, 9, 29, 14, 0, tzinfo=timezone.utc), "Good morning, metiches!"),
+                          (datetime(2026, 9, 29, 20, 0, tzinfo=timezone.utc), "Good afternoon, metiches!"),
+                          (datetime(2026, 9, 30, 2, 0, tzinfo=timezone.utc), "Good evening, metiches!"),
+                          (datetime(2026, 9, 30, 7, 0, tzinfo=timezone.utc), "Good evening, metiches!")):
             ctx = await b.new_context(**dev); await ctx.add_init_script(INIT)
             pg = await ctx.new_page(); await pg.clock.set_system_time(utc)
             await pg.goto(URL); await pg.wait_for_function("() => window.__chisme && window.__chisme.ready", timeout=90000)
@@ -37,6 +38,12 @@ async def main():
             check(r["hi"] == want, f"{utc:%H:%M} UTC ({(utc.hour - 5) % 24}:00 CT): '{r['hi']}'")
             check(r["sub"] == SUB, f"line under it is exactly '{SUB}' ({r['sub']!r})")
             await ctx.close()
+        # the first launch: Welcome, metiche! (greeting, the location card's title, the All feed's intro)
+        ctx = await b.new_context(**dev); pg = await ctx.new_page()
+        await pg.goto(URL); await pg.wait_for_function("() => window.__chisme && window.__chisme.ready", timeout=90000)
+        fr = await pg.evaluate("() => [document.querySelector('#greet-hi').textContent, document.querySelector('#loc-title').textContent, document.querySelector('#mix-hi').textContent]")
+        check(fr[0] == "Welcome, metiche!" and fr[1].startswith("Welcome, metiche!") and fr[2].startswith("Welcome, metiche!"), f"first launch: Welcome, metiche! ({fr})")
+        await ctx.close()
         for w in (390, 320):
             d = dict(dev); d["viewport"] = {"width": w, "height": 844}; d["screen"] = {"width": w, "height": 844}
             ctx = await b.new_context(**d); await ctx.add_init_script(INIT); pg = await ctx.new_page(); errs = []
@@ -44,7 +51,7 @@ async def main():
             await pg.goto(URL); await pg.wait_for_function("() => window.__chisme && window.__chisme.ready", timeout=90000)
             r = await pg.evaluate(STATE)
             check(not r["toggle"], f"{w} px: no chismoso/chismosa toggle on the home card")
-            check(r["saved"] is None and "chismosos" in r["hi"], f"{w} px: saved 'chismosa' choice ignored and cleared ({r['saved']!r}, '{r['hi']}')")
+            check(r["saved"] is None and "metiches" in r["hi"], f"{w} px: saved 'chismosa' choice ignored and cleared ({r['saved']!r}, '{r['hi']}')")
             check(r["hint"] and r["hint"]["lines"] <= 2 and not r["overflow"], f"{w} px: swipe hint fits in ≤ 2 lines ({r['hint']})")
             await pg.click("#settings-btn"); await pg.wait_for_timeout(500)
             st = await pg.evaluate("() => ({ open: document.querySelector('#settings').open, greet: !!document.querySelector('#settings input[name=greet]'), legends: [...document.querySelectorAll('#settings legend')].map(l => l.textContent) })")
@@ -54,7 +61,7 @@ async def main():
                 try: await pg.wait_for_function("document.querySelector('#sync').dataset.state === 'done'", timeout=15000)
                 except Exception: pass
                 await pg.wait_for_timeout(1200)
-                await pg.screenshot(path=os.path.join(OUT, "greeting-chismosos.png"), clip={"x": 0, "y": 0, "width": 390, "height": 560})
+                await pg.screenshot(path=os.path.join(OUT, "greeting-metiches.png"), clip={"x": 0, "y": 0, "width": 390, "height": 560})
             check(not errs, f"{w} px: no page errors ({errs[:2]})")
             await ctx.close()
         await b.close()

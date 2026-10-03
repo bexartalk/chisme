@@ -156,7 +156,7 @@ async def run_theme(b, dev, theme, shots):
         if await pg.evaluate(G + ".state.mode") in ("run", "oops", "clear"): await juan(f"level {lv}")
         await pg.evaluate(f"{G}.warp({lv}, 5900)"); await until(pg, G + ".state.mode === 'clear'", 6); await pg.wait_for_timeout(300); await juan(f"level {lv} clear")
     await pg.evaluate(G + ".warp(6, 900)"); await pg.wait_for_timeout(400); await juan("level 6 (night, beers)")
-    await pg.evaluate(G + ".warp(6, 5900)"); await until(pg, G + ".state.mode === 'win'", 6); await pg.wait_for_timeout(1200); await juan("win (¡Salud, Juan!, confetti)")
+    await pg.evaluate(G + ".warp(6, 5900)"); await until(pg, G + ".state.mode === 'win'", 6); await pg.wait_for_timeout(1200); await juan("win (Cheers, Juan!, confetti)")
     check(not errs, f"no page errors ({errs[:2]})")
     await ctx.close()
 

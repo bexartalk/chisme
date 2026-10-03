@@ -1,6 +1,6 @@
-"""v47: the game-day banner at the top of the Sports tab ("¡Hoy hay juego!"). /api/sports is mocked (the real payload,
+"""v47: the game-day banner at the top of the Sports tab ("It's game day!", v49.12: was ¡Hoy hay juego!). /api/sports is mocked (the real payload,
 with games moved onto today) so it doesn't depend on the schedule. WebKit, iPhone 13, Central time:
-  A) Spurs at home tonight 7:30 PM + Cowboys live (away): both rows, opponent, local start time, Home/Away, EN VIVO + score;
+  A) Spurs at home tonight 7:30 PM + Cowboys live (away): both rows, opponent, local start time, Home/Away, LIVE + score;
      tapping the Cowboys row opens the Cowboys chip, tapping the Spurs row the Spurs chip
   B) the Spurs game is final: FINAL + the final score
   C) no game today: no banner
@@ -84,12 +84,12 @@ async def main():
             print(f"\n== A: Spurs tonight + Cowboys live ({theme})")
             ctx, pg, errs = await page_for(b, dev, theme, scenario(real, "A"))
             s = await pg.evaluate(BANNER); print("   ", s["rows"])
-            check(s["shown"] and s["top"] and s["kick"] and "¡Hoy hay juego!" in s["kick"], f"banner at the top of Sports: {s['kick']}")
+            check(s["shown"] and s["top"] and s["kick"] and "It's game day!" in s["kick"], f"banner at the top of Sports: {s['kick']}")
             rows = {r["lg"]: r for r in s["rows"]}
             check(len(s["rows"]) == 2 and s["rows"][0]["lg"] == "cowboys", "both teams shown, the live game first")
             sp, cb = rows.get("nba", {}), rows.get("cowboys", {})
             check("Spurs vs Hawks" in sp.get("text", "") and "7:30 PM CDT" in sp["text"] and "Home" in sp["text"] and not sp["live"], f"Spurs: opponent, local start time, home ({sp.get('text')})")
-            check("Cowboys @ Giants" in cb.get("text", "") and cb["live"] and "EN VIVO" in cb["text"] and "Cowboys 17, Giants 14" in cb["text"] and "3rd 5:12" in cb["text"], f"Cowboys: away, EN VIVO + score ({cb.get('text')})")
+            check("Cowboys @ Giants" in cb.get("text", "") and cb["live"] and "LIVE" in cb["text"] and "Cowboys 17, Giants 14" in cb["text"] and "3rd 5:12" in cb["text"], f"Cowboys: away, LIVE + score ({cb.get('text')})")
             check(s["imgs"] == 0, "no logos or images in the banner")
             check(all(r["h"] >= 44 for r in s["rows"]), "rows are 44+ px tap targets")
             bad = await pg.evaluate(SCAN, "#gameday")

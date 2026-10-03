@@ -16,7 +16,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 BASE = os.environ.get("CHISME_URL", "http://localhost:8211")
 OUT = os.path.join(HERE, "screenshots"); os.makedirs(OUT, exist_ok=True)
 INIT = "if (!localStorage.getItem('chisme-location-setup')) { localStorage.setItem('chisme-location-setup','1'); localStorage.setItem('chisme-ios-hint-dismissed','1'); localStorage.setItem('chisme-swiped','1'); }"
-TEXT = "The tea ain’t free! Help a chismoso out — donate now!"
+TEXT = "The tea ain’t free! Help a metiche out — donate now!"
 # test hook: /?t_opens=N sets the open counter (in the new document, before app.js) so the next open is N + 1
 OPENS_INIT = """(() => { const m = /[?&]t_opens=(\\d+)/.exec(location.search); if (!m) return;
   localStorage.setItem('chisme-opens', m[1]); history.replaceState(null, '', location.pathname + location.hash); })()"""
@@ -100,7 +100,7 @@ async def ready(pg, sel="#near-list .story"):
 
 async def main():
     LINES.extend(unit())
-    for ex in ["Tía's cafecito budget is running low ☕, help a chismosa out!", "This chisme ain't gonna spill itself. Tip the tea! 🫖", "Even the vecina pays for her novelas. Donate?", "Your donation keeps the rollers rolling 💇‍♀️"]:
+    for ex in ["Tía's coffee budget is running low ☕, help a metiche out!", "This chisme ain't gonna spill itself. Tip the tea! 🫖", "Even the nosy neighbor pays for her soap operas. Donate?", "Your donation keeps the rollers rolling 💇‍♀️"]:
         check(ex in LINES, f"example line in the set: {ex!r}")
     async with async_playwright() as p:
         b = await p.webkit.launch(); dev = dict(p.devices["iPhone 13"]); dev.pop("default_browser_type", None)

@@ -123,23 +123,23 @@
     el.innerHTML = `${BEAN_DEFS}
       <div class="lot-app">
         <div class="lot-head"><button type="button" id="lot-pick" class="lot-pick" aria-haspopup="dialog" aria-expanded="false" aria-controls="lot-sheet"><span id="lot-pick-t"></span><span class="lot-caret" aria-hidden="true"></span></button>
-          <span id="lot-marked" class="lot-marked" role="status" aria-label="Beans on your tabla">0 / 16</span></div>
+          <span id="lot-marked" class="lot-marked" role="status" aria-label="Beans on your board">0 / 16</span></div>
         <div class="lot-now" id="lot-bubble" aria-live="polite"><div id="lot-card" class="lot-card"></div>
           <div class="lot-say"><p id="lot-line" class="lot-line">Pull up a chair, honey! Tap <b>Start</b> and I'll start calling cards.</p><p class="lot-count" id="lot-count"></p></div>
           <div class="lot-now-btns"><button type="button" id="lot-play" class="lot-btn lot-main">▶ Start</button><button type="button" id="lot-claim" class="lot-claim">¡Órale!</button></div></div>
-        <div class="lot-fit"><div id="lot-tabla" class="lot-tabla" role="grid" aria-label="Your tabla: when Tía calls one of your cards, tap it to drop a bean on it"></div></div>
+        <div class="lot-fit"><div id="lot-tabla" class="lot-tabla" role="grid" aria-label="Your board: when Tía calls one of your cards, tap it to drop a bean on it"></div></div>
         <div class="lot-actions lot-controls" role="group" aria-label="Game controls">
           <button type="button" id="lot-voice" class="lot-btn lot-icon" aria-pressed="false"></button>
-          <button type="button" id="lot-clear" class="lot-btn lot-clear" aria-label="Limpiar: take all the beans off">Limpiar</button>
-          <button type="button" id="lot-new" class="lot-btn lot-new" aria-label="Nueva tabla: a new random mix of 16 cards">Nueva tabla</button>
+          <button type="button" id="lot-clear" class="lot-btn lot-clear" aria-label="Clear: take all the beans off">Clear</button>
+          <button type="button" id="lot-new" class="lot-btn lot-new" aria-label="New board: a new random mix of 16 cards">New board</button>
         </div>
         <div class="lot-sheet" id="lot-sheet" role="dialog" aria-labelledby="lot-sheet-t" hidden><div class="lot-sheet-in">
-          <div class="lot-sheet-h"><h3 id="lot-sheet-t">Pick your tabla</h3><button type="button" id="lot-sheet-x" class="lot-sheet-x" aria-label="Close"><span aria-hidden="true">✕</span></button></div>
+          <div class="lot-sheet-h"><h3 id="lot-sheet-t">Pick your board</h3><button type="button" id="lot-sheet-x" class="lot-sheet-x" aria-label="Close"><span aria-hidden="true">✕</span></button></div>
           <div class="lot-picks" id="lot-picks"></div>
           <div class="lot-sheet-row"><span>Calling speed</span><button type="button" id="lot-speed" class="lot-btn" aria-label="Calling speed"></button></div>
         </div></div>
       </div>
-      <p class="lot-rules">When Tía calls a card that's on your tabla, tap it to drop a bean on it (tap again to take it off). Win with a row, a column, a diagonal or the 4 corners, then tap <b>¡Órale!</b> <b>Limpiar</b> takes the beans off; <b>Nueva tabla</b> deals a random new mix, or pick one of the ready-made tablas at the top. A game you don't win (the deck runs out, or you deal a new tabla mid-game) resets your streak.</p>
+      <p class="lot-rules">When Tía calls a card that's on your board, tap it to drop a bean on it (tap again to take it off). Win with a row, a column, a diagonal or the 4 corners, then tap <b>¡Órale!</b> <b>Clear</b> takes the beans off; <b>New board</b> deals a random new mix, or pick one of the ready-made boards at the top. A game you don't win (the deck runs out, or you deal a new board mid-game) resets your streak.</p>
       <p class="lot-credit">Original art made for Chisme. Chismería is a lotería-style game; not affiliated with or endorsed by any Lotería publisher.</p>
       <p class="lot-stats" id="lot-stats"></p>
       <div class="lot-hist-wrap"><p class="lot-hist-h">Already called</p><div id="lot-hist" class="lot-hist"></div></div>`;
@@ -203,7 +203,7 @@
       const pt = $("#lot-pick-t");
       if (pr) pt.textContent = pr.name;
       else pt.innerHTML = '<span class="lot-pick-emo" aria-hidden="true">🔀 </span>Random';
-      $("#lot-pick").setAttribute("aria-label", `Pick your tabla (now: ${pr ? pr.name : "a random mix"})`);
+      $("#lot-pick").setAttribute("aria-label", `Pick your board (now: ${pr ? pr.name : "a random mix"})`);
     }
     const cellLabel = (i) => byId(tabla[i]).name + (marks.has(i) ? ", bean on it" : called.has(tabla[i]) ? ", called: tap to put a bean on it" : "");
     function drawTabla() {   // each cell's bean lands a little differently (turned, nudged, sometimes flipped), like a real one
@@ -221,7 +221,7 @@
       const pr = PRESETS.find((x) => x.id === st.pick);
       stop(); tabla = pr ? pr.cards.slice() : newTabla(); deck = newDeck(); called = new Set(); marks = new Set(); over = false; started = false;
       el.classList.remove("won"); drawTabla(); history(); stats(); controls();
-      if (!first) speak(pr ? `${pr.name}: new tabla, new luck. Tap Start when you're ready.` : "New tabla, new luck. Tap Start when you're ready.", null);
+      if (!first) speak(pr ? `${pr.name}: new board, new luck. Tap Start when you're ready.` : "New board, new luck. Tap Start when you're ready.", null);
     }
     function callNext() {
       if (!deck.length) { over = true; stop(); st.streak = 0; st.played++; save(st); stats(); controls(); speak("The deck ran out! Nobody won this time… the next one's yours.", null); say([{ key: "over", text: LINES_ES.over }]); return; }

@@ -4,7 +4,7 @@
     yellow, fits the screen. Screenshot: notif-prompt.png. Not now → gone for this open.
   - Then every 5th open: opens 2-5 nothing, open 6 the card, open 7 nothing.
   - Turn on = the existing subscribe flow (permission prompt → pushManager.subscribe → POST /api/push/subscribe; the push
-    service is faked here, push_test / push_v45_ui_test cover the real one) → "¡Listo!" → gone, and never again (open 11).
+    service is faked here, push_test / push_v45_ui_test cover the real one) → "Done!" → gone, and never again (open 11).
   - Blocked in the browser: never shows. Denied at the prompt: the card closes.
   - One popup per open: on an open where both are due, the card wins and the Home Screen tutorial waits for the next open.
   WebKit iPhone 13 (Safari, not the Home Screen app), dark: "Add Chisme to your Home Screen first 📲" → Show me how opens
@@ -110,7 +110,7 @@ async def main():
         check(st["prefs"].get("on") and st["subscribed"] == 1 and len(subs) == 1 and subs[0].get("subscription", {}).get("endpoint") and st["sw"],
               f"Turn on → permission → subscribe → POST /api/push/subscribe ({len(subs)} posts), Settings switch on")
         await pg.wait_for_timeout(4800)
-        check(not (await card(pg))["open"], "\"¡Listo!\" then the card goes away by itself")
+        check(not (await card(pg))["open"], "\"Done!\" then the card goes away by itself")
         await pg.evaluate("localStorage.setItem('chisme-notif', JSON.stringify(Object.assign(JSON.parse(localStorage.getItem('chisme-notif')), { n: 10 })))")
         await pg.reload(); await ready(pg)
         due = await pg.evaluate("__chisme.notif.due")
