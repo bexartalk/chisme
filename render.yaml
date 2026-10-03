@@ -32,3 +32,6 @@ services:
       # https://chisme.co once that domain points here. Unset = each request's own address (works on chisme.onrender.com).
       - key: PUBLIC_BASE_URL
         sync: false
+      # v49.14 desktop website / domain move (README → "Desktop website & the move to chisme.co"). All optional, off by default:
+      # PUBLIC_BASE_URL=https://chisme.co (canonical/OG/sitemap/QR/share links), DOMAIN_REDIRECT=1 (301 old host → it),
+      # MOVED_BANNER=1 (tell installed users on the old origin to re-add Chisme), REDIRECT_FROM_HOSTS, APP_STORE_GOAL_RAISED.

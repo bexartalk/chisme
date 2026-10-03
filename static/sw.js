@@ -1,7 +1,7 @@
 /* Chisme service worker: caches the app shell and the last-loaded news/weather
    so the app opens instantly (and shows the last saved data) even when the server is asleep
    or there's no connection. */
-const VERSION = "chisme-v49.13";   // v49.2 … v49.13: same-day follow-ups (a ".N" after the number is allowed)
+const VERSION = "chisme-v49.14";   // v49.2 … v49.14: same-day follow-ups (a ".N" after the number is allowed)
 const BUILD = VERSION.replace("chisme-v", "");          // index.html asks for app.js?v=<BUILD>
 const SHELL_CACHE = `${VERSION}-shell`;
 const DATA_CACHE = `${VERSION}-data`;
@@ -16,6 +16,8 @@ const SHELL = [
   `/static/juegos.js?v=${BUILD}`,
   `/static/juan.js?v=${BUILD}`,
   `/static/app.js?v=${BUILD}`,
+  `/static/desktop.js?v=${BUILD}`,   // v49.14: the desktop website layer (desktop.css only applies at >= 1024 px)
+  `/static/desktop.css?v=${BUILD}`,
   "/static/vendor/leaflet/leaflet.css",
   "/static/vendor/leaflet/leaflet.js",
   "/static/vendor/leaflet/images/layers.png",
@@ -167,6 +169,7 @@ self.addEventListener("fetch", (event) => {
   if (url.pathname === "/sw.js") return;
   if (url.pathname === "/stats" || url.pathname.startsWith("/stats/")) return;   // the owner's private page: always the server, never the app shell
   if (url.pathname === "/privacy" || url.pathname === "/terms") return;   // v49.12: real pages, never the app shell
+  if (["/about", "/support", "/contact", "/robots.txt", "/sitemap.xml", "/qr.svg"].includes(url.pathname)) return;   // v49.14: real pages too
   if (url.pathname === "/api/refresh") return;   // v49.10: the "refresh everyone" token is never cached here
   if (url.pathname.startsWith("/api/")) { event.respondWith(apiNetworkFirst(req)); return; }
   if (req.mode === "navigate") { event.respondWith(pageCacheFirst(req)); return; }
