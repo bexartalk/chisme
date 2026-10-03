@@ -423,12 +423,20 @@ main{padding-top:0}
 .art-credit a{display:inline-block;min-height:24px;padding:2px 0;font-weight:800}
 .news-list .art{grid-column:1 / -1}
 
-/* ---------- sync status pill (below the fixed nav), pull-to-refresh, update toast */
-.sync { position: fixed; z-index: 40; left: 50%; transform: translateX(-50%); top: calc(var(--tabs-h, 56px) + 6px);
-  max-width: min(92vw, 560px); display: flex; align-items: center; gap: .5em; padding: .35em .85em; border-radius: 999px;
+/* ---------- sync status pill (v49.12: a bottom toast, left of Tía), pull-to-refresh, update toast */
+/* v49.12: a toast at the bottom, left of Tía (and above the one-time Terms bar while it's up), so it never covers the
+   header (it used to hang under the tab bar, squeezed to half the width by left:50%, 3-6 lines tall over the Chisme bubble) */
+.sync { position: fixed; z-index: 42; left: max(12px, env(safe-area-inset-left)); right: calc(90px + env(safe-area-inset-right));
+  bottom: calc(18px + env(safe-area-inset-bottom) + var(--terms-h, 0px)); width: fit-content; max-width: 560px; margin-inline: auto; box-sizing: border-box;
+  display: flex; flex-wrap: wrap; align-items: center; gap: .35em .5em; padding: .45em .9em; border-radius: 18px;
   background: #1a1a1a; color: #fff; font-size: .82rem; font-weight: 600; line-height: 1.3;
   box-shadow: 0 4px 14px rgba(0,0,0,.25); transition: opacity .3s, transform .3s; }
-.sync[data-state="done"] { opacity: 0; pointer-events: none; transform: translate(-50%, -8px); }
+.sync[data-state="done"] { opacity: 0; pointer-events: none; transform: translateY(8px); }
+html.a2hs-open .sync, html.notif-open .sync, html.game-fs .sync { visibility: hidden; }
+html:has(.update-toast:not([hidden])) .sync { visibility: hidden; }
+#sync-msg { flex: 1 1 150px; min-width: 0; }   /* long messages wrap; "Retry now" drops under them on narrow phones */
+#sync-retry { margin-left: auto; }
+html:has(#terms-bar:not([hidden])) .sync { right: max(12px, env(safe-area-inset-right)); }   /* above the Terms bar it's clear of Tía: full width */   /* the "new version" toast wins the same spot */
 .sync[data-state="ok"] { background: #0B6E4F; }
 .sync[data-state="fail"] { background: #8A1538; }
 .sync-ico { width: .9em; height: .9em; border-radius: 50%; flex: none; }
@@ -1585,7 +1593,9 @@ dialog.juan-skins button.juan-sk-done{position:sticky;bottom:8px;z-index:2}
   display:flex;align-items:center;gap:10px;padding:10px 12px;background:#000;color:#fff;border:2px solid var(--turq);border-radius:14px;box-shadow:0 4px 0 rgba(0,0,0,.35);font-size:.9rem;line-height:1.35}
 .terms-bar[hidden]{display:none}
 html.a2hs-open .terms-bar,html.notif-open .terms-bar,html.game-fs .terms-bar{visibility:hidden}   /* v49.12: never under another prompt or a full-screen game */
-.terms-bar p{margin:0;flex:1}
+.terms-bar{flex-wrap:wrap;row-gap:6px}
+.terms-bar p{margin:0;flex:1 1 180px}   /* v49.12: OK drops under the line on narrow phones (was 6 lines tall at 320 px) */
+.terms-ok{margin-left:auto}
 .terms-bar a{color:#fff;font-weight:800;text-decoration:underline}
 .terms-ok{flex:0 0 auto;min-width:56px;min-height:44px;background:var(--turq);color:#000;border:2px solid var(--turq);border-radius:12px;font-weight:900;font-size:1rem}
 [data-theme="dark"] .terms-ok{background:var(--turq);color:#000;border-color:var(--turq)}
