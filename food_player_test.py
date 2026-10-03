@@ -142,8 +142,10 @@ async def wk(p):
         await pg.wait_for_timeout(4000); await settle(pg)
         await pg.screenshot(path=os.path.join(OUT, "food-tiktok-player.png"))
         await pg.tap("#player-close")
+        try: await pg.wait_for_function("!document.querySelector('#player').open && !document.querySelector('#player-media iframe')", timeout=3000)   # (v49.12: the close event can land a frame later)
+        except Exception: pass
         check(await pg.evaluate("!document.querySelector('#player').open && !document.querySelector('#player-media iframe')"), "closing stops the TikTok")
-        await pg.wait_for_timeout(500); framed["on"] = False
+        await pg.wait_for_timeout(1500); framed["on"] = False   # (TikTok's player keeps logging for a moment after it's removed)
     # Settings → Open Chisme to: ¿Cuál dieta?
     await pg.evaluate("window.scrollTo(0, 0)"); await pg.tap("#settings-btn")
     await pg.check('#settings input[name=deftab][value=antojos]'); await pg.tap("#settings-close")
