@@ -412,7 +412,7 @@ async def public_base_tests(p, data):
         rid = reel_id(next(it["url"] for k in ("items", "recipes", "world") for it in (data.get(k) or []) if it.get("video") and reel_id(it.get("url"))))
         rp = urllib.request.urlopen(base + "/?reel=" + rid, timeout=20).read().decode()
         check('<meta name="chisme-base" content="https://chisme.co">' in page and 'og:url" content="https://chisme.co/"' in page
-              and 'og:image" content="https://chisme.co/static/icons/icon-512.png"' in page and "onrender" not in page and "__PUBLIC_BASE__" not in page,
+              and 'og:image" content="https://chisme.co/static/site/og-banner.png"' in page and "onrender" not in page and "__PUBLIC_BASE__" not in page,
               "PUBLIC_BASE_URL=https://chisme.co/ → the page's base meta + Open Graph url/image use it (trailing / trimmed; no onrender anywhere)")
         check(f'og:url" content="https://chisme.co/?reel={rid}"' in rp and "onrender" not in rp, f"…and a shared reel's preview links to https://chisme.co/?reel={rid}")
         b = await p.chromium.launch(executable_path="/usr/bin/google-chrome", args=["--no-sandbox"])
