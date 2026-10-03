@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "Chisme, the community for los metiches",
+  "name": "Chisme. Did you hear?",
   "short_name": "Chisme",
-  "description": "Chisme, the community for los metiches. Local news, NWS weather, alerts, live rain radar, sports and events for wherever you are, neighborhood stories first.",
+  "description": "Chisme. Did you hear? Local news, NWS weather, alerts, live rain radar, sports and events for wherever you are, neighborhood stories first.",
   "lang": "en-US",
   "dir": "ltr",
   "start_url": "/?source=pwa",

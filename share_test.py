@@ -9,7 +9,7 @@ from PIL import Image
 BASE = os.environ.get("CHISME_URL", "http://localhost:8211")
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "screenshots"); os.makedirs(OUT, exist_ok=True)
 INIT = "if (!localStorage.getItem('chisme-location-setup')) { localStorage.setItem('chisme-location-setup','1'); localStorage.setItem('chisme-ios-hint-dismissed','1'); localStorage.setItem('chisme-swiped','1'); }"
-WANT = {"title": "Chisme", "text": "Chisme, the community for los metiches. ☕ Local news, weather, food & events:", "url": "https://chisme.onrender.com/"}
+WANT = {"title": "Chisme", "text": "Chisme. Did you hear? 👀 Local news, weather, food & events:", "url": "https://chisme.onrender.com/"}
 fails = 0
 def check(ok, what):
     global fails
