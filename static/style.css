@@ -1733,7 +1733,8 @@ html[data-season="muertos"][data-launch="events"] .tab[data-view="chisme"],html[
 .vf-like[aria-pressed="true"] .ic path{fill:var(--pink,#EF426F);stroke:var(--pink,#EF426F)}
 .vf-share .ic path{fill:#fff}
 /* while it plays the rail hides; Like + Share stay on the video (TikTok-style), bottom right, above the progress bar */
-.vf-act{position:absolute;z-index:3;right:8px;bottom:calc(env(safe-area-inset-bottom) + 26px);display:none;flex-direction:column;gap:14px;align-items:center}
+/* v49.13.1: sits well above the YouTube embed's bottom-right 'Shorts' logo (~bottom 50px of the player) */
+.vf-act{position:absolute;z-index:3;right:8px;bottom:calc(env(safe-area-inset-bottom) + 112px);display:none;flex-direction:column;gap:14px;align-items:center}
 .vf-slide.vf-playing .vf-act{display:flex}
 .vf-slide.vf-playing:has(.vf-info :focus-visible,.vf-rail :focus-visible) .vf-act{display:none}
 .vf-act button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;width:60px;min-height:60px;padding:6px 2px;border:0;border-radius:999px;

@@ -232,7 +232,7 @@ def head_tags(base: str, path: str, title: str, desc: str, og_type: str = "websi
 
 
 def app_build() -> str:
-    m = re.search(r'VERSION\s*=\s*"chisme-v(\d+(?:\.\d+)?)"', (BASE / "static" / "sw.js").read_text())
+    m = re.search(r'VERSION\s*=\s*"chisme-v(\d+(?:\.\d+)*)"', (BASE / "static" / "sw.js").read_text())
     return m.group(1) if m else "0"
 
 

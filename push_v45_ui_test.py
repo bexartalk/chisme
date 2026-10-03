@@ -263,7 +263,7 @@ def sw_part():
     check(o["outside"] == [["open", "https://chisme.test/?story=https%3A%2F%2Fevil.example%2Fx%3Fy%3D1#news"]], "an outside URL becomes an in-app reader link, never a browser tab")
     check(o["stats"] == [["open", "https://chisme.test/"]] and o["js"] == [["open", "https://chisme.test/"]], "/stats or javascript: in a payload → just the app")
     sw = open(os.path.join(HERE, "static", "sw.js")).read()
-    m = re.search(r'const VERSION = "chisme-v(\d+(?:\.\d+)?)";', sw); v = m.group(1) if m else "0"   # v45 or any later build, "49.5" style included
+    m = re.search(r'const VERSION = "chisme-v(\d+(?:\.\d+)*)";', sw); v = m.group(1) if m else "0"   # v45 or any later build, "49.5" style included
     check(float(v) >= 45 and f'window.CHISME_APP_BUILD = "{v}";' in open(os.path.join(HERE, "static", "app.js")).read(), f"service worker cache chisme-v{v} (app build {v}, v45 or later)")
 
 async def main():

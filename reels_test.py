@@ -224,6 +224,16 @@ async def webkit_tests(p, data):
     pr = await pg.evaluate("(() => { const s = [...document.querySelectorAll('#feed-scroll .vf-slide')][window.__chisme.forYou.cur]; return { t: s.querySelector('.vf-prog i').style.transform, playing: s.classList.contains('vf-playing') }; })()")
     m = re.search(r"scaleX\(([\d.]+)\)", pr["t"] or "")
     check(not pr["playing"] or (m and float(m.group(1)) > 0), f"progress bar moves while the video plays ({pr['t']})")
+    # v49.13.1: Like / Share sit well above the YouTube embed's "Shorts" logo (its bottom ~50px) on every phone size; tap targets >= 44px
+    for vw, vh in ((390, 844), (375, 667), (320, 568)):
+        await pg.set_viewport_size({"width": vw, "height": vh}); await pg.wait_for_timeout(150)
+        ac = await pg.evaluate("""(() => { const s = [...document.querySelectorAll('#feed-scroll .vf-slide')][window.__chisme.forYou.cur], a = s.querySelector('.vf-act');
+          if (getComputedStyle(a).display === 'none') return null;
+          const f = s.querySelector('iframe'), fb = f ? f.getBoundingClientRect().bottom : s.getBoundingClientRect().bottom, top = s.getBoundingClientRect().top;
+          const b = [...a.querySelectorAll('button')].map((x) => x.getBoundingClientRect());
+          return { gap: Math.round(fb - Math.max(...b.map((r) => r.bottom))), minW: Math.round(Math.min(...b.map((r) => r.width))), minH: Math.round(Math.min(...b.map((r) => r.height))), topOk: Math.min(...b.map((r) => r.top)) > top + 60 }; })()""")
+        check(ac is None or (ac["gap"] >= 100 and ac["minW"] >= 44 and ac["minH"] >= 44 and ac["topOk"]), f"{vw}x{vh}: Like/Share clear the YouTube 'Shorts' logo (>= 100px above the player's bottom) with 44px+ tap targets ({ac})")
+    await pg.set_viewport_size({"width": 390, "height": 844}); await pg.wait_for_timeout(300)
     await pg.screenshot(path=os.path.join(SHOTS, "reels-feed.png"))
     url0 = await pg.evaluate("[...document.querySelectorAll('#feed-scroll .vf-slide')][window.__chisme.forYou.cur].dataset.url")
     box = await pg.evaluate("(() => { const r = [...document.querySelectorAll('#feed-scroll .vf-slide')][window.__chisme.forYou.cur].querySelector('.vf-shield').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height * 0.4 }; })()")

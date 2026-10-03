@@ -62,7 +62,7 @@ def files():
     check(min(ink) > 0.02, f"v49.5 bold black outlines on every card (least ink {min(ink):.1%} of the picture)")
     check(min(border) >= 215, f"a clean cream/white card border on every card (darkest border pixel {min(border)})")
     sw = open(os.path.join(HERE, "static", "sw.js")).read()
-    check("/static/loteria/cards/" in sw and re.search(r'VERSION = "chisme-v\d+(?:\.\d+)?"', sw), "the service worker precaches the pictures (offline tabla)")
+    check("/static/loteria/cards/" in sw and re.search(r'VERSION = "chisme-v\d+(?:\.\d+)*"', sw), "the service worker precaches the pictures (offline tabla)")
     gen = open(os.path.join(HERE, "tools", "make_loteria_cards.py")).read()
     check("loteria_cards.js" in gen and "webp" in gen, "tools/make_loteria_cards.py re-renders them from our own drawings in loteria_cards.js")
 
