@@ -57,7 +57,10 @@ async def wk(p):
     await pg.evaluate(TOP, "#food-latest"); await pg.evaluate("scrollBy(0, 150)"); await pg.wait_for_timeout(1200)
     await pg.screenshot(path=os.path.join(OUT, "food-desk-bottom.png"))
     # video: tap the thumbnail of a card with a known restaurant (Losoya's has an address), else the first card
-    idx = await pg.evaluate("(() => { const c = [...document.querySelectorAll('#food-creators .fr')]; const i = c.findIndex(x => /Losoya/.test(x.textContent)); return i < 0 ? 0 : i; })()")
+    # (v49.12: a YouTube card: the strip can lead with curated TikToks, and a box that can't reach YouTube's feeds has none)
+    idx = await pg.evaluate("(() => { const c = [...document.querySelectorAll('#food-creators .fr')], yt = (x) => /youtu/.test(x.querySelector('h4 a').href); let i = c.findIndex(x => /Losoya/.test(x.textContent) && yt(x)); if (i < 0) i = c.findIndex(yt); return i; })()")
+    has_yt = idx >= 0; idx = max(idx, 0)
+    if not has_yt: print("   (no YouTube food videos in the feed right now; the TikTok embed is checked instead)"); framed["on"] = True
     thumb = pg.locator("#food-creators .fr .fr-thumb").nth(idx)
     await thumb.scroll_into_view_if_needed(); await thumb.tap()
     await pg.wait_for_function("document.querySelector('#player').open && document.querySelector('#player-media iframe')", timeout=10000)
@@ -67,7 +70,8 @@ async def wk(p):
                  dir: (document.querySelector('#player-actions .fs-dir') || {}).href || null, save: !!document.querySelector('#player-actions .fr-save'),
                  blank: [...document.querySelectorAll('#player a[target=_blank]')].map(a => a.href).filter(h => /youtu/.test(h)) }; }""")
     print("   player:", {k: (x[:90] if isinstance(x, str) else x) for k, x in v.items()})
-    check(v["src"].startswith("https://www.youtube-nocookie.com/embed/") and "playsinline=1" in v["src"] and "rel=0" in v["src"] and "modestbranding=1" in v["src"], "thumbnail tap opens the in-app player (youtube-nocookie embed, playsinline, rel=0, modestbranding)")
+    if has_yt: check(v["src"].startswith("https://www.youtube-nocookie.com/embed/") and "playsinline=1" in v["src"] and "rel=0" in v["src"] and "modestbranding=1" in v["src"], "thumbnail tap opens the in-app player (youtube-nocookie embed, playsinline, rel=0, modestbranding)")
+    else: check(v["src"].startswith("https://www.tiktok.com/player/v1/"), "thumbnail tap opens the in-app player (TikTok embed)")
     check(v["kind"].endswith("Video") and v["save"] and not v["blank"], "sheet: Video, Save button, no link out to YouTube")
     if "Losoya" in v["title"]: check(bool(v["place"]) and "Walzem" in v["place"] and v["dir"] and v["dir"].startswith("https://maps.apple.com/"), "sheet shows the restaurant + Directions")
     await pg.wait_for_timeout(5000)
@@ -82,6 +86,7 @@ async def wk(p):
         pass
     c = await pg.evaluate("[document.querySelector('#player').open, document.querySelector('#player-media').children.length]")
     check(c == [False, 0], f"Close button closes the sheet and stops the video {c}")
+    framed["on"] = False
     # tapping the card body (not the thumbnail) opens it too
     await pg.locator("#food-creators .fr .fr-by").nth(idx).tap()
     check(await pg.evaluate("document.querySelector('#player').open"), "tapping the card opens the player")
@@ -113,8 +118,8 @@ async def wk(p):
     # Sports YouTube clips play in the same sheet (no Save button there)
     await pg.tap('#tabs [data-view="sports"]')
     try:
-        await pg.wait_for_function("[...document.querySelectorAll('#view-sports a[aria-haspopup=dialog]')].some(a => /youtu/.test(a.href))", timeout=30000)
-        await pg.evaluate("[...document.querySelectorAll('#view-sports a[aria-haspopup=dialog]')].find(a => /youtu/.test(a.href)).click()")   # every outside link opens a sheet now; pick a clip
+        await pg.wait_for_function("[...document.querySelectorAll('#view-sports a[aria-haspopup=dialog]')].some(a => /youtube\\.com\\/(watch|shorts)|youtu\\.be\\//.test(a.href))", timeout=30000)
+        await pg.evaluate("[...document.querySelectorAll('#view-sports a[aria-haspopup=dialog]')].find(a => /youtube\\.com\\/(watch|shorts)|youtu\\.be\\//.test(a.href)).click()")   # every outside link opens a sheet now; pick a clip
         sp = await pg.evaluate("[document.querySelector('#player').open, (document.querySelector('#player-media iframe') || {}).src || '', !!document.querySelector('#player-actions .fr-save')]")
         check(sp[0] and "youtube-nocookie.com/embed/" in sp[1] and not sp[2], f"Sports video plays in the in-app player, without Save ({sp[1][:60]})")
         await pg.tap("#player-close")
