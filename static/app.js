@@ -1633,7 +1633,7 @@ window.CHISME_APP_BUILD = "49.12";
   const ytPool = () => Math.min(YT_POOL_MAX, aheadN() + 2);     // + the one on screen + the one behind
   const prefetchN = () => (slowNet() ? 2 : 6);                  // slides ahead whose thumbnails are fetched (and decoded) now
   const FEED_SOUND_KEY = "chisme-feed-sound";
-  let soundWanted = lsGet(FEED_SOUND_KEY) !== "off";
+  let soundWanted = lsGet(FEED_SOUND_KEY) === "on";   // v49.12: muted until you turn sound on (Settings, 🔇 in the feed, or a tap)
   let feedUnlocks = 0, feedGesture = false;   // feedGesture: true while handling a real tap (Start, a play button, the sound button)
   const IOS = IOS_FEED;
   const YT_HOST = "https://www.youtube-nocookie.com";
