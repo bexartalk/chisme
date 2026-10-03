@@ -48,6 +48,17 @@ async def phone(b, name, dev, theme, w=None):
     check(len(mix) >= 12 and not run3, f"All: {len(mix)} cards, never 3 of a kind in a row ({''.join(c[0] for c in cats)})")
     check(len(set(cats[:10])) >= 2 and len(set(cats)) == 3, f"…News, Sports and Events all mixed in ({sorted(set(cats))})")
     check(all(m["tag"].lower().endswith(m["cat"]) for m in mix), "…every card has its category tag (📰 News / 🏀 Sports / 🎉 Events)")
+    # v49.12: the Sports tag was peach #ffe3cc, which read as yellow on phones → violet. Each kind its own clearly different
+    # hue (≥40° apart), none yellow / cream / amber (hue 25–70°), text ≥ 4.5:1 on it, light and dark.
+    tags = await pg.evaluate("""() => { const hsl = (c) => { const [r, g, b] = c.match(/[\\d.]+/g).slice(0, 3).map(x => x / 255), mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+        let h = !d ? 0 : mx === r ? 60 * (((g - b) / d) % 6) : mx === g ? 60 * ((b - r) / d + 2) : 60 * ((r - g) / d + 4); return h < 0 ? h + 360 : h; };
+      const lum = (c) => { const v = c.match(/[\\d.]+/g).slice(0, 3).map(x => { x /= 255; return x <= .04045 ? x / 12.92 : ((x + .055) / 1.055) ** 2.4; }); return .2126 * v[0] + .7152 * v[1] + .0722 * v[2]; };
+      const out = {}; for (const k of ['news', 'sports', 'events']) { const t = document.querySelector('#mix-list .mix-' + k + ' .mix-tag'); if (!t) continue; const cs = getComputedStyle(t);
+        const a = lum(cs.backgroundColor), b = lum(cs.color); out[k] = { bg: cs.backgroundColor, hue: Math.round(hsl(cs.backgroundColor)), cr: +((Math.max(a, b) + .05) / (Math.min(a, b) + .05)).toFixed(2) }; } return out; }""")
+    hues = [v["hue"] for v in tags.values()]
+    apart = all(min(abs(a - b), 360 - abs(a - b)) >= 40 for i, a in enumerate(hues) for b in hues[i + 1:])
+    check(len(tags) == 3 and apart and all(not (25 <= v["hue"] <= 70) and v["cr"] >= 4.5 for v in tags.values()),
+          f"…the 3 tags are clearly different colours, none yellow, text ≥4.5:1 ({tags})")
     chips = await pg.evaluate("[...document.querySelectorAll('#view-chisme .mq-chip')].map(c => { const r = c.getBoundingClientRect(); return [c.dataset.go, c.textContent.trim(), Math.round(r.height), Math.round(r.width), r.right <= innerWidth + 1 && c.scrollWidth <= c.clientWidth + 1]; })")
     check([c[0] for c in chips] == ["chisme", "news", "sports", "events"] and all(c[2] >= 44 and c[3] >= 44 and c[4] for c in chips),
           f"chips All · News · Sports · Events, 44 px+, on screen, labels not cut off ({[(c[1], c[2], c[3]) for c in chips]})")

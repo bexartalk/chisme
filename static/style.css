@@ -1643,10 +1643,10 @@ html[data-season="muertos"][data-launch="events"] .tab[data-view="chisme"],html[
 .mix-item{display:flex;flex-direction:column;gap:6px}
 .mix-tag{align-self:flex-start;display:inline-flex;align-items:center;gap:2px;padding:2px 10px;border-radius:999px;font-size:.78rem;font-weight:900;letter-spacing:.02em;text-transform:uppercase;line-height:1.5}
 .mix-news .mix-tag{background:#d7f7f8;color:#004b4d}
-.mix-sports .mix-tag{background:#ffe3cc;color:#6b2c00}
+.mix-sports .mix-tag{background:#ebe3ff;color:#3f1d8f}   /* v49.12: violet; the old peach #ffe3cc read as yellow on phones */
 .mix-events .mix-tag{background:#ffe0ea;color:#7a0f33}
 [data-theme="dark"] .mix-news .mix-tag{background:#0b3c3e;color:#bff6f7}
-[data-theme="dark"] .mix-sports .mix-tag{background:#4a2205;color:#ffd9b8}
+[data-theme="dark"] .mix-sports .mix-tag{background:#36215f;color:#e6dcff}
 [data-theme="dark"] .mix-events .mix-tag{background:#4d0d24;color:#ffd0df}
 .mix-item .sn{border:2px solid var(--line);border-radius:14px;padding:12px}
 .mix-more{display:flex;justify-content:center;margin-top:14px}
