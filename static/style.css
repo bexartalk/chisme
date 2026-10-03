@@ -828,6 +828,8 @@ html.feed-open,html.feed-open body{overflow:hidden}
 .feed-toast button{min-height:40px;padding:.1em .9em;border-radius:999px;background:#000;color:#fff;border-color:#000;font-weight:900}
 .reduce-motion .fy-start:active{transform:none}
 [data-theme="dark"] .foryou-card{border-color:var(--turq);box-shadow:0 5px 0 var(--turq)}
+[data-theme="dark"] .fy-start{background:var(--turq);color:#000;border-color:#000}   /* v49.12: "▶ Start watching" stays turquoise in dark mode */
+[data-theme="dark"] .fy-start:disabled{background:#8a8a8a}
 /* v49.12: the For You feed is a black, video-first screen in both themes. In dark mode the generic button colours (an opaque
    card background) covered the video itself (the full-size tap shield is a button: a blank teal screen), and recoloured the
    top buttons, the "why" chips, the rail, the big ▶ and "Watch again". Same look as light mode now. */
@@ -1091,6 +1093,11 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
 [data-theme="dark"] .gfs .lot-now-btns .lot-main{background:#00c9cd;color:#000;border-color:#1d1612}
 [data-theme="dark"] .gfs .lot-now-btns .lot-claim{background:#ef426f;color:#fff;border-color:#1d1612}
 [data-theme="dark"] .gfs .won .lot-claim{background:var(--turq);color:#000}
+/* v49.12: dark mode kept the generic dark button look on the main actions outside full screen: Juan's ▶ Start / Resume came out
+   dark while Start over and Skins stayed white, Lotería's ▶ Start and ¡Lotería! lost their colours. Same colours as light mode. */
+[data-theme="dark"] .lot-main{background:var(--turq);border-color:#000;color:#000}
+[data-theme="dark"] .lot-claim{background:var(--pink);color:#fff}
+[data-theme="dark"] .won .lot-claim{background:var(--turq);color:#000}
 [data-theme="dark"] .gfs-bar .lot-pick{background:none;color:#fff;border-color:#fff}
 .lot-actions{display:flex;flex-wrap:nowrap;gap:8px;margin:0;padding:6px 8px 10px}
 .lot-actions .lot-btn{min-height:54px;border:3px solid #1d1612;border-radius:14px;font-weight:900;font-size:1.05rem;letter-spacing:.05em;text-transform:uppercase;box-shadow:0 4px 0 #1d1612;white-space:nowrap;padding:0 .4em}
@@ -1277,7 +1284,7 @@ button.juan-sk-done{width:100%;min-height:56px;border:3px solid #000;border-radi
 .share-chisme:active{transform:translateY(3px);box-shadow:0 1px 0 #000}
 .share-chisme:focus-visible{outline:4px solid var(--turq);outline-offset:3px}
 .reduce-motion .share-chisme:active{transform:none}
-[data-theme="dark"] .share-chisme{border-color:var(--pink);box-shadow:0 4px 0 #8a1f3b}
+[data-theme="dark"] .share-chisme{background:var(--pink);color:#000;border-color:var(--pink);box-shadow:0 4px 0 #8a1f3b}   /* v49.12: stays pink (the generic dark button had made it a dark pill) */
 .vf-donate{display:flex;align-items:center;justify-content:center;padding:24px 16px}
 .vf-donate .donate-every{width:100%;max-width:420px;margin:0;background:#101320;color:#fff;border-color:var(--turq)}
 .vf-donate .donate-text{color:#fff;font-size:1.15rem}
