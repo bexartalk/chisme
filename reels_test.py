@@ -24,7 +24,9 @@ INIT = "if (!localStorage.getItem('chisme-location-setup')) { localStorage.setIt
 # the stats batches already sent (a batch goes every 15 s): read from the requests themselves, so a count is found whether
 # it's still queued on the phone or already went out
 SENT_PY = []
-def track_stats(ctx):
+async def track_stats(ctx):
+    # WebKit doesn't show a beacon's body to Playwright: say "no beacon" so the app uses its fetch() fallback (same batch)
+    await ctx.add_init_script("try { Navigator.prototype.sendBeacon = function () { return false; }; } catch (e) {}")
     def on(r):
         if "/api/stats" in r.url and r.method == "POST":
             try: SENT_PY.extend(json.loads(r.post_data or "{}").get("e") or [])
@@ -178,7 +180,7 @@ YELLOW = r"""(roots) => {
 async def webkit_tests(p, data):
     print("\n== WebKit iPhone 13: Settings defaults + persistence")
     b = await p.webkit.launch(); dev = dict(p.devices["iPhone 13"]); dev.pop("default_browser_type", None)
-    ctx = await b.new_context(**dev); await ctx.add_init_script(INIT % ""); track_stats(ctx); pg = await ctx.new_page(); errs = []
+    ctx = await b.new_context(**dev); await ctx.add_init_script(INIT % ""); await track_stats(ctx); pg = await ctx.new_page(); errs = []
     pg.on("pageerror", lambda e: None if "no supported source" in str(e) else errs.append(str(e)[:200]))   # (Playwright's Chromium has no H.264: a YouTube media error, not Chisme's)
     await open_food(pg)
     st = await pg.evaluate("""() => ({ auto: document.querySelector('#set-feed-autoplay').checked, snd: document.querySelector('#set-feed-sound').checked,
@@ -227,8 +229,13 @@ async def webkit_tests(p, data):
     box = await pg.evaluate("(() => { const r = [...document.querySelectorAll('#feed-scroll .vf-slide')][window.__chisme.forYou.cur].querySelector('.vf-shield').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height * 0.4 }; })()")
     was = await pg.evaluate("window.__chisme.forYou.sound ? [...document.querySelectorAll('#feed-scroll .vf-slide')][window.__chisme.forYou.cur].classList.contains('vf-playing') : null")
     await pg.evaluate("window.__tapT = []; document.addEventListener('click', (e) => { if (e.target.closest && e.target.closest('.vf-shield')) window.__tapT.push(Date.now()); }, true)")
-    await pg.touchscreen.tap(box["x"], box["y"]); await pg.wait_for_timeout(120); await pg.touchscreen.tap(box["x"], box["y"]); await pg.wait_for_timeout(250)
-    tt = await pg.evaluate("window.__tapT"); print(f"     (the two taps' clicks: {[t - tt[0] for t in tt]} ms apart)")
+    for attempt in range(3):   # the app counts two taps within 400 ms; a busy test box can deliver Playwright's two taps later than that
+        await pg.evaluate("window.__tapT = []")
+        await pg.touchscreen.tap(box["x"], box["y"]); await pg.wait_for_timeout(40); await pg.touchscreen.tap(box["x"], box["y"]); await pg.wait_for_timeout(250)
+        tt = await pg.evaluate("window.__tapT"); gap = (tt[-1] - tt[0]) if len(tt) > 1 else None
+        print(f"     (try {attempt + 1}: the two taps' clicks {gap} ms apart)")
+        if gap is not None and gap < 400: break
+        await pg.wait_for_timeout(600)
     h = await pg.evaluate(f"({{ heart: document.querySelectorAll('#feed-scroll .vf-heart').length, liked: !!({PROF}).s[{json.dumps(url0)}]?.lk, pressed: [...document.querySelectorAll('#feed-scroll .vf-slide')][window.__chisme.forYou.cur].querySelector('.vf-act .vf-like').getAttribute('aria-pressed'), q: {STATQ}.filter(e => e[0] === 'reel') }})")
     h["q"] = h["q"] + sent()
     await pg.screenshot(path=os.path.join(SHOTS, "reels-heart.png"))
@@ -247,7 +254,7 @@ async def webkit_tests(p, data):
     print("\n== WebKit iPhone 13: deep link /?reel=<id>, 'Tap anywhere for sound', share sheet (no navigator.share)")
     vids = [i for k in ("items", "recipes", "world") for i in data.get(k) or [] if i.get("video") and "/shorts/" in i.get("url", "")]
     target = vids[min(len(vids) - 1, 17)]; rid = reel_id(target["url"])
-    ctx = await b.new_context(**dev); await ctx.add_init_script(INIT % ""); track_stats(ctx)
+    ctx = await b.new_context(**dev); await ctx.add_init_script(INIT % ""); await track_stats(ctx)
     await ctx.add_init_script("try { delete Navigator.prototype.share; delete Navigator.prototype.canShare; } catch (e) {}")
     pg = await ctx.new_page(); errs = []; pg.on("pageerror", lambda e: None if "no supported source" in str(e) else errs.append(str(e)[:200]))   # (Playwright's Chromium has no H.264: a YouTube media error, not Chisme's)
     await pg.goto(URL + "?reel=" + rid, wait_until="domcontentloaded")
@@ -274,13 +281,13 @@ async def webkit_tests(p, data):
       btns: [...document.querySelectorAll('#rs-grid .rs-btn')].map((a) => ({ t: a.textContent.trim(), href: a.getAttribute('href') || '', target: a.getAttribute('target') || '', way: a.dataset.way })) })""")
     check(sh["open"], "Share (no system share sheet in this browser): Chisme's share sheet opens")
     link = URL + "?reel=" + rid
-    check(sh["msg"] == "Check out this chisme, metiche 👀 " + link + " — Chisme, the community for los metiches. Get the app: " + URL.rstrip('/'),
+    check(sh["msg"] == "Check out this chisme, metiche 👀 " + link + " — Chisme. Did you hear? Get the app: " + URL.rstrip('/'),
           f"the message: the video's Chisme link + the invite to get the app ({sh['msg'][:150]})")
     names = [x["t"] for x in sh["btns"]]
     check(names[:6] == ["Copy link", "Text message", "WhatsApp", "Facebook", "X", "Email"], f"targets: {names}")
     hb = {x["way"]: x for x in sh["btns"]}
     from urllib.parse import quote
-    check(hb["sms"]["href"].startswith("sms:?&body=") and quote("Chisme, the community for los metiches", safe="") in hb["sms"]["href"] and quote(link, safe="") in hb["sms"]["href"],
+    check(hb["sms"]["href"].startswith("sms:?&body=") and quote("Chisme. Did you hear?", safe="") in hb["sms"]["href"] and quote(link, safe="") in hb["sms"]["href"],
           "Text message: sms: with the message + link as the body")
     check(hb["whatsapp"]["href"].startswith("https://wa.me/?text=") and hb["whatsapp"]["target"] == "_blank", "WhatsApp: wa.me with the message, in a new window (leaves Chisme)")
     check(hb["facebook"]["href"].startswith("https://www.facebook.com/sharer/sharer.php?u=" + quote(link, safe="")), "Facebook: the sharer with the video's Chisme link")
@@ -301,7 +308,7 @@ async def webkit_tests(p, data):
 async def chromium_tests(p, data):
     print("\n== Chromium Pixel 5: navigator.share, share targets leave Chisme, endless feed, Data Saver / Reduce motion, Open Graph")
     b = await p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"]); dev = dict(p.devices["Pixel 5"]); dev.pop("default_browser_type", None)
-    ctx = await b.new_context(**dev); await ctx.add_init_script(INIT % ""); track_stats(ctx)
+    ctx = await b.new_context(**dev); await ctx.add_init_script(INIT % ""); await track_stats(ctx)
     await ctx.add_init_script("""window.__shares = []; window.__shareMode = 'ok';
       Object.defineProperty(Navigator.prototype, 'share', { configurable: true, value: function (d) { window.__shares.push(d);
         if (window.__shareMode === 'abort') return Promise.reject(new DOMException('cancel', 'AbortError'));
@@ -316,7 +323,7 @@ async def chromium_tests(p, data):
     s = await pg.evaluate(f"({{ shares: window.__shares, sheet: document.querySelector('#reel-share').open, prof: ({PROF}).s[{json.dumps(url0)}], q: {STATQ}.filter(e => e[0] === 'reel') }})")
     s["q"] = s["q"] + [e for e in sent() if e not in s["q"]]
     d0 = (s["shares"] or [{}])[0]
-    check(len(s["shares"]) == 1 and not s["sheet"] and d0.get("url") == URL + "?reel=" + reel_id(url0) and "Chisme, the community for los metiches. Get the app: " + URL.rstrip('/') in d0.get("text", "")
+    check(len(s["shares"]) == 1 and not s["sheet"] and d0.get("url") == URL + "?reel=" + reel_id(url0) and "Chisme. Did you hear? Get the app: " + URL.rstrip('/') in d0.get("text", "")
           and d0.get("text", "").startswith("Check out this chisme, metiche 👀"), f"phone with a share sheet: navigator.share gets the Chisme link + the invite ({d0})")
     check((s["prof"] or {}).get("sh") == 1 and any(e[1] == {"a": "share", "id": reel_id(url0), "m": "native"} for e in s["q"]), "the share teaches the ranker (s.sh) and is counted (reel share, native)")
     await pg.evaluate("window.__shareMode = 'abort'; window.__shares = []; [...document.querySelectorAll('#feed-scroll .vf-slide')][0].querySelector('.vf-rail .vf-share').click()"); await pg.wait_for_timeout(300)
@@ -365,11 +372,11 @@ async def chromium_tests(p, data):
     check(og.get("og:image") == f"https://i.ytimg.com/vi/{rid}/hqdefault.jpg" and og.get("og:url", "").endswith("/?reel=" + rid) and og.get("og:type") == "video.other",
           f"/?reel=<id>: Open Graph picture = the video's thumbnail, url = the Chisme link ({og.get('og:image')})")
     want = re.sub(r"\s+", " ", it["title"]).strip()
-    check(H.unescape(og.get("og:title", "")).rstrip("…")[:40] == want[:40] and H.unescape(og.get("og:description", "")).startswith("Check out this chisme, metiche 👀") and "the community for los metiches" in H.unescape(og.get("og:description", "")),
+    check(H.unescape(og.get("og:title", "")).rstrip("…")[:40] == want[:40] and H.unescape(og.get("og:description", "")).startswith("Check out this chisme, metiche 👀") and "Chisme. Did you hear?" in H.unescape(og.get("og:description", "")),
           f"…title = the video's, description = the share line ({H.unescape(og.get('og:title', ''))[:60]!r})")
     html2 = urllib.request.urlopen(URL + "?reel=%3Cscript%3E", timeout=30).read().decode()
-    check('property="og:title" content="Chisme, the community for los metiches"' in html2 and "<script>" not in html2.split("<body")[0].replace("<script>", "") , "a bad ?reel= value: the normal Open Graph tags, nothing injected")
-    check('property="og:title" content="Chisme, the community for los metiches"' in urllib.request.urlopen(URL, timeout=30).read().decode(), "the home page has Open Graph tags too")
+    check('property="og:title" content="Chisme. Did you hear?"' in html2 and "<script>" not in html2.split("<body")[0].replace("<script>", "") , "a bad ?reel= value: the normal Open Graph tags, nothing injected")
+    check('property="og:title" content="Chisme. Did you hear?"' in urllib.request.urlopen(URL, timeout=30).read().decode(), "the home page has Open Graph tags too")
     pop = json.load(urllib.request.urlopen(URL + "api/reels/popular", timeout=30))
     check(isinstance(pop.get("pop"), dict), f"/api/reels/popular answers ({len(pop.get('pop') or {})} videos)")
     await b.close()
@@ -401,7 +408,7 @@ async def public_base_tests(p, data):
         await start_feed(pg)
         await pg.evaluate("[...document.querySelectorAll('#feed-scroll .vf-slide')][window.__chisme.forYou.cur].querySelector('.vf-rail .vf-share').click()"); await pg.wait_for_timeout(400)
         msg = await pg.evaluate("(document.querySelector('.reel-share .rs-msg') || {}).textContent || ''")
-        check(pb == "https://chisme.co" and re.search(r"^Check out this chisme, metiche 👀 https://chisme\.co/\?reel=[\w-]+ — Chisme, the community for los metiches\. Get the app: https://chisme\.co$", msg.strip()),
+        check(pb == "https://chisme.co" and re.search(r"^Check out this chisme, metiche 👀 https://chisme\.co/\?reel=[\w-]+ — Chisme\. Did you hear\? Get the app: https://chisme\.co$", msg.strip()),
               f"the share sheet's link + promo line use https://chisme.co (served from {base}) ({msg[:140]!r})")
         await b.close()
     finally:
