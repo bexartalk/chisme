@@ -1,6 +1,8 @@
 """v49.15: the Facebook-style phone nav. Under 1024 px: a slim top bar (the Chisme bubble = Settings, ⚙️ Settings, Tía's
 bubble = her chat) and the section tabs as a bottom tab bar; both slide away while you scroll down and come back on any
-scroll up (8 px or more), and always show near the top. Desktop (1024 px and up) must be exactly as before.
+scroll up (8 px or more), and always show near the top. The Chisme tab's sticky chip row (All · News · Sports · Events)
+slides away with the top bar and comes back with it; no other tab leaves a sticky row stuck at the top.
+Desktop (1024 px and up) must be exactly as before.
   • phone 390x844 (Android Chromium + iPhone WebKit): bars at the top, hidden after scrolling down, a 4 px nudge up keeps them
     hidden, a 20 px scroll up brings them back, back near the top always shows; content is padded (no overlap at the top,
     the last thing on the page clears the tab bar); the bars sit inside the safe areas; tabs switch (ids, aria-current,
@@ -9,6 +11,8 @@ scroll up (8 px or more), and always show near the top. Desktop (1024 px and up)
   • ChismeTV (full-screen reels): nothing covers the Like / Share column or the video's controls; the bars are tucked away
   • desktop 1440x900: html.dk, no phone top bar, the nav at the top, the floating Tía, Settings in the nav, no hiding on
     scroll; with REF_URL (the base build) the nav, Settings, Tía and the page column are in the same place, same size
+  • no yellow anywhere in the Día de Muertos season (news_no_yellow's stricter yellow/gold/cream test): the greeting
+    banner (white headline, marigold-orange border), the whole Chisme page, light + dark, and every season SVG
   • Día de Muertos logo art (v49.15): a candle + a calavera beside the Chisme bubble in the phone top bar (390 + 320 px) and
     the desktop hero; only in the season; small; clear of the bubble, the tagline and Tía; no yellow in the SVGs or the CSS
     flame; the flame flickers, and stops under Reduce motion (system or Chisme's own); the desktop hero doesn't re-flow
@@ -19,6 +23,9 @@ import asyncio, os, sys
 from playwright.async_api import async_playwright
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); import pw_csp  # noqa: E401,F401
 from popup_quiet import QUIET
+import ast
+_src = ast.parse(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "news_no_yellow_test.py")).read())
+STRICT_YELLOW_JS = next(ast.literal_eval(n.value) for n in _src.body if isinstance(n, ast.Assign) and getattr(n.targets[0], "id", "") == "YELLOW_JS")
 URL = os.environ.get("URL", "http://localhost:8211/").rstrip("/") + "/"
 REF = (os.environ.get("REF_URL") or "").rstrip("/")
 OUT = os.environ.get("SHOTS", "/workspace/chisme-navbar-shots"); os.makedirs(OUT, exist_ok=True)
@@ -86,21 +93,24 @@ async def phone(b, bname, dev, shots):
     tabs = await pg.evaluate("[...document.querySelectorAll('#tabs .tab')].map((t) => { const r = t.getBoundingClientRect(); return { v: t.dataset.view, w: r.width, h: r.height, b: r.bottom, l: t.textContent.trim() }; })")
     check(len(tabs) == 4 and all(t["w"] >= 44 and t["h"] >= 44 for t in tabs), f"{bname}: 4 tabs on the bottom bar, each a 44 px+ target {[(t['v'], round(t['w']), round(t['h'])) for t in tabs]}")
     if shots: await pg.screenshot(path=f"{OUT}/top.png")
+    CHIPS = "(() => { const c = document.querySelector('#view-chisme .mq-chips'), r = c.getBoundingClientRect(), t = document.querySelector('#fbtop').getBoundingClientRect(); return { t: r.top, b: r.bottom, vis: getComputedStyle(c).visibility, under: t.bottom, hit: document.elementFromPoint(innerWidth / 2, (r.top + r.bottom) / 2)?.closest('.mq-chips') === c }; })()"
+    c = await pg.evaluate(CHIPS)
+    check(c["vis"] == "visible" and c["t"] >= c["under"] - 1 and c["hit"], f"{bname}: at the very top the chip row shows, under the top bar {c}")
     # down 40 px: still inside the 60 px zone → bars stay
     r = await scroll_to(pg, 40, 10)
     check(r["topShown"] and r["tabsShown"], f"{bname}: 40 px down (under 60 px) the bars stay")
     r = await scroll_to(pg, 1200, 60)
     check(r["hide"] and r["topGone"] and r["tabsGone"], f"{bname}: after scrolling down (1200 px) both bars are off screen {r['top']} {r['tabs']}")
     if shots: await pg.screenshot(path=f"{OUT}/scrolled.png")
-    chips = await pg.evaluate("(() => { const c = document.querySelector('#view-chisme .mq-chips').getBoundingClientRect(); return c.top; })()")
-    check(abs(chips) < 1.5, f"{bname}: Chisme's All · News · Sports · Events chips stay stuck at the very top while the bars are away (top {chips:.1f})")
+    c = await pg.evaluate(CHIPS)
+    check(c["b"] <= 1 and c["vis"] == "hidden", f"{bname}: Chisme's All · News · Sports · Events chip row slides away with the top bar on scroll down (bottom {c['b']:.1f}, {c['vis']})")
     r = await scroll_to(pg, 1196)
     check(r["hide"], f"{bname}: a 4 px nudge up doesn't bring them back (needs 8 px)")
     r = await scroll_to(pg, 1176, 5)
     check(not r["hide"] and r["topShown"] and r["tabsShown"], f"{bname}: a 20 px scroll up brings both bars back")
     if shots: await pg.screenshot(path=f"{OUT}/scroll-up.png")
-    chips = await pg.evaluate("(() => document.querySelector('#view-chisme .mq-chips').getBoundingClientRect().top)()")
-    check(abs(chips - lay["fbtopH"]) < 1.5, f"{bname}: the chips slide back down under the top bar ({chips:.1f})")
+    c = await pg.evaluate(CHIPS)
+    check(abs(c["t"] - lay["fbtopH"]) < 1.5 and c["vis"] == "visible" and c["hit"], f"{bname}: the chip row comes back with the top bar, right under it ({c['t']:.1f}) and tappable")
     r = await scroll_to(pg, 2000, 80); r2 = await scroll_to(pg, 30)
     check(r["hide"] and not r2["hide"] and r2["topShown"], f"{bname}: hidden mid-page, then back at the top they show")
     # the very bottom: nothing hides under the tab bar (bars shown at the end of the page)
@@ -111,6 +121,7 @@ async def phone(b, bname, dev, shots):
       return { vb: low, tt: t.top }; }""")
     check(end["vb"] <= end["tt"] + 1, f"{bname}: at the end of the page the last of the content clears the tab bar ({end['vb']:.0f} ≤ {end['tt']:.0f})")
     # tabs switch
+    back = []
     for v in ("weather", "antojos", "juegos", "chisme"):
         y0 = min(900, await pg.evaluate("document.documentElement.scrollHeight - innerHeight"))
         await scroll_to(pg, y0, 100); await scroll_to(pg, max(0, y0 - 30), 6)   # a little scroll up shows the bar, then tap
@@ -119,9 +130,16 @@ async def phone(b, bname, dev, shots):
         st = await pg.evaluate(f"""() => ({{ cur: document.querySelector('#tabs .tab[aria-current="page"]')?.dataset.view, active: document.querySelector('#view-{v}').classList.contains('active'),
             hide: document.documentElement.classList.contains('fb-hide') }})""")
         check(st["cur"] == v and st["active"], f"{bname}: the {v} tab opens #view-{v} and lights up {st}")
+        back.append(not st["hide"])
         if v == "weather" and shots: await pg.evaluate("scrollTo(0,0)"); await pg.wait_for_timeout(500); await pg.screenshot(path=f"{OUT}/weather.png")
-    r = await pg.evaluate(BARS)
-    check(not r["hide"] and r["tabsShown"], f"{bname}: switching tabs brings the bars back")
+        # any sticky sub-filter row on this tab must go away with the bars too (nothing stays stuck at the top)
+        ymax = await pg.evaluate("document.documentElement.scrollHeight - innerHeight")
+        if ymax > 400:
+            await scroll_to(pg, 0); r = await scroll_to(pg, min(ymax, 1400), 80)
+            stuck = await pg.evaluate(f"""() => [...document.querySelectorAll('#view-{v} *')].filter((e) => {{ const cs = getComputedStyle(e); if (!['sticky', 'fixed'].includes(cs.position) || cs.visibility === 'hidden' || cs.display === 'none' || +cs.opacity === 0) return false;
+                const r = e.getBoundingClientRect(); return r.height > 0 && r.bottom > 1 && r.top < 90; }}).map((e) => (e.className || e.tagName) + '@' + Math.round(e.getBoundingClientRect().top))""")
+            check(r["hide"] and not stuck, f"{bname}: {v}: scrolled down with the bars away, no sticky row is left stuck at the top {stuck[:3]}")
+    check(all(back), f"{bname}: switching tabs brings the bars back {back}")
     # Tía bubble → chat; ⚙️ and the Chisme bubble → Settings
     await scroll_to(pg, 0)
     await pg.click("#fb-tia"); await pg.wait_for_timeout(600)
@@ -233,6 +251,36 @@ SVG_YELLOW = """async () => { const out = {}; const yellow = (r, g, b) => r > 18
 def hit(a, b, pad=0):
     return bool(a and b and a["l"] < b["r"] - pad and b["l"] < a["r"] - pad and a["t"] < b["b"] - pad and b["t"] < a["b"] - pad)
 
+STRICT_SCAN = "(sel) => { " + STRICT_YELLOW_JS + r""" const rgb = (s) => [...String(s).matchAll(/rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+)(?:,\s*([\d.]+))?\)/g)].map((m) => [+m[1], +m[2], +m[3], m[4] == null ? 1 : +m[4]]);
+  const bad = []; let n = 0;
+  for (const e of document.querySelectorAll(sel)) { if (!e.getClientRects().length || ['IMG', 'CANVAS', 'VIDEO', 'IFRAME', 'PICTURE', 'SOURCE'].includes(e.tagName) || e.closest('.leaflet-tile-pane')) continue; n++;
+    const cs = getComputedStyle(e);
+    const props = { bg: cs.backgroundColor, gradient: cs.backgroundImage, text: cs.color, glow: cs.boxShadow, shadow: cs.textShadow, outline: parseFloat(cs.outlineWidth) > 0 ? cs.outlineColor : '',
+      border: [cs.borderTopColor, cs.borderRightColor, cs.borderBottomColor, cs.borderLeftColor].filter((c, i) => parseFloat([cs.borderTopWidth, cs.borderRightWidth, cs.borderBottomWidth, cs.borderLeftWidth][i]) > 0).join(' ') };
+    for (const [k, v] of Object.entries(props)) if (rgb(v).some(yellow)) bad.push(((e.id ? '#' + e.id : '') + '.' + [...e.classList].join('.') + ' <' + e.tagName.toLowerCase() + '>').slice(0, 50) + ' ' + k + ' ' + String(v).slice(0, 50)); }
+  return { n, bad }; }"""
+SVG_STRICT = "async (names) => { " + STRICT_YELLOW_JS + r""" const out = {};
+  for (const n of names) { const t = await (await fetch('/static/season/' + n + '.svg')).text();
+    out[n] = [...new Set([...t.matchAll(/#([0-9a-f]{6}|[0-9a-f]{3})\b/gi)].map((m) => m[1]))].filter((h) => { const x = h.length === 3 ? h.replace(/./g, '$&$&') : h;
+      return yellow([parseInt(x.slice(0, 2), 16), parseInt(x.slice(2, 4), 16), parseInt(x.slice(4, 6), 16), 1]); }); }
+  return out; }"""
+
+async def muertos_no_yellow(b, bname, dev, shots):
+    print(f"\n== Día de Muertos: no yellow anywhere ({bname})")
+    for theme in ("light", "dark"):
+        ctx, pg = await new_page(b, 390, 844, theme=theme, season="muertos", dev=dev); await ready(pg)
+        bn = await pg.evaluate("""() => { const t = document.querySelector('.mb-t'), i = document.querySelector('.mb-inner'); if (!t || !t.getClientRects().length) return null;
+          const cs = getComputedStyle(t); return { color: cs.color, border: getComputedStyle(i).borderTopColor, shadow: cs.textShadow }; }""")
+        check(bn and bn["color"] == "rgb(255, 255, 255)" and bn["border"] == "rgb(255, 138, 0)", f"{bname} {theme}: the Muertos greeting reads in white with a marigold-orange (#FF8A00) border {bn}")
+        y = await pg.evaluate(STRICT_SCAN, ".muertos-banner, .muertos-banner *")
+        check(y["n"] > 3 and not y["bad"], f"{bname} {theme}: no yellow in the Muertos greeting banner ({y['n']} elements) {y['bad'][:3]}")
+        y = await pg.evaluate(STRICT_SCAN, "body, body *")
+        check(y["n"] > 100 and not y["bad"], f"{bname} {theme}: Día de Muertos: no yellow / gold / cream anywhere on the page ({y['n']} elements) {y['bad'][:4]}")
+        if theme == "light":
+            sv = await pg.evaluate(SVG_STRICT, ["papel-picado", "marigold", "sugar-skull", "candle", "calavera", "vela"])
+            check(not any(sv.values()), f"{bname}: no yellow in any season SVG {sv}")
+        await ctx.close()
+
 async def muertos_logo(b, bname, dev, shots):
     print(f"\n== Día de Muertos logo art ({bname})")
     ctx, pg = await new_page(b, 390, 844, dev=dev); await ready(pg)
@@ -252,7 +300,7 @@ async def muertos_logo(b, bname, dev, shots):
             check(p["skull"]["r"] < d["right"]["l"] - 8 and d["tag"]["r"] <= d["right"]["l"] and not hit(p["flame"], d["tia"]),
                   f"{bname} {w}: clear of ⚙️ and the Tía bubble ({d['right']['l'] - p['skull']['r']:.0f} px to spare)")
             check(all(x["t"] >= d["bar"]["t"] - 0.5 and x["b"] <= d["bar"]["b"] for x in (p["vela"], p["skull"], p["flame"])), f"{bname} {w}: inside the top bar (flame top {p['flame']['t']:.0f})")
-        check(p["anim"] == "mq-flicker", f"{bname} {w}: the flame flickers ({p['anim']} {p['dur']})")
+        check(p["anim"] == "mq-flame-flicker", f"{bname} {w}: the flame flickers ({p['anim']} {p['dur']})")
         y = await pg.evaluate(YELLOWISH, [".mq-deco", ".mq-deco *"])
         sy = await pg.evaluate(SVG_YELLOW)
         check(not y and not any(sy.values()), f"{bname} {w}: no yellow in the candle, flame or calavera {y[:3]} {sy}")
@@ -282,7 +330,7 @@ async def muertos_desktop(b, shots):
                     check(h["vela"]["w"] <= 26 and h["skull"]["w"] <= 50 and h["skull"]["h"] <= 56, f"desktop {w}: small next to the {lg['w']:.0f} px logo (candle {h['vela']['w']:.0f} px, calavera {h['skull']['w']:.0f} px)")
                     check(h["vela"]["l"] < lg["l"] + lg["w"] * .2 and h["skull"]["l"] > lg["l"] + lg["w"] * .75 and not hit(h["skull"], q) and not hit(h["vela"], q),
                           f"desktop {w}: the candle by the bubble's tail (left), the calavera on its right shoulder, clear of ¿Oyistes?")
-                    check(h["anim"] == "mq-flicker", f"desktop {w}: the flame flickers ({h['anim']})")
+                    check(h["anim"] == "mq-flame-flicker", f"desktop {w}: the flame flickers ({h['anim']})")
                 y = await pg.evaluate(YELLOWISH, [".dk-hero-t-logo .mq-deco", ".dk-hero-t-logo .mq-deco *"])
                 check(not y, f"desktop {w}: no yellow in the hero's candle / calavera {y[:3]}")
                 if shots and w == 1440 and d["heroBox"]:
@@ -303,6 +351,7 @@ async def main():
         await reels(b, "android-chromium", cdev, True)
         await desktop(b, True)
         await muertos_logo(b, "android-chromium", cdev, True)
+        await muertos_no_yellow(b, "android-chromium", cdev, True)
         await muertos_desktop(b, True)
         await b.close()
         if os.environ.get("NO_WEBKIT") != "1":
@@ -311,6 +360,7 @@ async def main():
             await phone(w, "iphone-webkit", wdev, False)
             await reels(w, "iphone-webkit", wdev, False)
             await muertos_logo(w, "iphone-webkit", wdev, False)
+            await muertos_no_yellow(w, "iphone-webkit", wdev, False)
             await w.close()
     print("\n" + ("ALL OK" if not fails else f"{len(fails)} FAILED:\n  - " + "\n  - ".join(fails)))
     sys.exit(1 if fails else 0)

@@ -1610,12 +1610,12 @@ html.a2hs-open .terms-bar,html.notif-open .terms-bar,html.game-fs .terms-bar{vis
 
 /* ================= v49.12 Día de Muertos season: html[data-season="muertos"] (index.html's season script turns it on
    Oct 3 – Nov 3, 2026, Chicago time; THEME_OVERRIDE can force it). Same layout, restyled: midnight purple, papel picado,
-   marigolds, candle glow, Fiesta colours. Light mode keeps light cards on a warm cream page; dark mode is midnight purple. */
+   marigolds, candle glow, Fiesta colours. Light mode keeps light cards on a pale lavender page (v49.15: was warm cream, read as yellow); dark mode is midnight purple. */
 html:not([data-season="muertos"]) .muertos-only{display:none!important}
 html.muertos-banner-x .muertos-banner{display:none!important}
-html[data-season="muertos"]{--marigold:#ffc21a;--cempa:#ff9f1c;--mq-pink:#ff3d8b;--mq-turq:#1fd1d6;--mq-night:#130827;--mq-plum:#2a1250}
+html[data-season="muertos"]{--marigold:#FF8A00;--cempa:#ff9f1c;--mq-pink:#ff3d8b;--mq-turq:#1fd1d6;--mq-night:#130827;--mq-plum:#2a1250}
 html[data-season="muertos"][data-theme="dark"]{--ink:#f8f3ff;--ink2:#e6dcf7;--muted:#cdbde8;--bg:#140a26;--card:#211040;--line:#563b84;--near:#2b1652;--near-line:var(--marigold)}
-html[data-season="muertos"][data-theme="light"]{--bg:#f7efe3;--line:#d6c3e6;--near:#fff3da;--near-line:var(--cempa)}
+html[data-season="muertos"][data-theme="light"]{--bg:#f6f1f8;--line:#d6c3e6;--near:#fff0f5;--near-line:var(--cempa)}
 /* header: midnight sky, two warm candle glows at the bottom corners, a dark skyline with lit (marigold) windows, papel picado on top */
 [data-season="muertos"] .topbar,[data-season="muertos"][data-theme="dark"] .topbar{color:#fff;
   background:radial-gradient(110px 70px at 5% 100%,rgba(255,170,60,.5),transparent 70%),radial-gradient(110px 70px at 95% 100%,rgba(255,170,60,.5),transparent 70%),linear-gradient(180deg,#0e0520 0%,#2a1250 100%)}
@@ -1623,8 +1623,8 @@ html[data-season="muertos"][data-theme="light"]{--bg:#f7efe3;--line:#d6c3e6;--ne
 [data-season="muertos"] .sky-win,[data-season="muertos"][data-theme="dark"] .sky-win{fill:var(--marigold);opacity:.7}
 [data-season="muertos"] .heli-drift{display:none}
 [data-season="muertos"] .bubble-edge,[data-season="muertos"][data-theme="dark"] .bubble-edge{fill:#2a1250;stroke:var(--marigold);stroke-width:14}
-[data-season="muertos"] .ip{fill:#ff3d8b} [data-season="muertos"] .io{fill:#ff8a00} [data-season="muertos"] .il{fill:#ffc21a} [data-season="muertos"] .it{fill:#1fd1d6}
-[data-season="muertos"] .picado,[data-season="muertos"][data-theme="dark"] .picado{background:repeating-linear-gradient(90deg,#ff3d8b 0 30px,#ff8a00 30px 60px,#ffc21a 60px 90px,#1fd1d6 90px 120px,#9b5de5 120px 150px)}
+[data-season="muertos"] .ip{fill:#ff3d8b} [data-season="muertos"] .io{fill:#ff8a00} [data-season="muertos"] .il{fill:#FF6A0B} [data-season="muertos"] .it{fill:#1fd1d6}
+[data-season="muertos"] .picado,[data-season="muertos"][data-theme="dark"] .picado{background:repeating-linear-gradient(90deg,#ff3d8b 0 30px,#ff8a00 30px 60px,#fff 60px 90px,#1fd1d6 90px 120px,#9b5de5 120px 150px)}
 .mq-picado{position:absolute;left:0;right:0;top:0;height:40px;background:url(/static/season/papel-picado.svg) repeat-x 0 0/214px 40px;pointer-events:none;z-index:0}
 [data-season="muertos"] .brand-bubble{z-index:1}
 @media (max-width:389px){ .mq-picado{height:34px;background-size:182px 34px} }
@@ -1669,15 +1669,16 @@ html[data-season="muertos"][data-launch="events"] .tab[data-view="chisme"],html[
 [data-season="muertos"] .sec-head h2::after{content:"";display:inline-block;width:.8em;height:.8em;margin-left:.3em;vertical-align:-.05em;background:url(/static/season/marigold.svg) center/contain no-repeat}
 [data-season="muertos"][data-theme="dark"] .story{background:#1a0c33}
 [data-season="muertos"][data-theme="dark"] .greet{background:linear-gradient(135deg,#3a1a66,var(--card) 65%);border-color:var(--marigold)}
-[data-season="muertos"][data-theme="light"] .greet{background:linear-gradient(135deg,#fff1d6,#fff 65%);border-color:var(--cempa)}
+[data-season="muertos"][data-theme="light"] .greet{background:linear-gradient(135deg,#ffe9f2,#fff 65%);border-color:var(--cempa)}
 [data-season="muertos"][data-theme="dark"] .story .src{color:var(--marigold)}
 [data-season="muertos"][data-theme="dark"] button.primary{background:var(--marigold);color:#1a0b30;border-color:var(--marigold)}
-/* the greeting banner: a sugar skull, the words in marigold on midnight purple, two candles, ✕ */
+/* the greeting banner: a sugar skull, the words in white (a Fiesta-pink drop shadow) on midnight purple, a marigold-orange
+   border, two candles, ✕. v49.15: no yellow anywhere (was #ffc21a marigold-yellow text + border). */
 .muertos-banner{margin-top:14px}
-.mb-inner{position:relative;display:flex;align-items:center;gap:12px;padding:12px 56px 12px 14px;border-radius:18px;border:2px solid var(--marigold);color:#fff;
+.mb-inner{position:relative;display:flex;align-items:center;gap:12px;padding:12px 56px 12px 14px;border-radius:18px;border:2px solid #FF8A00;color:#fff;
   background:radial-gradient(80px 60px at 92% 80%,rgba(255,170,60,.35),transparent 70%),linear-gradient(135deg,#2a1250,#160a2c 70%) #1e0c3c}
 .mb-skull{flex:none;width:54px;height:auto}
-.mb-t{margin:0;flex:1;font-size:min(1.15rem,26px);font-weight:900;line-height:1.15;color:var(--marigold);text-shadow:0 2px 0 #0e0520}
+.mb-t{margin:0;flex:1;font-size:min(1.15rem,26px);font-weight:900;line-height:1.15;color:#fff;text-shadow:0 2px 0 #c4135f,0 3px 3px #0e0520}
 .mb-candles{flex:none;display:flex;align-items:flex-end;gap:2px}
 .mb-candles img{display:block;animation:mq-flicker 2.6s ease-in-out infinite}
 .mb-candles img+img{animation-delay:-1.3s}
@@ -1716,10 +1717,10 @@ html[data-season="muertos"][data-launch="events"] .tab[data-view="chisme"],html[
 .mq-v-fig figcaption{width:100%;max-width:900px}
 .mq-v-cap{margin:0;font-weight:900;font-size:min(1.05rem,22px)}
 .mq-viewer .art-credit{color:#e6dcf7}
-.mq-viewer .art-credit a{color:var(--marigold,#ffc21a)}
+.mq-viewer .art-credit a{color:var(--marigold,#FF8A00)}
 .mq-v-x{position:absolute;top:calc(8px + env(safe-area-inset-top,0px));right:max(10px,env(safe-area-inset-right));width:44px;height:44px;min-height:0;padding:0;border-radius:50%;border:2px solid #fff;background:transparent;color:#fff;font-weight:900;font-size:18px}
 .mq-v-nav{display:flex;align-items:center;justify-content:center;gap:16px}
-.mq-v-nav button{min-height:48px;min-width:96px;border-radius:999px;border:2px solid #ffc21a;background:transparent;color:#fff;font-weight:900}
+.mq-v-nav button{min-height:48px;min-width:96px;border-radius:999px;border:2px solid #FF8A00;background:transparent;color:#fff;font-weight:900}
 [data-theme="dark"] .mq-v-x,[data-theme="dark"] .mq-v-nav button{background:transparent;color:#fff}
 #mq-v-n{font-weight:800;min-width:5em;text-align:center}
 
@@ -1861,10 +1862,13 @@ dialog.reel-share[open]{animation:rs-up .22s ease-out}
   html.game-fs .fbtop{display:none!important}
 
   /* --- things that sat under the old top tabs or above the floating Tía follow the bars */
-  .mq-chips{transition:top var(--fb-ease)}
-  html.fb-hide .mq-chips{top:env(safe-area-inset-top,0px)}
+  /* the Chisme tab's sticky chip row (All · News · Sports · Events; the only sticky sub-filter row) rides with the top
+     bar: stuck right under it, and slid up out of sight with it while you scroll down (Facebook-style), back with it */
+  .mq-chips{transition:transform var(--fb-ease),visibility 0s}
+  html.fb-hide .mq-chips,html.feed-open .mq-chips{transform:translateY(calc(-100% - var(--tabs-h,66px) + env(safe-area-inset-top,0px) - 4px));
+    visibility:hidden;transition:transform var(--fb-ease),visibility 0s .22s}
   .news-pill{transition:top var(--fb-ease)}
-  html.fb-hide .news-pill{top:calc(env(safe-area-inset-top,0px) + 62px)}
+  html.fb-hide .news-pill{top:calc(env(safe-area-inset-top,0px) + 12px)}
   .sync{left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right));bottom:calc(var(--fbbot-h) + 10px);
     transition:opacity .3s,transform .3s,bottom var(--fb-ease)}
   .terms-bar{right:max(10px,env(safe-area-inset-right));bottom:calc(var(--fbbot-h) + 10px);transition:bottom var(--fb-ease)}
@@ -1910,8 +1914,8 @@ dialog.reel-share[open]{animation:rs-up .22s ease-out}
 .mq-flame{position:absolute;left:50%;bottom:calc(100% - 4%);width:58%;aspect-ratio:7/11;transform:translateX(-50%);transform-origin:50% 92%;
   border-radius:50% 50% 46% 46% / 62% 62% 38% 38%;pointer-events:none;
   background:radial-gradient(ellipse 40% 34% at 50% 72%,#fff 0 55%,transparent 100%),radial-gradient(ellipse 70% 60% at 50% 70%,#FF8A00 0 60%,#FF6A0B 100%);
-  box-shadow:0 0 6px 1px rgba(255,26,127,.55),0 0 12px 3px rgba(255,106,11,.35);animation:mq-flicker 1.7s ease-in-out infinite alternate}
-@keyframes mq-flicker{
+  box-shadow:0 0 6px 1px rgba(255,26,127,.55),0 0 12px 3px rgba(255,106,11,.35);animation:mq-flame-flicker 1.7s ease-in-out infinite alternate}
+@keyframes mq-flame-flicker{
   0%{transform:translateX(-50%) scale(1,1) rotate(-2deg);opacity:1}
   30%{transform:translateX(-50%) scale(.92,1.08) rotate(2deg);opacity:.92}
   55%{transform:translateX(-50%) scale(1.04,.95) rotate(-1deg);opacity:1}

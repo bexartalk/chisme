@@ -2957,8 +2957,8 @@ window.CHISME_APP_BUILD = "49.15";
   };
   setTabsVar(); window.addEventListener("resize", setTabsVar);
   if ("ResizeObserver" in window) { const ro = new ResizeObserver(setTabsVar); ro.observe(tabsEl); if (fbTop) ro.observe(fbTop); }  // A−/A+ or rotation changes its height
-  // v49.15 Facebook-style bars (phones and tablets): scrolling down past 60 px slides the top bar and the tab bar away
-  // (CSS transform, html.fb-hide); any scroll up of 8 px or more brings both back; near the top they always show.
+  // v49.15 Facebook-style bars (phones and tablets): scrolling down past 60 px slides the top bar, the tab bar and the
+  // Chisme tab's sticky chip row (All · News · Sports · Events) away (CSS transform, html.fb-hide); any scroll up of 8 px or more brings both back; near the top they always show.
   // One rAF per frame at most, passive listeners, no layout reads besides scrollY / the page height.
   const fbNav = (() => {
     const html = document.documentElement, TOP = 60, UP = 8, DOWN = 6;
@@ -2978,8 +2978,9 @@ window.CHISME_APP_BUILD = "49.15";
     }
     window.addEventListener("scroll", () => { if (!ticking) { ticking = true; requestAnimationFrame(frame); } }, { passive: true });
     fbMQ.addEventListener ? fbMQ.addEventListener("change", reset) : fbMQ.addListener && fbMQ.addListener(reset);
-    // keyboard users: a button in a hidden bar comes back when it gets focus
-    for (const el of [fbTop, tabsEl]) if (el) el.addEventListener("focusin", () => { set(false); turnY = lastY; });
+    // keyboard users: a button in a hidden bar (or in the sticky chip row, which hides with the top bar) comes back
+    // when it gets focus
+    for (const el of [fbTop, tabsEl, ...document.querySelectorAll(".mq-chips")]) if (el) el.addEventListener("focusin", () => { set(false); turnY = lastY; });
     return { reset, show: () => set(false), hide: () => set(true), get hidden() { return hidden; }, get on() { return fbOn(); } };
   })();
   window.__chismeNav = fbNav;
