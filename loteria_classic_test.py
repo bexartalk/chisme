@@ -50,7 +50,7 @@ async def main():
             m["btns"] = btn
             ok = (m["n"] == 16 and m["cellBg"] == ["rgb(255, 255, 255)"] and m["gap"] == "1px/1px" and m["border"].startswith("1px") and m["radius"] == "0px" and m["shadow"] == "none"
                   and m["t"][0] >= 0 and m["t"][2] <= w and m["actBottom"] <= h + 1 and not m["scroll"] and m["loaded"] and m["dark"] == (scheme == "dark") and not errs
-                  and m["page"] == "rgb(247, 232, 223)" and btn == ["rgb(0, 201, 205)", "rgb(239, 66, 111)"])
+                  and m["page"] == "rgb(247, 232, 223)" and btn == ["rgb(0, 201, 205)", "rgb(216, 27, 96)"])
             bad += not ok; print(scheme, w, "OK" if ok else "BAD", m, errs[:2])
             await pg.screenshot(path=f"/tmp/lot-tabla-{scheme}-{w}.png")
             if scheme == "light" and w == 390: await pg.screenshot(path=os.path.join(HERE, "screenshots", "loteria-tabla-new.png"))

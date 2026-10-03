@@ -125,7 +125,7 @@
         <div class="lot-head"><button type="button" id="lot-pick" class="lot-pick" aria-haspopup="dialog" aria-expanded="false" aria-controls="lot-sheet"><span id="lot-pick-t"></span><span class="lot-caret" aria-hidden="true"></span></button>
           <span id="lot-marked" class="lot-marked" role="status" aria-label="Beans on your board">0 / 16</span></div>
         <div class="lot-now" id="lot-bubble" aria-live="polite"><div id="lot-card" class="lot-card"></div>
-          <div class="lot-say"><p id="lot-line" class="lot-line">Pull up a chair, honey! Tap <b>Start</b> and I'll start calling cards.</p><p class="lot-count" id="lot-count"></p></div>
+          <div class="lot-say"><p id="lot-line" class="lot-line">Pull up a chair! Tap <b>Start</b> and I'll call the cards.</p><p class="lot-count" id="lot-count"></p></div>
           <div class="lot-now-btns"><button type="button" id="lot-play" class="lot-btn lot-main">▶ Start</button><button type="button" id="lot-claim" class="lot-claim">¡Órale!</button></div></div>
         <div class="lot-fit"><div id="lot-tabla" class="lot-tabla" role="grid" aria-label="Your board: when Tía calls one of your cards, tap it to drop a bean on it"></div></div>
         <div class="lot-actions lot-controls" role="group" aria-label="Game controls">
@@ -139,14 +139,14 @@
           <div class="lot-sheet-row"><span>Calling speed</span><button type="button" id="lot-speed" class="lot-btn" aria-label="Calling speed"></button></div>
         </div></div>
       </div>
-      <p class="lot-rules">When Tía calls a card that's on your board, tap it to drop a bean on it (tap again to take it off). Win with a row, a column, a diagonal or the 4 corners, then tap <b>¡Órale!</b> <b>Clear</b> takes the beans off; <b>New board</b> deals a random new mix, or pick one of the ready-made boards at the top. A game you don't win (the deck runs out, or you deal a new board mid-game) resets your streak.</p>
+      <p class="lot-rules">When Tía calls a card that's on your board, tap it to drop a bean on it (tap again to take it off). Win with a row, a column, a diagonal or the 4 corners, then tap <b>¡Órale!</b> to win. <b>Clear</b> takes the beans off; <b>New board</b> deals a random new mix, or pick one of the ready-made boards at the top. A game you don't win (the deck runs out, or you deal a new board mid-game) resets your streak.</p>
       <p class="lot-credit">Original art made for Chisme. Chismería is a lotería-style game; not affiliated with or endorsed by any Lotería publisher.</p>
       <p class="lot-stats" id="lot-stats"></p>
       <div class="lot-hist-wrap"><p class="lot-hist-h">Already called</p><div id="lot-hist" class="lot-hist"></div></div>`;
     const $ = (s) => el.querySelector(s);
     const fs = fullscreen(el, { title: "Chismería", badgeClass: "gfs-lot", barItems: [el.querySelector("#lot-pick"), el.querySelector("#lot-marked")],
       badge: '<span class="gfs-lot-emo" aria-hidden="true">🎴</span><span class="gfs-lot-t" aria-hidden="true"><b>Chismería</b></span>',
-      onExit: () => { pause(); hush(); speak(started && !over ? "Game paused. Tap Resume when you're back, honey." : "Pull up a chair, honey! Tap Start and I'll start calling cards.", null); },
+      onExit: () => { pause(); hush(); speak(started && !over ? "Game paused. Tap Resume when you're back, honey." : "Pull up a chair! Tap Start and I'll call the cards.", null); },
       onLeave: () => { pause(); } });
     // v41: Tía's voice is recorded ahead of time with a natural neural voice (Piper es_MX, tools/make_loteria_audio.py): one short
     // mp3 per card (the verse, then the name) plus the intro, ¡Órale! and the end of the deck, cached offline by the service
