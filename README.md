@@ -443,7 +443,7 @@ does nothing below that width.
   - A QR code (`/qr.svg`, made on the server by `qrsvg.py`, no dependencies) with Add to Home Screen steps and a
     "coming soon to the App Store and Google Play" note.
   - The latest chisme as a multi-column grid.
-  - A sidebar with weather, the sponsor spot, Juegitos, ¿Y la dieta? (Ofrendas in season) and the
+  - A sidebar with weather, the sponsor spot, Juegos, ¿Y la dieta? (Ofrendas in season) and the
     "Help get Chisme on the App Store, $99" Buy Me a Coffee card.
 - **The reader:** opens as a right-hand side panel for stories, food videos and Chisme's own pages (`?embed=1`).
 - **Pages:** `/about` and `/support` (`/contact` redirects to `/support`). The support page uses mailto links to the

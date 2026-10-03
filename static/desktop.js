@@ -3,7 +3,7 @@
    On wide screens it turns the app into a site, reusing the app's own parts (tabs, story cards, reader, settings):
      • a top nav: the logo, the 4 tabs (the app's own buttons), ⚙️ Settings and "Get the app"
      • the homepage (the Chisme tab): a hero (QR code, Add to Home Screen steps, "coming soon to the stores"), the latest
-       chisme as a multi-column grid, and a sidebar: weather, the local sponsor spot, Juegitos, ¿Y la dieta?, the
+       chisme as a multi-column grid, and a sidebar: weather, the local sponsor spot, Juegos, ¿Y la dieta?, the
        App Store goal card
      • the reader as a side panel (desktop.css), Chisme's own pages (About, Support, Privacy, Terms) open in it too
      • a footer on every page, a Settings switch for 21+ sponsors
@@ -229,7 +229,7 @@
     spBox = h("section", { class: "dk-w dk-sponsor", id: "dk-sponsor", "aria-labelledby": "dk-sp-t" }, h("p", { class: "dk-sp-by", id: "dk-sp-t", text: "This chisme brought to you by…" }));
     return spBox;
   }
-  // 4c. Juegitos (the games juegos.js / juan.js list)
+  // 4c. Juegos (the games juegos.js / juan.js list)
   var GAME_HASH = { juan: "#juan", loteria: "#chismeria" };
   function openGame(id) {
     var hsh = GAME_HASH[id] || "#juegos";
@@ -238,7 +238,7 @@
     setTimeout(function () { try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {} window.scrollTo({ top: 0, behavior: "instant" }); }, 0);
   }
   function buildGames() {
-    var box = widget("dk-games", "Juegitos", "For when the chisme's slow");
+    var box = widget("dk-games", "Juegos", "For when the chisme's slow");
     $("h2", box).prepend(emo("🎲 "));
     var games = (window.ChismeJuegos && window.ChismeJuegos.GAMES) || [];
     box.append(h("ul", { class: "dk-games" }, games.map(function (g) {

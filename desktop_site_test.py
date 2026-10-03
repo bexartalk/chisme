@@ -125,6 +125,11 @@ CONTRAST = r"""(sels) => { const lum = (c) => { const [r, g, b] = c.map((v) => {
 
 DESK_ROOTS = ["#tabs", "#dk-hero", "#dk-getapp", ".dk-side", ".dk-foot", "#mix-list", ".dk-main > .card", "#set-sponsors"]
 
+def real_errors(errs):
+    """Console errors minus v49.12's radar preload noise (RainViewer frames that expired come back without CORS headers)."""
+    noise = any("rainviewer.com" in e for e in errs)
+    return [e for e in errs if "rainviewer.com" not in e and not (noise and e == "Failed to load resource: net::ERR_FAILED")]
+
 async def new_page(browser, w, h, extra_init=None, **kw):
     ctx = await browser.new_context(viewport={"width": w, "height": h}, **kw)
     await ctx.add_init_script(INIT)
@@ -156,8 +161,14 @@ async def desktop_checks(browser, w, h, tag):
     check(nav["top"] <= 1 and nav["h"] < 110, f"{tag}: nav at the top ({nav['top']:.0f}px, {nav['h']:.0f}px tall)")
     check(nav["logo"] and nav["set"] and "Get the app" in nav["get"], f"{tag}: nav has the logo, Settings and Get the app")
     check(len(nav["tabs"]) == 4 and any("Chisme" in t for t in nav["tabs"]) and any("Weather" in t for t in nav["tabs"])
-          and any(("dieta" in t) or ("Ofrendas" in t) for t in nav["tabs"]) and any("Juegitos" in t for t in nav["tabs"]), f"{tag}: the 4 tabs {nav['tabs']}")
+          and any(("dieta" in t) or ("Ofrendas" in t) for t in nav["tabs"]) and any("Juegos" in t for t in nav["tabs"]), f"{tag}: the 4 tabs {nav['tabs']}")
     check(not nav["over"] and nav["topbar"] == "none", f"{tag}: nav fits, the phone header is hidden")
+    # the sync pill ("Updated 3:44 AM") never covers the nav, the hero or the "Get the app" card
+    pill = await pg.evaluate("""() => { const s = document.querySelector('.sync'); if (!s) return null; s.dataset.state = 'ok';
+      const r = s.getBoundingClientRect(), hit = (q) => { const e = document.querySelector(q); if (!e) return false; const o = e.getBoundingClientRect();
+        return !(r.right <= o.left || r.left >= o.right || r.bottom <= o.top || r.top >= o.bottom); };
+      const out = { top: r.top, nav: hit('#tabs'), hero: hit('.dk-hero-copy') || hit('#dk-getapp') || hit('#dk-hero h1') }; s.dataset.state = 'done'; return out; }""")
+    check(pill is None or (not pill["nav"] and not pill["hero"] and pill["top"] > h / 2), f"{tag}: the sync pill sits at the bottom, clear of the nav and hero {pill}")
     # hero
     hero = await pg.evaluate("""() => { const q = (s) => document.querySelector(s); const qr = q('#dk-getapp img');
       return { h1: (q('#dk-hero h1') || {}).textContent || '', hola: (q('#dk-hero') || {}).textContent || '', qr: qr ? [qr.naturalWidth, qr.alt, qr.getAttribute('src')] : null,
@@ -254,7 +265,11 @@ async def desktop_checks(browser, w, h, tag):
     check(not back["dk"] and not back["main"] and back["shown"] == 0 and back["set"] and back["topbar"], f"{tag}: narrowed to 800px → the phone layout {back}")
     await pg.set_viewport_size({"width": w, "height": h}); await pg.wait_for_timeout(600)
     check(await pg.evaluate("document.documentElement.classList.contains('dk') && !!document.querySelector('#view-chisme > .dk-main #mix-list') && !document.querySelector('#dk-hero').hidden"), f"{tag}: widened again → desktop")
-    errs = [e for e in pg.errs if "favicon" not in e]
+    # (v49.12's radar preloads RainViewer tiles in the background; expired frames come back without CORS headers. That's
+    # third-party noise shared with the phone app and v49.12 itself, so it's reported, not counted.)
+    noise = [e for e in pg.errs if "rainviewer.com" in e]
+    errs = real_errors(pg.errs)
+    if noise: print(f"  note {tag}: {len(noise)} RainViewer tile CORS errors (v49.12 radar, not desktop)")
     check(not errs, f"{tag}: no console errors {errs[:4]}")
     await ctx.close()
 
@@ -290,7 +305,7 @@ async def sponsor_checks(browser, FLAGS):
     await pg.unroute("**/api/sponsors*")
     await pg.locator("#dk-sponsor").screenshot(path=os.path.join(SHOTS, "sponsor-card-21plus.png"))
     check(await pg.evaluate("localStorage.getItem('chisme-21plus')") == "1", "the 21+ setting is saved on the device")
-    errs = list(pg.errs); check(not errs, f"sponsors: no console errors {errs[:4]}")
+    errs = real_errors(pg.errs); check(not errs, f"sponsors: no console errors {errs[:4]}")
     # meta on the flags server: absolute URLs from PUBLIC_BASE_URL
     og = await pg.evaluate("() => [document.querySelector('meta[property=\"og:url\"]').content, document.querySelector('link[rel=canonical]').href, (document.querySelector('meta[name=\"chisme-share-url\"]') || {}).content]")
     check(og == ["https://chisme.co/", "https://chisme.co/", "https://chisme.co/"], f"PUBLIC_BASE_URL drives og:url, canonical and the share link {og}")

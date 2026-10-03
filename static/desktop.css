@@ -226,3 +226,5 @@ html.dk .mq-v-nav button{border-color:var(--marigold)}
 html.dk .mix-sports .mix-tag{background:#ffd9cc;color:#6b2000}
 html.dk[data-theme="dark"] .mix-sports .mix-tag{background:#4a160a;color:#ffd3c4}
 html.dk body > .tagline,html.dk .tagline{display:none}   /* v49.12 tagline under the phone header: the desktop hero says it */
+/* v49.12's sync pill (a bottom toast left of Tía): on desktop it sits in the bottom-left corner, clear of the nav, the hero and Tía */
+html.dk .sync{left:24px;right:auto;margin-inline:0;max-width:380px;bottom:calc(20px + var(--terms-h, 0px))}
