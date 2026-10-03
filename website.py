@@ -43,8 +43,8 @@ TITLE = f"{TAGLINE} · San Antonio news, food & games"
 LOGO = "/static/site/chisme-bubble-logo.svg"   # the 'Chisme' bubble cut from the app icon (tools/make_site_logo.py)
 DESC = (f"{TAGLINE} San Antonio news, sports, events, weather, food and games in one "
         "free app. Made for the waiting room.")
-OG_IMAGE = "/static/site/og-image.png"
-OG_ALT = f"{TAGLINE} San Antonio news, food and games"
+OG_IMAGE = "/static/site/og-banner.png"   # v49.15.3: the 1200×630 link-preview banner (same as index.html's og block)
+OG_ALT = f"{TAGLINE} San Antonio news, sports, games and chisme, all in one free app"
 
 _HOST_RX = re.compile(r"^[A-Za-z0-9.-]{1,253}(:\d{1,5})?$")
 _BASE_RX = re.compile(r"^https?://[A-Za-z0-9.-]{1,253}(:\d{1,5})?$")
@@ -399,7 +399,7 @@ def decorate_index(page: str, request: Request) -> str:
     # v49.13's index.html has its own Open Graph block (<!--og:start-->…<!--og:end-->, filled from PUBLIC_BASE_URL; app.py
     # swaps in a shared ChismeTV video's card for /?reel=). Keep it exactly as it is (one set of tags, her wording and
     # image) and add only what it lacks: the search description and the canonical link. /about, /support and the legal
-    # pages use head_tags() with the 1200×630 static/site/og-image.png.
+    # pages use head_tags() with the 1200×630 static/site/og-banner.png (v49.15.3; was og-image.png).
     if "<!--og:start-->" in page:
         extra = [f'<meta name="description" content="{esc(DESC)}">', f'<link rel="canonical" href="{esc(base)}/">']
     else:

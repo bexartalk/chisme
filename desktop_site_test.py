@@ -444,6 +444,16 @@ def http_checks(FLAGS):
         st, _, page = get(BASE + path)
         check(st == 200 and meta(page, "property", "og:title") and 'href="/about"' in page and 'href="/support"' in page and page.count("<h1") == 1,
               f"{path}: the v49.12 page + OG + the site footer")
+    # v49.15.3: /about, /support and the legal pages share the 1200×630 og-banner link preview (was og-image.png)
+    check(get(BASE + "/static/site/og-banner.png")[0] == 200, "og banner served")
+    for path in ("/about", "/support", "/privacy", "/terms"):
+        _, _, page = get(BASE + path)
+        img = base + "/static/site/og-banner.png"
+        check(meta(page, "property", "og:image") == img and meta(page, "name", "twitter:image") == img
+              and meta(page, "property", "og:image:width") == "1200" and meta(page, "property", "og:image:height") == "630"
+              and bool(meta(page, "property", "og:image:alt")) and bool(meta(page, "name", "twitter:image:alt"))
+              and meta(page, "name", "twitter:card") == "summary_large_image" and "og-image.png" not in page,
+              f"{path}: og/twitter image = og-banner.png 1200×630 with alt, summary_large_image ({meta(page, 'property', 'og:image')})")
     st, hd, _ = get(BASE + "/contact")
     check(st == 308 and hd.get("location") in ("/support", hd.get("Location")) or hd.get("Location") == "/support", "/contact → /support")
     st, hd, rb = get(BASE + "/robots.txt")
