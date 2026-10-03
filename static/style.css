@@ -1360,7 +1360,7 @@ html.game-fs .views{position:relative}
 .gfs .lot-tabla{--w:min(calc((100cqw - 5px) / 4),calc((100cqh - 5px) / 6));grid-template-columns:repeat(4,var(--w));grid-auto-rows:calc((var(--w) - 4px) * 1.5 + 4px);gap:1px}
 .gfs .lot-cell .lcard{width:100%;height:100%;aspect-ratio:auto}
 .gfs .lot-actions{flex:none}
-.gfs .lot-rules,.gfs .lot-stats,.gfs .lot-hist-wrap{display:none}
+.gfs .lot-rules,.gfs .lot-stats,.gfs .lot-hist-wrap,.gfs .lot-credit{display:none}
 @media (max-width:420px){ .gfs-bar-x .gfs-lot-t b{display:none} .gfs-bar-x .lot-marked{font-size:.92rem;min-width:3.6em;padding:.1em .45em} .gfs-bar-x .lot-pick{font-size:.92rem;padding:0 .2em;letter-spacing:-.01em} .gfs-bar-x .gfs-extra{gap:4px} .gfs-bar-x .lot-pick-emo{display:none} .gfs-bar-x .lot-caret{margin-left:-.1em} .gfs-bar-x .gfs-badge{padding-left:.5em;padding-right:.55em} }
 @media (max-width:360px){
   .gfs-bar-x .gfs-lot-t{display:none} .gfs-bar-x .lot-pick{font-size:.92rem} .gfs-bar-x .lot-marked{font-size:.88rem;min-width:3.8em;padding:.1em .45em}
