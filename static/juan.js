@@ -1196,7 +1196,7 @@
         <ol class="juan-hs-list" id="juan-hs-list" aria-live="polite"></ol>
         <p class="juan-hs-note" id="juan-hs-note" hidden></p>
         <p class="juan-affil">Parody. All characters are original; any resemblance to other works is parody. Not affiliated with any government agency (including ICE).</p>
-        <p class="juan-hs-report"><a href="mailto:bexartalkradio@gmail.com?subject=${encodeURIComponent("Report a Top 10 name (Chisme)")}&amp;body=${encodeURIComponent("Which name, and why:\n")}">Report a name</a> · nicknames are public; no real names or slurs</p>
+        <p class="juan-hs-report"><a href="mailto:bexartalkradio@gmail.com?subject=Report%20a%20Top%2010%20name%20(Chisme)&amp;body=Which%20name%2C%20and%20why%3A%0A">Report a name</a> · nicknames are public; no real names or slurs</p>
       </section>`;
     const cv = el.querySelector("#juan-cv"), g = cv.getContext("2d", { alpha: false }), ov = el.querySelector("#juan-ov"), wrap = el.querySelector(".juan-wrap"), $ = (s) => el.querySelector(s);
     const HAT = `<svg class="gfs-juan-hat" viewBox="0 0 32 20" aria-hidden="true" focusable="false"><path d="M4 15a12 12 0 0 1 24 0z" fill="#fff"/><rect x="1" y="14" width="30" height="4" rx="2" fill="#e1e6ea"/><rect x="14.5" y="3.4" width="3" height="11" rx="1.2" fill="#c9d0d8"/></svg>`;
