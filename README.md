@@ -437,9 +437,18 @@ On screens **1024 px and wider**, Chisme becomes a website instead of a stretche
 windows keep the app exactly as it is. `static/desktop.css` only loads at `min-width: 1024px`, and `static/desktop.js`
 does nothing below that width.
 
+- **The look:** the app icon's colours. A turquoise `#00C9CD` page with pink `#FF1A7F` / orange `#FF6A0B` confetti
+  (`static/site/confetti.svg`), black nav, footer and hero (the icon's speech bubble), and cards in a soft turquoise
+  tint (`#ECFAFA`, the reader and page cards `#F4FBFB`) instead of bright white. Dark mode is `#0b1214`. No yellow.
+- **The "Chisme" wordmark** is the icon's own bubble: the white hand-drawn letters in the black speech bubble, with
+  its confetti, cut from the icon's vector trace (`tools/icon_bubble.json`) by `tools/make_site_logo.py` into
+  `static/site/chisme-bubble-logo.svg` (vector, so it stays sharp at any size and pixel density). It's the nav logo,
+  the big hero logo and the footer logo, with alt text "Chisme". Other big display words (the rest of the tagline,
+  "The latest chisme", section and page headings) use **Chewy** (Apache-2.0, the closest font to the icon's lettering),
+  subset to `static/fonts/chewy-site.woff`.
 - **Top nav:** the logo, the four tabs (the app's own tab buttons), ⚙️ Settings and **Get the app**.
 - **Homepage (the Chisme tab):**
-  - A hero: "Chisme. Did you hear?", Tía's "¡Hola, metiche!" and the waiting-room pitch.
+  - A hero with the tagline (`TAGLINE` in `website.py`, currently "Chisme. ¿Oyistes?"), Tía's "¡Hola, metiche!" and the waiting-room pitch.
   - A QR code (`/qr.svg`, made on the server by `qrsvg.py`, no dependencies) with Add to Home Screen steps and a
     "coming soon to the App Store and Google Play" note.
   - The latest chisme as a multi-column grid.

@@ -24,6 +24,7 @@ import asyncio, json, os, socket, subprocess, sys, tempfile, time, urllib.error,
 from datetime import date, timedelta
 from playwright.async_api import async_playwright
 import os as _os, sys as _sys; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__))); import pw_csp  # noqa: E401,F401
+from website import TAGLINE  # the one place the tagline is spelled
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 BASE = os.environ.get("BASE", "http://localhost:8211").rstrip("/")
@@ -152,7 +153,7 @@ async def desktop_checks(browser, w, h, tag):
     await ready(pg, BASE + "/")
     check(await pg.evaluate("document.documentElement.classList.contains('dk')"), f"{tag}: html.dk (desktop layout on)")
     check(await pg.evaluate("document.querySelector('#view-chisme').classList.contains('active')"), f"{tag}: opens on the homepage (Chisme tab)")
-    check(await pg.title() == "Chisme. Did you hear? · San Antonio news, food & games", f"{tag}: page title")
+    check(await pg.title() == f"{TAGLINE} · San Antonio news, food & games", f"{tag}: page title")
     # nav
     nav = await pg.evaluate("""() => { const t = document.querySelector('#tabs'), r = t.getBoundingClientRect();
       return { top: r.top, h: r.height, logo: !!t.querySelector('.dk-logo img[alt]'), tabs: [...t.querySelectorAll('.tab')].filter((b) => b.getClientRects().length).map((b) => b.textContent.trim()),
@@ -174,9 +175,20 @@ async def desktop_checks(browser, w, h, tag):
     check(all(v["inNav"] and v["fits"] for v in pill.values()), f"{tag}: the sync pill is a chip inside the nav (busy / ok / fail) and the nav still fits {pill}")
     # hero
     hero = await pg.evaluate("""() => { const q = (s) => document.querySelector(s); const qr = q('#dk-getapp img');
-      return { h1: (q('#dk-hero h1') || {}).textContent || '', hola: (q('#dk-hero') || {}).textContent || '', qr: qr ? [qr.naturalWidth, qr.alt, qr.getAttribute('src')] : null,
+      const lg = (s) => { const i = q(s); if (!i) return null; const r = i.getBoundingClientRect(); return { src: i.getAttribute('src'), alt: i.alt, nat: i.naturalWidth, w: Math.round(r.width), h: Math.round(r.height) }; };
+      return { h1: (q('#dk-hero h1') || {}).textContent || '', h1logo: lg('#dk-hero h1 img'), navlogo: lg('.dk-logo img'), footlogo: lg('.dk-foot-brand img'),
+        q: getComputedStyle(q('#dk-hero h1 span') || document.body).fontFamily, mix: getComputedStyle(q('#mix-title')).fontFamily, hola: (q('#dk-hero') || {}).textContent || '', qr: qr ? [qr.naturalWidth, qr.alt, qr.getAttribute('src')] : null,
         a2hs: (q('#dk-getapp') || {}).textContent || '', h1s: [...document.querySelectorAll('h1')].filter((e) => e.getClientRects().length).length }; }""")
-    check(hero["h1"].strip() == "Chisme. Did you hear?", f"{tag}: hero title")
+    LOGO = "/static/site/chisme-bubble-logo.svg"
+    rest = TAGLINE.split(" ", 1)[1] if TAGLINE.startswith("Chisme") else TAGLINE
+    hl, nl, fl = hero["h1logo"], hero["navlogo"], hero["footlogo"]
+    check(bool(hl) and hl["src"].startswith(LOGO) and hl["alt"] == "Chisme" and hl["nat"] > 0 and hero["h1"].strip() == rest,
+          f"{tag}: hero title = the icon's 'Chisme' bubble (alt 'Chisme') + {rest!r} {hl}")
+    want = (280, 320) if tag.endswith("1440") else (220, 260)
+    check(bool(hl) and want[0] <= hl["w"] <= want[1], f"{tag}: hero logo is {hl and hl['w']}px wide (want {want})")
+    check(bool(nl) and nl["src"].startswith(LOGO) and nl["alt"] == "Chisme" and nl["nat"] > 0 and 38 <= nl["h"] <= 50, f"{tag}: nav logo is the bubble, {nl and nl['h']}px tall")
+    check(bool(fl) and fl["src"].startswith(LOGO) and fl["alt"] == "Chisme" and fl["nat"] > 0, f"{tag}: footer logo is the bubble")
+    check("Chisme Site Display" in hero["q"] and "Chisme Site Display" in hero["mix"], f"{tag}: big display words use Chewy ({hero['q']})")
     check("¡Hola, metiche!" in hero["hola"] and "waiting room" in hero["hola"], f"{tag}: Tía's greeting and the pitch")
     check(bool(hero["qr"]) and hero["qr"][0] > 0 and hero["qr"][1] and hero["qr"][2].startswith("/qr.svg"), f"{tag}: QR code loads, with alt text")
     check("Add to Home Screen" in hero["a2hs"] and "Coming soon to the App Store and Google Play" in hero["a2hs"], f"{tag}: Add to Home Screen steps + coming soon")
@@ -207,7 +219,30 @@ async def desktop_checks(browser, w, h, tag):
     check("°" in wx, f"{tag}: weather widget shows a temperature")
     games = await pg.evaluate("() => [...document.querySelectorAll('#dk-games .dk-game b')].map((b) => b.textContent)")
     check("Chismería" in games and any("Juan" in x for x in games), f"{tag}: games widget {games}")
+    # v49.14 the app-icon look + a smaller Tía
+    look = await pg.evaluate("""() => { const cs = (q) => getComputedStyle(document.querySelector(q)); const box = (q) => document.querySelector(q).getBoundingClientRect();
+      const fab = box('#tia-btn'), hola = box('.dk-hola img');
+      const hit = (q) => [...document.querySelectorAll(q)].some((e) => { const o = e.getBoundingClientRect(); return o.width && !(fab.right <= o.left || fab.left >= o.right || fab.bottom <= o.top || fab.top >= o.bottom); });
+      return { bg: cs('body').backgroundColor, conf: cs('body').backgroundImage, hero: cs('#dk-hero').backgroundColor, heroInk: cs('#dk-hero h1').color, card: cs('#mix-list .story').backgroundColor,
+        widget: cs('#dk-wx').backgroundColor, nav: cs('#tabs').backgroundColor, foot: cs('.foot').backgroundColor, get: cs('#dk-get').backgroundColor, start: cs('#dk-hero .dk-btn.primary').backgroundColor,
+        fab: [Math.round(fab.width), Math.round(fab.height)], hola: Math.round(hola.width), over: hit('.dk-side .dk-w') || hit('#mix-list > *') || hit('#dk-hero') }; }""")
+    check(look["bg"] == "rgb(0, 201, 205)" and "confetti.svg" in look["conf"], f"{tag}: page background is the icon's turquoise #00C9CD with the confetti ({look['bg']})")
+    check(look["hero"] == "rgb(0, 0, 0)" and look["heroInk"] == "rgb(255, 255, 255)", f"{tag}: hero is the icon's black bubble with white words")
+    check(look["card"] == "rgb(236, 250, 250)" and look["widget"] == "rgb(236, 250, 250)", f"{tag}: story cards and widgets are the soft turquoise tint #ECFAFA, not bright white ({look['card']})")
+    check(look["nav"] == "rgb(0, 0, 0)" and look["foot"] == "rgb(0, 0, 0)", f"{tag}: black nav and footer")
+    check(look["get"] == "rgb(255, 106, 11)" and look["start"] == "rgb(255, 26, 127)", f"{tag}: buttons in the icon's orange #FF6A0B and pink #FF1A7F")
+    check(52 <= look["fab"][0] <= 64 and 52 <= look["fab"][1] <= 64, f"{tag}: Tía's chat bubble is small ({look['fab']})")
+    check(40 <= look["hola"] <= 48, f"{tag}: the hero's Tía avatar is small ({look['hola']}px)")
+    await pg.evaluate("window.scrollTo(0, 900)"); await pg.wait_for_timeout(200)
+    over = await pg.evaluate("""() => { const f = document.querySelector('#tia-btn').getBoundingClientRect();
+      return [...document.querySelectorAll('.dk-side .dk-w, #mix-list > *, #dk-hero')].filter((e) => { const o = e.getBoundingClientRect(); return o.width && !(f.right <= o.left || f.left >= o.right || f.bottom <= o.top || f.top >= o.bottom); }).length; }""")
+    check(not look["over"] and over == 0, f"{tag}: Tía's bubble sits in its own gutter, off the cards and widgets")
+    await pg.evaluate("window.scrollTo(0, 0)")
     # contrast + no yellow (light)
+    page_txt = await pg.evaluate("""() => [...document.querySelectorAll('.mix-hi, #mix-updated')].map((e) => getComputedStyle(e).color)""")
+    check(all(c in ("rgb(0, 0, 0)", "rgb(10, 10, 10)") for c in page_txt), f"{tag}: text on the turquoise page is black (10:1) {page_txt}")
+    mt = await pg.evaluate("() => { const c = getComputedStyle(document.querySelector('#mix-title')); return [c.color, c.backgroundColor, c.borderTopLeftRadius]; }")
+    check(mt[:2] == ["rgb(255, 255, 255)", "rgb(0, 0, 0)"] and mt[2] == "22px", f"{tag}: 'The latest chisme' is a black speech bubble with white words {mt}")
     bad = await pg.evaluate(CONTRAST, ["#tabs .tab", ".dk-logo", "#dk-get", "#dk-hero h1", "#dk-hero p", "#dk-getapp li", "#dk-getapp p",
                                        ".dk-side h2", ".dk-side p", ".dk-side a", ".dk-sp-tag", ".dk-foot a", ".dk-foot p", "#mix-list h3 a"])
     check(not bad, f"{tag}: text contrast ≥ WCAG AA {bad}")
@@ -252,6 +287,9 @@ async def desktop_checks(browser, w, h, tag):
     await pg.evaluate("document.documentElement.dataset.theme = 'dark'"); await pg.wait_for_timeout(300)
     y = await pg.evaluate(YELLOW, DESK_ROOTS)
     check(not y["bad"], f"{tag}: no yellow, dark {y['bad']}")
+    if w == 1440:
+        await pg.evaluate("window.scrollTo(0, 0)"); await pg.wait_for_timeout(300)
+        await pg.screenshot(path=os.path.join(SHOTS, "home-1440-dark.png"))
     await pg.evaluate("localStorage.setItem('chisme-season-pin', 'muertos'); document.documentElement.removeAttribute('data-theme')")
     await ready(pg, BASE + "/")
     season = await pg.evaluate("[document.documentElement.dataset.season, [...document.querySelectorAll('#tabs .tab')].map((b) => b.textContent).join(' ')]")
@@ -356,6 +394,9 @@ async def phone_checks(p):
     check(r["list"] != "grid" and r["w"] <= r["iw"], f"phone: single-column feed, no sideways scroll ({r['list']})")
     check(r["css"], "phone: desktop.css only applies at min-width 1024px")
     await pg.screenshot(path=os.path.join(SHOTS, "phone-unchanged.png"))
+    await pg.goto(BASE + "/privacy"); await pg.wait_for_timeout(500)
+    lg = await pg.evaluate("() => [getComputedStyle(document.body).backgroundColor, getComputedStyle(document.querySelector('main a')).color, !!document.querySelector('.site-foot')]")
+    check(lg[0] == "rgb(255, 250, 243)" and lg[1] == "rgb(216, 27, 96)" and lg[2], f"phone: /privacy keeps v49.12's own colours (+ the footer) {lg}")
     check(not errs, f"phone: no page errors {errs[:3]}")
     await b.close()
 
@@ -364,9 +405,9 @@ def http_checks(FLAGS):
     st, hd, html = get(BASE + "/")
     check(st == 200, "/ 200")
     base = BASE
-    check("<title>Chisme. Did you hear? · San Antonio news, food &amp; games</title>" in html and html.count("<title>") == 1, "/ title (one)")
+    check(f"<title>{TAGLINE} · San Antonio news, food &amp; games</title>" in html and html.count("<title>") == 1, "/ title (one)")
     d = meta(html, "name", "description")
-    check(bool(d) and d.startswith("Chisme. Did you hear?") and "metiches" not in d and html.count('name="description"') == 1, f"/ meta description (one): {d}")
+    check(bool(d) and d.startswith(TAGLINE) and "metiches" not in d and html.count('name="description"') == 1, f"/ meta description (one): {d}")
     for k in ("og:title", "og:description", "og:image", "og:url", "og:type", "og:site_name"):
         check(bool(meta(html, "property", k)), f"/ {k}")
     check((meta(html, "property", "og:image") or "").startswith(base + "/static/site/og-image.png"), "og:image is absolute (request origin)")
@@ -374,13 +415,20 @@ def http_checks(FLAGS):
     check(f'<link rel="canonical" href="{base}/">' in html, "canonical = request origin + /")
     check('rel="icon"' in html and get(BASE + "/static/icons/favicon.ico")[0] == 200, "favicon")
     check(get(BASE + "/static/site/og-image.png")[0] == 200, "og image served")
+    lst, _, svg = get(BASE + "/static/site/chisme-bubble-logo.svg")
+    check(lst == 200 and svg.lstrip().startswith("<svg") and "#FF1A7F" in svg and "#FF6A0B" in svg, "bubble logo SVG served (icon pink + orange confetti)")
+    check(get(BASE + "/static/fonts/chewy-site.woff")[0] == 200, "Chewy display font served")
     check(st == 200 and "chisme-share-url" not in html, "no share-url override without PUBLIC_BASE_URL")
     for path, h1 in (("/about", "About Chisme"), ("/support", "Support")):
         st, _, page = get(BASE + path)
         check(st == 200 and h1 in page and meta(page, "property", "og:title") and meta(page, "name", "description"), f"{path} 200 with title/OG/description")
         check(all(f'href="{x}"' in page for x in ("/about", "/support", "/privacy", "/terms")), f"{path} footer links")
+        check(page.count('src="/static/site/chisme-bubble-logo.svg" alt="Chisme"') == 2, f"{path}: nav + footer logo is the icon's 'Chisme' bubble")
         _, _, emb = get(BASE + path + "?embed=1")
         check('class="site-foot' not in emb and "sn-tabs" not in emb and '/privacy?embed=1' in emb, f"{path}?embed=1: no chrome, links stay in the panel")
+    st, _, ab = get(BASE + "/about")
+    check('width="44" height="44"' in ab and "avatar-128" not in ab.split('class="kicker"')[1][:120], "About: Tía is a small 44px avatar")
+    check("community for los metiches" not in ab and TAGLINE in ab, f"About: the tagline {TAGLINE!r} (website.TAGLINE)")
     st, _, sup = get(BASE + "/support")
     check("mailto:bexartalkradio@gmail.com" in sup and 'id="advertise"' in sup, "Support uses the repo's contact email, has the advertise section")
     import re

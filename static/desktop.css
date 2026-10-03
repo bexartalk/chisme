@@ -236,3 +236,118 @@ html.dk .dk-sync-slot .sync[data-state="busy"]{background:#1a1a1a}
   html.dk .dk-sync-slot #sync-retry{font-size:0;min-width:30px;min-height:30px;padding:0 .5em}   /* "Retry now" stays its accessible name */
   html.dk .dk-sync-slot #sync-retry::before{content:"↻";font-size:.9rem;line-height:1}
 }
+
+/* =====================================================================================================================
+   v49.14 the app-icon look (static/icons/icon-512.png): a turquoise page with a little pink/orange confetti, black and
+   white for the nav, footer and hero (the icon's speech bubble), the icon's exact pink and orange for accents and buttons.
+   Cards, widgets and the reader: a soft turquoise tint (see the block at the end). Dark: near-black, turquoise accents. Muertos: plum hero.
+   Icon colours: turquoise #00C9CD · pink #FF1A7F · orange #FF6A0B · black #000000 · white #FFFFFF. No yellow.
+   ===================================================================================================================== */
+html.dk{--dk-turq:#00C9CD;--dk-pink:#FF1A7F;--dk-orange:#FF6A0B;--pink:#FF1A7F;--orange:#FF6A0B;--turq:#00C9CD}
+html.dk:not([data-theme="dark"]),html.dk[data-season]:not([data-theme="dark"]){--bg:#00C9CD;--focus:#000;--muted:#2b2b2b}
+html.dk body{background:var(--bg) url("/static/site/confetti.svg") 0 0/440px 440px repeat}
+html.dk[data-theme="dark"] body{background:var(--bg) url("/static/site/confetti-dark.svg") 0 0/440px 440px repeat}
+html.dk:not([data-theme="dark"]) .mq-chips{background:#00C9CD}
+/* text that sits right on the turquoise page */
+html.dk:not([data-theme="dark"]) .mix-hi,html.dk:not([data-theme="dark"]) #mix>.sec-head .stamp,html.dk:not([data-theme="dark"]) #mix .mix-end{color:#000}
+html.dk:not([data-theme="dark"]) #mix .mix-end .linkish{color:#000}
+/* cards and widgets: white, with the icon's bold black outline */
+html.dk:not([data-theme="dark"]) .views .card:not(#mix),html.dk:not([data-theme="dark"]) .dk-w,
+html.dk:not([data-theme="dark"]) #mix-list .story,html.dk:not([data-theme="dark"]) #mix-list .sn,html.dk:not([data-theme="dark"]) #mix-list .ev,
+html.dk:not([data-theme="dark"]) #mix-list>.donate{border-color:#000;box-shadow:0 4px 0 rgba(0,0,0,.22)}
+html.dk:not([data-theme="dark"]) .dk-sponsor{border-color:#000}
+html.dk:not([data-theme="dark"]) .dk-house{border-color:#000;background:var(--dk-card)}
+html.dk:not([data-theme="dark"]) .mq-chip:not([aria-current="true"]){border-color:#000}
+html.dk:not([data-theme="dark"]):not([data-season="muertos"]) .mq-chip[aria-current="true"]{background:#000;color:#fff;border-color:#000}
+html.dk .mix-more button{border:2px solid #000}
+/* nav + footer: the icon's black and white, a pink edge */
+html.dk .tabs{background:#000;box-shadow:inset 0 -4px 0 var(--dk-pink),0 3px 12px rgba(0,0,0,.3)}
+html.dk .foot{box-shadow:inset 0 4px 0 var(--dk-pink)}
+html.dk .dk-get{background:var(--dk-orange);border-color:var(--dk-orange);color:#000}
+html.dk .dk-get:hover{background:var(--dk-pink);border-color:var(--dk-pink)}
+html.dk .dk-btn.bmc,html.dk .dk-foot-bmc{background:var(--dk-orange);color:#000}
+
+/* the hero: the icon's black speech bubble (white words, a tail at the bottom-left) */
+html.dk .dk-hero{background:#000;color:#fff;border:0;overflow:visible;margin-bottom:46px;border-radius:30px;box-shadow:none}
+html.dk .dk-hero::after{content:"";position:absolute;left:84px;right:auto;bottom:-30px;width:58px;height:32px;background:#000;-webkit-mask:none;mask:none;clip-path:polygon(0 0,100% 0,12% 100%)}
+html.dk .dk-hola{color:var(--dk-pink)}
+html.dk .dk-pitch{color:#fff}
+html.dk .dk-hero .dk-btn{background:#fff;color:#000;border-color:#fff}
+html.dk .dk-hero .dk-btn.primary{background:var(--dk-pink);color:#000;border-color:var(--dk-pink)}
+html.dk .dk-hero .dk-btn:hover{background:var(--dk-turq);border-color:var(--dk-turq);color:#000}
+html.dk .dk-hero .dk-btn.primary:hover{background:var(--dk-orange);border-color:var(--dk-orange)}
+html.dk .dk-getapp{border-color:#fff;box-shadow:0 6px 0 var(--dk-pink)}
+html.dk .dk-hero .dk-btn:focus-visible,html.dk .dk-hero a:focus-visible{outline:4px solid var(--dk-turq);outline-offset:3px}
+/* Día de Muertos: the plum bubble */
+html.dk[data-season="muertos"] .dk-hero{background:radial-gradient(420px 220px at 100% 0%,rgba(255,61,139,.35),transparent 70%),radial-gradient(360px 200px at 0% 100%,rgba(255,138,61,.3),transparent 70%),linear-gradient(135deg,#2a1250,#130827);border:0}
+html.dk[data-season="muertos"] .dk-hero::after{background:#1d0c3a}
+html.dk[data-season="muertos"] .dk-hola{color:#fff}
+html.dk[data-season="muertos"] .dk-hero .dk-btn.primary{background:var(--mq-pink,#ff3d8b);border-color:var(--mq-pink,#ff3d8b)}
+/* dark: near-black page, the black bubble outlined in turquoise */
+html.dk[data-theme="dark"]:not([data-season="muertos"]) .dk-hero{background:#000;border:2px solid var(--dk-turq)}
+html.dk[data-theme="dark"]:not([data-season="muertos"]) .dk-hero::after{display:none}
+html.dk[data-theme="dark"]:not([data-season="muertos"]) .dk-hero .dk-btn.primary{background:var(--dk-turq);border-color:var(--dk-turq)}
+html.dk[data-theme="dark"]:not([data-season="muertos"]) .dk-hola{color:var(--dk-turq)}
+html.dk[data-theme="dark"] .tabs{box-shadow:inset 0 -4px 0 var(--dk-turq),0 3px 12px rgba(0,0,0,.5)}
+
+/* Tía, smaller: a 44px avatar by "¡Hola, metiche!", a 56px chat bubble that lives in its own right-hand gutter */
+html.dk .dk-hola img{width:44px;height:44px;border-width:2px;box-shadow:0 2px 0 var(--dk-pink)}
+html.dk .dk-hola{font-size:1.1rem;gap:10px}
+html.dk .tia-fab{width:56px;height:56px;right:20px;bottom:20px}
+html.dk .tia-fab-badge{width:22px;height:22px;bottom:-4px;right:-4px;font-size:11px}
+html.dk .tia-flores{top:-11px;height:22px}
+html.dk .wrap:not(.tabs-inner){padding-right:max(32px,calc(96px - max(0px,(100vw - 1360px) / 2)))}
+html.dk .foot>*{padding-right:max(32px,calc(96px - max(0px,(100vw - 1296px) / 2)))}
+html.dk .terms-bar{right:96px}
+
+/* =====================================================================================================================
+   v49.14 the wordmark + the bubble motif.
+   · 'Chisme' is the app icon's own bubble (white chunky letters in the black speech bubble, with its confetti), cut from
+     the icon's vector trace by tools/make_site_logo.py → /static/site/chisme-bubble-logo.svg (sharp at any size).
+     On the black nav/footer the bubble gets a thin turquoise edge so its shape still reads.
+   · Other big display words use Chewy (Apache-2.0, the closest font to the icon's letters), subset to chewy-site.woff.
+   · Not too white: cards and widgets #ECFAFA, the reader + page cards #F4FBFB (a turquoise tint: no bright white, no cream).
+   ===================================================================================================================== */
+@font-face{font-family:"Chisme Site Display";src:url("/static/fonts/chewy-site.woff") format("woff");font-display:swap}
+html.dk{--dk-display:"Chisme Site Display","Chisme Display",system-ui,sans-serif;--dk-card:#ECFAFA;--dk-card2:#F4FBFB;--dk-wline:#000}
+html.dk[data-theme="dark"]{--dk-card:var(--card);--dk-card2:var(--card);--dk-wline:var(--line)}
+html.dk:not([data-theme="dark"]){--card:#ECFAFA}
+/* the logo in the nav */
+html.dk .dk-logo{padding:2px 4px;margin-right:14px}
+html.dk .dk-logo .dk-logo-img{display:block;height:46px;width:auto;border-radius:0;transition:transform .15s}
+html.dk .dk-logo-img,html.dk .dk-foot-logo{filter:drop-shadow(1.5px 0 0 #00C9CD) drop-shadow(-1.5px 0 0 #00C9CD) drop-shadow(0 1.5px 0 #00C9CD) drop-shadow(0 -1.5px 0 #00C9CD)}
+html.dk .dk-logo:hover .dk-logo-img{transform:rotate(-3deg)}
+@media (max-width:1180px){ html.dk .dk-logo .dk-logo-img{height:42px} }
+/* the hero: the big bubble logo + the rest of the tagline in Chewy */
+html.dk .dk-hero-t-logo{display:flex;align-items:flex-end;flex-wrap:wrap;gap:4px 18px;max-width:none;font-family:var(--dk-display);font-weight:400;letter-spacing:.01em}
+html.dk .dk-hero-logo{display:block;width:300px;height:auto;margin:-6px 0 -4px -6px}
+html.dk .dk-hero-q{font-size:4.1rem;line-height:1;padding-bottom:18px;color:#fff;transform:rotate(-3deg);transform-origin:left bottom}
+@media (max-width:1180px){ html.dk .dk-hero-logo{width:240px} html.dk .dk-hero-q{font-size:3.3rem;padding-bottom:14px} }
+/* the footer brand */
+html.dk .dk-foot-brand{align-items:center}
+html.dk .dk-foot-logo{display:block;flex:0 0 auto;width:84px;height:auto;border-radius:0}
+/* not too white */
+html.dk:not([data-theme="dark"]) #mix-list .story,html.dk:not([data-theme="dark"]) #mix-list .sn,html.dk:not([data-theme="dark"]) #mix-list .ev,
+html.dk:not([data-theme="dark"]) .views .story,html.dk:not([data-theme="dark"]) .dk-w,html.dk:not([data-theme="dark"]) .dk-game,
+html.dk:not([data-theme="dark"]) .mq-chip:not([aria-current="true"]),html.dk:not([data-theme="dark"]) .mix-more button{background-color:var(--dk-card)}
+html.dk:not([data-theme="dark"]) .dk-getapp,html.dk:not([data-theme="dark"]) dialog#player,html.dk:not([data-theme="dark"]) dialog.settings{background-color:var(--dk-card2);color:#000}
+html.dk:not([data-theme="dark"]) .dk-btn:not(.primary):not(.bmc){background-color:var(--dk-card)}
+html.dk .dk-hero .dk-btn:not(.primary):not(.bmc){background:#fff}
+/* big headings in Chewy */
+html.dk .views .sec-head h2,html.dk .dk-w h2{font-family:var(--dk-display);font-weight:400;letter-spacing:.01em}
+html.dk .views .sec-head h2{font-size:1.75rem;line-height:1.15}
+html.dk .dk-w h2{font-size:1.35rem}
+html.dk .dk-foot-tag{font-size:.95rem}
+/* "The latest chisme": a small black speech bubble with a tail */
+html.dk #mix>.sec-head{align-items:center;margin-bottom:22px}
+html.dk #mix-title{position:relative;display:inline-block;background:#000;color:#fff;font-size:1.9rem;line-height:1.1;padding:.22em .75em .3em;border-radius:22px;transform:rotate(-1.5deg)}
+html.dk #mix-title::before{content:"";position:absolute;left:28px;bottom:-15px;width:28px;height:17px;background:#000;clip-path:polygon(0 0,100% 0,8% 100%)}
+html.dk[data-theme="dark"] #mix-title{box-shadow:0 0 0 2px var(--dk-turq)}
+html.dk[data-theme="dark"] #mix-title::before{background:var(--dk-turq)}
+html.dk[data-season="muertos"]:not([data-theme="dark"]) #mix-title{background:#2a1250}
+html.dk[data-season="muertos"]:not([data-theme="dark"]) #mix-title::before{background:#2a1250}
+/* widgets: speech bubbles (round 22px corners and a little outlined tail at the bottom-left); story cards: just rounder */
+html.dk .dk-w{position:relative;border-radius:22px;box-shadow:none}
+html.dk .dk-w::after{content:"";position:absolute;left:30px;bottom:-9px;width:16px;height:16px;background:inherit;border:solid var(--dk-wline);border-width:0 2px 2px 0;transform:rotate(45deg) skew(8deg,8deg);pointer-events:none}
+html.dk .dk-w.dk-house::after{border-style:dashed}
+html.dk #mix-list .story,html.dk #mix-list .sn,html.dk #mix-list .ev,html.dk #mix-list>.donate{border-radius:20px}

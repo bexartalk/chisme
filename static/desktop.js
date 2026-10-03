@@ -12,6 +12,10 @@
   "use strict";
   var MIN = 1024, MQ = window.matchMedia("(min-width: " + MIN + "px)"), d = document.documentElement;
   var $ = function (s, r) { return (r || document).querySelector(s); };
+  var TAGLINE = ($('meta[name="chisme-tagline"]') || {}).content || "Chisme";   // website.TAGLINE (the one place it's spelled)
+  // the 'Chisme' bubble, cut from the app icon (tools/make_site_logo.py): the nav, the hero and the footer
+  var LOGO = "/static/site/chisme-bubble-logo.svg?v=" + (window.CHISME_APP_BUILD || "1");
+  function logoImg(cls, w) { return h("img", { class: cls, src: LOGO, alt: "Chisme", width: w, height: Math.round(w * 440 / 569), decoding: "async" }); }
   var C = function () { return window.__chisme || null; }, R = function () { return window.__chismeReader || null; };
   var AGE_KEY = "chisme-21plus", MOVED_KEY = "chisme-moved-x";
   var lsGet = function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } };
@@ -94,7 +98,7 @@
     var inner = $("#tabs .tabs-inner");
     if (!inner) return;
     var logo = mark(h("a", { class: "dk-logo", href: "/", "aria-label": "Chisme home", on: { click: function (e) { if (e.metaKey || e.ctrlKey) return; e.preventDefault(); goHome(); } } },
-      h("img", { src: "/static/icons/icon-192.png", alt: "", width: 40, height: 40, decoding: "async" }), h("span", { class: "dk-word", text: "Chisme" })));
+      logoImg("dk-logo-img", 60)));
     inner.prepend(logo);
     var get = h("button", { type: "button", class: "dk-get", id: "dk-get", on: { click: function () { goHome(function () { var c = $("#dk-getapp"); scrollToEl(c, $("#dk-getapp-t")); if (c) { c.classList.remove("dk-flash"); void c.offsetWidth; c.classList.add("dk-flash"); } }); } } },
       emo("📲"), " Get the app");
@@ -126,12 +130,18 @@
     }
   }
 
+  // the hero's h1: the icon's 'Chisme' bubble, then the rest of the tagline ("Chisme. ¿Oyistes?" → bubble + "¿Oyistes?")
+  function heroTitle() {
+    var m = /^Chisme[.,!]?\s+(.+)$/.exec(TAGLINE);
+    if (!m) return h("h1", { class: "dk-hero-t", id: "dk-hero-t", text: TAGLINE });
+    return h("h1", { class: "dk-hero-t dk-hero-t-logo", id: "dk-hero-t" }, logoImg("dk-hero-logo", 200), h("span", { class: "dk-hero-q", text: m[1] }));
+  }
   // ---------------------------------------------------------------- 2. the homepage hero
   function buildHero(view) {
     var hero = mark(h("section", { class: "dk-hero", id: "dk-hero", "aria-labelledby": "dk-hero-t" },
       h("div", { class: "dk-hero-copy" },
-        h("p", { class: "dk-hola" }, h("img", { src: "/static/mascot/avatar-128.webp?art=3", alt: "Tía Chismosa, Chisme's mascot", width: 64, height: 64, decoding: "async" }), h("span", { text: "¡Hola, metiche!" })),
-        h("h1", { class: "dk-hero-t", id: "dk-hero-t", text: "Chisme. Did you hear?" }),
+        h("p", { class: "dk-hola" }, h("img", { src: "/static/mascot/avatar-128.webp?art=3", alt: "Tía Chismosa, Chisme's mascot", width: 44, height: 44, decoding: "async" }), h("span", { text: "¡Hola, metiche!" })),
+        heroTitle(),
         h("p", { class: "dk-pitch", text: "San Antonio's news, sports, events, weather, food and games in one free app. Something to do while you're bored in the waiting room at your doctor's appointment." }),
         h("div", { class: "dk-hero-cta" },
           h("a", { class: "dk-btn primary", href: "#mix", on: { click: function (e) { e.preventDefault(); scrollToEl($("#mix"), $("#mix-title")); } } }, "Start chismeando ", emo("👀")),
@@ -308,8 +318,8 @@
     if (!foot) return;
     var link = function (href, text) { return h("li", {}, h("a", { href: href, "data-dk-page": "", "data-title": text, text: text })); };
     var nav = mark(h("nav", { class: "dk-foot", "aria-label": "Chisme pages" },
-      h("div", { class: "dk-foot-brand" }, h("img", { src: "/static/icons/icon-192.png", alt: "", width: 44, height: 44, loading: "lazy" }),
-        h("div", {}, h("p", { class: "dk-foot-name", text: "Chisme" }), h("p", { class: "dk-foot-tag", text: "Chisme. Did you hear? Made in San Antonio, Texas." }))),
+      h("div", { class: "dk-foot-brand" }, logoImg("dk-foot-logo", 84),
+        h("div", {}, h("p", { class: "dk-foot-tag", text: TAGLINE + " Made in San Antonio, Texas." }))),
       h("ul", { class: "dk-foot-links" },
         h("li", {}, h("a", { href: "/", text: "Home", on: { click: function (e) { if (e.metaKey || e.ctrlKey) return; e.preventDefault(); goHome(); } } })),
         link("/about", "About"), link("/support", "Support & contact"), link("/privacy", "Privacy Policy"), link("/terms", "Terms of Use"),

@@ -36,11 +36,15 @@ GOAL_TITLE, GOAL_AMOUNT = "Help get Chisme on the App Store", 99   # Apple's dev
 OLD_HOSTS_DEFAULT = "chisme.onrender.com"
 DESKTOP_MIN = 1024   # px; the same number is in desktop.css's <link media> and desktop.js
 
-TITLE = "Chisme. Did you hear? · San Antonio news, food & games"
-DESC = ("Chisme. Did you hear? San Antonio news, sports, events, weather, food and games in one "
+# The tagline, in ONE place (spelling pending the owner's OK): titles, descriptions, OG alt, the footers, About,
+# the desktop hero (desktop.js reads <meta name="chisme-tagline">), /api/site and the OG image (tools/make_site_art.py).
+TAGLINE = "Chisme. ¿Oyistes?"
+TITLE = f"{TAGLINE} · San Antonio news, food & games"
+LOGO = "/static/site/chisme-bubble-logo.svg"   # the 'Chisme' bubble cut from the app icon (tools/make_site_logo.py)
+DESC = (f"{TAGLINE} San Antonio news, sports, events, weather, food and games in one "
         "free app. Made for the waiting room.")
 OG_IMAGE = "/static/site/og-image.png"
-OG_ALT = "Chisme. Did you hear? San Antonio news, food and games"
+OG_ALT = f"{TAGLINE} San Antonio news, food and games"
 
 _HOST_RX = re.compile(r"^[A-Za-z0-9.-]{1,253}(:\d{1,5})?$")
 _BASE_RX = re.compile(r"^https?://[A-Za-z0-9.-]{1,253}(:\d{1,5})?$")
@@ -235,8 +239,8 @@ def site_footer() -> str:
     """The footer on every desktop page (desktop.js builds the same links inside the app)."""
     return f"""<footer class="site-foot" id="site-foot">
   <div class="sf-in">
-    <div class="sf-brand"><img src="/static/icons/icon-192.png" alt="" width="44" height="44" loading="lazy">
-      <div><p class="sf-name">Chisme</p><p class="sf-tag">Chisme. Did you hear? Made in San Antonio, Texas.</p></div></div>
+    <div class="sf-brand"><img class="sf-logo" src="{LOGO}" alt="Chisme" width="84" height="65" loading="lazy">
+      <div><p class="sf-tag">{esc(TAGLINE)} Made in San Antonio, Texas.</p></div></div>
     <nav class="sf-links" aria-label="Chisme pages">
       <a href="/">Home</a><a href="/about">About</a><a href="/support">Support &amp; contact</a><a href="/privacy">Privacy Policy</a><a href="/terms">Terms of Use</a>
     </nav>
@@ -251,7 +255,7 @@ def site_nav(active: str = "") -> str:
     links = "".join(f'<a href="{h}"><span aria-hidden="true">{e}</span> {esc(t)}</a>' for h, e, t in tabs)
     return f"""<header class="site-nav">
   <div class="sn-in">
-    <a class="sn-logo" href="/" aria-label="Chisme home"><img src="/static/icons/icon-192.png" alt="" width="40" height="40"><span>Chisme</span></a>
+    <a class="sn-logo" href="/" aria-label="Chisme home"><img class="sn-logo-img" src="{LOGO}" alt="Chisme" width="60" height="46"></a>
     <nav class="sn-tabs" aria-label="Sections">{links}</nav>
     <a class="sn-get" href="/#get-app">📲 Get the app</a>
   </div>
@@ -308,7 +312,7 @@ def page_shell(request: Request, path: str, title: str, desc: str, body: str, em
 
 
 # ---------------------------------------------------------------- the pages
-ABOUT_TITLE = "About Chisme · Did you hear?"
+ABOUT_TITLE = f"About Chisme · {TAGLINE}"
 ABOUT_DESC = "Chisme is a free San Antonio app for local news, sports, events, weather, food videos and games, hosted by Tía Chismosa."
 SUPPORT_TITLE = "Support & contact · Chisme"
 SUPPORT_DESC = "Get help with Chisme, report a problem, ask about a local sponsor spot or request a takedown. We read every email."
@@ -317,9 +321,9 @@ SUPPORT_DESC = "Get help with Chisme, report a problem, ask about a local sponso
 def about_body() -> str:
     d = esc(dieta_label())
     return f"""<article class="prose">
-<p class="kicker"><img src="/static/mascot/avatar-128.webp?art=3" alt="Tía Chismosa, Chisme's mascot" width="72" height="72"> <span>¡Hola, metiche!</span></p>
+<p class="kicker"><img src="/static/mascot/avatar-64.webp?art=3" srcset="/static/mascot/avatar-64.webp?art=3 1x, /static/mascot/avatar-128.webp?art=3 2x" alt="Tía Chismosa, Chisme's mascot" width="44" height="44"> <span>¡Hola, metiche!</span></p>
 <h1>About Chisme</h1>
-<p class="lead">Chisme. Did you hear? It's San Antonio's local news, sports, events, weather, food and games in one free app.</p>
+<p class="lead">{esc(TAGLINE)} It's San Antonio's local news, sports, events, weather, food and games in one free app.</p>
 <p>Stuck in the waiting room at your doctor's appointment? That's what Chisme is for. Open it, catch up on what's happening around town, watch a local food review, play a quick game, and you're chismeando before they call your name.</p>
 <h2>What's inside</h2>
 <ul class="feat">
@@ -391,7 +395,7 @@ def decorate_index(page: str, request: Request) -> str:
     nonce = getattr(request.state, "csp_nonce", "") or ""
     page = re.sub(r"<title>.*?</title>", f"<title>{esc(TITLE)}</title>", page, count=1, flags=re.S)
     page = re.sub(r'\s*<meta name="description"[^>]*>', "", page, count=1)
-    extra = [head_tags(base, "/", TITLE, DESC)]
+    extra = [head_tags(base, "/", TITLE, DESC), f'<meta name="chisme-tagline" content="{esc(TAGLINE)}">']
     if configured_base():   # app.js shares this link (otherwise it keeps its built-in https://chisme.onrender.com/)
         extra.append(f'<meta name="chisme-share-url" content="{esc(configured_base() + "/")}">')
     extra.append(f'<link rel="stylesheet" href="/static/desktop.css?v={b}" media="(min-width: {DESKTOP_MIN}px)">')
@@ -492,7 +496,7 @@ async def api_site(request: Request):
     return JSONResponse({"base": base, "moved": {"on": moved, "to": base + "/", "host": _host_of(base)},
                          "goal": {"title": GOAL_TITLE, "amount": GOAL_AMOUNT, "url": BMC_URL,
                                   "raised": min(GOAL_AMOUNT, int(raised)) if raised.isdigit() else None},
-                         "contact": CONTACT_EMAIL, "build": app_build()}, headers={"Cache-Control": "no-store"})
+                         "contact": CONTACT_EMAIL, "tagline": TAGLINE, "build": app_build()}, headers={"Cache-Control": "no-store"})
 
 
 @router.get("/api/sponsors")

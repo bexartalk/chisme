@@ -1,11 +1,14 @@
 """v49.14: the share image (Open Graph / Twitter card) for the website: static/site/og-image.png, 1200×630.
 Fiesta palette (turquoise ground, black type, pink + orange accents), the app icon and Tía. No yellow.
 Run: ./venv/bin/python tools/make_site_art.py   (needs Pillow and the DejaVu fonts; the PNG is committed)"""
+import sys
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
+from website import TAGLINE  # noqa: E402  (the one place the tagline is spelled)
 OUT = ROOT / "static" / "site" / "og-image.png"
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 TURQ, PINK, ORANGE, BLACK = (0, 201, 205), (255, 26, 127), (255, 106, 11), (0, 0, 0)   # the app icon's colours
@@ -37,7 +40,7 @@ def main():
     big, mid, small = ImageFont.truetype(FONT, 120), ImageFont.truetype(FONT, 66), ImageFont.truetype(FONT, 32)
     x = 500
     d.text((x, 92), "Chisme", font=big, fill=BLACK)
-    d.text((x, 262), "Did you hear?", font=mid, fill=BLACK)
+    d.text((x, 262), TAGLINE.split(". ", 1)[-1], font=mid, fill=BLACK)   # the part after "Chisme. "
     d.rounded_rectangle([x, 392, x + 640, 392 + 6], radius=3, fill=PINK)
     d.text((x, 420), "San Antonio news, sports, events,", font=small, fill=BLACK)
     d.text((x, 462), "weather, food and games. Free.", font=small, fill=BLACK)
