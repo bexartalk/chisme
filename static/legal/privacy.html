@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Policy · Chisme</title>
+<meta name="robots" content="index,follow">
+<link rel="icon" href="/static/icons/favicon.ico" sizes="any">
+<style>
+  :root { color-scheme: light dark; --ink:#111; --bg:#fffaf3; --turq:#00a3a6; --pink:#d81b60; }
+  @media (prefers-color-scheme: dark) { :root { --ink:#f2f2f2; --bg:#121212; --turq:#3fd6d9; --pink:#ff7aa8; } }
+  body { margin:0; background:var(--bg); color:var(--ink); font:17px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  main { max-width:760px; margin:0 auto; padding:20px 18px 64px; }
+  .top { display:flex; gap:14px; flex-wrap:wrap; align-items:center; margin-bottom:8px; font-weight:700; }
+  a { color:var(--pink); text-underline-offset:2px; }
+  .top a { display:inline-block; padding:10px 0; }
+  h1 { font-size:1.7rem; line-height:1.2; margin:.3em 0 .4em; }
+  h2 { font-size:1.2rem; margin:1.6em 0 .4em; border-bottom:3px solid var(--turq); padding-bottom:4px; }
+  table { border-collapse:collapse; width:100%; display:block; overflow-x:auto; font-size:.92rem; }
+  th, td { border:1px solid color-mix(in srgb, var(--ink) 25%, transparent); padding:8px; vertical-align:top; text-align:left; min-width:9em; }
+  mark.todo { background:#ffe08a; color:#000; padding:0 .25em; border-radius:4px; font-weight:700; }
+  footer { margin-top:40px; font-size:.9rem; opacity:.85; }
+</style>
+</head>
+<body>
+<main>
+<nav class="top" aria-label="Chisme"><a href="/">‹ Back to Chisme</a><a href="/privacy">Privacy Policy</a><a href="/terms">Terms of Use</a></nav>
+<h1>Chisme Privacy Policy</h1>
+<p><strong>Effective date:</strong> <mark class="todo">TODO: effective date (the day this is published)</mark>
+<strong>Who we are:</strong> Chisme ("Chisme", "we", "us") is a free local news, weather, sports, food, events and games web app at <a href="https://chisme.onrender.com">https://chisme.onrender.com</a>, run by Chisme (San Antonio, TX). Contact: <a href="mailto:bexartalkradio@gmail.com">bexartalkradio@gmail.com</a> · <mark class="todo">TODO: mailing address or P.O. box</mark>.</p>
+<p><strong>The short version:</strong>
+- No accounts, no ads, no tracking cookies, and we don't sell or share your info for advertising.
+- Most of what Chisme remembers (settings, chat history, saved spots, game scores) lives <strong>on your phone</strong>.
+- Some things have to reach our server, or the services we use, to work. Your approximate location gets you local weather and news. Your messages to Tía go to Google's AI. A push subscription lets us send alerts. A high-score name is shown on a public board.</p>
+<h2>1. What we collect and why</h2>
+<table>
+<thead>
+<tr>
+<th>What</th>
+<th>When</th>
+<th>Why</th>
+<th>Where it goes / how long</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Approximate location</strong> (latitude/longitude rounded to about 1 km, or a city/ZIP you type; about 100 m only once, to look up your neighborhood's name)</td>
+<td>When you allow location or search a place</td>
+<td>Forecast, NWS alerts, radar, nearby stories, nearest teams, events, food, Tía's answers</td>
+<td>Saved on your device (<code>localStorage</code>). Sent with each request to our server, which looks things up with the National Weather Service, OpenStreetMap Nominatim, Photon (komoot) and Zippopotam.us. Our server caches results by area; our host's logs may briefly record request URLs (see §4).</td>
+</tr>
+<tr>
+<td><strong>Notification subscription</strong> (a push endpoint from your browser's push service), your area rounded to about <strong>1 km</strong>, your time zone, and which alerts you want</td>
+<td>Only if you turn on notifications</td>
+<td>To send big local news (at most 2 a day) and NWS warnings/watches for your area</td>
+<td>Stored on our database provider (Upstash) until you turn notifications off, or until the push service tells us the subscription is gone. Turning notifications off deletes it.</td>
+</tr>
+<tr>
+<td><strong>Messages to Tía Chismosa</strong> (your last messages, up to 12, and the stories/events/scores the app is showing)</td>
+<td>When you chat with Tía</td>
+<td>To answer you</td>
+<td>Sent to our server and to <strong>Google (Gemini API)</strong> to generate the reply. <strong>Chisme doesn't store chats on its server.</strong> <mark class="todo">TODO: owner: confirm the Gemini tier and keep the matching sentence</mark> On Google's free tier, Google's terms say Google may keep and use what's sent to improve its products, and human reviewers may read it. (On the paid tier, Google processes it under its paid-service terms and keeps it briefly for abuse monitoring.) <strong>Don't type private or sensitive information to Tía.</strong> Your chat history and the interests Tía learns are saved <strong>only on your phone</strong>; Settings → Forget me erases them.</td>
+</tr>
+<tr>
+<td><strong>High-score name</strong> (a nickname up to 12 characters), score, level, time</td>
+<td>If you choose to save a Top 10 score in "The Juan That Got Away"</td>
+<td>To show the public Top 10 board</td>
+<td>Stored on our database provider. <strong>Shown publicly.</strong> Don't use your real name. We may remove or rename any entry. Ask us to delete yours at bexartalkradio@gmail.com, or tap Report on the board.</td>
+</tr>
+<tr>
+<td><strong>Anonymous usage counts</strong>: app opens (installed vs browser), tab views, which public news stories are opened (headline + link), game plays, food video views, the <em>count</em> of Tía chats (never the text), donate-button taps, the Add-to-Home-Screen tip outcome, and your city name (city level only)</td>
+<td>While you use the app, <strong>unless your browser sends Do Not Track or Global Privacy Control</strong></td>
+<td>To see what's useful and fix what isn't</td>
+<td>A random ID made on your phone is turned into a salted one-way hash on the server and only <em>counted</em> (we can't list or reverse it). Daily counts are kept about 40 days. No names, no IP addresses, no tracking cookies.</td>
+</tr>
+<tr>
+<td><strong>IP address</strong></td>
+<td>Every request (that's how the internet works)</td>
+<td>Security and rate limits (for example, Tía messages per hour)</td>
+<td>Our rate limits keep only a salted hash of your IP, for up to a day. Our hosting providers (Render, Cloudflare) process IPs and request logs under their own policies.</td>
+</tr>
+</tbody>
+</table>
+<p>We do <strong>not</strong> ask for or collect your name, email, phone number, contacts, photos, or payment details. Donations happen on Cash App or Buy Me a Coffee, not in Chisme (see §5).</p>
+<h2>2. What stays on your device</h2>
+<p>Chisme uses your browser's local storage (not tracking cookies) to remember things like: your location and setup choices, theme, text size, default tab, reduce-motion, notification state, your Tía chat history and interests, your food feed preferences and saved spots, news you've already seen, game progress and best scores, your high-score nickname, and a random anonymous ID used only for the counts above. You can clear all of it by clearing this site's data in your browser. Settings → "Forget me" and "Reset my feed" clear the Tía and feed data.</p>
+<p><strong>Cookies:</strong> Chisme itself sets no tracking or advertising cookies. (The only Chisme cookies are for the owner's private admin page.)</p>
+<h2>3. Third-party content inside Chisme</h2>
+<p>When you open or play these, your browser connects <strong>directly</strong> to them, and they get your IP address and may set their own cookies or storage under their own policies:
+- <strong>YouTube</strong> videos play in YouTube's privacy-enhanced embedded player (youtube-nocookie.com). <strong>Chisme uses YouTube API Services.</strong> By watching YouTube videos in Chisme you agree to the YouTube Terms of Service (<a href="https://www.youtube.com/t/terms">https://www.youtube.com/t/terms</a>). Google's Privacy Policy: <a href="https://policies.google.com/privacy">https://policies.google.com/privacy</a>. Because some feed videos autoplay, YouTube may receive basic data when a video loads.
+- <strong>TikTok</strong> videos play in TikTok's official embed player (TikTok Privacy Policy: <a href="https://www.tiktok.com/legal/privacy-policy">https://www.tiktok.com/legal/privacy-policy</a>).
+- <strong>News pages</strong> you open may load inside Chisme's reader (only when the site allows it) or in a new tab. Images next to stories load from the publishers' and ESPN's servers.
+- <strong>Maps</strong>: map tiles load from OpenStreetMap's tile servers; radar images from RainViewer; "Directions" opens Apple Maps or Google Maps.
+- <strong>Donations</strong> open Cash App or Buy Me a Coffee.</p>
+<h2>4. Who we share with</h2>
+<p>We don't sell your personal information, share it for targeted advertising, or use it to build profiles about you. We share only what's needed to run Chisme with these service providers:
+- Render and Cloudflare (hosting and network; they process IPs and request logs)
+- Upstash (database for push subscriptions, high scores and anonymous counts)
+- Google Gemini API (Tía's answers, and checking whether a news story is big enough for an alert)
+- Browser push services (Apple, Google, Mozilla) to deliver notifications
+- NWS, OpenStreetMap Nominatim, Photon (komoot) and Zippopotam.us (they receive the area being looked up, from our server, not from you)</p>
+<p>We may also disclose information if the law requires it, or to protect people's safety or Chisme's security.</p>
+<h2>5. Donations</h2>
+<p>Tips go through Cash App ($Slurmkaos) or Buy Me a Coffee (buymeacoffee.com/Chismoso). Those services handle your payment and their privacy policies apply. They may show the recipient's name to you, and may show your name to us. Chisme only counts that a donate button was tapped.</p>
+<h2>6. Children</h2>
+<p>Chisme is a general-audience app and isn't directed to children under 13. Don't post a high score with your real name, and ask a parent before turning on notifications. <mark class="todo">TODO: owner: decide whether Tía's AI chat is 18+ (legal audit H3)</mark> If you believe a child under 13 has given us personal information (for example, a real name on the high-score board), email bexartalkradio@gmail.com and we'll delete it.</p>
+<h2>7. Tía Chismosa (AI) and safety</h2>
+<p>Tía is an AI chatbot. She only talks about what's in the app, cites her sources, and can be wrong. Always check the original story. If a message mentions self-harm, Tía doesn't use AI and instead points to the <strong>988 Suicide &amp; Crisis Lifeline</strong> (call or text 988, en español también), Crisis Text Line (text HOME to 741741) and 911. She won't give medical, legal or financial advice.</p>
+<h2>8. Your choices and rights</h2>
+<ul>
+<li><strong>Location:</strong> deny it or change it any time in your browser or Settings → Location (Chisme then uses the city/ZIP you type, or San Antonio).</li>
+<li><strong>Notifications:</strong> turn them off in Settings; that deletes your subscription and area from our server.</li>
+<li><strong>Anonymous counts:</strong> turn on your browser's Global Privacy Control or Do Not Track, and Chisme sends nothing.</li>
+<li><strong>Delete / access:</strong> email bexartalkradio@gmail.com to ask what we have tied to you (usually nothing we can link to you), or to delete a high-score entry. We respond within 30 days. Depending on where you live (for example, Texas, California or other US states), you may have rights to access, correct, delete, or opt out. We honor those requests even where the law doesn't require it. We don't sell personal data or use it for targeted ads.</li>
+</ul>
+<h2>9. Security and retention</h2>
+<p>Data in transit is encrypted (HTTPS). We keep server-side data only as long as described above: push subscriptions until you unsubscribe, high scores until removed (the board keeps the top 500), and anonymous daily counts about 40 days. No system is perfectly secure.</p>
+<h2>10. Outside the U.S.</h2>
+<p>Chisme is run from the United States for U.S. users, and weather alerts only cover the U.S. <mark class="todo">TODO: owner: if Tía stays on Gemini's free tier, say Chisme isn't offered in the EEA, Switzerland or the UK</mark></p>
+<h2>11. Changes</h2>
+<p>If we change this policy, we'll update the date above and, for big changes, show a note in the app.</p>
+<h2>12. Contact</h2>
+<p>Chisme (San Antonio, TX) · <a href="mailto:bexartalkradio@gmail.com">bexartalkradio@gmail.com</a> · <mark class="todo">TODO: mailing address or P.O. box</mark> · San Antonio, Texas.</p>
+<footer><p>Questions or a takedown request: <a href="mailto:bexartalkradio@gmail.com">bexartalkradio@gmail.com</a>. This page isn't legal advice.</p></footer>
+</main>
+</body>
+</html>

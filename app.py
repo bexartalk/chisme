@@ -3027,6 +3027,17 @@ def app_build() -> str:
     return m.group(1) if m else "0"
 
 
+# v49.12: Privacy Policy and Terms of Use (built from legal/*.md by tools/make_legal_pages.py)
+@app.get("/privacy", include_in_schema=False)
+async def privacy_page():
+    return FileResponse(BASE / "static" / "legal" / "privacy.html", media_type="text/html; charset=utf-8", headers={"Cache-Control": "no-cache"})
+
+
+@app.get("/terms", include_in_schema=False)
+async def terms_page():
+    return FileResponse(BASE / "static" / "legal" / "terms.html", media_type="text/html; charset=utf-8", headers={"Cache-Control": "no-cache"})
+
+
 @app.get("/")
 async def index(request: Request):
     # app.js / style.css are requested with ?v=<build>, so the page never runs with an older cached script

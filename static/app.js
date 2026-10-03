@@ -1337,13 +1337,14 @@ window.CHISME_APP_BUILD = "49.12";
     const it = playerItem, box = $("#player-media"), v = vidOf(it), id = v && (v.yt || v.tt);
     box.className = "player-media " + (id ? "video" + (v.tt || isShort(it.url) ? " tall" : "") + (v.tt ? " tiktok" : "") : it.frame ? "article framed" : "article");
     if (!navigator.onLine) {
-      box.className = "player-media offline";
+      box.className = "player-media offline"; $("#player-yt").hidden = true;
       box.replaceChildren(el("div", { class: "player-off", role: "status" },
         el("b", { text: "📡 You're offline" }),
         el("span", { text: id ? "This video will play here as soon as you're back online." : "The article will load when you're back online." }),
         it.noSave ? "" : el("span", { text: isSaved(it.url) ? "It's safe in 🔖 Saved spots." : "Tap 🔖 Save to keep it for later." })));
       return;
     }
+    $("#player-yt").hidden = !(id && !(v && v.tt));   // v49.12: YouTube's Terms + Google's Privacy Policy wherever YouTube plays
     if (v && v.tt) {   // TikTok's official embed player (developers.tiktok.com/doc/embed-player)
       box.replaceChildren(el("iframe", { src: `https://www.tiktok.com/player/v1/${v.tt}?autoplay=1&rel=0&music_info=0&description=0`,
         title: "TikTok video: " + it.title, allow: "autoplay; encrypted-media; picture-in-picture; fullscreen", allowfullscreen: "",
@@ -1433,7 +1434,7 @@ window.CHISME_APP_BUILD = "49.12";
   document.addEventListener("click", (e) => {
     if (e.defaultPrevented || e.button > 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     const a = e.target.closest && e.target.closest("a[href]");
-    if (!a || a.matches(".donate-btn, .orig-link")) return;
+    if (!a || a.matches(".donate-btn, .orig-link, .legal-link")) return;   // v49.12: YouTube/Google terms links open as themselves
     let u; try { u = new URL(a.href); } catch { return; }
     if (DIRECT_HOSTS.has(u.hostname.replace(/^www\./, ""))) return;   // donate links leave on purpose
     if (u.origin === location.origin || !/^https?:$/.test(u.protocol)) return;

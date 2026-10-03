@@ -1562,3 +1562,9 @@ dialog.tia-menu::after{bottom:-15px;right:18px;border-width:15px 11px 0;border-c
 .leaflet-touch .leaflet-bar a { width: 44px; height: 44px; line-height: 44px; font-size: 24px; }
 /* v49.11: on shorter phones (iPhone 13: 844 px) the Skins sheet scrolls and Done started half off the bottom; keep it in view */
 dialog.juan-skins button.juan-sk-done{position:sticky;bottom:8px;z-index:2}
+
+/* v49.12 legal links: Privacy / Terms in Settings and the footer; YouTube's Terms + Google's Privacy where YouTube plays */
+.set-links,.foot-legal{font-weight:700}
+.set-links a,.foot-legal a{display:inline-block;padding:10px 2px;color:inherit;text-decoration:underline;text-underline-offset:2px}
+.fy-legal,.player-legal{font-size:.82rem;line-height:1.4;margin:.5em 0 0;opacity:.9}
+.fy-legal a,.player-legal a{color:inherit;text-decoration:underline;display:inline-block;padding:6px 0}

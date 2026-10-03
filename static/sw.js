@@ -164,6 +164,7 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return; // map tiles, thumbnails, NWS icons: straight to network
   if (url.pathname === "/sw.js") return;
   if (url.pathname === "/stats" || url.pathname.startsWith("/stats/")) return;   // the owner's private page: always the server, never the app shell
+  if (url.pathname === "/privacy" || url.pathname === "/terms") return;   // v49.12: real pages, never the app shell
   if (url.pathname === "/api/refresh") return;   // v49.10: the "refresh everyone" token is never cached here
   if (url.pathname.startsWith("/api/")) { event.respondWith(apiNetworkFirst(req)); return; }
   if (req.mode === "navigate") { event.respondWith(pageCacheFirst(req)); return; }
