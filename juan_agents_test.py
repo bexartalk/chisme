@@ -1,7 +1,7 @@
 """v49.7 every agent can be cleared (The Juan That Got Away, static/juan.js).
 Bug (v49.6): on a phone every tap is short, and letting go cut Juan's rising speed ×0.55, so a tap topped out ~35–70 units, about
 the height of an agent's hitbox (64): agents were often impossible to clear, and partners stood only 130 apart.
-  • simulation with the game's own physics (ChismeJuan.fall / trim / JUMP): for every agent placement on every level (Dice City VI too),
+  • simulation with the game's own physics (ChismeJuan.fall / trim / JUMP): for every agent placement on every level (Playa Neón too),
     a quick tap AND a held jump clear the agent's hitbox (the game's 5-unit forgiveness), at normal / Reduce motion / coffee speed,
     with the agent walking at Juan; there's a takeoff window of ≥ 6 frames (0.1 s) and the tap clears the hitbox by ≥ 20 units
   • agents are never back to back (≥ 380 apart), and every pair of neighbours can be cleared one after the other (land, jump again)
