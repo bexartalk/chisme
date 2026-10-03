@@ -40,6 +40,8 @@ async def main():
                 await pg.click("#loc-close"); await pg.wait_for_timeout(300)   # "Not now"
                 vis = await pg.evaluate(VIS)
                 check(vis[0] and not vis[1] and "By using Chisme you agree to our Terms and Privacy Policy" in vis[2], f"{bname} {w}: once the card is answered (Not now), the Terms bar shows ({vis})")
+                # v49.12: while the sync toast is up the Terms bar steps aside (CSS); it's back once the toast is done
+                await pg.wait_for_function("() => { const s = document.querySelector('#sync'); return s.hidden || s.dataset.state === 'done'; }", timeout=45000); await pg.wait_for_timeout(400)
                 cov = {s: await pg.evaluate(COVER, s) for s in ("#tia-btn", "#terms-ok")}
                 tb = await pg.evaluate("(() => { const b = document.querySelector('#terms-bar').getBoundingClientRect(), t = document.querySelector('#tia-btn').getBoundingClientRect(); return [b.right <= t.left || b.bottom <= t.top || b.top >= t.bottom, b.left >= 0 && b.right <= innerWidth && b.bottom <= innerHeight] })()")
                 check(cov["#terms-ok"] == "free" and cov["#tia-btn"] == "free" and all(tb), f"{bname} {w}: the bar is on screen and clear of Tía ({cov}, {tb})")
