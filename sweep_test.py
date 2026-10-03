@@ -16,7 +16,7 @@ OUT = os.environ.get("SWEEP_OUT", "/tmp/sweep"); os.makedirs(OUT, exist_ok=True)
 ONLY = os.environ.get("ONLY", "")
 SETUP = "localStorage.setItem('chisme-location-setup','1'); localStorage.setItem('chisme-swiped','1'); localStorage.setItem('chisme-ios-hint-dismissed','1'); if (!localStorage.getItem('chisme-a2hs')) localStorage.setItem('chisme-a2hs', JSON.stringify({done:true})); if (!localStorage.getItem('chisme-settings-tip')) localStorage.setItem('chisme-settings-tip', 'test:0');"
 CSPV = "window.__csp=[];document.addEventListener('securitypolicyviolation',function(e){window.__csp.push(e.violatedDirective+' '+(e.blockedURI||'inline')+' '+(e.sourceFile||'')+':'+(e.lineNumber||'')+' '+(e.sample||'').slice(0,60))});"
-TABS = ["chisme", "news", "sports", "events", "weather", "antojos", "juegos"]   # v49.12: Chisme (All · News · Sports · Events) · Weather · ¿Y la dieta? · Juegitos
+TABS = ["chisme", "news", "sports", "events", "weather", "antojos", "juegos"]   # v49.12: Chisme (All · News · Sports · Events) · Weather · ¿Y la dieta? · Juegos
 G = "__chisme.juegos.game"
 issues = {}
 def note(dev, what):

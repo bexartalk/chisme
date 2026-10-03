@@ -1,4 +1,4 @@
-/* Chisme · Juegitos game 2: "The Juan That Got Away" (v44; first called "Juan's Long Day"), a side-scrolling runner with smooth vector art on a canvas
+/* Chisme · Juegos game 2: "The Juan That Got Away" (v44; first called "Juan's Long Day"), a side-scrolling runner with smooth vector art on a canvas
    (paths, gradients and anti-aliasing, drawn at the phone's devicePixelRatio so it stays crisp; no image files, no requests).
    v47 story: it's FRIDAY, and Juan grinds through his workday to get to Noche Caliente for beers with the crew. 6 levels:
    Hon Dipo (v47, was Home Dehole; our own parody hardware store: beige building, bright orange trim, a square orange sign
@@ -1860,7 +1860,7 @@
     $("#juan-restart").onclick = () => { paused = false; ckScore = 0; startLevel(level); ctrl(); };
     $("#juan-sound").onclick = () => { st.muted = !st.muted; save(st); ctrl(); if (!st.muted) SFX.coin(); };
     const onKey = (e) => {
-      if (!el.isConnected || !el.closest(".view.active") || document.querySelector("dialog[open]") || e.target.closest && e.target.closest("input, textarea, select, dialog")) return;   // only while Juegitos is showing
+      if (!el.isConnected || !el.closest(".view.active") || document.querySelector("dialog[open]") || e.target.closest && e.target.closest("input, textarea, select, dialog")) return;   // only while Juegos is showing
       if (e.code === "Space" || e.key === "ArrowUp" || e.key === "w" || e.key === "W") { if (e.target.closest && e.target.closest("button") && e.code === "Space" && e.target !== jb) return; e.preventDefault(); if (!e.repeat) jump(); }
       else if (e.key === "p" || e.key === "P") paused ? resume() : pause();
     };
@@ -1912,5 +1912,5 @@
   const game = { id: "juan", name: "The Juan That Got Away", emoji: "👢", blurb: "It's Friday! Get Juan through his Friday shift and on to beers with the crew at Noche Caliente.", mount };
   const api = { GRAV, JUMP, JUMP2, fall, trim, DIM, drawAgent: iceAgent, AG_TALL, AWAY, KEY, LEVELS, END, CHECKS, VW, HP, HAZ, ICE, CAUGHT, pickCaught, FUERA, buildLevel, load, save, reset, game, drawJuan: juan, groundFx, JS, SKINS: JSKINS };   // v49.5: drawJuan/groundFx for the skin tests
   if (typeof module === "object" && module.exports) module.exports = api;
-  else { root.ChismeJuan = api; if (root.ChismeJuegos) root.ChismeJuegos.GAMES.unshift(game); }   // v47: first in the list = the game Juegitos opens on
+  else { root.ChismeJuan = api; if (root.ChismeJuegos) root.ChismeJuegos.GAMES.unshift(game); }   // v47: first in the list = the game Juegos opens on
 })(typeof window !== "undefined" ? window : this);

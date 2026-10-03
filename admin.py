@@ -24,10 +24,10 @@ TEMPLATES = [
     ("news", "👀 New chisme", "Chisme", "New chisme! 👀", "news"),
     ("breaking", "🚨 Breaking news", "Breaking news", "Big news in San Antonio right now. Tap to read the latest.", "link"),
     ("weather", "🌧️ Weather alert", "Weather alert", "Severe weather is heading for San Antonio. Tap for the radar and the latest alerts.", "weather"),
-    ("game", "🎮 New game", "🎮 New game in Chisme", "A new game just dropped in Juegitos. Come play 👀", "juegos"),
+    ("game", "🎮 New game", "🎮 New game in Chisme", "A new game just dropped in Juegos. Come play 👀", "juegos"),
     ("thanks", "💗 Donation thank-you", "💗 Thank you, metiches!", "Thank you for supporting Chisme. Every coffee keeps San Antonio's chisme free for everybody.", "news"),
 ]
-WHERE = [("news", "Chisme · News", "/#news"), ("weather", "Weather (radar + alerts)", "/#weather"), ("juegos", "Juegitos (games)", "/#juegos"),
+WHERE = [("news", "Chisme · News", "/#news"), ("weather", "Weather (radar + alerts)", "/#weather"), ("juegos", "Juegos (games)", "/#juegos"),
          ("events", "Chisme · Events", "/#events"), ("sports", "Chisme · Sports", "/#sports"), ("link", "A story or web page (paste a link)", "")]
 
 
@@ -522,7 +522,7 @@ try{var standalone=matchMedia('(display-mode: standalone)').matches||navigator.s
   $('a2hs-x').onclick=function(){localStorage.setItem('chisme-admin-a2hs-x','1');$('a2hs-tip').hidden=true};}catch(_){}
 var form=$('pf-form'); if(!form) return;
 var title=$('pf-title'),msg=$('pf-msg'),where=$('pf-where'),link=$('pf-link'),err=$('pf-err'),btn=$('pf-send'),res=$('pf-res'),dlg=$('pf-confirm');
-var NAMES={news:'Opens Chisme → News',weather:'Opens Chisme → Weather',juegos:'Opens Chisme → Juegitos',events:'Opens Chisme → Events',sports:'Opens Chisme → Sports'};
+var NAMES={news:'Opens Chisme → News',weather:'Opens Chisme → Weather',juegos:'Opens Chisme → Juegos',events:'Opens Chisme → Events',sports:'Opens Chisme → Sports'};
 function host(u){try{return new URL(u).hostname.replace(/^www\./,'')}catch(_){return ''}}
 function opens(){var w=where.value;if(w!=='link')return NAMES[w]||'Opens Chisme';var u=link.value.trim();return u?'Opens the story inside Chisme'+(host(u)?' · '+host(u):''):'Paste the story link above'}
 function vals(){var w=where.value;return {title:title.value.trim(),message:msg.value.trim(),link:w==='link'?link.value.trim():WHERE[w]}}

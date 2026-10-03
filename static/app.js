@@ -2636,10 +2636,10 @@ window.CHISME_APP_BUILD = "49.12";
   const mixSoon = () => { clearTimeout(mixT); mixT = setTimeout(mixRender, 60); };
   $("#mix-more").onclick = () => { mixShown = Math.min(MIX_MAX, mixShown + MIX_STEP); const y = window.scrollY; mixKey = ""; mixRender(); window.scrollTo({ top: y, behavior: "instant" }); };
 
-  // ---------- views: Chisme (All | News | Sports | Events) | Weather | ¿Y la dieta? | Juegitos (tap the fixed buttons, swipe sideways or ←/→ on the tabs)
+  // ---------- views: Chisme (All | News | Sports | Events) | Weather | ¿Y la dieta? | Juegos (tap the fixed buttons, swipe sideways or ←/→ on the tabs)
   // v49.12: News, Sports and Events are one "Chisme" tab (fewer tabs for new users). It opens on "All", a mix of the three
   // (mixFeed below); the sticky chips at the top (✨ All · 📰 News · 🏀 Sports · 🎉 Events) drill into one, and the views are
-  // laid out in that order so swiping walks All → News → Sports → Events → Weather → ¿Y la dieta? → Juegitos. The Chisme tab
+  // laid out in that order so swiping walks All → News → Sports → Events → Weather → ¿Y la dieta? → Juegos. The Chisme tab
   // goes back to the chip you last picked (this session; a new launch starts on All). #news, #sports, #events, ?tab=sports …
   // still land on their chip.
   const VIEWS = ["chisme", "news", "sports", "events", "weather", "antojos", "juegos"];
@@ -2657,7 +2657,7 @@ window.CHISME_APP_BUILD = "49.12";
   const juegosPause = () => { if (juegos) juegos.pause(); };
   window.addEventListener("chisme-game-play", (e) => Stats.ev("game", String(e.detail || "game").slice(0, 24)));   // juegos.js / juan.js: a game started
   const juegosLeave = () => { if (juegos) (juegos.leave || juegos.pause)(); };   // another tab: drop full-screen play too
-  // v48: leaving the app also leaves a full-screen game (paused, back in the Juegitos page with ▶ Resume), so reopening
+  // v48: leaving the app also leaves a full-screen game (paused, back in the Juegos page with ▶ Resume), so reopening
   // Chisme never lands on a bare full-screen game with the header and tab bar hidden.
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") juegosLeave(); });
   const GAP = 24;

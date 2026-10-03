@@ -86,7 +86,7 @@
         else if (V.indexOf(q.get("tab")) >= 0) t = q.get("tab");
         else if (V.indexOf(fixed) >= 0) t = fixed;
         else if (!localStorage.getItem("chisme-location-setup")) t = "chisme";
-        else {   // only the 4 tabs on show: Chisme (opens on All; News, Sports and Events are inside it), Weather, food, Juegitos
+        else {   // only the 4 tabs on show: Chisme (opens on All; News, Sports and Events are inside it), Weather, food, Juegos
           var vis = ["chisme", "weather", "antojos", "juegos"];
           var last = localStorage.getItem("chisme-launch-last"); if (last === "news" || last === "sports" || last === "events") last = "chisme";
           var pool = vis.filter(function (v) { return v !== last; }); t = pool[Math.floor(Math.random() * pool.length)]; }
@@ -142,7 +142,7 @@
       <button type="button" class="tab" data-view="chisme" aria-controls="view-chisme" aria-current="page"><span aria-hidden="true">📰</span> <span class="tab-l">Chisme</span></button>
       <button type="button" class="tab" data-view="weather" aria-controls="view-weather"><span aria-hidden="true">🌤️</span> Weather</button>
       <button type="button" class="tab" data-view="antojos" aria-controls="view-antojos"><span aria-hidden="true">🌮</span> <b class="tl tab-l">¿Y la dieta?</b></button>
-      <button type="button" class="tab" data-view="juegos" aria-controls="view-juegos"><span aria-hidden="true">🎲</span> Juegitos</button>
+      <button type="button" class="tab" data-view="juegos" aria-controls="view-juegos"><span aria-hidden="true">🎲</span> Juegos</button>
     </div>
   </nav>
   <script>window.__chismeSeason && window.__chismeSeason.apply();</script>
@@ -462,9 +462,9 @@
       </section>
 
       <!-- ============ JUEGITOS (the "juegos" view; static/juegos.js + static/juan.js; all offline, nothing leaves the phone) ============ -->
-      <section id="view-juegos" class="view" aria-label="Juegitos" data-view="juegos" inert>
+      <section id="view-juegos" class="view" aria-label="Juegos" data-view="juegos" inert>
         <section id="juegos" class="card">
-          <div class="sec-head"><h2>🎲 Juegitos</h2></div>
+          <div class="sec-head"><h2>🎲 Juegos</h2></div>
           <p class="blurb">For when the chisme's slow. These games work offline, and your scores stay on this phone.</p>
           <div id="games-list" class="games-list" role="group" aria-label="Pick a game"></div>
         </section>
@@ -661,7 +661,7 @@
           <label><input type="radio" name="deftab" value="events"><span><i class="emo" aria-hidden="true">🎉</i> Chisme: Events</span></label>
           <label><input type="radio" name="deftab" value="weather"><span><i class="emo" aria-hidden="true">🌤️</i> Weather</span></label>
           <label><input type="radio" name="deftab" value="antojos"><span><i class="emo" aria-hidden="true">🌮</i> ¿Y la dieta?</span></label>
-          <label><input type="radio" name="deftab" value="juegos"><span><i class="emo" aria-hidden="true">🎲</i> Juegitos</span></label>
+          <label><input type="radio" name="deftab" value="juegos"><span><i class="emo" aria-hidden="true">🎲</i> Juegos</span></label>
         </div>
       </fieldset>
       <fieldset class="set-group set-alerts" id="set-alerts">

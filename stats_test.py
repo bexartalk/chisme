@@ -174,7 +174,7 @@ async def e2e(p):
     await pg.evaluate("document.querySelector('#set-a2hs').click()"); await pg.wait_for_timeout(300)
     await pg.evaluate("document.querySelector('#a2hs-ok').click()")
     await pg.evaluate("document.querySelector('.tab[data-view=juegos]').click()")
-    await pg.wait_for_selector('.game-pick[data-game="loteria"]', timeout=15000); await pg.evaluate("document.querySelector('.game-pick[data-game=\"loteria\"]').click()")   # v47: Juegitos opens on Juan
+    await pg.wait_for_selector('.game-pick[data-game="loteria"]', timeout=15000); await pg.evaluate("document.querySelector('.game-pick[data-game=\"loteria\"]').click()")   # v47: Juegos opens on Juan
     await pg.wait_for_selector("#lot-play", timeout=15000); await pg.evaluate("document.querySelector('#lot-play').click()"); await pg.wait_for_timeout(500)
     await pg.evaluate("document.querySelector('#lot-play').click()")   # pause, then resume: still one play
     await pg.evaluate("document.querySelector('#lot-play').click()")

@@ -1,7 +1,7 @@
-"""v47: The Juan That Got Away is the first game in Juegitos and the one it opens on (ahead of Chismería; Ice Ice
-Bebé was replaced by Juan in v44). WebKit, iPhone 13: tapping the 🎲 Juegitos tab opens Juan (title screen); the list reads
+"""v47: The Juan That Got Away is the first game in Juegos and the one it opens on (ahead of Chismería; Ice Ice
+Bebé was replaced by Juan in v44). WebKit, iPhone 13: tapping the 🎲 Juegos tab opens Juan (title screen); the list reads
 Juan, then Lotería; #juan-that-got-away (and #juan) still open Juan, #loteria still opens Lotería; tapping Lotería in the
-list still works, and Juan → Lotería → Juan → ▶ Start shows one full-screen bar (the first Juan's click handler is removed). Screenshot: juegos-juan-first.png (Juegitos as it opens, 390×844)."""
+list still works, and Juan → Lotería → Juan → ▶ Start shows one full-screen bar (the first Juan's click handler is removed). Screenshot: juegos-juan-first.png (Juegos as it opens, 390×844)."""
 import asyncio, os
 from playwright.async_api import async_playwright
 import os as _os, sys as _sys; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__))); import pw_csp  # noqa: E401,F401  (v49.11: CSP-safe wait_for_function)
@@ -31,7 +31,7 @@ async def main():
         s = await pg.evaluate("""() => ({ id: __chisme.juegos.id, list: [...document.querySelectorAll('.game-pick b')].map((b) => b.textContent),
           pressed: [...document.querySelectorAll('.game-pick[aria-pressed=true]')].map((b) => b.dataset.game), juan: !!document.querySelector('#game-stage #juan-cv'),
           lot: !!document.querySelector('#game-stage #lot-tabla') })""")
-        check(s["id"] == "juan" and s["juan"] and not s["lot"], f"tapping 🎲 Juegitos opens The Juan That Got Away ({s['id']})")
+        check(s["id"] == "juan" and s["juan"] and not s["lot"], f"tapping 🎲 Juegos opens The Juan That Got Away ({s['id']})")
         check(s["list"][:2] == ["The Juan That Got Away", "Chismería"] and s["pressed"] == ["juan"], f"Juan first in the list, selected ({s['list']})")
         check(not any("Ice Ice" in g for g in s["list"]), "no Ice Ice Bebé entry (replaced by Juan in v44)")
         await pg.evaluate("window.scrollTo(0, 0)"); await pg.wait_for_timeout(300)
@@ -50,7 +50,7 @@ async def main():
             await ready(pg, BASE + "/" + h)
             try: await pg.wait_for_function(f"__chisme.view === 'juegos' && __chisme.juegos && __chisme.juegos.id === '{want}'", timeout=10000); ok = True
             except Exception: ok = False
-            check(ok, f"{h} opens Juegitos → {want} ({await pg.evaluate('__chisme.juegos && __chisme.juegos.id')})")
+            check(ok, f"{h} opens Juegos → {want} ({await pg.evaluate('__chisme.juegos && __chisme.juegos.id')})")
         check(not errs, f"no page errors ({errs[:2]})")
         await b.close()
     print("\n" + ("ALL PASS" if not fails else f"{fails} FAILED")); raise SystemExit(1 if fails else 0)

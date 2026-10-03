@@ -2,7 +2,7 @@
    Add a game by pushing { id, name, emoji, blurb, mount(el, ctx) } onto GAMES; the tab lists them and mounts one.
    Game 1: Chismería (v49.12: was 'Lotería Chismosa'; internal id/keys stay 'loteria'). v41: the 54 traditional cards and verses, called in Spanish, with our own original art
    (static/loteria_cards.js); the UI around the game stays English.
-   v40: the tab is called 🎲 Juegitos (the view id stays "juegos"); games play full screen in portrait (fullscreen() below). */
+   v40: the tab is called 🎲 Juegos (the view id stays "juegos"); games play full screen in portrait (fullscreen() below). */
 (function (root) {
   "use strict";
   const KEY = "chisme-juegos";
@@ -40,7 +40,7 @@
 
   // ---- v40: full-screen portrait play (shared by every game) ----
   // A fixed overlay over the whole screen (100dvh + the safe areas), the tab bar, footer and Tía's button hidden, a small
-  // title badge at the top center and a ✕ at the top right that stops the game and goes back to the Juegitos list.
+  // title badge at the top center and a ✕ at the top right that stops the game and goes back to the Juegos list.
   // The overlay alone works on iPhone Safari and the home-screen app; the Fullscreen API is only a bonus where a phone
   // has it (Android), and it's never required.
   function fullscreen(stageEl, opts) {
@@ -51,7 +51,7 @@
     if (items.length) bar.classList.add("gfs-bar-x");
     bar.innerHTML = (items.length ? "" : `<span class="gfs-side" aria-hidden="true"></span>`) + `<div class="gfs-badge ${opts.badgeClass || ""}">${opts.badge || esc(opts.title)}<span class="sr-only">${esc(opts.title)}</span></div>`
       + (items.length ? `<div class="gfs-extra"></div>` : "")
-      + `<button type="button" class="gfs-x" aria-label="Exit ${esc(opts.title)} and go back to Juegitos"><span aria-hidden="true">✕</span></button>`;
+      + `<button type="button" class="gfs-x" aria-label="Exit ${esc(opts.title)} and go back to Juegos"><span aria-hidden="true">✕</span></button>`;
     const homes = items.map((n) => ({ n, parent: n.parentNode, next: n.nextSibling }));
     bar.querySelector(".gfs-x").addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); exit(); });
     const onKey = (e) => { if (on && e.key === "Escape" && !document.querySelector("dialog[open]")) { e.preventDefault(); exit(); } };

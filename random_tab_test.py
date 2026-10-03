@@ -1,7 +1,7 @@
 """v49.12 random launch tab (static/app.js launchTab). NO_AUTO_QUIET: this test is about the launch tab, so the test shim's
 News pin (popup_quiet.QUIET) is left out. Chromium, Android-size phone.
   • the very first launch opens Chisme (All) with the location card (and counts as the last pick)
-  • every later launch opens a random main tab, only the 4 on show (Chisme · Weather · ¿Y la dieta? · Juegitos; News,
+  • every later launch opens a random main tab, only the 4 on show (Chisme · Weather · ¿Y la dieta? · Juegos; News,
     Sports and Events live inside Chisme since v49.12), never the same one twice in a row; the tab bar marks it, it's on screen
   • deep links win: #weather, #juan, ?tab=events, ?story=… (News + the reader)
   • Settings → Open Chisme to: 🔀 Surprise me is the default; a fixed pick (Sports) opens Sports every time

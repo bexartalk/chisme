@@ -178,7 +178,7 @@ async def main():
             window.scrollTo({ top: c.getBoundingClientRect().top + scrollY - document.querySelector('#tabs').offsetHeight - 8, behavior: 'instant' }); }""")
         await page.wait_for_timeout(1200)
         await page.screenshot(path=str(OUT / "update-event-card.png"))
-        # swipe events -> Juegitos, the tab before Events (right swipe)
+        # swipe events -> Juegos, the tab before Events (right swipe)
         await swipe(cdp, 60, 330, 500)
         await page.wait_for_timeout(700)
         rep["10_swipe_events_to_juegos"] = await page.evaluate("window.__chisme.view")

@@ -30,7 +30,7 @@ async def wk(p):
     await pg.goto(URL)
     await pg.wait_for_function("() => window.__chisme && window.__chisme.ready", timeout=90000)
     tabs = await pg.evaluate("[...document.querySelectorAll('#tabs .tab')].map(t => t.textContent.trim().replace(/^\\S+\\s/, ''))")
-    check(tabs == ["Chisme", "Weather", "¿Y la dieta?", "Juegitos"], f"nav is Chisme · Weather · ¿Y la dieta? · Juegitos ({tabs})")   # v49.12: one Chisme tab
+    check(tabs == ["Chisme", "Weather", "¿Y la dieta?", "Juegos"], f"nav is Chisme · Weather · ¿Y la dieta? · Juegos ({tabs})")   # v49.12: one Chisme tab
     panes = await pg.evaluate("[...document.querySelectorAll('#track > .view')].map(v => v.dataset.view)")
     check(panes == ["chisme", "news", "sports", "events", "weather", "antojos", "juegos"], f"swipe panes: All · News · Sports · Events, then the other tabs ({panes})")
     opts = await pg.evaluate("[...document.querySelectorAll('#settings input[name=deftab]')].map(i => i.value).filter(v => v !== 'random')")
@@ -210,7 +210,7 @@ async def chrome(p):
     await pg.evaluate("window.__chisme.goView('antojos', { instant: true })"); await pg.wait_for_timeout(600)
     iy = await pg.evaluate("(() => { const r = document.querySelector('#antojos .sec-head').getBoundingClientRect(); return r.top + r.height / 2; })()")
     await swipe(cdp, 330, 50, iy); await pg.wait_for_timeout(900)
-    check(await pg.evaluate("window.__chisme.view") == "juegos", "swipe left from ¿Y la dieta? goes on to Juegitos")
+    check(await pg.evaluate("window.__chisme.view") == "juegos", "swipe left from ¿Y la dieta? goes on to Juegos")
     await pg.evaluate("window.__chisme.goView('antojos', { instant: true })"); await pg.wait_for_timeout(500)
     await pg.evaluate("document.querySelector('#food-creators .fr h4 a').click()")
     await pg.wait_for_function("document.querySelector('#player').open", timeout=5000)

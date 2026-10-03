@@ -1,5 +1,5 @@
 """v49.12: the one "Chisme" tab (News + Sports + Events), permanent. Chromium Pixel 7 + WebKit iPhone 13, light + dark, 320 px.
-  • the tab bar is Chisme · Weather · ¿Y la dieta? · Juegitos (no separate News / Sports / Events tabs), one row, fits at 320 px
+  • the tab bar is Chisme · Weather · ¿Y la dieta? · Juegos (no separate News / Sports / Events tabs), one row, fits at 320 px
   • Chisme opens on ✨ All: News, Sports and Events mixed, a 📰 / 🏀 / 🎉 tag on every card, never 3 of a kind in a row,
     at least two kinds on screen; each kind keeps its own order (sports newest first, events soonest first)
   • mixFeed itself (500 random lists): no 3 in a row, each list's order kept, stops when one kind would run 3
@@ -34,7 +34,7 @@ async def phone(b, name, dev, theme, w=None):
     pg.on("pageerror", lambda e: None if "access control checks" in str(e) else errs.append(str(e)[:160]))   # WebKit: a fetch cut off by the test navigating away
     s = await ready(pg)
     tabs = await pg.evaluate("[...document.querySelectorAll('#tabs .tab')].filter(t => t.offsetParent).map(t => [t.dataset.view, t.textContent.trim(), Math.round(t.getBoundingClientRect().top)])")
-    check([t[0] for t in tabs] == ["chisme", "weather", "antojos", "juegos"] and "Chisme" in tabs[0][1], f"4 tabs: Chisme · Weather · ¿Y la dieta? · Juegitos ({[t[1] for t in tabs]})")
+    check([t[0] for t in tabs] == ["chisme", "weather", "antojos", "juegos"] and "Chisme" in tabs[0][1], f"4 tabs: Chisme · Weather · ¿Y la dieta? · Juegos ({[t[1] for t in tabs]})")
     check(len({t[2] for t in tabs}) == 1, f"…in one row ({[t[2] for t in tabs]})")
     fit = await pg.evaluate("(() => { const i = document.querySelector('.tabs-inner'); return i.scrollWidth <= i.clientWidth + 1; })()")
     check(fit, "…and they fit (no sideways scrolling)")
@@ -74,7 +74,7 @@ async def phone(b, name, dev, theme, w=None):
     await pg.evaluate("document.querySelector('#settings-btn').click()"); await pg.wait_for_timeout(300)
     opts = await pg.evaluate("[...document.querySelectorAll('#settings input[name=deftab]')].map(i => i.value + ':' + i.parentElement.textContent.trim())")
     check([o.split(":")[0] for o in opts] == ["random", "chisme", "news", "sports", "events", "weather", "antojos", "juegos"] and "Chisme: All" in opts[1],
-          f"Settings → Open Chisme to: Surprise me, Chisme: All / News / Sports / Events, Weather, ¿Y la dieta?, Juegitos")
+          f"Settings → Open Chisme to: Surprise me, Chisme: All / News / Sports / Events, Weather, ¿Y la dieta?, Juegos")
     check(not errs, f"no page errors ({errs[:2]})")
     await ctx.close()
 

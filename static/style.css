@@ -1300,7 +1300,7 @@ button.juan-sk-done{width:100%;min-height:56px;border:3px solid #000;border-radi
 .vf-donate .donate-x{color:#c9d0d8}
 
 /* ---------- v40: games play full screen in portrait (ChismeJuegos.fullscreen). A fixed overlay over the whole screen,
-   100dvh + the safe areas; tab bar, footer and Tía's button hidden; a title badge on top and a ✕ to go back to Juegitos. */
+   100dvh + the safe areas; tab bar, footer and Tía's button hidden; a title badge on top and a ✕ to go back to Juegos. */
 html.game-fs,html.game-fs body{overflow:hidden;overscroll-behavior:none}
 html.game-fs .tabs,html.game-fs .foot,html.game-fs .tia-fab,html.game-fs .news-pill,html.game-fs .share-toast,html.game-fs #ptr{display:none!important}
 html.game-fs .track{transform:none!important;will-change:auto}   /* a transformed parent would trap position:fixed */

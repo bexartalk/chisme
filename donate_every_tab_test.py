@@ -59,7 +59,7 @@ def unit():
     check(o["slots"] == [4, 3, 6, 0, 0, 0, 1], f"slot(): nearest slot with two light neighbors, else the end ({o['slots']})")
     return json.loads(subprocess.run(["node", "-e", "console.log(JSON.stringify(require(process.argv[1]).LINES))", os.path.join(HERE, "static", "donatelines.js")], capture_output=True, text=True).stdout)
 LINES = []
-TABS = ["chisme", "news", "sports", "events", "weather", "antojos", "juegos"]   # v49.12: Chisme (All · News · Sports · Events) · Weather · ¿Y la dieta? · Juegitos
+TABS = ["chisme", "news", "sports", "events", "weather", "antojos", "juegos"]   # v49.12: Chisme (All · News · Sports · Events) · Weather · ¿Y la dieta? · Juegos
 fails = 0
 def check(ok, what):
     global fails
@@ -126,7 +126,7 @@ async def main():
         cards = await pg.evaluate(BTNS)
         ids = sorted(c["id"] for c in cards)
         want = [["cashapp", "https://cash.app/$Slurmkaos", "_blank", "noopener noreferrer", "💸 Donate on Cash App · $Slurmkaos"], ["bmc", "https://buymeacoffee.com/Chismoso", "_blank", "noopener noreferrer", "☕ Buy Me a Coffee"]]
-        check(len(cards) == 8 and all(c["btns"] == want for c in cards), f"every donate card (Chisme: All / News / Sports / Events, Weather, ¿Y la dieta?, Juegitos + Settings: {ids}) has 💸 Cash App then ☕ Buy Me a Coffee → buymeacoffee.com/Chismoso")
+        check(len(cards) == 8 and all(c["btns"] == want for c in cards), f"every donate card (Chisme: All / News / Sports / Events, Weather, ¿Y la dieta?, Juegos + Settings: {ids}) has 💸 Cash App then ☕ Buy Me a Coffee → buymeacoffee.com/Chismoso")
         check(all(c["bg"] == "rgb(255, 130, 0)" and c["fg"] == "rgb(0, 0, 0)" for c in cards), f"BMC button: Fiesta orange with black text, not BMC yellow ({cards[0]['bg']} / {cards[0]['fg']})")
         # the in-app reader leaves both alone (they open outside Chisme); a story link is still caught
         res = await pg.evaluate("""() => { const out = {}; const rec = (e) => { out[e.target.closest('a').getAttribute('href')] = e.defaultPrevented; e.preventDefault(); };
@@ -162,7 +162,7 @@ async def main():
         for i, (v, im) in enumerate(zip(TABS, tiles)):
             x, y = 10 + (i % 3) * (tw + 10), 10 + (i // 3) * (th + 60)
             grid.paste(im.resize((tw, th)), (x, y + 44)); dr.rectangle([x - 1, y + 43, x + tw, y + 44 + th], outline="black", width=2)
-            dr.text((x + 6, y + 8), ["Chisme: All", "Chisme: News", "Chisme: Sports", "Chisme: Events", "Weather", "¿Y la dieta?", "Juegitos"][i], fill="black", font=FONT)
+            dr.text((x + 6, y + 8), ["Chisme: All", "Chisme: News", "Chisme: Sports", "Chisme: Events", "Weather", "¿Y la dieta?", "Juegos"][i], fill="black", font=FONT)
         grid.save(os.path.join(OUT, "donate-every-tab.png"))
 
         await ctx.close()

@@ -15,7 +15,7 @@ BASE = os.environ.get("CHISME_URL", "http://localhost:8211")
 OUT = os.path.join(HERE, "screenshots"); os.makedirs(OUT, exist_ok=True)
 INIT = """if (!localStorage.getItem('chisme-location-setup')) { localStorage.setItem('chisme-location-setup','1'); localStorage.setItem('chisme-ios-hint-dismissed','1'); localStorage.setItem('chisme-swiped','1'); }
 localStorage.setItem('chisme-a2hs', JSON.stringify({ done: true })); localStorage.setItem('chisme-opens', '4');"""   # (opens 4 → this load is the 5th: the mid-list card shows)
-TABS = ["chisme", "news", "sports", "events", "weather", "antojos", "juegos"]   # v49.12: Chisme (All · News · Sports · Events) · Weather · ¿Y la dieta? · Juegitos
+TABS = ["chisme", "news", "sports", "events", "weather", "antojos", "juegos"]   # v49.12: Chisme (All · News · Sports · Events) · Weather · ¿Y la dieta? · Juegos
 fails = 0
 def check(ok, what):
     global fails
