@@ -281,14 +281,17 @@ async def webkit_tests(p, data):
       btns: [...document.querySelectorAll('#rs-grid .rs-btn')].map((a) => ({ t: a.textContent.trim(), href: a.getAttribute('href') || '', target: a.getAttribute('target') || '', way: a.dataset.way })) })""")
     check(sh["open"], "Share (no system share sheet in this browser): Chisme's share sheet opens")
     link = URL + "?reel=" + rid
-    check(sh["msg"] == "Check out this chisme, metiche 👀 " + link + " — Chisme. Did you hear? Get the app: " + URL.rstrip('/'),
+    check(sh["msg"] == "Check out this chisme, metiche 👀 " + link + " — Chisme. ¿Oyistes? Get the app: " + URL.rstrip('/'),
           f"the message: the video's Chisme link + the invite to get the app ({sh['msg'][:150]})")
     names = [x["t"] for x in sh["btns"]]
     check(names[:6] == ["Copy link", "Text message", "WhatsApp", "Facebook", "X", "Email"], f"targets: {names}")
     hb = {x["way"]: x for x in sh["btns"]}
     from urllib.parse import quote
-    check(hb["sms"]["href"].startswith("sms:?&body=") and quote("Chisme. Did you hear?", safe="") in hb["sms"]["href"] and quote(link, safe="") in hb["sms"]["href"],
+    check(hb["sms"]["href"].startswith("sms:?&body=") and quote("Chisme. ¿Oyistes?", safe="") in hb["sms"]["href"] and quote(link, safe="") in hb["sms"]["href"],
           "Text message: sms: with the message + link as the body")
+    from urllib.parse import unquote
+    enc_ok = {w: ("%C2%BFOyistes" in hb[w]["href"] and "Chisme. ¿Oyistes?" in unquote(hb[w]["href"])) for w in ("sms", "whatsapp", "x", "email")}
+    check(all(enc_ok.values()), f"the ¿ survives the links: SMS, WhatsApp, X, Email carry %C2%BF and decode to 'Chisme. ¿Oyistes?' ({enc_ok})")
     check(hb["whatsapp"]["href"].startswith("https://wa.me/?text=") and hb["whatsapp"]["target"] == "_blank", "WhatsApp: wa.me with the message, in a new window (leaves Chisme)")
     check(hb["facebook"]["href"].startswith("https://www.facebook.com/sharer/sharer.php?u=" + quote(link, safe="")), "Facebook: the sharer with the video's Chisme link")
     check(hb["x"]["href"].startswith("https://twitter.com/intent/tweet?text=") and ("url=" + quote(link, safe="")) in hb["x"]["href"], "X: a tweet with the invite + the link")
@@ -323,7 +326,7 @@ async def chromium_tests(p, data):
     s = await pg.evaluate(f"({{ shares: window.__shares, sheet: document.querySelector('#reel-share').open, prof: ({PROF}).s[{json.dumps(url0)}], q: {STATQ}.filter(e => e[0] === 'reel') }})")
     s["q"] = s["q"] + [e for e in sent() if e not in s["q"]]
     d0 = (s["shares"] or [{}])[0]
-    check(len(s["shares"]) == 1 and not s["sheet"] and d0.get("url") == URL + "?reel=" + reel_id(url0) and "Chisme. Did you hear? Get the app: " + URL.rstrip('/') in d0.get("text", "")
+    check(len(s["shares"]) == 1 and not s["sheet"] and d0.get("url") == URL + "?reel=" + reel_id(url0) and "Chisme. ¿Oyistes? Get the app: " + URL.rstrip('/') in d0.get("text", "")
           and d0.get("text", "").startswith("Check out this chisme, metiche 👀"), f"phone with a share sheet: navigator.share gets the Chisme link + the invite ({d0})")
     check((s["prof"] or {}).get("sh") == 1 and any(e[1] == {"a": "share", "id": reel_id(url0), "m": "native"} for e in s["q"]), "the share teaches the ranker (s.sh) and is counted (reel share, native)")
     await pg.evaluate("window.__shareMode = 'abort'; window.__shares = []; [...document.querySelectorAll('#feed-scroll .vf-slide')][0].querySelector('.vf-rail .vf-share').click()"); await pg.wait_for_timeout(300)
@@ -372,11 +375,11 @@ async def chromium_tests(p, data):
     check(og.get("og:image") == f"https://i.ytimg.com/vi/{rid}/hqdefault.jpg" and og.get("og:url", "").endswith("/?reel=" + rid) and og.get("og:type") == "video.other",
           f"/?reel=<id>: Open Graph picture = the video's thumbnail, url = the Chisme link ({og.get('og:image')})")
     want = re.sub(r"\s+", " ", it["title"]).strip()
-    check(H.unescape(og.get("og:title", "")).rstrip("…")[:40] == want[:40] and H.unescape(og.get("og:description", "")).startswith("Check out this chisme, metiche 👀") and "Chisme. Did you hear?" in H.unescape(og.get("og:description", "")),
+    check(H.unescape(og.get("og:title", "")).rstrip("…")[:40] == want[:40] and H.unescape(og.get("og:description", "")).startswith("Check out this chisme, metiche 👀") and "Chisme. ¿Oyistes?" in H.unescape(og.get("og:description", "")),
           f"…title = the video's, description = the share line ({H.unescape(og.get('og:title', ''))[:60]!r})")
     html2 = urllib.request.urlopen(URL + "?reel=%3Cscript%3E", timeout=30).read().decode()
-    check('property="og:title" content="Chisme. Did you hear?"' in html2 and "<script>" not in html2.split("<body")[0].replace("<script>", "") , "a bad ?reel= value: the normal Open Graph tags, nothing injected")
-    check('property="og:title" content="Chisme. Did you hear?"' in urllib.request.urlopen(URL, timeout=30).read().decode(), "the home page has Open Graph tags too")
+    check('property="og:title" content="Chisme. ¿Oyistes?"' in html2 and "<script>" not in html2.split("<body")[0].replace("<script>", "") , "a bad ?reel= value: the normal Open Graph tags, nothing injected")
+    check('property="og:title" content="Chisme. ¿Oyistes?"' in urllib.request.urlopen(URL, timeout=30).read().decode(), "the home page has Open Graph tags too")
     pop = json.load(urllib.request.urlopen(URL + "api/reels/popular", timeout=30))
     check(isinstance(pop.get("pop"), dict), f"/api/reels/popular answers ({len(pop.get('pop') or {})} videos)")
     await b.close()
@@ -408,7 +411,7 @@ async def public_base_tests(p, data):
         await start_feed(pg)
         await pg.evaluate("[...document.querySelectorAll('#feed-scroll .vf-slide')][window.__chisme.forYou.cur].querySelector('.vf-rail .vf-share').click()"); await pg.wait_for_timeout(400)
         msg = await pg.evaluate("(document.querySelector('.reel-share .rs-msg') || {}).textContent || ''")
-        check(pb == "https://chisme.co" and re.search(r"^Check out this chisme, metiche 👀 https://chisme\.co/\?reel=[\w-]+ — Chisme\. Did you hear\? Get the app: https://chisme\.co$", msg.strip()),
+        check(pb == "https://chisme.co" and re.search(r"^Check out this chisme, metiche 👀 https://chisme\.co/\?reel=[\w-]+ — Chisme\. ¿Oyistes\? Get the app: https://chisme\.co$", msg.strip()),
               f"the share sheet's link + promo line use https://chisme.co (served from {base}) ({msg[:140]!r})")
         await b.close()
     finally:

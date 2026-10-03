@@ -2215,7 +2215,7 @@ window.CHISME_APP_BUILD = "49.13";
   const reelLink = (it) => { const id = FY && FY.reelId(it.url); return PUBLIC_BASE + "/" + (id ? "?reel=" + encodeURIComponent(id) : ""); };
   // the brand line (users are "metiches"; copy in English, only the names in Spanish): short, the video's link first,
   // then the tagline + where to get the app
-  const HOOK = "Check out this chisme, metiche 👀", PROMO = `Chisme. Did you hear? Get the app: ${PUBLIC_BASE}`;
+  const HOOK = "Check out this chisme, metiche 👀", PROMO = `Chisme. ¿Oyistes? Get the app: ${PUBLIC_BASE}`;
   const reelMsg = (it) => `${HOOK} ${reelLink(it)} — ${PROMO}`;
   const rsDlg = $("#reel-share");
   let rsOpener = null;
