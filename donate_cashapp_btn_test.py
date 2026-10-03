@@ -1,5 +1,6 @@
 """v47: the Cash App tag lives INSIDE the green button on every donate card: the bottom card on every tab, Settings,
-the every-5th-open mid-list card, the every-7 cards in News and the For You food feed's donate slide.
+the every-5th-open mid-list card and the For You food feed's donate slide (v49.15.3: News has the From Chisme card instead
+of the every-7 cards).
 It reads "💸 Donate on Cash App · $Slurmkaos" on one line when the button is wide enough, else $Slurmkaos sits on a
 2nd line inside the button (no "·"), and the old separate "$Slurmkaos" line under the buttons is gone.
 Checked at 390×844 and 320×640 (WebKit iPhone) and 1280×900 (Chromium desktop): the text never overflows the button,
@@ -15,7 +16,7 @@ BASE = os.environ.get("CHISME_URL", "http://localhost:8211")
 OUT = os.path.join(HERE, "screenshots"); os.makedirs(OUT, exist_ok=True)
 INIT = """if (!localStorage.getItem('chisme-location-setup')) { localStorage.setItem('chisme-location-setup','1'); localStorage.setItem('chisme-ios-hint-dismissed','1'); localStorage.setItem('chisme-swiped','1'); }
 localStorage.setItem('chisme-a2hs', JSON.stringify({ done: true })); localStorage.setItem('chisme-opens', '4');"""   # (opens 4 → this load is the 5th: the mid-list card shows)
-TABS = ["chisme", "news", "sports", "events", "weather", "antojos", "juegos"]   # v49.12: Chisme (All · News · Sports · Events) · Weather · ¿Y la dieta? · Juegos
+TABS = ["chisme", "news", "sports", "events", "antojos", "weather", "juegos"]   # v49.15.3: Chisme (All · News · Sports · Events) · ¿Y la dieta? · Weather · Juegos
 fails = 0
 def check(ok, what):
     global fails
@@ -53,7 +54,8 @@ async def run(pg, label, w, shot=None):
         allb += bs
         if v == "news":
             kinds = {("mid" if b["card"] == "donate-mid" else "every7" if "donate-every" in b["card"] else "bottom") for b in bs}
-            check({"mid", "every7", "bottom"} <= kinds, f"{w}px News: the bottom card, the mid-list card and the every-7 cards all checked ({sorted(kinds)})")
+            # v49.15.3: in the Chisme lists (News too) the every-5 "From Chisme" card (no Cash App button) took the every-7 cards' place
+            check({"mid", "bottom"} <= kinds and "every7" not in kinds, f"{w}px News: the bottom card and the mid-list card checked, no every-7 cards (v49.15.3: From Chisme instead) ({sorted(kinds)})")
             if shot:
                 await pg.evaluate("document.querySelector('#donate-news').scrollIntoView({ block: 'center' })"); await pg.wait_for_timeout(600)
                 await pg.screenshot(path=os.path.join(OUT, shot))
