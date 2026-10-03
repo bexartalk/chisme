@@ -202,8 +202,8 @@ async def e2e(p):
     check(await p3.evaluate("window.__chisme.stats.off") and not sent3 and not await p3.evaluate("window.__chisme.stats.queue.length"), "Global Privacy Control on: nothing queued or sent")
     # Settings → Privacy
     note = await pg.evaluate("document.querySelector('#set-privacy-note').textContent.trim()")
-    check(note == "Chisme counts anonymous visits to improve the app. No names, no ads." and await pg.evaluate("document.querySelector('#set-privacy legend').textContent") == "Privacy",
-          "Settings → Privacy: 'Chisme counts anonymous visits to improve the app. No names, no ads.'")
+    check(note == "Anonymous visit counts, no ads, no tracking cookies. High-score nicknames you enter are public. Full details: Privacy Policy." and await pg.evaluate("document.querySelector('#set-privacy legend').textContent") == "Privacy",
+          "Settings → Privacy: 'Anonymous visit counts, no ads, no tracking cookies. High-score nicknames you enter are public. Full details: Privacy Policy.'")
 
     # what's stored
     raw = STORE.read_text(); d = json.loads(raw); day = stats.day_of(); T = d["days"][day]; c = T["c"]

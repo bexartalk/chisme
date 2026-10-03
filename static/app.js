@@ -306,7 +306,7 @@ window.CHISME_APP_BUILD = "49.12";
   // ---------- location panel (friendly pre-prompt, denied fallback, change location)
   const PANEL = {
     ask: ["Show news & weather for where you are?",
-      "Chisme uses your location only to look up your forecast, weather alerts, radar and nearby stories. It's saved on this device. You'll only be asked once: to change it later, tap the Chisme bubble at the top for Settings. Until then we're showing San Antonio, TX."],
+      "Chisme uses your location for your forecast, alerts, radar, nearby stories, sports and Tía. It's saved on this device and sent to Chisme's server, rounded to about 1 km, to look things up; it's never sold. With notifications on, your area (about 1 km) stays on the server until you turn them off. You'll only be asked once: to change it later, tap the Chisme bubble at the top for Settings. Until then we're showing San Antonio, TX."],
     denied: ["Location is turned off for Chisme",
       "No problem — type a city or ZIP code below. (To use your location later, allow it for this site in your browser or phone settings, then tap “Use my location.”)"],
     unavailable: ["Couldn't find your location",
@@ -1605,7 +1605,7 @@ window.CHISME_APP_BUILD = "49.12";
     const likes = FY.interests(fyProfile || FY.load(), 3);
     $("#fy-meta").textContent = !vids.length ? "No videos in the feeds right now — check back soon."
       : likes.length ? `Tuned to you: ${likes.join(", ")}. ${n} videos ready.`
-      : `${n} videos ready. No account, no tracking: it all stays on this phone.`;
+      : `${n} videos ready. No account: what it learns stays on this phone.`;
     $("#fy-start").disabled = !vids.length;
     preparePlayer();
   }

@@ -154,7 +154,7 @@
   <section id="loc-panel" class="loc-panel wrap" hidden aria-labelledby="loc-title">
     <div class="loc-inner">
       <h2 id="loc-title">Show news &amp; weather for where you are?</h2>
-      <p id="loc-msg">Chisme uses your location only to look up your forecast, weather alerts, radar and nearby stories. It's saved on this device. You'll only be asked once: to change it later, tap the Chisme bubble at the top for Settings.</p>
+      <p id="loc-msg">Chisme uses your location for your forecast, alerts, radar, nearby stories, sports and Tía. It's saved on this device and sent to Chisme's server, rounded to about 1 km, to look things up; it's never sold. With notifications on, your area (about 1 km) stays on the server until you turn them off. You'll only be asked once: to change it later, tap the Chisme bubble at the top for Settings.</p>
       <div class="loc-actions">
         <button type="button" id="loc-gps" class="install">📍 Use my location</button>
         <button type="button" id="loc-close">Not now</button>
@@ -331,7 +331,7 @@
             <div class="fy-cover" id="fy-cover" aria-hidden="true" hidden></div>
             <p class="fy-next" id="fy-next" hidden></p>
             <button type="button" id="fy-start" class="fy-start" aria-haspopup="dialog"><span aria-hidden="true">▶</span> Start watching</button>
-            <p class="fy-meta" id="fy-meta">No account, no tracking: it all stays on this phone.</p>
+            <p class="fy-meta" id="fy-meta">No account: what it learns stays on this phone.</p>
             <p class="fy-legal">Videos play in YouTube's and TikTok's own players: by watching you agree to the <a class="legal-link" href="https://www.youtube.com/t/terms" target="_blank" rel="noopener noreferrer">YouTube Terms of Service</a> · <a class="legal-link" href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Google Privacy Policy</a>.</p>
           </div>
           <p class="blurb" id="antojos-intro">Diet? Not today. San Antonio's food creators taste-test so you don't have to guess. Watch right here, and 🔖 save the spots worth the drive.</p>
@@ -474,7 +474,7 @@
     </form>
     <!-- v49.4: ⚙️ Settings lives at the bottom of her page, under the Ask box -->
     <button type="button" id="tia-settings" class="tia-settings-btn"><span aria-hidden="true">⚙️ </span>Settings</button>
-    <p class="tia-foot">Tía is an AI and only talks about what's in Chisme right now. Chats stay on this phone (Settings → Forget me).</p>
+    <p class="tia-foot">Tía is an AI (Google Gemini) and only talks about what's in Chisme. Your messages and the stories on screen go to Chisme's server and to Google to get her answer; Chisme doesn't keep them, but Google may. Don't share private info. Chat history is saved on this phone (Settings → Forget me). <a href="/privacy" target="_blank" rel="noopener">Privacy</a></p>
   </dialog>
   <dialog id="player" class="settings player" aria-labelledby="player-title">
     <div class="set-head player-head">
@@ -580,13 +580,13 @@
       </fieldset>
       <fieldset class="set-group">
         <legend>Bigger the Pansa, Better the Chansa feed</legend>
-        <p class="set-note">¿Y la dieta?'s Bigger the Pansa, Better the Chansa feed learns from what you watch, save and skip, and News remembers which stories you've seen or opened so it can show them in a different order. That's kept only on this phone and never sent anywhere; this resets both.</p>
+        <p class="set-note">¿Y la dieta?'s Bigger the Pansa, Better the Chansa feed learns from what you watch, save and skip, and News remembers which stories you've seen or opened so it can show them in a different order. That's kept on this phone (Chisme only counts views anonymously, never who you are); this resets both.</p>
         <button type="button" id="set-fy-reset">Reset my feed</button>
         <p class="set-note" id="set-fy-note" aria-live="polite"></p>
       </fieldset>
       <fieldset class="set-group" id="set-tia">
         <legend>Tía Chismosa</legend>
-        <p class="set-note">Your chats with la Tía and the interests she learns from what you tap are kept only on this phone. Each message you send goes to Chisme's server with the stories the app is showing, is answered, and isn't stored.</p>
+        <p class="set-note">Your chats with la Tía and the interests she learns from what you tap are saved only on this phone (Forget me erases them). Each message you send goes to Chisme's server and to Google's Gemini AI, with the stories the app is showing, to get her answer. Chisme doesn't store it; Google may keep it under its own terms. Don't share private info.</p>
         <button type="button" id="set-forget">Forget me</button>
         <p class="set-note" id="set-forget-note" aria-live="polite"></p>
       </fieldset>
@@ -613,7 +613,7 @@
       </fieldset>
       <fieldset class="set-group" id="set-privacy">
         <legend>Privacy</legend>
-        <p class="set-note" id="set-privacy-note">Chisme counts anonymous visits to improve the app. No names, no ads.</p>
+        <p class="set-note" id="set-privacy-note">Anonymous visit counts, no ads, no tracking cookies. High-score nicknames you enter are public. Full details: Privacy Policy.</p>
         <p class="set-links"><a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a> · <a href="/terms" target="_blank" rel="noopener">Terms of Use</a> · <a href="mailto:bexartalkradio@gmail.com?subject=Chisme">Contact / report a problem</a></p>
       </fieldset>
       <p class="set-foot">Settings are saved on this device only. Chisme <span id="set-version"></span></p>
