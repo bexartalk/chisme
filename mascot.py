@@ -16,8 +16,11 @@ POST /api/mascot/chat  {messages:[{role:"user"|"tia", text}], context:{stories, 
 - Safety: a pre-filter for self-harm (crisis line), violence/weapons/drugs and hacking (refuses), and
   medical/legal/financial advice (declines, points to a professional); the provider's own safety filters
   stay on; replies are capped (MASCOT_MAX_TOKENS, default 350) and trimmed to 1200 characters.
-- Limits: 30 messages per IP per hour, plus a server-wide daily budget (MASCOT_DAILY_CAP, default 450)
-  that keeps Gemini's free tier from running dry. Past the budget she switches to smart (non-AI) answers.
+- Limits: 30 messages per IP per hour; v49.12: 20 AI (Gemini) messages per phone per day (TIA_DEVICE_DAILY_CAP; a random
+  device id from the phone, else the IP) and a global daily cap across everyone (TIA_DAILY_GLOBAL_CAP, default 1500),
+  both counted in Upstash by app.py and reset at midnight Chicago time. Past a cap she says so (CAP_LINES) and answers
+  from the feeds (smart()) without calling the AI. Safety replies (the 988 crisis line) are never limited.
+  (MASCOT_DAILY_CAP, the old in-memory budget, only applies when chat() is called without app.py's gate.)
 - Nothing is stored on the server: no chat logs, no profiles. History lives on the phone.
 - v49.12 language: English by default (her greeting is "¡Hola, metiche!"); she understands Spanish and answers in Spanish
   only when your message is in Spanish (user_spanish()). The no-AI smart answers are English.
@@ -802,10 +805,23 @@ def _reply(r: dict, src: list[dict], mode: str, prov) -> dict:
     return {"reply": r["reply"], "cites": cites, "mode": mode, "provider": prov, "sources": [public(by[c]) for c in cites]}
 
 
-async def chat(client: httpx.AsyncClient, body: dict, kb: dict | None = None) -> dict:
-    """kb: the server's own current feeds for the phone's location ({news, weather, events, food, sports}); see app.py."""
+# v49.12: Tía's daily limits (app.py counts them in Upstash: 20 AI messages per phone per day, a global daily cap).
+# Past a cap she doesn't call the AI; she says so and still answers from the feeds (smart()). Safety replies (988) never count.
+CAP_LINES = {"device": "Tía needs her cafecito — come back tomorrow, metiche ☕",
+             "global": "Tía's taking a siesta 😴 — too much chisme today! Back tomorrow, metiche."}
+
+
+def last_user_text(body: dict) -> str:
+    """The latest user message (what chat() answers), for app.py's limit checks."""
+    msgs = [m for m in (body.get("messages") or [])[-12:] if isinstance(m, dict) and _s(m.get("text"), 800)]
+    return _s(msgs[-1].get("text"), 800) if msgs and msgs[-1].get("role") != "tia" else ""
+
+
+async def chat(client: httpx.AsyncClient, body: dict, kb: dict | None = None, gate=None) -> dict:
+    """kb: the server's own current feeds for the phone's location ({news, weather, events, food, sports}); see app.py.
+    gate: v49.12, an async () -> None | "device" | "global", asked (and counted) only right before an AI call."""
     msgs = [{"role": "tia" if m.get("role") == "tia" else "user", "text": _s(m.get("text"), 800)}
-            for m in (body.get("messages") or [])[-12:] if _s(m.get("text"), 800)]
+            for m in (body.get("messages") or [])[-12:] if isinstance(m, dict) and _s(m.get("text"), 800)]
     while msgs and msgs[0]["role"] == "tia":   # providers want the user first
         msgs.pop(0)
     hour = int(body.get("hour") or 12) % 24
@@ -822,7 +838,14 @@ async def chat(client: httpx.AsyncClient, body: dict, kb: dict | None = None) ->
     quick = lambda why="offline": smart(last, src, hour, why, tz, city)
     if not p:
         return _reply(quick(), src, "scripted", None)
-    if not _budget_ok():
+    if gate is not None:
+        cap = await gate()
+        if cap:   # a daily cap: no AI call; the cap line, then the answer straight from the feeds
+            q = quick("capped")
+            r = _reply({"reply": CAP_LINES.get(cap, CAP_LINES["device"]) + ("\n" + q["reply"] if q["cites"] else ""), "cites": q["cites"]}, src, "capped", p.name)
+            r["cap"] = cap
+            return r
+    elif not _budget_ok():
         return _reply(quick("quota"), src, "scripted", p.name)
     name = _s(body.get("name"), 30)
     es_user = user_spanish(last)   # v49.12: English by default; Spanish only when you write in Spanish

@@ -3584,6 +3584,15 @@ window.CHISME_APP_BUILD = "49.12";
   const citeOf = (it) => ({ kind: it.kind, url: it.url, title: it.title, source: it.source, published: it.published || null, summary: it.summary || null,
     image: it.image || null, when: it.when || null, lat: it.lat ?? null, lon: it.lon ?? null, venue: it.venue || null, address: it.address || null,
     video: !!it.video, raw: it.kind === "food" && it.video ? it.raw : undefined });
+  // v49.12: a random id for Tía's daily limit (20 AI answers per phone per day); the server keeps only a salted hash, until midnight
+  function tiaDevice() {
+    let d = lsGet("chisme-tia-device");
+    if (!d || !/^[A-Za-z0-9_-]{16,64}$/.test(d)) {
+      const a = new Uint8Array(16); try { crypto.getRandomValues(a); } catch { for (let i = 0; i < 16; i++) a[i] = Math.random() * 256; }
+      d = [...a].map((x) => x.toString(16).padStart(2, "0")).join(""); lsSet("chisme-tia-device", d);
+    }
+    return d;
+  }
   function tiaDaily() {   // once a day, the first time you open her: a greeting + chisme del día (no AI call needed)
     const today = dayKey(new Date()), h = tiaLoad();
     if (h.some((m) => m.daily === today)) return;
@@ -3609,7 +3618,7 @@ window.CHISME_APP_BUILD = "49.12";
     let reply;
     try {
       const r = await fetch("/api/mascot/chat", { method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: h.slice(-12).map((m) => ({ role: m.role, text: String(m.text || "").slice(0, 800) })), hour: new Date().getHours(),
+        body: JSON.stringify({ messages: h.slice(-12).map((m) => ({ role: m.role, text: String(m.text || "").slice(0, 800) })), hour: new Date().getHours(), device: tiaDevice(),
           // v39: the server adds everything it has for this spot (all news sections, sports, weather, events, food)
           loc: { lat: +(+loc.lat).toFixed(2), lon: +(+loc.lon).toFixed(2) }, tz: (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch { return null; } })(),
           // v49.11: summaries clipped, so the whole request stays well under the server's 32 KB cap

@@ -37,7 +37,7 @@ from fastapi.staticfiles import StaticFiles
 
 import mascot as tia
 import reader as rdr
-from limits import RateLimit, SharedLimit, client_ip
+from limits import DailyCounter, RateLimit, SharedLimit, client_ip, ct_day
 
 import autopush
 import juanscores
@@ -2517,12 +2517,51 @@ async def api_reader(request: Request, url: str = Query(..., min_length=8, max_l
 
 
 MASCOT_LIMIT = SharedLimit("tia", int(os.environ.get("MASCOT_PER_HOUR", "30")), 3600)   # messages per phone (IP) per hour
+# v49.12: Tía's daily limits (Upstash, reset at midnight Chicago time): AI messages per phone, and all phones together
+def _env_int(name: str, default: str) -> int:
+    try:
+        return max(0, int(str(os.environ.get(name, default)).strip().strip('"').split("=")[-1]))
+    except ValueError:
+        print(f"{name}: not a number, using {default}"); return int(default)
+TIA_DEVICE_CAP = _env_int("TIA_DEVICE_DAILY_CAP", "20")   # a typo in Render's env never stops the app
+TIA_GLOBAL_CAP = _env_int("TIA_DAILY_GLOBAL_CAP", "1500")
+TIA_DAY = DailyCounter("tia")
+_DEVICE_ID = re.compile(r"[A-Za-z0-9_-]{16,64}")
+
+
+def tia_who(request: Request, body: dict) -> str:
+    """The phone's random Tía device id (localStorage chisme-tia-device), else its IP."""
+    d = body.get("device")
+    return "d:" + d if isinstance(d, str) and _DEVICE_ID.fullmatch(d) else "ip:" + client_ip(request)
+
+
+async def tia_gate(who: str) -> str | None:
+    """Right before an AI call: None (go ahead, counted) or the cap that's hit ("device" / "global")."""
+    n = await TIA_DAY.incr("dev:" + who)
+    if n > TIA_DEVICE_CAP:
+        if n == TIA_DEVICE_CAP + 1:
+            await TIA_DAY.incr("capped-devices")
+        await TIA_DAY.incr("blocked-device")
+        return "device"
+    g = await TIA_DAY.incr("ai")
+    if g > TIA_GLOBAL_CAP:
+        await TIA_DAY.incr("ai", -1); await TIA_DAY.incr("dev:" + who, -1); await TIA_DAY.incr("blocked-global")
+        return "global"
+    if n == 1:
+        await TIA_DAY.incr("devices")
+    return None
+
+
+async def tia_usage() -> dict:
+    """Today's Tía numbers for /stats."""
+    c = await TIA_DAY.get_many(["ai", "devices", "capped-devices", "blocked-device", "blocked-global"])
+    return {**c, "day": ct_day(), "device_cap": TIA_DEVICE_CAP, "global_cap": TIA_GLOBAL_CAP}
 
 
 @app.get("/api/mascot/config")
 async def api_mascot_config():
     p = tia.provider()
-    return {"name": tia.NAME, "ai": bool(p), "provider": p.name if p else None, "per_hour": MASCOT_LIMIT.limit}
+    return {"name": tia.NAME, "ai": bool(p), "provider": p.name if p else None, "per_hour": MASCOT_LIMIT.limit, "per_day": TIA_DEVICE_CAP}
 
 
 TIA_KB_WAIT = float(os.environ.get("MASCOT_KB_WAIT", "12"))
@@ -2564,13 +2603,15 @@ async def api_mascot_chat(request: Request):
             raise ValueError
     except ValueError:
         return JSONResponse({"error": "bad request"}, status_code=400)
-    ok, wait = await MASCOT_LIMIT.hit(client_ip(request))
+    # v49.12: safety replies (the 988 crisis line, refusals) never call the AI and are never limited
+    ok, wait = (True, 0) if tia.safety(tia.last_user_text(body)) else await MASCOT_LIMIT.hit(client_ip(request))
     if not ok:
         return JSONResponse({"reply": f"Whoa, metiche, that's a lot of chisme for one hour! Give me about {max(1, round(wait / 60))} "
                                       "minutes to refill my coffee and I'm all yours.",
                              "cites": [], "mode": "limited", "retry_after": wait, "sources": []}, status_code=429)
     try:
-        return await tia.chat(client(), body, await tia_knowledge(body))
+        who = tia_who(request, body)
+        return await tia.chat(client(), body, await tia_knowledge(body), gate=lambda: tia_gate(who))
     except Exception as ex:
         return _err(ex)
 
@@ -2752,7 +2793,11 @@ async def stats_page(request: Request, key: str | None = None):
     except Exception:
         scores = None
     rf = await refresh_state()
-    return HTMLResponse(stats.page(data, st.name, info=info, info_error=err, scores=scores, refresh=rf, nonce=_nonce(request)), headers=STATS_HEADERS)
+    try:
+        tu = await tia_usage()
+    except Exception:
+        tu = {"error": True}
+    return HTMLResponse(stats.page(data, st.name, info=info, info_error=err, scores=scores, refresh=rf, nonce=_nonce(request), tia=tu), headers=STATS_HEADERS)
 
 
 @app.post("/stats/login", include_in_schema=False)

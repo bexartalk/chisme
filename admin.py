@@ -309,7 +309,25 @@ def _scores(scores: list | None, now: float) -> str:
             '<div class="two"><button type="button" class="big" id="hs-no">Cancel</button><button type="button" class="big go" id="hs-yes">Yes, clear it</button></div></div></dialog>')
 
 
-def page(r: dict, store_name: str, info: dict | None = None, now: float | None = None, info_error: str = "", extra: str = "", scores: list | None = None, refresh: dict | None = None, nonce: str = "") -> str:
+def tia_card(t: dict | None) -> str:
+    """v49.12: Tía's AI messages today (Chicago day) against the daily caps."""
+    if not t or t.get("error"):
+        return ('<section class="card glance-top" id="tia-today" style="margin-top:12px"><h2>💬 Tía today</h2>'
+                '<p class="empty">Tía\'s usage isn\'t available right now (the storage didn\'t answer). Try ↻ in a minute.</p></section>')
+    ai, cap, dcap = int(t.get("ai") or 0), int(t.get("global_cap") or 0), int(t.get("device_cap") or 0)
+    pct = min(100, round(100 * ai / cap)) if cap else 0
+    hit = ai >= cap > 0
+    return (f'<section class="card glance-top" id="tia-today" style="margin-top:12px"><h2>💬 Tía today</h2>'
+            f'<p class="sub" style="margin:0">AI (Gemini) answers since midnight Central · resets at midnight</p><div class="glance">'
+            f'<div class="gl"><div class="n" id="tia-ai">{fmt(ai)}</div><div class="l">of {fmt(cap)}</div><div class="s">AI answers today ({pct}% of the daily cap){" · cap reached: Tía is answering from the feeds" if hit else ""}</div></div>'
+            f'<div class="gl"><div class="n" id="tia-devs">{fmt(t.get("devices"))}</div><div class="l">Phones</div><div class="s">chatted with the AI today</div></div>'
+            f'<div class="gl"><div class="n" id="tia-capped">{fmt(t.get("capped-devices"))}</div><div class="l">At their limit</div><div class="s">phones that used all {dcap} AI answers today</div></div></div>'
+            f'<p class="sub" style="margin:8px 0 0">Turned away today: {plural(t.get("blocked-device"), "message")} over a phone\'s limit, '
+            f'{plural(t.get("blocked-global"), "message")} over the daily cap (they still got an answer from the feeds; the 988 crisis reply is never limited). '
+            f'Change the caps on Render: <code>TIA_DEVICE_DAILY_CAP</code> (now {dcap}), <code>TIA_DAILY_GLOBAL_CAP</code> (now {fmt(cap)}).</p></section>')
+
+
+def page(r: dict, store_name: str, info: dict | None = None, now: float | None = None, info_error: str = "", extra: str = "", scores: list | None = None, refresh: dict | None = None, nonce: str = "", tia: dict | None = None) -> str:
     now = now or time.time()
     days = stats.last_days(30, stats.day_of(now))
     S = stats.summarize(r, days)
@@ -454,7 +472,7 @@ def page(r: dict, store_name: str, info: dict | None = None, now: float | None =
     tpl_js = json.dumps({k: {"t": t, "m": m, "w": w} for k, _, t, m, w in TEMPLATES}, ensure_ascii=False)
     where_js = json.dumps({k: p for k, _, p in WHERE})
     updated = "Updated " + datetime.fromtimestamp(now, TZ).strftime("%-I:%M %p CT")
-    body = (header(updated) + f'<main>{"".join(banners)}{tip}{send if has_push else ""}{auto if has_push else ""}{rcard}{glance}{tops}'
+    body = (header(updated) + f'<main>{"".join(banners)}{tip}{send if has_push else ""}{auto if has_push else ""}{rcard}{glance}{tops}{tia_card(tia) if tia is not None else ""}'
             f'<h2 class="sec">More</h2>{folds}'
             '<footer>Chisme counts anonymous visits: no names, no IPs, no ads, no third parties. Visitors are counted from a random ID on each phone, hashed on the server and never stored as-is.</footer>'
             '</main><div class="toast" id="toast" role="status" aria-live="polite"></div>')

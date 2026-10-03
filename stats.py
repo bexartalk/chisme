@@ -391,10 +391,10 @@ def _top(c: dict, prefix: str, n: int = 8) -> list[tuple[str, int]]:
     return sorted(((k[len(prefix):], v) for k, v in c.items() if k.startswith(prefix)), key=lambda x: (-x[1], x[0]))[:n]
 
 
-def page(r: dict, store_name: str, now: float | None = None, extra: str = "", info: dict | None = None, info_error: str = "", scores: list | None = None, refresh: dict | None = None, nonce: str = "") -> str:
-    """The dashboard (v49.5: rendered by admin.py, phone-first). `info`: autopush.admin_info() for the push cards."""
+def page(r: dict, store_name: str, now: float | None = None, extra: str = "", info: dict | None = None, info_error: str = "", scores: list | None = None, refresh: dict | None = None, nonce: str = "", tia: dict | None = None) -> str:
+    """The dashboard (v49.5: rendered by admin.py, phone-first). `info`: autopush.admin_info() for the push cards; `tia`: v49.12 app.tia_usage()."""
     import admin
-    return admin.page(r, store_name, info=info, now=now, info_error=info_error, extra=extra, scores=scores, refresh=refresh, nonce=nonce)
+    return admin.page(r, store_name, info=info, now=now, info_error=info_error, extra=extra, scores=scores, refresh=refresh, nonce=nonce, tia=tia)
 
 
 def gate_page(error: str = "", nonce: str = "") -> str:
