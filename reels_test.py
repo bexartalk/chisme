@@ -1,7 +1,7 @@
-"""v49.13 video reels ("¿Cuál dieta?"'s Bigger the Pansa, Better the Chansa feed), in Node + WebKit (iPhone 13) + Chromium (Pixel 5):
+"""v49.13 ChismeTV, the video reels (¿Y la dieta?'s feed, formerly Bigger the Pansa, Better the Chansa), in Node + WebKit (iPhone 13) + Chromium (Pixel 5):
   • the on-device ranker (static/foryou.js, unit tests in Node): like / share / complete / rewatch / skip signals per video and per
     category / creator / tag, short videos first, the seen list (no repeats), ~20% exploration, the crowd boost, next() batches
-  • Settings → Video reels: "Autoplay videos" and "Play with sound", both ON by default, remembered; autoplay off / Reduce motion /
+  • Settings → ChismeTV: "Autoplay videos" and "Play with sound", both ON by default, remembered; autoplay off / Reduce motion /
     Data Saver → "Tap to play"; sound held by the browser → muted + "Tap anywhere for sound", one tap unmutes
   • Like (♥ button + double-tap heart) and Share on every video; navigator.share on phones, else the sheet (Copy link, Text, WhatsApp,
     Facebook, X, Email) with the Chisme link + the invite; share targets leave Chisme (never the in-app reader); shares counted
@@ -189,7 +189,7 @@ async def webkit_tests(p, data):
       r: window.__chisme.forYou.reels, wanted: window.__chisme.forYou.sound.wanted })""")
     check(st["auto"] and st["snd"] and st["ls"] == [None, None] and st["r"]["autoplay"] and st["r"]["canAutoplay"] and st["wanted"],
           f"fresh phone: Autoplay videos ON and Play with sound ON by default (nothing stored yet) ({st['ls']}, canAutoplay {st['r']['canAutoplay']})")
-    check(st["autoL"] == "Autoplay videos" and st["sndL"] == "Play with sound" and st["legend"] == "Video reels", f"Settings → '{st['legend']}': '{st['autoL']}', '{st['sndL']}'")
+    check(st["autoL"] == "Autoplay videos" and st["sndL"] == "Play with sound" and st["legend"] == "ChismeTV", f"Settings → '{st['legend']}': '{st['autoL']}', '{st['sndL']}'")
     await open_settings(pg); await pg.evaluate("document.querySelector('#set-feed-sound-group').scrollIntoView({ block: 'center' })")
     await pg.wait_for_timeout(400); os.makedirs(SHOTS, exist_ok=True)
     sr = await pg.evaluate("(() => { const t = Math.max(0, document.querySelector('#settings .set-head').getBoundingClientRect().top); return { x: 0, y: t, width: innerWidth, height: innerHeight - t }; })()")
@@ -281,7 +281,9 @@ async def webkit_tests(p, data):
       btns: [...document.querySelectorAll('#rs-grid .rs-btn')].map((a) => ({ t: a.textContent.trim(), href: a.getAttribute('href') || '', target: a.getAttribute('target') || '', way: a.dataset.way })) })""")
     check(sh["open"], "Share (no system share sheet in this browser): Chisme's share sheet opens")
     link = URL + "?reel=" + rid
-    check(sh["msg"] == "Check out this chisme, metiche 👀 " + link + " — Chisme. ¿Oyistes? Get the app: " + URL.rstrip('/'),
+    hd = await pg.evaluate("({ rs: document.querySelector('#rs-title').textContent.trim(), top: document.querySelector('.feed-label b').textContent.trim(), sub: (document.querySelector('.feed-label .feed-sub') || {}).textContent })")
+    check(hd["rs"] == "Share this ChismeTV video" and hd["top"] == "ChismeTV" and hd["sub"] == "Bigger the Pansa, Better the Chansa", f"named ChismeTV: the feed's header (old name as a subtitle) and the share sheet's title ({hd})")
+    check(sh["msg"] == "Check out this ChismeTV, metiche 👀 " + link + " — Chisme. ¿Oyistes? Get the app: " + URL.rstrip('/'),
           f"the message: the video's Chisme link + the invite to get the app ({sh['msg'][:150]})")
     names = [x["t"] for x in sh["btns"]]
     check(names[:6] == ["Copy link", "Text message", "WhatsApp", "Facebook", "X", "Email"], f"targets: {names}")
@@ -327,7 +329,7 @@ async def chromium_tests(p, data):
     s["q"] = s["q"] + [e for e in sent() if e not in s["q"]]
     d0 = (s["shares"] or [{}])[0]
     check(len(s["shares"]) == 1 and not s["sheet"] and d0.get("url") == URL + "?reel=" + reel_id(url0) and "Chisme. ¿Oyistes? Get the app: " + URL.rstrip('/') in d0.get("text", "")
-          and d0.get("text", "").startswith("Check out this chisme, metiche 👀"), f"phone with a share sheet: navigator.share gets the Chisme link + the invite ({d0})")
+          and d0.get("text", "").startswith("Check out this ChismeTV, metiche 👀"), f"phone with a share sheet: navigator.share gets the Chisme link + the invite ({d0})")
     check((s["prof"] or {}).get("sh") == 1 and any(e[1] == {"a": "share", "id": reel_id(url0), "m": "native"} for e in s["q"]), "the share teaches the ranker (s.sh) and is counted (reel share, native)")
     await pg.evaluate("window.__shareMode = 'abort'; window.__shares = []; [...document.querySelectorAll('#feed-scroll .vf-slide')][0].querySelector('.vf-rail .vf-share').click()"); await pg.wait_for_timeout(300)
     s = await pg.evaluate(f"({{ n: window.__shares.length, sheet: document.querySelector('#reel-share').open, sh: ({PROF}).s[{json.dumps(url0)}].sh }})")
@@ -375,7 +377,8 @@ async def chromium_tests(p, data):
     check(og.get("og:image") == f"https://i.ytimg.com/vi/{rid}/hqdefault.jpg" and og.get("og:url", "").endswith("/?reel=" + rid) and og.get("og:type") == "video.other",
           f"/?reel=<id>: Open Graph picture = the video's thumbnail, url = the Chisme link ({og.get('og:image')})")
     want = re.sub(r"\s+", " ", it["title"]).strip()
-    check(H.unescape(og.get("og:title", "")).rstrip("…")[:40] == want[:40] and H.unescape(og.get("og:description", "")).startswith("Check out this chisme, metiche 👀") and "Chisme. ¿Oyistes?" in H.unescape(og.get("og:description", "")),
+    ogt = H.unescape(og.get("og:title", ""))
+    check(ogt.endswith(" · ChismeTV") and ogt[:-len(" · ChismeTV")].rstrip("…")[:40] == want[:40] and H.unescape(og.get("og:description", "")).startswith("Check out this ChismeTV, metiche 👀") and "Chisme. ¿Oyistes?" in H.unescape(og.get("og:description", "")),
           f"…title = the video's, description = the share line ({H.unescape(og.get('og:title', ''))[:60]!r})")
     html2 = urllib.request.urlopen(URL + "?reel=%3Cscript%3E", timeout=30).read().decode()
     check('property="og:title" content="Chisme. ¿Oyistes?"' in html2 and "<script>" not in html2.split("<body")[0].replace("<script>", "") , "a bad ?reel= value: the normal Open Graph tags, nothing injected")
@@ -411,7 +414,7 @@ async def public_base_tests(p, data):
         await start_feed(pg)
         await pg.evaluate("[...document.querySelectorAll('#feed-scroll .vf-slide')][window.__chisme.forYou.cur].querySelector('.vf-rail .vf-share').click()"); await pg.wait_for_timeout(400)
         msg = await pg.evaluate("(document.querySelector('.reel-share .rs-msg') || {}).textContent || ''")
-        check(pb == "https://chisme.co" and re.search(r"^Check out this chisme, metiche 👀 https://chisme\.co/\?reel=[\w-]+ — Chisme\. ¿Oyistes\? Get the app: https://chisme\.co$", msg.strip()),
+        check(pb == "https://chisme.co" and re.search(r"^Check out this ChismeTV, metiche 👀 https://chisme\.co/\?reel=[\w-]+ — Chisme\. ¿Oyistes\? Get the app: https://chisme\.co$", msg.strip()),
               f"the share sheet's link + promo line use https://chisme.co (served from {base}) ({msg[:140]!r})")
         await b.close()
     finally:

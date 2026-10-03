@@ -89,16 +89,16 @@ async def wk(p):
         title: document.querySelector('#fy-title').textContent.trim(), btn: document.querySelector('#fy-start').textContent.trim(), btnH: Math.round(b.height), btnW: Math.round(b.width),
         meta: document.querySelector('#fy-meta').textContent } }""")
     check(lay["afterHead"] and lay["aboveChips"], "For You banner is the first thing under the ¿Y la dieta? heading, above the chips")
-    check(lay["title"] == "🌮 Bigger the Pansa, Better the Chansa" and lay["btn"] == "▶ Start watching" and lay["btnH"] >= 52 and lay["btnW"] >= 300, f"banner: '{lay['title']}', big '{lay['btn']}' button ({lay['btnW']}×{lay['btnH']})")
+    check(lay["title"] == "📺 ChismeTV" and lay["btn"] == "▶ Watch ChismeTV" and lay["btnH"] >= 52 and lay["btnW"] >= 300, f"banner: '{lay['title']}', big '{lay['btn']}' button ({lay['btnW']}×{lay['btnH']})")
     check(lay["chips"] == ["latest", "saved"] and lay["deskLast"], "Latest + Saved spots chips kept; food desk still at the bottom")
     # v40: the feed is called "Bigger the Pansa, Better the Chansa" everywhere (banner title, feed top bar, aria, tip note, Settings); no "For You" / "Tu feed de antojos" left
-    NAME = "Bigger the Pansa, Better the Chansa"
+    NAME = "ChismeTV"   # v49.13: the feed is ChismeTV (its old name stays as a small subtitle)
     nm = await pg.evaluate("""() => { const k = document.querySelector('#fy-title'), card = document.querySelector('#foryou-card'), r = k.getBoundingClientRect(), c = card.getBoundingClientRect();
       const txt = document.body.innerText + ' ' + [...document.querySelectorAll('[aria-label]')].map(e => e.getAttribute('aria-label')).join(' ') + ' ' + document.querySelector('#settings').textContent;
       return { title: k.textContent.trim(), dup: !!document.querySelector('#fy-kicker'), fits: k.scrollWidth <= k.clientWidth + 1 && r.left >= c.left && r.right <= c.right + 1, lines: Math.round(r.height / parseFloat(getComputedStyle(k).lineHeight)),
         region: card.getAttribute('aria-labelledby'), dialog: document.querySelector('#feed').getAttribute('aria-label'), legend: [...document.querySelectorAll('#settings legend')].map(l => l.textContent).find(t => /feed/i.test(t)) || '',
         forYou: /for you\\b|feed de antojos/i.test(txt.replace(/for your/gi, '')) }; }""")
-    check(nm["title"] == "🌮 " + NAME and not nm["dup"] and nm["fits"] and nm["lines"] <= 3 and nm["region"] == "fy-title", f"banner title: '{nm['title']}' fits the card on a phone ({nm['lines']} line(s), no overflow, not repeated)")
+    check(nm["title"] == "📺 " + NAME and not nm["dup"] and nm["fits"] and nm["lines"] <= 3 and nm["region"] == "fy-title", f"banner title: '{nm['title']}' fits the card on a phone ({nm['lines']} line(s), no overflow, not repeated)")
     check(nm["dialog"].startswith(NAME) and nm["legend"] == NAME + " feed" and not nm["forYou"], f"the feed's aria label and Settings say '{NAME}', and 'For You' is gone ({nm['dialog'][:40]!r}, {nm['legend']!r})")
     crew = await pg.evaluate("[...document.querySelectorAll('#food-crew-list .crew')].map(c => ({ name: c.querySelector('b').textContent, uses: c.querySelector('.crew-uses').textContent, links: [...c.querySelectorAll('a')].map(a => a.href + ' ' + a.target) }))")
     saf = next((c for c in crew if c["name"] == "S.A. Foodie"), None)
@@ -114,7 +114,7 @@ async def wk(p):
     check(f["open"] and f["h"] == f["vh"] and f["slideH"] == f["vh"], f"feed fills the screen; each video is one screen tall ({f['slideH']} = {f['vh']} px)")
     check(f["snap"].startswith("y") and "mandatory" in f["snap"] and f["align"] == "start", f"scroll-snap: '{f['snap']}', slides snap to '{f['align']}'")
     n = f["n"] - 1
-    check(f["pos"] is None and (f["label"] or "").strip() == "Bigger the Pansa, Better the Chansa" and f["cur"] == 0 and n >= 10, f"v43: just the title at the top, no 'N / {n}' counter ({f['label']!r}, {n} videos)")
+    check(f["pos"] is None and (f["label"] or "").strip().startswith("ChismeTV") and f["cur"] == 0 and n >= 10, f"v43: just the title at the top, no 'N / {n}' counter ({f['label']!r}, {n} videos)")
     feed = (await pg.evaluate("window.__chisme.forYou"))["feed"]
     check(all(r["why"] for r in feed) and not any(r["explore"] for r in feed), "fresh phone: every card has a why chip; no exploration until it has learned something")
     check([r["url"] for r in feed[:3]] == cov["urls"], "the feed opens on the same 3 videos the banner cover shows")
@@ -438,7 +438,7 @@ async def settings_toggle(p):
     await pg.wait_for_function("() => window.__chisme && window.__chisme.foodReady && !document.querySelector('#foryou-card').hidden", timeout=90000)
     await pg.tap("#settings-btn"); await pg.wait_for_timeout(500)
     st = await pg.evaluate("({ on: document.querySelector('#set-feed-sound').checked, label: document.querySelector('#set-feed-sound').closest('label').textContent.trim(), legend: document.querySelector('#set-feed-sound-group legend').textContent })")
-    check(st["on"] and st["label"] == "Play with sound" and st["legend"] == "Video reels", f"Settings → Video reels has 'Play with sound', checked by default (v49.13 wording; was 'Food videos: sound on') ({st})")
+    check(st["on"] and st["label"] == "Play with sound" and st["legend"] == "ChismeTV", f"Settings → Video reels has 'Play with sound', checked by default (v49.13 wording; was 'Food videos: sound on') ({st})")
     await pg.evaluate("document.querySelector('#set-feed-sound').scrollIntoView({ block: 'center' })"); await pg.wait_for_timeout(300)
     await pg.screenshot(path=os.path.join(OUT, "settings-food-sound.png"))
     # v49.13: on by default, so the first tap turns it off

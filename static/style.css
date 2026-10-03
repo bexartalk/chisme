@@ -766,6 +766,9 @@ html.feed-open,html.feed-open body{overflow:hidden}
 .feed-btn:focus-visible,.vf-rail button:focus-visible,.vf-rail a:focus-visible,.why-chip:focus-visible,.vf-play:focus-visible{outline:4px solid var(--focus);outline-offset:2px}
 .feed-label{flex:1 1 auto;min-width:0;margin:0;font-size:clamp(.74rem,3.5vw,.95rem);font-weight:900;line-height:1.15;text-align:center;text-shadow:0 1px 3px #000;overflow-wrap:anywhere}
 .feed-label b{display:block;text-wrap:balance}
+.feed-label .feed-sub{display:block;font-size:.66em;font-weight:700;line-height:1.1;opacity:.85;text-wrap:balance}   /* v49.13: ChismeTV + its old name, small (two short lines) */
+@media (max-width:340px){ .feed-label .feed-sub{display:none} }   /* too narrow: ChismeTV alone */
+.fy-tag{margin:-2px 0 6px;font-weight:800;font-size:.9rem;opacity:.8}
 .feed-label span:empty{display:none}
 .feed-btn{white-space:nowrap}
 /* v42: while a video loads, its thumbnail sits on top of the player (the player itself stays visible: iPhone Safari may

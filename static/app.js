@@ -2015,7 +2015,7 @@ window.CHISME_APP_BUILD = "49.13";
     chip.setAttribute("aria-label", "Why you're seeing this: " + r.why.text);
     const more = el("p", { class: "why-more", id: whyId, hidden: "" ,
       text: (r.explore ? "About 1 in 5 videos is something different, so your feed doesn't get stuck on one thing. " : "")
-        + "Bigger the Pansa, Better the Chansa ranks these videos on this phone from what you watch, save and skip. Nothing leaves your phone; reset it anytime in Settings." });
+        + "ChismeTV ranks these videos on this phone from what you watch, save and skip. Nothing leaves your phone; reset it anytime in Settings." });
     chip.onclick = () => { const o = more.hidden; more.hidden = !o; chip.setAttribute("aria-expanded", String(o)); };
     const by = [it.creator || it.source, v.tt ? "TikTok" : "YouTube"].filter(Boolean).join(" · ") + (it.published ? " · " + shortDate(it.published) : "");
     const info = el("div", { class: "vf-info" }, chip, more, el("h3", { text: it.title }), el("p", { class: "vf-by", text: by }),
@@ -2060,7 +2060,7 @@ window.CHISME_APP_BUILD = "49.13";
     again.onclick = () => { feedScroll.scrollTo({ top: 0, behavior: "instant" }); };
     const back = el("button", { type: "button", class: "feed-btn", text: "Back to ¿Y la dieta?" });
     back.onclick = () => closeFeed();
-    return el("section", { class: "vf-slide vf-end", "aria-label": "End of the feed" }, el("h3", { text: "That's it! You're all caught up." }),
+    return el("section", { class: "vf-slide vf-end", "aria-label": "End of ChismeTV" }, el("h3", { text: "That's it! You're all caught up on ChismeTV." }),
       el("p", { text: "Keep saving and skipping — the next batch of videos lines up around what you liked." }), again, back);
   }
   function finishCurrent(moving) {   // turn the time spent on the current video into a signal
@@ -2215,12 +2215,12 @@ window.CHISME_APP_BUILD = "49.13";
   const reelLink = (it) => { const id = FY && FY.reelId(it.url); return PUBLIC_BASE + "/" + (id ? "?reel=" + encodeURIComponent(id) : ""); };
   // the brand line (users are "metiches"; copy in English, only the names in Spanish): short, the video's link first,
   // then the tagline + where to get the app
-  const HOOK = "Check out this chisme, metiche 👀", PROMO = `Chisme. ¿Oyistes? Get the app: ${PUBLIC_BASE}`;
+  const HOOK = "Check out this ChismeTV, metiche 👀", PROMO = `Chisme. ¿Oyistes? Get the app: ${PUBLIC_BASE}`;
   const reelMsg = (it) => `${HOOK} ${reelLink(it)} — ${PROMO}`;
   const rsDlg = $("#reel-share");
   let rsOpener = null;
   async function shareReel(it, btn) {
-    const url = reelLink(it), title = "Chisme: " + String(it.title || "a food video").replace(/\s+/g, " ").trim().slice(0, 90);
+    const url = reelLink(it), title = "ChismeTV: " + String(it.title || "a food video").replace(/\s+/g, " ").trim().slice(0, 90);
     const data = { title, text: `${HOOK} — ${PROMO}`, url };
     const native = !!navigator.share && matchMedia("(pointer: coarse)").matches && (!navigator.canShare || navigator.canShare(data));
     if (native) {
@@ -3056,7 +3056,7 @@ window.CHISME_APP_BUILD = "49.13";
     newsForget();   // also forgets which stories you've seen/opened (News order)
     if (!FY) return;
     fyProfile = FY.reset(); renderForYouCard();
-    $("#set-fy-note").textContent = "Done: your Bigger the Pansa, Better the Chansa feed forgot everything and starts fresh.";
+    $("#set-fy-note").textContent = "Done: your ChismeTV feed forgot everything and starts fresh.";
   };
   $("#set-version").textContent = "· build " + window.CHISME_APP_BUILD;
 
@@ -3919,7 +3919,7 @@ window.CHISME_APP_BUILD = "49.13";
     newsForget();
     if (window.ChismeForYou) window.ChismeForYou.reset();
     b.textContent = "Forget me";
-    $("#set-forget-note").textContent = "Done. Tía forgot your chats and your interests, and the Bigger the Pansa, Better the Chansa feed starts fresh.";
+    $("#set-forget-note").textContent = "Done. Tía forgot your chats and your interests, and your ChismeTV feed starts fresh.";
     if (tiaDlg.open) tiaRender();
   };
   // ---------- Share Chisme: a small pill in the footer. The phone's own share sheet (Web Share API) where there is
