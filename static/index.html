@@ -278,6 +278,7 @@
       <!-- ============ WEATHER ============ -->
       <section id="view-weather" class="view" aria-label="Weather" data-view="weather" inert>
         <section id="alerts" aria-live="polite"></section>
+        <p class="wx-disclaimer" id="wx-disclaimer"><span aria-hidden="true">⚠️</span> Chisme isn't an official warning service. Alerts come from the National Weather Service and can be delayed or missed (our free server sleeps). Keep Wireless Emergency Alerts on, and follow <a class="legal-link" href="https://www.weather.gov/" target="_blank" rel="noopener noreferrer">weather.gov</a>, local officials and NOAA Weather Radio.</p>
 
         <section id="weather" class="card">
           <div class="sec-head">
@@ -566,6 +567,7 @@
         <label class="switch"><input type="checkbox" id="set-push-wx" checked disabled><span>NWS weather warnings &amp; watches for your location</span></label>
         <button type="button" id="set-push-test" hidden>Send a test</button>
         <p class="set-note">News notifications: at most 2 a day, only for major San Antonio-area or breaking stories, and none from 10 PM to 7 AM. Weather watches wait for the morning too; warnings still come through. Chisme keeps your area (rounded to about 1 km) on its server so notifications match where you are; turning notifications off deletes it.</p>
+        <p class="set-note wx-disclaimer-set" id="set-wx-disclaimer">Chisme isn't an official warning service. Alerts come from the National Weather Service and can be delayed or missed (our free server sleeps). Keep Wireless Emergency Alerts on, and follow <a class="legal-link" href="https://www.weather.gov/" target="_blank" rel="noopener noreferrer">weather.gov</a>, local officials and NOAA Weather Radio.</p>
         <p class="set-note" id="set-push-note" aria-live="polite"></p>
       </fieldset>
       <fieldset class="set-group">
