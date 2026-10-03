@@ -34,10 +34,15 @@ async def main():
                 pg = await ctx.new_page(); calls = []
                 pg.on("request", lambda rq: calls.append(rq.url) if "/api/" in rq.url and "lat=" in rq.url else None)
                 await pg.goto(URL); await pg.wait_for_function("() => window.__chisme && window.__chisme.ready", timeout=60000); await pg.wait_for_timeout(800)
-                vis = await pg.evaluate("[!document.querySelector('#terms-bar').hidden, !document.querySelector('#loc-panel').hidden, document.querySelector('#terms-bar').textContent.replace(/\\s+/g, ' ').trim()]")
-                check(vis[0] and vis[1] and "By using Chisme you agree to our Terms and Privacy Policy" in vis[2], f"{bname} {w}: first launch shows the location card and the Terms bar ({vis})")
-                cov = {s: await pg.evaluate(COVER, s) for s in ("#loc-gps", "#loc-close", "#tia-btn", "#terms-ok")}
-                check(all(v in ("free", "offscreen") for v in cov.values()) and cov["#terms-ok"] == "free" and cov["#tia-btn"] == "free", f"{bname} {w}: the bar covers neither the location card's buttons nor Tía ({cov})")
+                VIS = "[!document.querySelector('#terms-bar').hidden, !document.querySelector('#loc-panel').hidden, document.querySelector('#terms-bar').textContent.replace(/\\s+/g, ' ').trim()]"
+                vis = await pg.evaluate(VIS)
+                check(not vis[0] and vis[1], f"{bname} {w}: first launch shows the location card, and the Terms bar waits (v49.12: they never share the screen) ({vis[:2]})")
+                await pg.click("#loc-close"); await pg.wait_for_timeout(300)   # "Not now"
+                vis = await pg.evaluate(VIS)
+                check(vis[0] and not vis[1] and "By using Chisme you agree to our Terms and Privacy Policy" in vis[2], f"{bname} {w}: once the card is answered (Not now), the Terms bar shows ({vis})")
+                cov = {s: await pg.evaluate(COVER, s) for s in ("#tia-btn", "#terms-ok")}
+                tb = await pg.evaluate("(() => { const b = document.querySelector('#terms-bar').getBoundingClientRect(), t = document.querySelector('#tia-btn').getBoundingClientRect(); return [b.right <= t.left || b.bottom <= t.top || b.top >= t.bottom, b.left >= 0 && b.right <= innerWidth && b.bottom <= innerHeight] })()")
+                check(cov["#terms-ok"] == "free" and cov["#tia-btn"] == "free" and all(tb), f"{bname} {w}: the bar is on screen and clear of Tía ({cov}, {tb})")
                 links = await pg.evaluate("[...document.querySelectorAll('#terms-bar a')].map(a => a.getAttribute('href'))")
                 check(links == ["/terms", "/privacy"], f"{bname} {w}: the bar links /terms and /privacy ({links})")
                 await pg.click("#terms-ok"); await pg.wait_for_timeout(200)

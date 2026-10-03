@@ -3174,10 +3174,14 @@ window.CHISME_APP_BUILD = "49.12";
     if (mbp) mbp.onclick = () => { mqGalleryInit(); goView("chisme", { scrollTo: "mq-gallery" }); };
   }
   const TERMS_KEY = "chisme-terms-ok";
-  if (!lsGet(TERMS_KEY)) {
+  // v49.12: the Terms bar waits until the first-launch location card is answered (Use my location / a city / Not now),
+  // so the two never share the screen; it shows right after, once, until OK
+  function showTerms() {
+    if (lsGet(TERMS_KEY) || firstRun() || !$("#loc-panel").hidden) return;
     const bar = $("#terms-bar"); bar.hidden = false;
     $("#terms-ok").onclick = () => { lsSet(TERMS_KEY, String(Date.now())); bar.hidden = true; };
   }
+  if (!lsGet(TERMS_KEY)) { showTerms(); document.addEventListener("chisme-setup-done", () => setTimeout(showTerms, 0)); }
   Stats.ev("open", isStandalone() ? "app" : "web"); statsTab(VIEWS[cur]); statsCity();
   if (window.ChismeDonate) midLaunch = window.ChismeDonate.launch();
   if (midLaunch.line) { midTab = VIEWS[cur]; placeMid(); }   // a 5th open: the launch tab gets the one mid-list donate card

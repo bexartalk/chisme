@@ -1584,6 +1584,7 @@ dialog.juan-skins button.juan-sk-done{position:sticky;bottom:8px;z-index:2}
 .terms-bar{position:fixed;left:max(10px,env(safe-area-inset-left));right:calc(92px + env(safe-area-inset-right));bottom:calc(12px + env(safe-area-inset-bottom));z-index:43;
   display:flex;align-items:center;gap:10px;padding:10px 12px;background:#000;color:#fff;border:2px solid var(--turq);border-radius:14px;box-shadow:0 4px 0 rgba(0,0,0,.35);font-size:.9rem;line-height:1.35}
 .terms-bar[hidden]{display:none}
+html.a2hs-open .terms-bar,html.notif-open .terms-bar,html.game-fs .terms-bar{visibility:hidden}   /* v49.12: never under another prompt or a full-screen game */
 .terms-bar p{margin:0;flex:1}
 .terms-bar a{color:#fff;font-weight:800;text-decoration:underline}
 .terms-ok{flex:0 0 auto;min-width:56px;min-height:44px;background:var(--turq);color:#000;border:2px solid var(--turq);border-radius:12px;font-weight:900;font-size:1rem}
