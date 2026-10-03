@@ -934,7 +934,7 @@ window.CHISME_APP_BUILD = "49.12";
         el("p", { class: "art-kicker", text: a.mural ? "🎨 Arte local" : "📍 Postal de Texas" }),
         el("p", { class: "art-cap", text: `${a.subject} · ${a.city}` }),
         a.artist ? el("p", { class: "art-artist", text: a.artist }) : null,
-        el("p", { class: "art-credit" }, "Photo: ", el("b", { text: a.author }), " · ", lic, " · ",
+        el("p", { class: "art-credit" }, "Photo: ", el("b", { text: a.author }), " · ", lic, /^CC/i.test(a.license || "") ? " (resized)" : "", " · ",
           ext(a.source_url, "Source: Wikimedia Commons", null, artMeta))));
     return fig;
   }
@@ -1056,7 +1056,8 @@ window.CHISME_APP_BUILD = "49.12";
     const img = el("img", { src: `https://tile.openstreetmap.org/${t.z}/${t.x}/${t.y}.png`, alt: "", loading: "lazy", width: 256, height: 256 });
     img.style.left = left + "px"; img.style.top = top + "px";
     const pin = el("span", { class: "pin" }); pin.style.left = (t.px + left) + "px"; pin.style.top = (t.py + top) + "px";
-    const a = el("a", { class: "minimap", href, "aria-haspopup": "dialog", "aria-label": `Map: ${e.venue || "event location"} (opens the map)` }, img, pin);
+    const credit = el("span", { class: "mm-credit", text: "© OpenStreetMap", "aria-hidden": "true" });   // v49.12: OSM's tile policy asks for visible credit
+    const a = el("a", { class: "minimap", href, "aria-haspopup": "dialog", "aria-label": `Map: ${e.venue || "event location"} (opens the map; map data © OpenStreetMap contributors)` }, img, pin, credit);
     linkMeta.set(a, evMapMeta(e));
     img.onerror = () => a.remove();
     return a;
@@ -2280,7 +2281,7 @@ window.CHISME_APP_BUILD = "49.12";
     const img = el("img", { src: ph.src, alt: ph.alt, width: ph.w, height: ph.h, loading: "lazy", decoding: "async", draggable: "false" });
     const fig = el("figure", { class: "sp-photo" }, img,
       el("figcaption", {}, el("span", { class: "sp-cap", text: ph.cap }), el("span", { class: "art-credit" }, "Photo: ", el("b", { text: ph.author }), " · ",
-        ph.license_url ? ext(ph.license_url, ph.license) : ph.license, " · ", ext(ph.source_url, "Wikimedia Commons ↗"))));
+        ph.license_url ? ext(ph.license_url, ph.license) : ph.license, /^CC/i.test(ph.license || "") ? " (resized)" : "", " · ", ext(ph.source_url, "Wikimedia Commons ↗"))));   // v49.12: CC asks us to say we changed it
     img.onerror = () => fig.remove();
     return fig;
   }

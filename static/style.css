@@ -260,6 +260,7 @@ main{padding-top:0}
 .ev-venue .txt a{font-weight:900}
 .minimap{flex:0 0 auto;width:112px;height:84px;border-radius:10px;border:2px solid var(--line);overflow:hidden;position:relative;background:#dfe7ee;display:block}
 .minimap img{position:absolute;width:256px;height:256px;max-width:none}
+.minimap .mm-credit{position:absolute;right:0;bottom:0;padding:0 3px;background:rgba(255,255,255,.85);color:#000;font:600 9px/1.3 system-ui,sans-serif;border-top-left-radius:4px;white-space:nowrap}   /* v49.12 */
 .minimap .pin{position:absolute;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;background:var(--pink);border:3px solid #000}
 .price{display:inline-block;font-weight:900;font-size:.85rem;border:2px solid #000;border-radius:8px;padding:.05em .5em}
 .price.free{background:#1e7a34;color:#fff;border-color:#1e7a34}
