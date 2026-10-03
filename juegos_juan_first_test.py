@@ -1,4 +1,4 @@
-"""v47: The Juan That Got Away is the first game in Juegitos and the one it opens on (ahead of Lotería Chismosa; Ice Ice
+"""v47: The Juan That Got Away is the first game in Juegitos and the one it opens on (ahead of Chismería; Ice Ice
 Bebé was replaced by Juan in v44). WebKit, iPhone 13: tapping the 🎲 Juegitos tab opens Juan (title screen); the list reads
 Juan, then Lotería; #juan-that-got-away (and #juan) still open Juan, #loteria still opens Lotería; tapping Lotería in the
 list still works, and Juan → Lotería → Juan → ▶ Start shows one full-screen bar (the first Juan's click handler is removed). Screenshot: juegos-juan-first.png (Juegitos as it opens, 390×844)."""
@@ -32,7 +32,7 @@ async def main():
           pressed: [...document.querySelectorAll('.game-pick[aria-pressed=true]')].map((b) => b.dataset.game), juan: !!document.querySelector('#game-stage #juan-cv'),
           lot: !!document.querySelector('#game-stage #lot-tabla') })""")
         check(s["id"] == "juan" and s["juan"] and not s["lot"], f"tapping 🎲 Juegitos opens The Juan That Got Away ({s['id']})")
-        check(s["list"][:2] == ["The Juan That Got Away", "Lotería Chismosa"] and s["pressed"] == ["juan"], f"Juan first in the list, selected ({s['list']})")
+        check(s["list"][:2] == ["The Juan That Got Away", "Chismería"] and s["pressed"] == ["juan"], f"Juan first in the list, selected ({s['list']})")
         check(not any("Ice Ice" in g for g in s["list"]), "no Ice Ice Bebé entry (replaced by Juan in v44)")
         await pg.evaluate("window.scrollTo(0, 0)"); await pg.wait_for_timeout(300)
         try: await pg.wait_for_function("document.querySelector('#sync').hidden", timeout=12000)
@@ -40,7 +40,7 @@ async def main():
         await pg.wait_for_timeout(400)
         await pg.screenshot(path=os.path.join(OUT, "juegos-juan-first.png"))
         await pg.click('.game-pick[data-game="loteria"]'); await pg.wait_for_timeout(500)
-        check(await pg.evaluate("__chisme.juegos.id") == "loteria" and await pg.evaluate("!!document.querySelector('#lot-tabla')"), "tapping Lotería Chismosa still opens it")
+        check(await pg.evaluate("__chisme.juegos.id") == "loteria" and await pg.evaluate("!!document.querySelector('#lot-tabla')"), "tapping Chismería still opens it")
         await pg.click('.game-pick[data-game="juan"]'); await pg.wait_for_timeout(500)   # Juan → Lotería → Juan again: the old Juan is fully gone
         await pg.click('#juan-ov [data-act="start"]'); await pg.wait_for_timeout(1000)
         f = await pg.evaluate("(() => { const c = document.querySelector('#juan-cv').getBoundingClientRect(); return { bars: document.querySelectorAll('#game-stage .gfs-bar').length, w: c.width, iw: innerWidth }; })()")

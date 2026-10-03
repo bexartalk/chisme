@@ -401,7 +401,7 @@ def page(r: dict, store_name: str, info: dict | None = None, now: float | None =
     # ---- folded sections
     c30 = S[30]["c"]
     tabs = [(e(stats.TAB_NAMES.get(k, k)), v) for k, v in stats._top(c30, "tab:", 10)]
-    games = [(e({"loteria": "Lotería Chismosa", "juan": "The Juan That Got Away", "icebebe": "The Juan That Got Away (old runner)"}.get(k, k)), v) for k, v in stats._top(c30, "game:")]
+    games = [(e({"loteria": "Chismería", "juan": "The Juan That Got Away", "icebebe": "The Juan That Got Away (old runner)"}.get(k, k)), v) for k, v in stats._top(c30, "game:")]
     cities = [(e(k), v) for k, v in stats._top(c30, "city:", 10)]
     a2 = [(e(stats.A2HS_NAMES.get(k, k)), v) for k, v in stats._top(c30, "a2hs:")]
     tab_btns = "".join(f'<button type="button" role="tab" id="t{n}" aria-controls="p{n}" aria-selected="{"true" if n == 1 else "false"}">{lab}</button>'

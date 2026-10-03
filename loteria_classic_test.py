@@ -1,4 +1,4 @@
-"""v49.5 Lotería Chismosa in the classic-deck look: the tabla is a clean white printed grid (1 px dark lines, white cells, no
+"""v49.5 Chismería in the classic-deck look: the tabla is a clean white printed grid (1 px dark lines, white cells, no
 rounded corners or shadows), in light AND dark mode (the full-screen page stays cream, the strip buttons keep their colours),
 at 390×844 and 320×640: 16 cards loaded, nothing scrolls, no page errors. Also checks the stylesheet has no stray `}` (one
 swallowed the cream full-screen page rule, so the verse was dark-on-dark). Screenshots: loteria-tabla-new.png (tabla, light 390)
@@ -25,7 +25,7 @@ M = """() => { const t = document.querySelector('#lot-tabla'), R = e => e.getBou
 SHEET = """() => { const L = ChismeLoteriaCards, d = document.createElement('div'); d.id = 'art-sheet';
   d.style.cssText = 'position:fixed;inset:0;z-index:9000;background:#ffffff;padding:10px 8px;box-sizing:border-box;display:grid;grid-template-columns:repeat(4,1fr);gap:7px;align-content:start;overflow:hidden';
   const pick = [1, 2, 3, 4, 6, 8, 14, 17, 20, 23, 26, 28, 35, 38, 42, 46, 47, 48, 51, 54];
-  d.innerHTML = '<p style="grid-column:1/-1;margin:0 0 2px;color:#0f6d73;font:900 15px system-ui;text-align:center">Lotería Chismosa · our own classic-deck art (20 of 54)</p>' + pick.map(n => { const c = L.CARDS[n - 1]; return `<img src="${c.img}" alt="${c.name}" style="width:100%;aspect-ratio:2/3;display:block;border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,.25)">`; }).join('');
+  d.innerHTML = '<p style="grid-column:1/-1;margin:0 0 2px;color:#0f6d73;font:900 15px system-ui;text-align:center">Chismería · our own classic-deck art (20 of 54)</p>' + pick.map(n => { const c = L.CARDS[n - 1]; return `<img src="${c.img}" alt="${c.name}" style="width:100%;aspect-ratio:2/3;display:block;border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,.25)">`; }).join('');
   document.body.appendChild(d); }"""
 async def main():
     async with async_playwright() as p:

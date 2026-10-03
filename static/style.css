@@ -1036,7 +1036,7 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
 .share-toast[hidden]{display:none}
 [data-theme="dark"] .share-pill{background:#101a1d;color:var(--ink);border-color:var(--ink)}
 
-/* ---------- 🎲 Juegos (static/juegos.js: the game list + Lotería Chismosa; static/juan.js: The Juan That Got Away) */
+/* ---------- 🎲 Juegos (static/juegos.js: the game list + Chismería (was Lotería Chismosa); static/juan.js: The Juan That Got Away) */
 .games-list{display:grid;gap:8px;margin-top:.6em}
 .game-pick{display:flex;align-items:center;gap:.7em;text-align:left;padding:.6em .8em;min-height:56px;border:2px solid var(--ink);border-radius:14px;background:var(--card);color:var(--ink);font:inherit}
 .game-pick .gp-emo{font-size:1.8em;line-height:1}
@@ -1588,3 +1588,4 @@ dialog.juan-skins button.juan-sk-done{position:sticky;bottom:8px;z-index:2}
 .terms-bar a{color:#fff;font-weight:800;text-decoration:underline}
 .terms-ok{flex:0 0 auto;min-width:56px;min-height:44px;background:var(--turq);color:#000;border:2px solid var(--turq);border-radius:12px;font-weight:900;font-size:1rem}
 [data-theme="dark"] .terms-ok{background:var(--turq);color:#000;border-color:var(--turq)}
+.lot-credit{font-size:.82rem;line-height:1.4;opacity:.85;margin:.4em 0 0}   /* v49.12 legal (M1) */

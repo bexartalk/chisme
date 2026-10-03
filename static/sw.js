@@ -35,7 +35,7 @@ ART.push(...["spurs-arena", "spurs-bluehour", "missions-wolff", "missions-game",
 ART.push(...["avatar-64", "avatar-128", "avatar-192", "header-480", "header-960"].map((n) => `/static/mascot/${n}.webp?art=3`));
 // v49.3: the 3 KB display face for "Tía Chismosa" in her chat header
 ART.push("/static/fonts/chewy-tia.woff2");
-// v41: Lotería Chismosa's recorded Spanish calls (57 short mp3s, ~1.3 MB; tools/make_loteria_audio.py), best-effort too.
+// v41: Chismería's (was Lotería Chismosa) recorded Spanish calls (57 short mp3s, ~1.3 MB; tools/make_loteria_audio.py), best-effort too.
 ART.push(...[...Array.from({ length: 54 }, (_, i) => String(i + 1).padStart(2, "0")), "intro", "loteria", "over"].map((k) => `/static/loteria/audio/${k}.mp3`));
 // v43: the 54 vintage Lotería cards (tools/make_loteria_cards.py, ~1.3 MB), best-effort too: the tabla works offline
 ART.push(...Array.from({ length: 54 }, (_, i) => `/static/loteria/cards/${String(i + 1).padStart(2, "0")}.webp`));

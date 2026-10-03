@@ -2707,7 +2707,7 @@ window.CHISME_APP_BUILD = "49.12";
   const HASH_VIEW = { "#weather": ["weather"], "#forecast-sec": ["weather", "forecast-sec"], "#radar-sec": ["weather", "radar-sec"], "#radar": ["weather", "radar-sec"],
     "#alerts": ["weather", "alerts"], "#events": ["events"], "#antojos": ["antojos"], "#cual-dieta": ["antojos"], "#y-la-dieta": ["antojos"], "#dieta": ["antojos"], "#food": ["antojos"], "#near": ["news", "near"], "#city": ["news", "city"],
     "#sports": ["sports"], "#spurs": ["sports"], "#nba": ["sports"], "#cowboys": ["sports"], "#nfl": ["sports"], "#mlb": ["sports"], "#missions": ["sports"], "#news": ["news"],
-    "#juegos": ["juegos"], "#juegitos": ["juegos"], "#games": ["juegos"], "#loteria": ["juegos", null, "loteria"], "#juan": ["juegos", null, "juan"], "#juans-long-day": ["juegos", null, "juan"], "#juan-that-got-away": ["juegos", null, "juan"] };
+    "#juegos": ["juegos"], "#juegitos": ["juegos"], "#games": ["juegos"], "#loteria": ["juegos", null, "loteria"], "#chismeria": ["juegos", null, "loteria"], "#juan": ["juegos", null, "juan"], "#juans-long-day": ["juegos", null, "juan"], "#juan-that-got-away": ["juegos", null, "juan"] };
   pos(0); updateTabs();
 
   // ---------- settings sheet (tap the Chisme icon in the header)
@@ -3114,7 +3114,7 @@ window.CHISME_APP_BUILD = "49.12";
   // ---------- v49.10: "🔄 Refresh everyone now" (the owner's button on /stats). The token this page loaded with is the
   // baseline; on focus, coming back to the tab and about once a minute while visible we ask GET /api/refresh (tiny,
   // ETag → 304). Changed → "Tía has fresh chisme, refreshing…", update the service worker, reload. Never mid-game: a Juan
-  // run (even paused) or a Lotería game in progress gets a "Refresh" pill instead, and it reloads once they leave the game.
+  // run (even paused) or a Chismería game in progress gets a "Refresh" pill instead, and it reloads once they leave the game.
   const Refresh = (() => {
     let base = null, last = 0, pending = false, waitT = 0;
     const box = $("#update-toast"), msg = box.querySelector("span"), btn = $("#update-reload");
@@ -3124,7 +3124,7 @@ window.CHISME_APP_BUILD = "49.12";
       if (!s) return false;
       if (!s.fullscreen && !document.querySelector("#view-juegos.active")) return false;   // they left the game
       if (s.mode !== undefined) return ["run", "oops", "paused", "clear"].includes(s.mode);   // Juan: a run in progress
-      return !!(s.started && !s.over);                                                          // Lotería: a game going
+      return !!(s.started && !s.over);                                                          // Chismería: a game going
     };
     const busy = () => inGame() || $("#settings").open || $("#player").open
       || !!(document.activeElement && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName));

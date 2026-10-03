@@ -1,4 +1,4 @@
-/* Chisme · Lotería: the 54 traditional card names and their folk verses (traditional sayings), with ORIGINAL art drawn
+/* Chisme · Chismería (v49.12: was Lotería Chismosa): the 54 traditional card names and their folk verses (traditional sayings), with ORIGINAL art drawn
    here in SVG for Chisme (Fiesta colors: turquoise, pink, orange, black, silver). The art is not copied or traced from any published deck.
    #26: the traditional deck's "El Negrito" is a racial caricature, so this deck uses "El Chocolate" (a folk rhyme) instead.
    #38 "El Apache" (v49.5b): a dignified Apache man standing with his bow, in a cloth headband with one feather, long hair and a
@@ -235,7 +235,7 @@
   ];
   // what she says out loud for a card (the verse, then the name, like a real cantor) and the other calls
   const callText = (c) => `${c.verse} ¡${c.name}!`;
-  const LINES_ES = { intro: "¡Se va y se corre con…!", loteria: "¡Lotería!", over: "¡Se acabaron las cartas!" };
+  const LINES_ES = { intro: "¡Se va y se corre con…!", loteria: "¡Buenas!", over: "¡Se acabaron las cartas!" };
   const api = { CARDS, DECK, PRESETS, callText, LINES_ES, TINTS };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.ChismeLoteriaCards = api;
