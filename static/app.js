@@ -2213,13 +2213,15 @@ window.CHISME_APP_BUILD = "49.13";
   // sharing: the phone's own share sheet (Messages, WhatsApp, Instagram …), else Chisme's sheet. Every share carries the
   // video's Chisme link (/?reel=<id>: it opens the app on that video) and a line inviting people to get Chisme.
   const reelLink = (it) => { const id = FY && FY.reelId(it.url); return PUBLIC_BASE + "/" + (id ? "?reel=" + encodeURIComponent(id) : ""); };
-  const PROMO = `Get the Chisme app for San Antonio's news, food & chisme: ${PUBLIC_BASE}`;
-  const reelMsg = (it) => `Mira este video en Chisme 👀 ${reelLink(it)} — ${PROMO}`;
+  // the brand line (users are "metiches"; copy in English, only the names in Spanish): short, the video's link first,
+  // then the tagline + where to get the app
+  const HOOK = "Check out this chisme, metiche 👀", PROMO = `Chisme, the community for los metiches. Get the app: ${PUBLIC_BASE}`;
+  const reelMsg = (it) => `${HOOK} ${reelLink(it)} — ${PROMO}`;
   const rsDlg = $("#reel-share");
   let rsOpener = null;
   async function shareReel(it, btn) {
     const url = reelLink(it), title = "Chisme: " + String(it.title || "a food video").replace(/\s+/g, " ").trim().slice(0, 90);
-    const data = { title, text: `Mira este video en Chisme 👀 — ${PROMO}`, url };
+    const data = { title, text: `${HOOK} — ${PROMO}`, url };
     const native = !!navigator.share && matchMedia("(pointer: coarse)").matches && (!navigator.canShare || navigator.canShare(data));
     if (native) {
       try { await navigator.share(data); fySignal("share", it); reelStat("share", it, "native"); return; }
@@ -2229,7 +2231,7 @@ window.CHISME_APP_BUILD = "49.13";
   }
   function openShareSheet(it, btn) {
     rsOpener = btn || document.activeElement;
-    const url = reelLink(it), msg = reelMsg(it), enc = encodeURIComponent, subj = "Mira este video en Chisme 👀";
+    const url = reelLink(it), msg = reelMsg(it), enc = encodeURIComponent, subj = HOOK;
     const out = (cls, label, href, way, blank) => {
       const a = el("a", { class: "rs-btn share-out " + cls, href, "data-way": way }, el("span", { class: "rs-ic", "aria-hidden": "true" }), el("span", { text: label }));
       if (blank) { a.target = "_blank"; a.rel = "noopener"; }
@@ -2248,12 +2250,12 @@ window.CHISME_APP_BUILD = "49.13";
     const kids = [copy,
       out("rs-sms", "Text message", `sms:?&body=${enc(msg)}`, "sms", false),
       out("rs-wa", "WhatsApp", `https://wa.me/?text=${enc(msg)}`, "whatsapp", true),
-      out("rs-fb", "Facebook", `https://www.facebook.com/sharer/sharer.php?u=${enc(url)}&quote=${enc("Mira este video en Chisme 👀 — " + PROMO)}`, "facebook", true),
-      out("rs-tw", "X", `https://twitter.com/intent/tweet?text=${enc("Mira este video en Chisme 👀 — " + PROMO)}&url=${enc(url)}`, "x", true),
+      out("rs-fb", "Facebook", `https://www.facebook.com/sharer/sharer.php?u=${enc(url)}&quote=${enc(HOOK + " — " + PROMO)}`, "facebook", true),
+      out("rs-tw", "X", `https://twitter.com/intent/tweet?text=${enc(HOOK + " — " + PROMO)}&url=${enc(url)}`, "x", true),
       out("rs-mail", "Email", `mailto:?subject=${enc(subj)}&body=${enc(String(it.title || "").trim() + "\n\n" + msg)}`, "email", false)];
     if (navigator.share) {
       const more = el("button", { type: "button", class: "rs-btn rs-more", "data-way": "native" }, el("span", { class: "rs-ic", "aria-hidden": "true" }), el("span", { text: "More apps…" }));
-      more.onclick = async () => { try { await navigator.share({ title: "Chisme", text: `Mira este video en Chisme 👀 — ${PROMO}`, url }); fySignal("share", it); reelStat("share", it, "native"); rsDlg.close(); } catch {} };
+      more.onclick = async () => { try { await navigator.share({ title: "Chisme", text: `${HOOK} — ${PROMO}`, url }); fySignal("share", it); reelStat("share", it, "native"); rsDlg.close(); } catch {} };
       kids.push(more);
     }
     $("#rs-msg").textContent = msg; $("#rs-note").textContent = "";

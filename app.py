@@ -3149,8 +3149,8 @@ def reel_og(request: Request, rid: str) -> str:
     who = str(it.get("creator") or "").strip()[:60]
     img = (f"https://i.ytimg.com/vi/{rid}/hqdefault.jpg" if not rid.isdigit()
            else it.get("image") if str(it.get("image") or "").startswith("https://") else f"{base}/static/icons/icon-512.png")
-    desc = ("Mira este video en Chisme 👀" + (f" by {who}" if who else "")
-            + ". Get the Chisme app for San Antonio's news, food & chisme.")
+    desc = ("Check out this chisme, metiche 👀" + (f" ({who})" if who else "")
+            + ". Chisme, the community for los metiches.")
     e = lambda v: html.escape(str(v), quote=True)
     return (f'<meta property="og:type" content="video.other">\n  <meta property="og:site_name" content="Chisme">\n'
             f'  <meta property="og:title" content="{e(title or "A food video on Chisme")}">\n'
