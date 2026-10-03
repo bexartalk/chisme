@@ -131,7 +131,7 @@
     var hero = mark(h("section", { class: "dk-hero", id: "dk-hero", "aria-labelledby": "dk-hero-t" },
       h("div", { class: "dk-hero-copy" },
         h("p", { class: "dk-hola" }, h("img", { src: "/static/mascot/avatar-128.webp?art=3", alt: "Tía Chismosa, Chisme's mascot", width: 64, height: 64, decoding: "async" }), h("span", { text: "¡Hola, metiche!" })),
-        h("h1", { class: "dk-hero-t", id: "dk-hero-t", text: "Chisme, the community for los metiches" }),
+        h("h1", { class: "dk-hero-t", id: "dk-hero-t", text: "Chisme. Did you hear?" }),
         h("p", { class: "dk-pitch", text: "San Antonio's news, sports, events, weather, food and games in one free app. Something to do while you're bored in the waiting room at your doctor's appointment." }),
         h("div", { class: "dk-hero-cta" },
           h("a", { class: "dk-btn primary", href: "#mix", on: { click: function (e) { e.preventDefault(); scrollToEl($("#mix"), $("#mix-title")); } } }, "Start chismeando ", emo("👀")),
@@ -309,7 +309,7 @@
     var link = function (href, text) { return h("li", {}, h("a", { href: href, "data-dk-page": "", "data-title": text, text: text })); };
     var nav = mark(h("nav", { class: "dk-foot", "aria-label": "Chisme pages" },
       h("div", { class: "dk-foot-brand" }, h("img", { src: "/static/icons/icon-192.png", alt: "", width: 44, height: 44, loading: "lazy" }),
-        h("div", {}, h("p", { class: "dk-foot-name", text: "Chisme" }), h("p", { class: "dk-foot-tag", text: "Chisme, the community for los metiches. Made in San Antonio, Texas." }))),
+        h("div", {}, h("p", { class: "dk-foot-name", text: "Chisme" }), h("p", { class: "dk-foot-tag", text: "Chisme. Did you hear? Made in San Antonio, Texas." }))),
       h("ul", { class: "dk-foot-links" },
         h("li", {}, h("a", { href: "/", text: "Home", on: { click: function (e) { if (e.metaKey || e.ctrlKey) return; e.preventDefault(); goHome(); } } })),
         link("/about", "About"), link("/support", "Support & contact"), link("/privacy", "Privacy Policy"), link("/terms", "Terms of Use"),

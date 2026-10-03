@@ -152,7 +152,7 @@ async def desktop_checks(browser, w, h, tag):
     await ready(pg, BASE + "/")
     check(await pg.evaluate("document.documentElement.classList.contains('dk')"), f"{tag}: html.dk (desktop layout on)")
     check(await pg.evaluate("document.querySelector('#view-chisme').classList.contains('active')"), f"{tag}: opens on the homepage (Chisme tab)")
-    check(await pg.title() == "Chisme · San Antonio news, food & games for los metiches", f"{tag}: page title")
+    check(await pg.title() == "Chisme. Did you hear? · San Antonio news, food & games", f"{tag}: page title")
     # nav
     nav = await pg.evaluate("""() => { const t = document.querySelector('#tabs'), r = t.getBoundingClientRect();
       return { top: r.top, h: r.height, logo: !!t.querySelector('.dk-logo img[alt]'), tabs: [...t.querySelectorAll('.tab')].filter((b) => b.getClientRects().length).map((b) => b.textContent.trim()),
@@ -176,7 +176,7 @@ async def desktop_checks(browser, w, h, tag):
     hero = await pg.evaluate("""() => { const q = (s) => document.querySelector(s); const qr = q('#dk-getapp img');
       return { h1: (q('#dk-hero h1') || {}).textContent || '', hola: (q('#dk-hero') || {}).textContent || '', qr: qr ? [qr.naturalWidth, qr.alt, qr.getAttribute('src')] : null,
         a2hs: (q('#dk-getapp') || {}).textContent || '', h1s: [...document.querySelectorAll('h1')].filter((e) => e.getClientRects().length).length }; }""")
-    check(hero["h1"].strip() == "Chisme, the community for los metiches", f"{tag}: hero title")
+    check(hero["h1"].strip() == "Chisme. Did you hear?", f"{tag}: hero title")
     check("¡Hola, metiche!" in hero["hola"] and "waiting room" in hero["hola"], f"{tag}: Tía's greeting and the pitch")
     check(bool(hero["qr"]) and hero["qr"][0] > 0 and hero["qr"][1] and hero["qr"][2].startswith("/qr.svg"), f"{tag}: QR code loads, with alt text")
     check("Add to Home Screen" in hero["a2hs"] and "Coming soon to the App Store and Google Play" in hero["a2hs"], f"{tag}: Add to Home Screen steps + coming soon")
@@ -364,9 +364,9 @@ def http_checks(FLAGS):
     st, hd, html = get(BASE + "/")
     check(st == 200, "/ 200")
     base = BASE
-    check("<title>Chisme · San Antonio news, food &amp; games for los metiches</title>" in html and html.count("<title>") == 1, "/ title (one)")
+    check("<title>Chisme. Did you hear? · San Antonio news, food &amp; games</title>" in html and html.count("<title>") == 1, "/ title (one)")
     d = meta(html, "name", "description")
-    check(bool(d) and "metiches" in d and html.count('name="description"') == 1, f"/ meta description (one): {d}")
+    check(bool(d) and d.startswith("Chisme. Did you hear?") and "metiches" not in d and html.count('name="description"') == 1, f"/ meta description (one): {d}")
     for k in ("og:title", "og:description", "og:image", "og:url", "og:type", "og:site_name"):
         check(bool(meta(html, "property", k)), f"/ {k}")
     check((meta(html, "property", "og:image") or "").startswith(base + "/static/site/og-image.png"), "og:image is absolute (request origin)")

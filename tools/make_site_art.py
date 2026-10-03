@@ -8,7 +8,7 @@ from PIL import Image, ImageDraw, ImageFont
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "static" / "site" / "og-image.png"
 FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-TURQ, PINK, ORANGE, BLACK = (0, 201, 205), (239, 66, 111), (255, 130, 0), (0, 0, 0)
+TURQ, PINK, ORANGE, BLACK = (0, 201, 205), (255, 26, 127), (255, 106, 11), (0, 0, 0)   # the app icon's colours
 W, H = 1200, 630
 
 
@@ -34,11 +34,10 @@ def main():
     d.ellipse([300, 352, 300 + 162, 352 + 162], fill=PINK)
     im.paste(tia, (306, 358), tm)
     # the words
-    big, mid, small = ImageFont.truetype(FONT, 120), ImageFont.truetype(FONT, 50), ImageFont.truetype(FONT, 32)
+    big, mid, small = ImageFont.truetype(FONT, 120), ImageFont.truetype(FONT, 66), ImageFont.truetype(FONT, 32)
     x = 500
     d.text((x, 92), "Chisme", font=big, fill=BLACK)
-    d.text((x, 240), "the community for", font=mid, fill=BLACK)
-    d.text((x, 300), "los metiches", font=mid, fill=BLACK)
+    d.text((x, 262), "Did you hear?", font=mid, fill=BLACK)
     d.rounded_rectangle([x, 392, x + 640, 392 + 6], radius=3, fill=PINK)
     d.text((x, 420), "San Antonio news, sports, events,", font=small, fill=BLACK)
     d.text((x, 462), "weather, food and games. Free.", font=small, fill=BLACK)

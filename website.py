@@ -36,11 +36,11 @@ GOAL_TITLE, GOAL_AMOUNT = "Help get Chisme on the App Store", 99   # Apple's dev
 OLD_HOSTS_DEFAULT = "chisme.onrender.com"
 DESKTOP_MIN = 1024   # px; the same number is in desktop.css's <link media> and desktop.js
 
-TITLE = "Chisme · San Antonio news, food & games for los metiches"
-DESC = ("Chisme, the community for los metiches: San Antonio news, sports, events, weather, food and games in one "
+TITLE = "Chisme. Did you hear? · San Antonio news, food & games"
+DESC = ("Chisme. Did you hear? San Antonio news, sports, events, weather, food and games in one "
         "free app. Made for the waiting room.")
 OG_IMAGE = "/static/site/og-image.png"
-OG_ALT = "Chisme, the community for los metiches: San Antonio news, food and games"
+OG_ALT = "Chisme. Did you hear? San Antonio news, food and games"
 
 _HOST_RX = re.compile(r"^[A-Za-z0-9.-]{1,253}(:\d{1,5})?$")
 _BASE_RX = re.compile(r"^https?://[A-Za-z0-9.-]{1,253}(:\d{1,5})?$")
@@ -236,7 +236,7 @@ def site_footer() -> str:
     return f"""<footer class="site-foot" id="site-foot">
   <div class="sf-in">
     <div class="sf-brand"><img src="/static/icons/icon-192.png" alt="" width="44" height="44" loading="lazy">
-      <div><p class="sf-name">Chisme</p><p class="sf-tag">Chisme, the community for los metiches. Made in San Antonio, Texas.</p></div></div>
+      <div><p class="sf-name">Chisme</p><p class="sf-tag">Chisme. Did you hear? Made in San Antonio, Texas.</p></div></div>
     <nav class="sf-links" aria-label="Chisme pages">
       <a href="/">Home</a><a href="/about">About</a><a href="/support">Support &amp; contact</a><a href="/privacy">Privacy Policy</a><a href="/terms">Terms of Use</a>
     </nav>
@@ -308,7 +308,7 @@ def page_shell(request: Request, path: str, title: str, desc: str, body: str, em
 
 
 # ---------------------------------------------------------------- the pages
-ABOUT_TITLE = "About Chisme · the community for los metiches"
+ABOUT_TITLE = "About Chisme · Did you hear?"
 ABOUT_DESC = "Chisme is a free San Antonio app for local news, sports, events, weather, food videos and games, hosted by Tía Chismosa."
 SUPPORT_TITLE = "Support & contact · Chisme"
 SUPPORT_DESC = "Get help with Chisme, report a problem, ask about a local sponsor spot or request a takedown. We read every email."
@@ -319,7 +319,7 @@ def about_body() -> str:
     return f"""<article class="prose">
 <p class="kicker"><img src="/static/mascot/avatar-128.webp?art=3" alt="Tía Chismosa, Chisme's mascot" width="72" height="72"> <span>¡Hola, metiche!</span></p>
 <h1>About Chisme</h1>
-<p class="lead">Chisme, the community for los metiches. It's San Antonio's local news, sports, events, weather, food and games in one free app.</p>
+<p class="lead">Chisme. Did you hear? It's San Antonio's local news, sports, events, weather, food and games in one free app.</p>
 <p>Stuck in the waiting room at your doctor's appointment? That's what Chisme is for. Open it, catch up on what's happening around town, watch a local food review, play a quick game, and you're chismeando before they call your name.</p>
 <h2>What's inside</h2>
 <ul class="feat">

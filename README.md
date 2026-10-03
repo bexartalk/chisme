@@ -439,7 +439,7 @@ does nothing below that width.
 
 - **Top nav:** the logo, the four tabs (the app's own tab buttons), ⚙️ Settings and **Get the app**.
 - **Homepage (the Chisme tab):**
-  - A hero: "Chisme, the community for los metiches", Tía's "¡Hola, metiche!" and the waiting-room pitch.
+  - A hero: "Chisme. Did you hear?", Tía's "¡Hola, metiche!" and the waiting-room pitch.
   - A QR code (`/qr.svg`, made on the server by `qrsvg.py`, no dependencies) with Add to Home Screen steps and a
     "coming soon to the App Store and Google Play" note.
   - The latest chisme as a multi-column grid.
