@@ -55,7 +55,10 @@ async def _tab_check(pg, errs, label, shots=False):
     print(f"  {label}: page build '{ver}', app.js views {js_views}")
     res = {}
     for v in ["sports", "weather"]:
-        await pg.click(f'#tabs [data-view="{v}"]')
+        if v == "sports":   # v49.12: Sports is a chip inside the Chisme tab
+            await pg.click('#tabs [data-view="chisme"]'); await pg.wait_for_timeout(600)
+            await pg.click('.view.active .mq-chip[data-go="sports"]')
+        else: await pg.click(f'#tabs [data-view="{v}"]')
         await pg.wait_for_timeout(900)
         vis = await pg.evaluate(f"""() => {{ const el = document.querySelector('#view-{v}'); const r = el.getBoundingClientRect();
             const cur = document.querySelector('#tabs [aria-current="page"]');
@@ -68,7 +71,7 @@ async def _tab_check(pg, errs, label, shots=False):
             except Exception: pass
         vis["text"] = await pg.evaluate(f"() => document.querySelector('#view-{v}').innerText.trim().length")
         res[v] = vis
-        check(vis["onScreen"] and vis["current"] == v and vis["text"] > 200, f"{label}: {v} tab shows the {v} view ({json.dumps(vis)})")
+        check(vis["onScreen"] and vis["current"] == ("chisme" if v == "sports" else v) and vis["text"] > 200, f"{label}: {v} tab shows the {v} view ({json.dumps(vis)})")
     return res
 
 async def one(p, old):
