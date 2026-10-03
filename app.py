@@ -398,6 +398,11 @@ TAG_RX = re.compile(r"<[^>]+>")
 IMG_RX = re.compile(r"<img[^>]+src=[\"']([^\"']+)[\"']", re.I)
 
 
+# v49.12 (legal audit L4): feed summaries are clipped server-side to a short snippet (the feeds' own teaser), so a feed
+# that switches to full text is never republished. Every other summary/description is clipped to 260 or less too.
+SUMMARY_MAX = 240
+
+
 def clean_text(s: str | None, limit: int = 240) -> str:
     if not s:
         return ""
@@ -468,7 +473,7 @@ async def _fetch_feed(feed: dict) -> list[dict]:
             summary = re.sub(r"\s*(The post\s+)?" + re.escape(title) + r"\s+(was first posted|appeared first) on.*$",
                              "", summary, flags=re.I | re.S)
             summary = re.sub(r"\s*The post .{0,300}? appeared first on .*$", "", summary, flags=re.S)
-            summary = clean_text(summary)
+            summary = clean_text(summary, SUMMARY_MAX)   # v49.12 (legal L4): headline + a short snippet, never the article
         items.append({"title": title, "link": link, "source": source, "published": entry_time(e),
                       "summary": summary, "image": None if is_g else thumbnail(e)})
     return items
