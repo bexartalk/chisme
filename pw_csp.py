@@ -58,7 +58,12 @@ try:
     _src = open(_sys.argv[0], encoding="utf-8").read()
 except Exception:
     _src = ""
-if not any(k in _src for k in ("push-ask", "chisme-notif", "settings-tip", "NO_AUTO_QUIET")):
+# v49.12: Chisme opens to a random tab by default; tests that skip QUIET (they're about the popups) still get the News pin
+# (popup_quiet.PIN_NEWS) unless they're about the launch tab (NO_AUTO_QUIET).
+from popup_quiet import PIN_NEWS as _PIN
+if any(k in _src for k in ("push-ask", "chisme-notif", "settings-tip")) and "NO_AUTO_QUIET" not in _src:
+    _QUIET = _PIN
+if "NO_AUTO_QUIET" not in _src:
     from playwright.async_api import Browser as _AB
     from playwright.sync_api import Browser as _SB
 
