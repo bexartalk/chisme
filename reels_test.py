@@ -211,20 +211,20 @@ async def webkit_tests(p, data):
     m = re.search(r"scaleX\(([\d.]+)\)", pr["t"] or "")
     check(not pr["playing"] or (m and float(m.group(1)) > 0), f"progress bar moves while the video plays ({pr['t']})")
     await pg.screenshot(path=os.path.join(SHOTS, "reels-feed.png"))
-    url0 = await pg.evaluate("[...document.querySelectorAll('#feed-scroll .vf-slide')][0].dataset.url")
-    box = await pg.evaluate("(() => { const r = [...document.querySelectorAll('#feed-scroll .vf-slide')][0].querySelector('.vf-shield').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height * 0.4 }; })()")
-    was = await pg.evaluate("window.__chisme.forYou.sound ? document.querySelector('#feed-scroll .vf-slide').classList.contains('vf-playing') : null")
+    url0 = await pg.evaluate("[...document.querySelectorAll('#feed-scroll .vf-slide')][window.__chisme.forYou.cur].dataset.url")
+    box = await pg.evaluate("(() => { const r = [...document.querySelectorAll('#feed-scroll .vf-slide')][window.__chisme.forYou.cur].querySelector('.vf-shield').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height * 0.4 }; })()")
+    was = await pg.evaluate("window.__chisme.forYou.sound ? [...document.querySelectorAll('#feed-scroll .vf-slide')][window.__chisme.forYou.cur].classList.contains('vf-playing') : null")
     await pg.touchscreen.tap(box["x"], box["y"]); await pg.wait_for_timeout(120); await pg.touchscreen.tap(box["x"], box["y"]); await pg.wait_for_timeout(250)
-    h = await pg.evaluate(f"({{ heart: document.querySelectorAll('#feed-scroll .vf-heart').length, liked: !!({PROF}).s[{json.dumps(url0)}]?.lk, pressed: [...document.querySelectorAll('#feed-scroll .vf-slide')][0].querySelector('.vf-act .vf-like').getAttribute('aria-pressed'), q: window.__chisme.stats.queue.filter(e => e[0] === 'reel') }})")
+    h = await pg.evaluate(f"({{ heart: document.querySelectorAll('#feed-scroll .vf-heart').length, liked: !!({PROF}).s[{json.dumps(url0)}]?.lk, pressed: [...document.querySelectorAll('#feed-scroll .vf-slide')][window.__chisme.forYou.cur].querySelector('.vf-act .vf-like').getAttribute('aria-pressed'), q: window.__chisme.stats.queue.filter(e => e[0] === 'reel') }})")
     await pg.screenshot(path=os.path.join(SHOTS, "reels-heart.png"))
     check(h["heart"] >= 1 and h["liked"] and h["pressed"] == "true", f"double-tap the video: a ♥ pops where you tapped and it's liked ({h['heart']} heart, pressed {h['pressed']})")
     check(any(e[1].get("a") == "like" and e[1].get("id") == reel_id(url0) for e in h["q"]), f"the like is counted (anonymous, by video id) ({h['q'][-2:]})")
     await pg.wait_for_timeout(1200)
-    now = await pg.evaluate("document.querySelector('#feed-scroll .vf-slide').classList.contains('vf-playing')")
+    now = await pg.evaluate("[...document.querySelectorAll('#feed-scroll .vf-slide')][window.__chisme.forYou.cur].classList.contains('vf-playing')")
     check(now == was, f"a double-tap doesn't leave the video paused (playing before {was}, after {now})")
     sel = await cur_visible_btn(pg, "vf-like")
     if sel: await pg.tap(sel); await pg.wait_for_timeout(200)
-    un = await pg.evaluate(f"({{ liked: !!({PROF}).s[{json.dumps(url0)}]?.lk, pressed: [...document.querySelectorAll('#feed-scroll .vf-slide')][0].querySelector('.vf-like').getAttribute('aria-pressed') }})")
+    un = await pg.evaluate(f"({{ liked: !!({PROF}).s[{json.dumps(url0)}]?.lk, pressed: [...document.querySelectorAll('#feed-scroll .vf-slide')][window.__chisme.forYou.cur].querySelector('.vf-like').getAttribute('aria-pressed') }})")
     check(sel and not un["liked"] and un["pressed"] == "false", f"the ♥ button toggles it back off ({un})")
     check(not errs, "no page errors" + (f": {errs[:2]}" if errs else ""))
     await ctx.close()
@@ -241,7 +241,7 @@ async def webkit_tests(p, data):
     d = await pg.evaluate("""() => { const s = document.querySelector('#feed-scroll .vf-slide'); return { open: document.querySelector('#feed').open, url: s && s.dataset.url,
       why: s && s.querySelector('.why-chip').textContent, search: location.search, hash: location.hash, view: window.__chisme.view, lead: window.__chisme.forYou.reels.lead }; }""")
     check(d["open"] and reel_id(d["url"] or "") == rid, f"/?reel={rid} opens the reels feed straight on that video ({(d['url'] or '')[-30:]})")
-    check("Shared with you" in (d["why"] or "") and d["search"] == "" and d["hash"] == "#cual-dieta" and d["lead"] is None,
+    check("Shared with you" in (d["why"] or "") and d["search"] == "" and d["hash"] == "#y-la-dieta" and d["lead"] is None,
           f"…marked 'Shared with you', and the ?reel= is dropped from the address (a reload doesn't reopen it) ({d['why']!r}, {d['search']!r}{d['hash']})")
     try: await pg.wait_for_function("window.__chisme.forYou.sound.held", timeout=15000)
     except Exception: pass
@@ -259,7 +259,7 @@ async def webkit_tests(p, data):
       btns: [...document.querySelectorAll('#rs-grid .rs-btn')].map((a) => ({ t: a.textContent.trim(), href: a.getAttribute('href') || '', target: a.getAttribute('target') || '', way: a.dataset.way })) })""")
     check(sh["open"], "Share (no system share sheet in this browser): Chisme's share sheet opens")
     link = URL + "?reel=" + rid
-    check(sh["msg"].startswith("Mira este video en Chisme 👀 " + link) and "Get the Chisme app for San Antonio's news, food & chisme: https://chisme.onrender.com" in sh["msg"],
+    check(sh["msg"].startswith("Mira este video en Chisme 👀 " + link) and "Get the Chisme app for San Antonio's news, food & chisme: " + URL.rstrip('/') in sh["msg"],
           f"the message: the video's Chisme link + the invite to get the app ({sh['msg'][:150]})")
     names = [x["t"] for x in sh["btns"]]
     check(names[:6] == ["Copy link", "Text message", "WhatsApp", "Facebook", "X", "Email"], f"targets: {names}")
@@ -300,7 +300,7 @@ async def chromium_tests(p, data):
     await pg.evaluate("[...document.querySelectorAll('#feed-scroll .vf-slide')][0].querySelector('.vf-rail .vf-share').click()"); await pg.wait_for_timeout(400)
     s = await pg.evaluate(f"({{ shares: window.__shares, sheet: document.querySelector('#reel-share').open, prof: ({PROF}).s[{json.dumps(url0)}], q: window.__chisme.stats.queue.filter(e => e[0] === 'reel') }})")
     d0 = (s["shares"] or [{}])[0]
-    check(len(s["shares"]) == 1 and not s["sheet"] and d0.get("url") == URL + "?reel=" + reel_id(url0) and "Get the Chisme app for San Antonio's news, food & chisme: https://chisme.onrender.com" in d0.get("text", "")
+    check(len(s["shares"]) == 1 and not s["sheet"] and d0.get("url") == URL + "?reel=" + reel_id(url0) and "Get the Chisme app for San Antonio's news, food & chisme: " + URL.rstrip('/') in d0.get("text", "")
           and d0.get("text", "").startswith("Mira este video en Chisme 👀"), f"phone with a share sheet: navigator.share gets the Chisme link + the invite ({d0})")
     check((s["prof"] or {}).get("sh") == 1 and any(e[1] == {"a": "share", "id": reel_id(url0), "m": "native"} for e in s["q"]), "the share teaches the ranker (s.sh) and is counted (reel share, native)")
     await pg.evaluate("window.__shareMode = 'abort'; window.__shares = []; [...document.querySelectorAll('#feed-scroll .vf-slide')][0].querySelector('.vf-rail .vf-share').click()"); await pg.wait_for_timeout(300)
@@ -356,12 +356,48 @@ async def chromium_tests(p, data):
     check(isinstance(pop.get("pop"), dict), f"/api/reels/popular answers ({len(pop.get('pop') or {})} videos)")
     await b.close()
 
+async def public_base_tests(p, data):
+    """v49.13: share links, the promo line and Open Graph come from PUBLIC_BASE_URL (the move to chisme.co), else the page's address."""
+    print("\n== PUBLIC_BASE_URL: share links + Open Graph follow one setting")
+    port = 8291; base = f"http://127.0.0.1:{port}"
+    env = dict(os.environ, PUBLIC_BASE_URL="https://chisme.co/", STATS_STORE_FILE="/tmp/reels-pb-stats.json", PUSH_STORE_FILE="/tmp/reels-pb-push.json")
+    srv = subprocess.Popen([sys.executable, "-m", "uvicorn", "app:app", "--host", "127.0.0.1", "--port", str(port)], cwd=os.path.dirname(os.path.abspath(__file__)),
+                           env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        page = ""
+        for _ in range(60):
+            try: page = urllib.request.urlopen(base + "/", timeout=5).read().decode(); break
+            except Exception: await asyncio.sleep(1)
+        rid = reel_id(next(it["url"] for k in ("items", "recipes", "world") for it in (data.get(k) or []) if it.get("video") and reel_id(it.get("url"))))
+        rp = urllib.request.urlopen(base + "/?reel=" + rid, timeout=20).read().decode()
+        check('<meta name="chisme-base" content="https://chisme.co">' in page and 'og:url" content="https://chisme.co/"' in page
+              and 'og:image" content="https://chisme.co/static/icons/icon-512.png"' in page and "onrender" not in page and "__PUBLIC_BASE__" not in page,
+              "PUBLIC_BASE_URL=https://chisme.co/ → the page's base meta + Open Graph url/image use it (trailing / trimmed; no onrender anywhere)")
+        check(f'og:url" content="https://chisme.co/?reel={rid}"' in rp and "onrender" not in rp, f"…and a shared reel's preview links to https://chisme.co/?reel={rid}")
+        b = await p.chromium.launch(executable_path="/usr/bin/google-chrome", args=["--no-sandbox"])
+        ctx = await b.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
+        await ctx.add_init_script(INIT % ""); await ctx.add_init_script("try { delete Navigator.prototype.share; delete Navigator.prototype.canShare; } catch (e) {}")
+        pg = await ctx.new_page(); await pg.goto(base + "/#y-la-dieta", wait_until="domcontentloaded")
+        await pg.wait_for_function("() => window.__chisme && window.__chisme.foodReady && !document.querySelector('#foryou-card').hidden", timeout=90000)
+        pb = await pg.evaluate("window.__chisme.publicBase")
+        await start_feed(pg)
+        await pg.evaluate("[...document.querySelectorAll('#feed-scroll .vf-slide')][window.__chisme.forYou.cur].querySelector('.vf-rail .vf-share').click()"); await pg.wait_for_timeout(400)
+        msg = await pg.evaluate("(document.querySelector('.reel-share .rs-msg') || {}).textContent || ''")
+        check(pb == "https://chisme.co" and re.search(r"Mira este video en Chisme 👀 https://chisme\.co/\?reel=[\w-]+", msg) and msg.rstrip().endswith("food & chisme: https://chisme.co"),
+              f"the share sheet's link + promo line use https://chisme.co (served from {base}) ({msg[:140]!r})")
+        await b.close()
+    finally:
+        srv.terminate()
+        try: srv.wait(10)
+        except Exception: srv.kill()
+
 async def main():
     ranker_tests()
     data = food()
     async with async_playwright() as p:
         await webkit_tests(p, data)
         await chromium_tests(p, data)
+        await public_base_tests(p, data)
     print("\n" + ("ALL PASS" if not fails else f"{len(fails)} FAILED:\n  - " + "\n  - ".join(fails)))
     sys.exit(1 if fails else 0)
 

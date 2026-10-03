@@ -1,7 +1,7 @@
 """v46: a donation reminder after every 7 posts in News and Events, and its own swipeable slide every 7 videos in the
 full-screen For You food feed. Tia's voice, the Cash App ($Slurmkaos) + Buy Me a Coffee (Chismoso) buttons (they open
 outside the app, never in the in-app reader), a Share Chisme button (navigator.share with the title Chisme, a line and
-https://chisme.onrender.com/; without it the link is copied and a "Link copied!" toast shows), the X hides them for the
+Chisme's address (v49.13: PUBLIC_BASE_URL, else the page's own); without it the link is copied and a "Link copied!" toast shows), the X hides them for the
 session, never next to a serious story, no yellow. WebKit iPhone 13.
 Screenshots: donate-news.png, donate-events.png, donate-food.png."""
 from popup_quiet import QUIET   # v49: the notifications card + Settings tip have their own tests
@@ -17,7 +17,7 @@ INIT = "if (!localStorage.getItem('chisme-location-setup')) { localStorage.setIt
 FAKE = """(() => { window.__shared = []; window.__copied = [];
   try { Object.defineProperty(navigator, 'share', { configurable: true, value: (d) => { __shared.push(d); return Promise.resolve(); } }); } catch (e) {}
   try { Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: (t) => { __copied.push(t); return Promise.resolve(); } } }); } catch (e) {} })()"""
-URL = "https://chisme.onrender.com/"
+URL = (os.environ.get("PUBLIC_BASE_URL") or BASE).rstrip("/") + "/"   # v49.13: the shared link is PUBLIC_BASE_URL, else the page's own address
 fails = 0
 def check(ok, what):
     global fails

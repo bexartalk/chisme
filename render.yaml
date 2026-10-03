@@ -28,3 +28,7 @@ services:
       # Tía Chismosa's AI (see README → "Tía Chismosa"). Without it she uses scripted lines.
       - key: GEMINI_API_KEY
         sync: false
+      # v49.13: Chisme's public address for share links, the share promo line and link previews (Open Graph), e.g.
+      # https://chisme.co once that domain points here. Unset = each request's own address (works on chisme.onrender.com).
+      - key: PUBLIC_BASE_URL
+        sync: false

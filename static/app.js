@@ -4,6 +4,12 @@
 window.CHISME_APP_BUILD = "49.13";
 (() => {
   "use strict";
+  // v49.13: Chisme's public address for share links + the promo text: one setting on the server (PUBLIC_BASE_URL, else the
+  // address the page was served from), filled into <meta name="chisme-base">; so the move to chisme.co needs no code change.
+  const PUBLIC_BASE = (() => {
+    const m = document.querySelector('meta[name="chisme-base"]'), v = ((m && m.content) || "").trim().replace(/\/+$/, "");
+    return /^https?:\/\/[^\s"'<>]+$/.test(v) ? v : (/^https?:$/.test(location.protocol) ? location.origin : "");
+  })();
   const WEATHER_MS = 10 * 60 * 1000;
   const NEWS_MS = 4 * 60 * 1000;          // while the app is open and on screen: check for new stories every 4 min
   const NEWS_FOCUS_MS = 60 * 1000;        // …and when you come back to it (focus / visible), if the last check is over a minute old
@@ -2206,9 +2212,8 @@ window.CHISME_APP_BUILD = "49.13";
   }
   // sharing: the phone's own share sheet (Messages, WhatsApp, Instagram …), else Chisme's sheet. Every share carries the
   // video's Chisme link (/?reel=<id>: it opens the app on that video) and a line inviting people to get Chisme.
-  const SITE = "https://chisme.onrender.com";
-  const reelLink = (it) => { const id = FY && FY.reelId(it.url); return (/^https?:$/.test(location.protocol) ? location.origin : SITE) + "/" + (id ? "?reel=" + encodeURIComponent(id) : ""); };
-  const PROMO = `Get the Chisme app for San Antonio's news, food & chisme: ${SITE}`;
+  const reelLink = (it) => { const id = FY && FY.reelId(it.url); return PUBLIC_BASE + "/" + (id ? "?reel=" + encodeURIComponent(id) : ""); };
+  const PROMO = `Get the Chisme app for San Antonio's news, food & chisme: ${PUBLIC_BASE}`;
   const reelMsg = (it) => `Mira este video en Chisme 👀 ${reelLink(it)} — ${PROMO}`;
   const rsDlg = $("#reel-share");
   let rsOpener = null;
@@ -3257,7 +3262,7 @@ window.CHISME_APP_BUILD = "49.13";
   if (navigator.serviceWorker) navigator.serviceWorker.addEventListener("message", (e) => { if (e.data && typeof e.data.chismeOpen === "string") openFromAlert(e.data.chismeOpen); });
   {
     const rid = new URLSearchParams(location.search).get("reel");
-    if (rid && /^(?:[\w-]{11}|\d{15,20})$/.test(rid)) { reelLead = rid; history.replaceState(history.state, "", location.pathname + "#cual-dieta"); }
+    if (rid && /^(?:[\w-]{11}|\d{15,20})$/.test(rid)) { reelLead = rid; history.replaceState(history.state, "", location.pathname + "#y-la-dieta"); }
   }
   if (new URLSearchParams(location.search).has("story")) {
     const href = location.href;
@@ -3917,7 +3922,7 @@ window.CHISME_APP_BUILD = "49.13";
   };
   // ---------- Share Chisme: a small pill in the footer. The phone's own share sheet (Web Share API) where there is
   // one; otherwise the link is copied and a toast says so. Nothing opens outside the app.
-  const SHARE = { title: "Chisme", text: "Chisme. ¿Oyistes? 👀 Local news, weather, food & events:", url: "https://chisme.onrender.com/" };
+  const SHARE = { title: "Chisme", text: "Chisme. ¿Oyistes? 👀 Local news, weather, food & events:", url: PUBLIC_BASE + "/" };   // v49.13: from PUBLIC_BASE_URL (was chisme.onrender.com)
   let shareT = null;
   function shareToast(msg) {
     const t = $("#share-toast"); t.textContent = msg; t.hidden = false;
@@ -3940,7 +3945,7 @@ window.CHISME_APP_BUILD = "49.13";
   }
   $("#share-btn").onclick = () => shareChisme(SHARE);
   // v46: 📣 Share Chisme on the every-7 donate cards: the same helper, with a line of Tía's
-  const SHARE_E7 = { title: "Chisme", text: "Tía found the best chisme in town and she can't keep it to herself. ☕", url: "https://chisme.onrender.com/" };
+  const SHARE_E7 = { title: "Chisme", text: "Tía found the best chisme in town and she can't keep it to herself. ☕", url: PUBLIC_BASE + "/" };
   document.addEventListener("click", (e) => { const b = e.target.closest && e.target.closest(".share-chisme"); if (b) { e.preventDefault(); shareChisme(SHARE_E7).then((r) => { lastShare = r; }); } });
   let lastShare = null;
   window.__chisme = { reloadHere, mixFeed, mulberry, get mix() { return { seed: mixSeed, shown: mixShown, pending: mixPending }; }, get every() { return { gone: e7Gone(), news: e7Where.news, events: e7Where.events, feed: e7Where.feed, lastShare, share: SHARE_E7 }; }, stats: Stats, get newsPill() { return { held: !!newsHold, n: newsHoldN, shown: !$("#news-pill").hidden }; }, checkNews: () => { loadNews(); lastNews = Date.now(); }, openFromAlert, get pushPrefs() { return pushPrefs(); },
@@ -3954,6 +3959,7 @@ window.CHISME_APP_BUILD = "49.13";
       return { made: YT.length > 0, ready: !!c.ready, vid: c.vid || null, st: c.st ?? -1, ytMuted: c.ytMuted ?? null, unlocked: !!c.unlocked, slide: c.slide ? sl.indexOf(c.slide) : -1, frames: document.querySelectorAll("iframe.vf-yt").length,
         players: YT.map((p) => ({ slide: p.slide ? sl.indexOf(p.slide) : -1, warm: p.warm, vid: p.vid, st: p.st, ready: p.ready, unlocked: p.unlocked, muted: p.ytMuted })), warm: w ? sl.indexOf(w.slide) : -1, ios: IOS_FEED,
         warms: YT.filter((p) => p.warm && p.slide).map((p) => sl.indexOf(p.slide)).sort((a, b) => a - b), pool: ytPool(), ahead: aheadN(), slow: slowNet() }; }, cover: fyList.slice(0, 3).map((r) => r.item.url), coverCrews: fyList.slice(0, 3).map((r) => r.crew) }; }, openFeed, closeFeed,
-    get sportsReady() { return !!rendered.sports; }, get spLg() { return spLg; } };
+    get sportsReady() { return !!rendered.sports; }, get spLg() { return spLg; },
+    get publicBase() { return PUBLIC_BASE; } };   // v49.13
   window.__chismeBooted = true;
 })();

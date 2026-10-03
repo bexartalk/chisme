@@ -3101,7 +3101,23 @@ async def api_theme():
 
 
 # ---------------------------------------------------------------- v49.13: shared reels (/?reel=<id>)
-# A shared food video's link is https://chisme.onrender.com/?reel=<YouTube id | TikTok number>: the app opens straight to
+# Chisme's public address for share links, the promo text and Open Graph URLs: the PUBLIC_BASE_URL env var (e.g.
+# https://chisme.co, no trailing slash), else the address this request came to (Render's x-forwarded-proto says https).
+# Never hardcoded, so moving the domain is only a setting.
+PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "").strip().rstrip("/")
+if PUBLIC_BASE_URL and not re.match(r"^https?://[^\s/\"'<>]+(?:/[^\s\"'<>]*)?$", PUBLIC_BASE_URL):
+    print("PUBLIC_BASE_URL isn't an http(s) address; using each request's own address")
+    PUBLIC_BASE_URL = ""
+
+
+def public_base(request: Request) -> str:
+    if PUBLIC_BASE_URL:
+        return PUBLIC_BASE_URL
+    host = request.headers.get("host") or request.url.netloc
+    return ("https" if _https(request) else "http") + "://" + host
+
+
+# A shared food video's link is <PUBLIC_BASE_URL>/?reel=<YouTube id | TikTok number>: the app opens straight to
 # that video in the reels feed, and link previews (iMessage, WhatsApp, Facebook, X) get the video's own title + picture.
 REEL_RX = re.compile(r"^(?:[\w-]{11}|\d{15,20})$")
 _REEL_URL_RX = re.compile(r"(?:youtube(?:-nocookie)?\.com/(?:watch\?(?:[^#]*&)?v=|shorts/|embed/|live/)|youtu\.be/)([\w-]{11})"
@@ -3127,8 +3143,7 @@ def reel_item(rid: str) -> dict | None:
 
 def reel_og(request: Request, rid: str) -> str:
     it = reel_item(rid) or {}
-    host = request.headers.get("host") or "chisme.onrender.com"
-    base = ("https" if _https(request) or host.endswith("onrender.com") else "http") + "://" + host
+    base = public_base(request)
     title = re.sub(r"\s+", " ", str(it.get("title") or "")).strip()
     title = (title[:88] + "…") if len(title) > 90 else title
     who = str(it.get("creator") or "").strip()[:60]
@@ -3172,8 +3187,7 @@ async def index(request: Request):
     # v49.11: the page's own inline scripts get this response's CSP nonce (the file itself has no user content)
     page = (BASE / "static" / "index.html").read_text().replace("__BUILD__", app_build()).replace("<script>", f'<script nonce="{_nonce(request)}">')
     page = page.replace("__THEME_OVERRIDE__", theme_override()).replace("__THEME_AT__", str(int(time.time() * 1000)))
-
-
+    page = page.replace("__PUBLIC_BASE__", html.escape(public_base(request), quote=True))   # v49.13: share links + Open Graph
     rid = request.query_params.get("reel") or ""
     if REEL_RX.match(rid):   # v49.13: a shared reel: the link preview shows that video
         page = re.sub(r"<!--og:start-->.*?<!--og:end-->", lambda m: "<!--og:start-->" + reel_og(request, rid) + "<!--og:end-->", page, count=1, flags=re.S)
