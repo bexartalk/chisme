@@ -73,7 +73,9 @@ async def override_checks(b, dev):
         check(s[0] == want, f"override {mode} on {when:%b %d}: {'on' if want else 'off'} ({s})")
         await ctx.close()
     print("— THEME_OVERRIDE=off on a real server")
-    port = 8293
+    import socket
+    with socket.socket() as so:   # a free port (another checkout on this box may be running its own copy of this test)
+        so.bind(("127.0.0.1", 0)); port = so.getsockname()[1]
     env = dict(os.environ, THEME_OVERRIDE="off")
     srv = subprocess.Popen([os.path.join(os.path.dirname(os.path.abspath(__file__)), "venv/bin/uvicorn"), "app:app", "--host", "127.0.0.1", "--port", str(port)],
                            cwd=os.path.dirname(os.path.abspath(__file__)), env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
