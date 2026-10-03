@@ -81,7 +81,7 @@ async def main():
             st = ((wx.get("current") or {}).get("station_name") or "") + " " + json.dumps(wx.get("location") or wx.get("point") or "")[:80]
             check(city.split()[0] in st or (wx.get("periods") or wx.get("forecast")), f"Weather: NWS for {city} ({st.strip()[:70]})")
             # Events
-            await pg.tap('#tabs [data-view="events"]')
+            await pg.tap('#tabs [data-view="chisme"]'); await pg.tap('.view.active .mq-chip[data-go="events"]')
             await pg.wait_for_function("() => window.__chisme.eventsReady", timeout=150000); await pg.wait_for_timeout(1500)
             ev = await pg.evaluate("({ intro: document.querySelector('#events-intro').textContent, n: document.querySelectorAll('#events-list .ev').length, src: [...document.querySelectorAll('#event-sources li, #ev-sources li')].map(l => l.textContent.slice(0, 40)) })")
             check(ev["n"] > 0 and not any("Visit San Antonio" in s for s in ev["src"]), f"Events: {ev['n']} near {city}, no Visit San Antonio ({ev['intro'][:70]})")
@@ -98,7 +98,7 @@ async def main():
             await pg.evaluate("window.scrollTo(0, document.querySelector('#antojos').getBoundingClientRect().top + scrollY - 110)"); await pg.wait_for_timeout(500)
             await pg.screenshot(path=f"/tmp/wk/food-{city.lower()}.png")
             # Sports
-            await pg.tap('#tabs [data-view="sports"]')
+            await pg.tap('#tabs [data-view="chisme"]'); await pg.tap('.view.active .mq-chip[data-go="sports"]')
             await pg.wait_for_function(f"() => /{nba}/.test(document.querySelector('#sp-chips [data-lg=nba]').textContent)", timeout=150000)
             spt = await pg.evaluate("""() => ({ nba: document.querySelector('#sp-chips [data-lg=nba]').textContent.trim(), milb: document.querySelector('#sp-chips [data-lg=missions]').hidden ? null : document.querySelector('#sp-chips [data-lg=missions]').textContent.trim(),
                 intro: document.querySelector('#sports-intro').textContent, kicker: (document.querySelector('.spurs-card .kicker') || {}).textContent })""")
@@ -106,7 +106,7 @@ async def main():
             await pg.wait_for_function("() => window.__chisme.view === 'sports' && window.__chisme.sportsReady", timeout=60000); await pg.wait_for_timeout(1200)
             await pg.evaluate("window.scrollTo(0, document.querySelector('#sports').getBoundingClientRect().top + scrollY - 110)"); await pg.wait_for_timeout(500)
             await pg.screenshot(path=f"/tmp/wk/sports-{city.lower()}.png")
-            await pg.tap('#tabs [data-view="news"]'); await pg.wait_for_timeout(600)
+            await pg.tap('#tabs [data-view="chisme"]'); await pg.tap('.view.active .mq-chip[data-go="news"]'); await pg.wait_for_timeout(600)
         # back home: "Use my location" returns to GPS in San Antonio
         await pg.evaluate("window.scrollTo(0, 0)"); await pg.tap("#settings-btn"); await pg.tap("#set-gps")
         await pg.wait_for_function("() => JSON.parse(localStorage.getItem('chisme-location')).source === 'gps'", timeout=30000)

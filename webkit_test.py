@@ -31,7 +31,7 @@ async def new(p, b, width=None, grant=None, init=None):
     if init: await ctx.add_init_script(init)
     pg = await ctx.new_page()
     errs = []
-    pg.on("pageerror", lambda e: errs.append(f"pageerror: {e}"))
+    pg.on("pageerror", lambda e: None if "access control checks" in str(e) else errs.append(f"pageerror: {e}"))   # WebKit: a fetch cut off by a reload
     pg.on("console", lambda m: errs.append(f"console: {m.text}") if m.type == "error" else None)
     return ctx, pg, errs
 
@@ -51,7 +51,10 @@ async def settle(pg):
     await pg.wait_for_timeout(400)
 
 async def view_ok(pg, v):
-    await pg.click(f'#tabs [data-view="{v}"]')
+    if v in ("news", "sports", "events"):   # v49.12: one Chisme tab, then its chip
+        await pg.click('#tabs [data-view="chisme"]'); await pg.wait_for_timeout(600)
+        await pg.click(f'.view.active .mq-chip[data-go="{v}"]')
+    else: await pg.click(f'#tabs [data-view="{v}"]')
     sel = {"sports": "#sports-body .sp-photo, #sports-body .error", "weather": "#view-weather .now-temp, #view-weather .notice, #view-weather .error"}[v]
     await pg.wait_for_selector(sel, timeout=60000)
     await pg.wait_for_timeout(700)
@@ -104,7 +107,7 @@ async def main():
             check(r["view"] == v and r["onScreen"] and r["chars"] > 300 and not r["error"], f"{v} tab shows {v} ({r})")
             await pg.evaluate("document.activeElement && document.activeElement.blur(); window.scrollTo(0, 0)"); await settle(pg)
             await pg.screenshot(path=os.path.join(OUT, f"{v}-fixed.png"))
-        await pg.click('#tabs [data-view="news"]'); await pg.evaluate("document.activeElement && document.activeElement.blur(); window.scrollTo(0, 0)"); await settle(pg)
+        await pg.click('#tabs [data-view="chisme"]'); await pg.click('.view.active .mq-chip[data-go="news"]'); await pg.evaluate("document.activeElement && document.activeElement.blur(); window.scrollTo(0, 0)"); await settle(pg)
         await pg.screenshot(path=os.path.join(OUT, "header-logo.png"), clip={"x": 0, "y": 0, "width": 390, "height": 170})
         logo = await pg.evaluate("""() => { const b = document.querySelector('#settings-btn'), s = getComputedStyle(b);
             return { bg: s.backgroundColor, border: s.borderTopWidth, pad: s.paddingTop, appearance: s.appearance || s.webkitAppearance }; }""")
@@ -133,7 +136,7 @@ async def main():
         await pg.goto(URL); await ready(pg); await pg.wait_for_timeout(800)
         check(await pg.evaluate("() => window.__chisme.view") == "weather", "default tab 'Weather' opens on Weather")
         wide = await pg.evaluate("() => ({ doc: document.documentElement.scrollWidth, tabs: [...document.querySelectorAll('#tabs .tab')].map(t => Math.round(t.getBoundingClientRect().right)) })")
-        check(wide["doc"] <= 320 and max(wide["tabs"]) <= 320, f"320 px: no sideways overflow, all 6 tabs fit ({wide})")
+        check(wide["doc"] <= 320 and max(wide["tabs"]) <= 320, f"320 px: no sideways overflow, all 4 tabs fit ({wide})")
         for v in ("sports", "weather"):
             r = await view_ok(pg, v)
             check(r["view"] == v and r["onScreen"] and r["chars"] > 300, f"320 px: {v} renders ({r})")

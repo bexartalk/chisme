@@ -22,7 +22,7 @@ async def main():
         pg.on("pageerror", lambda e: errs.append(str(e))); pg.on("console", lambda m: errs.append(m.text) if m.type == "error" and "Failed to load resource" not in m.text else None)
         await pg.goto(URL)
         await pg.wait_for_function("() => window.__chisme && window.__chisme.ready", timeout=90000)
-        await pg.click('#tabs [data-view="events"]')
+        await pg.click('#tabs [data-view="chisme"]'); await pg.click('.view.active .mq-chip[data-go="events"]')
         await pg.tap('#tabs [data-view="antojos"]')
         await pg.wait_for_function("() => window.__chisme.foodReady && document.querySelectorAll('#food-latest .fr-save').length > 3", timeout=60000)
         check(await pg.evaluate("document.querySelector('#n-saved').textContent") == "(0)", "Saved spots count starts at (0)")
@@ -48,7 +48,7 @@ async def main():
         except Exception: pass
         await pg.reload()
         await pg.wait_for_function("() => window.__chisme && document.querySelector('#n-saved')", timeout=30000)
-        await pg.click('#tabs [data-view="events"]')
+        await pg.click('#tabs [data-view="chisme"]'); await pg.click('.view.active .mq-chip[data-go="events"]')
         await pg.tap('#tabs [data-view="antojos"]')
         await pg.click('#food-view [data-fv="saved"]')
         n = await pg.evaluate("document.querySelectorAll('#food-saved .fs').length")

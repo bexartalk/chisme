@@ -42,7 +42,7 @@ with sync_playwright() as p:
 
     # ---- nav: News, Sports, Weather, Events (no Radar tab); A−/A+ not on the home screen
     tabs = page.eval_on_selector_all(".tab", "ts => ts.map(t => t.textContent.trim())")
-    check([t.split()[-1] for t in tabs] == ["News", "Sports", "Weather", "dieta?", "Juegitos", "Events"], f"nav tabs {tabs}")
+    check([t.split()[-1] for t in tabs] == ["Chisme", "Weather", "dieta?", "Juegitos"], f"nav tabs {tabs}")   # v49.12: News, Sports, Events live inside Chisme
     check(not page.is_visible("#font-up"), "A−/A+ are no longer on the home screen")
     check(page.eval_on_selector("#tabs", "e => getComputedStyle(e).position") == "fixed", "nav is position:fixed")
 
@@ -72,7 +72,7 @@ with sync_playwright() as p:
     page.screenshot(path=str(OUT / "weather-radar.png"))
 
     # ---- C: Sports
-    page.click(".tab[data-view=sports]")
+    page.click("#tabs [data-view='chisme']"); page.click(".view.active .mq-chip[data-go='sports']")
     page.wait_for_function("__chisme.sportsReady", timeout=90000)
     page.wait_for_timeout(800)
     page.click("#sp-chips [data-lg=nba]")

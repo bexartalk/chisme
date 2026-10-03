@@ -79,11 +79,11 @@ async def main():
 
         print("\n== audit: outside links on every tab")
         links = []
-        for v in ["news", "sports", "weather", "antojos", "juegos", "events"]:
-            await pg.click(f"#tabs .tab[data-view={v}]"); await pg.wait_for_timeout(4000 if v in ("sports", "antojos", "events") else 1500)
+        for v in ["chisme", "news", "sports", "events", "weather", "antojos", "juegos"]:
+            await pg.evaluate(f"__chisme.goView('{v}')"); await pg.wait_for_timeout(4000 if v in ("sports", "antojos", "events") else 1500)
             links += await pg.evaluate(AUDIT)
         uniq = {l["href"]: l for l in links}
-        blank = [l for l in uniq.values() if l["target"] == "_blank" and "donate-btn" not in l["cls"] and not l["inSheet"]]
+        blank = [l for l in uniq.values() if l["target"] == "_blank" and "donate-btn" not in l["cls"] and "legal-link" not in l["cls"] and not l["inSheet"]]   # (the safety disclaimer's weather.gov link goes to the official site on purpose)
         donate = [l for l in uniq.values() if "donate-btn" in l["cls"]]
         print(f"  {len(uniq)} distinct outside links on the page")
         check(not blank, f"no outside link opens a new tab/browser except the donate button ({[b['href'][:60] for b in blank[:3]]})")
@@ -96,7 +96,7 @@ async def main():
         check(list(res.values()) == [False], f"donate tap isn't intercepted ({res})")
 
         print("\n== news → reader")
-        await pg.click("#tabs .tab[data-view=news]"); await pg.wait_for_timeout(800)
+        await pg.click("#tabs [data-view='chisme']"); await pg.click(".view.active .mq-chip[data-go='news']"); await pg.wait_for_timeout(800)
         hosts = await pg.evaluate("() => [...document.querySelectorAll('.story .dig-row .btnlink.primary')].map(a => a.href)")
         verdict = {}
         for h in hosts[:40]:
@@ -148,7 +148,7 @@ async def main():
         check(s["open"] and s["title"].startswith("More coverage"), f"'More coverage' → reader ({s['title'][:50]})"); await close_sheet(pg)
 
         print("\n== sports, creators, events, food")
-        await pg.click("#tabs .tab[data-view=sports]"); await pg.wait_for_timeout(3000)
+        await pg.click("#tabs [data-view='chisme']"); await pg.click(".view.active .mq-chip[data-go='sports']"); await pg.wait_for_timeout(3000)
         if await pg.evaluate("!!document.querySelector('.game .glink')"):
             _, s = await tap_and_read(pg, "document.querySelector('.game .glink')", "gamecast")
             check(s["open"] and "Game" in s["kind"] and " at " in s["title"], f"Gamecast → in-app game card ({s['title']})"); await close_sheet(pg)
@@ -158,7 +158,7 @@ async def main():
             _, s = await tap_and_read(pg, "document.querySelector('#food-crew-list a[href*=instagram]')", "instagram")
             check(s["open"] and "Profile" in s["kind"] and "Instagram" in s["title"] and s["orig"] and "instagram.com" in s["orig"]["href"],
                   f"creator Instagram → in-app profile card ({s['title']})"); await close_sheet(pg)
-        await pg.click("#tabs .tab[data-view=events]"); await pg.wait_for_timeout(4000)
+        await pg.click("#tabs [data-view='chisme']"); await pg.click(".view.active .mq-chip[data-go='events']"); await pg.wait_for_timeout(4000)
         if await pg.evaluate("!!document.querySelector('.ev h3 a')"):
             _, s = await tap_and_read(pg, "document.querySelector('.ev h3 a')", "event")
             check(s["open"] and s["orig"], f"event page → reader ({s['kind']}, {s['by'][:50]})"); await close_sheet(pg)

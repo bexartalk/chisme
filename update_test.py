@@ -131,7 +131,7 @@ async def main():
         rep["8_small_wiggle"] = await page.evaluate("window.__chisme.view")
 
         # 9. events via tab
-        await page.click(".tab[data-view=events]")
+        await page.click("#tabs [data-view='chisme']"); await page.click(".view.active .mq-chip[data-go='events']")
         await page.wait_for_function("() => window.__chisme.eventsReady && document.querySelectorAll('#events-list .ev').length > 0", timeout=120000)
         # wait for background price/venue lookups to land (the page re-polls)
         for _ in range(8):
@@ -143,7 +143,7 @@ async def main():
         await page.wait_for_timeout(1000)
         await page.evaluate("window.scrollTo(0, 0)")
         await page.wait_for_timeout(300)
-        await page.click(".tab[data-view=events]")  # tab on same view = no-op
+        await page.click("#tabs [data-view='chisme']"); await page.click(".view.active .mq-chip[data-go='events']")  # tab on same view = no-op
         await page.evaluate("() => new Promise(r => setTimeout(r, 200))")
         # reload the list so the screenshot shows enriched data
         await page.evaluate("() => { window.__chisme.goView('events'); }")
@@ -197,7 +197,7 @@ async def main():
             banner: document.querySelector('#offline-banner').hidden ? null : document.querySelector('#offline-banner').textContent,
             eventsStamp: document.querySelector('#events-updated').textContent })""")
         await page.screenshot(path=str(OUT / "update-offline.png"))
-        await page.click(".tab[data-view=events]")
+        await page.click("#tabs [data-view='chisme']"); await page.click(".view.active .mq-chip[data-go='events']")
         await page.wait_for_timeout(800)
         await page.screenshot(path=str(OUT / "update-offline-events.png"))
         await ctx.set_offline(False)

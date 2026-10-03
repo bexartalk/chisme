@@ -16,7 +16,7 @@ OUT = os.environ.get("SWEEP_OUT", "/tmp/sweep"); os.makedirs(OUT, exist_ok=True)
 ONLY = os.environ.get("ONLY", "")
 SETUP = "localStorage.setItem('chisme-location-setup','1'); localStorage.setItem('chisme-swiped','1'); localStorage.setItem('chisme-ios-hint-dismissed','1'); if (!localStorage.getItem('chisme-a2hs')) localStorage.setItem('chisme-a2hs', JSON.stringify({done:true})); if (!localStorage.getItem('chisme-settings-tip')) localStorage.setItem('chisme-settings-tip', 'test:0');"
 CSPV = "window.__csp=[];document.addEventListener('securitypolicyviolation',function(e){window.__csp.push(e.violatedDirective+' '+(e.blockedURI||'inline')+' '+(e.sourceFile||'')+':'+(e.lineNumber||'')+' '+(e.sample||'').slice(0,60))});"
-TABS = ["news", "sports", "weather", "antojos", "juegos", "events"]
+TABS = ["chisme", "news", "sports", "events", "weather", "antojos", "juegos"]   # v49.12: Chisme (All · News · Sports · Events) · Weather · ¿Y la dieta? · Juegitos
 G = "__chisme.juegos.game"
 issues = {}
 def note(dev, what):
@@ -72,7 +72,7 @@ async def run(p, b, dev, opts):
     boot = await pg.evaluate("!document.getElementById('boot-fail').hidden")
     if boot: note(dev, "boot-fail card is showing")
     for t in TABS:
-        await pg.evaluate(f"document.querySelector('.tab[data-view={t}]').click()")
+        await pg.evaluate(f"__chisme.goView('{t}')")   # v49.12: News / Sports / Events are chips inside the Chisme tab
         for _ in range(50):
             n = await pg.evaluate(f"[...document.querySelectorAll('#view-{t} .loading')].filter(e => e.getBoundingClientRect().height > 0).length")
             if not n: break
@@ -88,7 +88,7 @@ async def run(p, b, dev, opts):
     hrefs = await pg.evaluate("[...document.querySelectorAll('a.donate-btn')].map(a => a.href)")
     if not hrefs or any(not (h.startswith("https://cash.app/") or h.startswith("https://buymeacoffee.com/")) for h in hrefs): note(dev, f"donate links look wrong: {hrefs[:4]}")
     # a story in the player (the in-app reader)
-    await pg.evaluate("document.querySelector('.tab[data-view=news]').click()"); await pg.wait_for_timeout(800)
+    await pg.evaluate("__chisme.goView('news', { instant: true })"); await pg.wait_for_timeout(800)   # Chisme → News
     card = pg.locator("#view-news a.story, #view-news .story a, #view-news article a").first
     if await card.count():
         try:

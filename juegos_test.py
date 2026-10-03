@@ -175,7 +175,7 @@ async def webkit(p):
     tabs = await pg.evaluate("[...document.querySelectorAll('#tabs .tab')].map(t => t.textContent.trim())")
     fit = await pg.evaluate("(() => { const t = document.querySelector('.tabs-inner'), j = document.querySelector('.tab[data-view=juegos]').getBoundingClientRect(); return t.scrollWidth <= t.clientWidth + 1 && j.right <= innerWidth; })()")
     check([t.split()[-1] for t in tabs] == ["News", "Sports", "Weather", "dieta?", "Juegitos", "Events"] and tabs[4] == "🎲 Juegitos", f"tab bar: News · Sports · Weather · ¿Y la dieta? · 🎲 Juegitos · Events ({tabs})")
-    check(fit, "all 6 tabs fit on an iPhone 13 (no sideways scroll)")
+    check(fit, "all 4 tabs fit on an iPhone 13 (no sideways scroll)")
     check(await pg.evaluate("__chisme.view") == "juegos" and await pg.evaluate("__chisme.juegos.id") == "loteria", "#loteria opens Juegitos → Chismería")
     games = await pg.evaluate("[...document.querySelectorAll('.game-pick b')].map(b => b.textContent)")
     check(games == ["The Juan That Got Away", "Chismería"], f"a list of games, The Juan That Got Away first (v47) ({games})")

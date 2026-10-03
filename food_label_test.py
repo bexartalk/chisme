@@ -2,7 +2,7 @@
 Chromium (Android-size) + WebKit (iPhone-size), 320 / 360 / 390 / 412 px wide, light and the biggest Text size:
   • the tab, the section header, the Settings choice, the feed's Back button and the swipe pane's label read '¿Y la dieta?'
   • no visible text, aria-label or manifest entry still says 'Cuál dieta'
-  • every tab label fits inside its button (no overflow, at most 2 lines, inside the screen); the 6 tabs stay in 2 rows
+  • every tab label fits inside its button (no overflow, at most 2 lines, inside the screen); the 4 tabs stay in at most 2 rows (one row on phones)
   • the old links #cual-dieta / #antojos still open the food tab, and #y-la-dieta does too"""
 import asyncio, json, os, sys, urllib.request
 from playwright.async_api import async_playwright
@@ -35,7 +35,7 @@ async def main():
                     food = next(t for t in tabs if t["v"] == "antojos")
                     bad = [t for t in tabs if t["over"] or t["out"] or t["lines"] > 2]
                     rows = len({t["top"] for t in tabs})
-                    check(food["text"] == NEW and not bad and rows <= 2, f"{name} {w}px{' text ' + str(fs) + 'px' if fs else ''}: '{food['text']}' fits ({food['lines']} line(s)), all 6 tabs fit in {rows} rows {bad[:2]}")
+                    check(food["text"] == NEW and not bad and rows <= 2, f"{name} {w}px{' text ' + str(fs) + 'px' if fs else ''}: '{food['text']}' fits ({food['lines']} line(s)), all 4 tabs fit in {rows} row(s) {bad[:2]}")
                     if w == 320 and not fs:
                         await pg.screenshot(path=f"/tmp/food-label-{name}-320.png", clip={"x": 0, "y": 0, "width": 320, "height": 200})
                         seen = await pg.evaluate("""() => ({ head: document.querySelector('#antojos-title').textContent.trim(), pane: document.querySelector('#view-antojos').getAttribute('aria-label'),

@@ -36,11 +36,48 @@
       if (fs) d.style.setProperty("--fs", fs + "px");
       if (rm === "1") d.classList.add("reduce-motion");
     })();
+    /* v49.12: the Día de los Muertos season theme. On from 2026-10-03 00:00 to 2026-11-03 23:59:59 Chicago time, then
+       off by itself (both instants are fixed UTC times, so the phone's own time zone doesn't matter). The owner's
+       THEME_OVERRIDE (auto | off | muertos) comes with the page and from /api/theme (app.js); the newer of the two wins.
+       html[data-season="muertos"] restyles the page (style.css); the food tab is "Ofrendas". (The one "Chisme" tab for
+       News, Sports and Events is permanent since v49.12, not part of the theme.) */
+    (function () {
+      var START = Date.UTC(2026, 9, 3, 5), END = Date.UTC(2026, 10, 4, 6);   // 00:00 CDT Oct 3 … 00:00 CST Nov 4 (= 23:59:59 Nov 3)
+      var PAGE = { v: "__THEME_OVERRIDE__", at: +"__THEME_AT__" || 0 }, d = document.documentElement;
+      var NAMES = { antojos: ["¿Y la dieta?", "Ofrendas"] };
+      function override() {
+        var o = PAGE, pin = null;
+        try { var st = JSON.parse(localStorage.getItem("chisme-theme-override") || "null"); if (st && st.at > o.at) o = st; pin = localStorage.getItem("chisme-season-pin"); } catch (e) {}
+        if (pin === "off" || pin === "muertos") return pin;   // tests (and a curious owner) can pin it on this phone
+        return o.v === "off" || o.v === "muertos" ? o.v : "auto";
+      }
+      function want(now) {
+        var m = override(); if (m !== "auto") return m === "muertos" ? "muertos" : "";
+        var t = now == null ? Date.now() : now; return t >= START && t < END ? "muertos" : "";
+      }
+      function names(on) {   // the tab labels + the views' accessible names (whatever is already on the page)
+        Object.keys(NAMES).forEach(function (v) {
+          var n = NAMES[v][on ? 1 : 0], l = document.querySelector('#tabs .tab[data-view="' + v + '"] .tab-l'), sec = document.getElementById("view-" + v);
+          if (l && l.textContent !== n) l.textContent = n;
+          if (sec) sec.setAttribute("aria-label", n);
+        });
+      }
+      function apply(s) {
+        if (s === undefined) s = want();
+        if (s) d.dataset.season = s; else delete d.dataset.season;
+        var x = null; try { x = localStorage.getItem("chisme-muertos-banner-x"); } catch (e) {}
+        d.classList.toggle("muertos-banner-x", !!x);
+        names(s === "muertos"); return s;
+      }
+      window.__chismeSeason = { START: START, END: END, want: want, apply: apply, override: override,
+        get on() { return d.dataset.season === "muertos"; }, names: NAMES };
+      apply();
+    })();
     /* v49.12: which main tab this launch opens, decided before the first paint so the old News default never flashes.
        app.js (launchTab) uses window.__chismeLaunch; html[data-launch] keeps the swipe track invisible and lights the right
        tab until app.js has moved there (a known #hash deep link is resolved by app.js). Same order as app.js launchTab. */
     (function () {
-      var V = ["news", "sports", "weather", "antojos", "juegos", "events"], d = document.documentElement, t = null;
+      var V = ["chisme", "news", "sports", "events", "weather", "antojos", "juegos"], d = document.documentElement, t = null;
       try {
         var back = sessionStorage.getItem("chisme-reload-tab"); sessionStorage.removeItem("chisme-reload-tab");
         var q = new URLSearchParams(location.search), fixed = localStorage.getItem("chisme-default-tab");
@@ -48,12 +85,15 @@
         else if (q.has("story")) t = "news";
         else if (V.indexOf(q.get("tab")) >= 0) t = q.get("tab");
         else if (V.indexOf(fixed) >= 0) t = fixed;
-        else if (!localStorage.getItem("chisme-location-setup")) t = "news";
-        else { var last = localStorage.getItem("chisme-launch-last"), pool = V.filter(function (v) { return v !== last; }); t = pool[Math.floor(Math.random() * pool.length)]; }
+        else if (!localStorage.getItem("chisme-location-setup")) t = "chisme";
+        else {   // only the 4 tabs on show: Chisme (opens on All; News, Sports and Events are inside it), Weather, food, Juegitos
+          var vis = ["chisme", "weather", "antojos", "juegos"];
+          var last = localStorage.getItem("chisme-launch-last"); if (last === "news" || last === "sports" || last === "events") last = "chisme";
+          var pool = vis.filter(function (v) { return v !== last; }); t = pool[Math.floor(Math.random() * pool.length)]; }
       } catch (e) { t = null; }
       if (!t) return;
       window.__chismeLaunch = t;
-      if (location.hash.length > 1 || t !== "news") {
+      if (location.hash.length > 1 || t !== "chisme") {
         d.dataset.launch = location.hash.length > 1 ? "hash" : t;
         setTimeout(function () { delete d.dataset.launch; }, 4000);   // never leave the page invisible if app.js didn't start
       }
@@ -99,14 +139,13 @@
   <!-- Section buttons: position:fixed, always on screen (phones included); body gets matching top padding -->
   <nav id="tabs" class="tabs" aria-label="Sections">
     <div class="wrap tabs-inner">
-      <button type="button" class="tab" data-view="news" aria-controls="view-news" aria-current="page"><span aria-hidden="true">📰</span> News</button>
-      <button type="button" class="tab" data-view="sports" aria-controls="view-sports"><span aria-hidden="true">🏀</span> Sports</button>
+      <button type="button" class="tab" data-view="chisme" aria-controls="view-chisme" aria-current="page"><span aria-hidden="true">📰</span> <span class="tab-l">Chisme</span></button>
       <button type="button" class="tab" data-view="weather" aria-controls="view-weather"><span aria-hidden="true">🌤️</span> Weather</button>
-      <button type="button" class="tab" data-view="antojos" aria-controls="view-antojos"><span aria-hidden="true">🌮</span> <b class="tl">¿Y la dieta?</b></button>
+      <button type="button" class="tab" data-view="antojos" aria-controls="view-antojos"><span aria-hidden="true">🌮</span> <b class="tl tab-l">¿Y la dieta?</b></button>
       <button type="button" class="tab" data-view="juegos" aria-controls="view-juegos"><span aria-hidden="true">🎲</span> Juegitos</button>
-      <button type="button" class="tab" data-view="events" aria-controls="view-events"><span aria-hidden="true">🎉</span> Events</button>
     </div>
   </nav>
+  <script>window.__chismeSeason && window.__chismeSeason.apply();</script>
   <!-- outside the swiping views (they're transformed, which would break position:fixed) -->
   <button type="button" id="news-pill" class="news-pill" hidden>New chisme ↑<span class="sr-only" id="news-pill-n"></span></button>
   <div id="sync" class="sync" role="status" aria-live="polite" data-state="done" hidden>
@@ -148,7 +187,18 @@
       <button type="button" id="install-btn" class="install" hidden>📲 Install</button>
     </div>
     <div class="picado" aria-hidden="true"></div>
+    <div class="mq-picado muertos-only" aria-hidden="true"></div>
   </header>
+  <!-- v49.12: the Día de Muertos greeting (style.css shows it only in season, until ✕; app.js remembers ✕) -->
+  <div id="muertos-banner" class="muertos-banner wrap muertos-only" role="note" aria-label="Día de Muertos greeting">
+    <div class="mb-inner">
+      <img class="mb-skull" src="/static/season/sugar-skull.svg" alt="" width="54" height="59">
+      <div class="mb-text"><p class="mb-t" lang="es">¡Feliz Día de Muertos, San Antonio!</p>
+        <button type="button" id="mb-photos" class="mb-photos"><span aria-hidden="true">📸</span> See the photos</button></div>
+      <span class="mb-candles" aria-hidden="true"><img src="/static/season/candle.svg" alt="" width="20" height="37"><img src="/static/season/candle.svg" alt="" width="16" height="30"></span>
+      <button type="button" id="muertos-banner-x" class="mb-x" aria-label="Dismiss the Día de Muertos greeting">✕</button>
+    </div>
+  </div>
 
 
   <section id="loc-panel" class="loc-panel wrap" hidden aria-labelledby="loc-title">
@@ -212,13 +262,43 @@
 
   <main id="views" class="wrap views">
     <div id="track" class="track">
-      <!-- ============ NEWS (first view on open) ============ -->
-      <section id="view-news" class="view active" aria-label="News" data-view="news">
+      <!-- ============ CHISME: ALL (first view on open; v49.12) ============
+           One "Chisme" tab holds News, Sports and Events. "All" mixes the three (app.js mixFeed: shuffled per launch, never
+           more than 2 of a kind in a row, each list's newest / most relevant first, a tag on every card); the sticky chips
+           (All · News · Sports · Events, also at the top of the other three) drill into one. #news, #sports, #events land there. -->
+      <section id="view-chisme" class="view active" aria-label="Chisme: All" data-view="chisme">
+        <nav class="mq-chips" aria-label="Chisme: show"><button type="button" class="mq-chip" data-go="chisme" aria-current="true"><span aria-hidden="true">✨</span> All</button><button type="button" class="mq-chip" data-go="news"><span aria-hidden="true">📰</span> News</button><button type="button" class="mq-chip" data-go="sports"><span aria-hidden="true">🏀</span> Sports</button><button type="button" class="mq-chip" data-go="events"><span aria-hidden="true">🎉</span> Events</button></nav>
+        <p class="mix-hi" id="mix-hi">News, sports and events, all mixed together. Tap <b>News</b>, <b>Sports</b> or <b>Events</b> up top to see just one.</p>
+        <!-- v49.12 Día de Muertos (in season only): past celebrations in San Antonio and México. Freely licensed Wikimedia
+             Commons photos (static/season/gallery.json, built by tools/make_season_gallery.py), each with its credit line -->
+        <section id="mq-gallery" class="card mq-gallery muertos-only" aria-labelledby="mq-gal-h">
+          <div class="sec-head"><h2 id="mq-gal-h"><span aria-hidden="true">📸</span> Día de Muertos, then and now</h2></div>
+          <p class="mq-gal-sub">Past celebrations in San Antonio and México. Tap a photo to see it big.</p>
+          <div id="mq-gal-strip" class="mq-gal-strip no-swipe" role="list" aria-label="Día de Muertos photos"></div>
+          <p class="hint mq-gal-note">Freely licensed photos from Wikimedia Commons (public domain, CC0, CC BY and CC BY-SA), resized by Chisme. Each one is credited to its photographer.</p>
+        </section>
+        <section id="mix" class="card mix" aria-labelledby="mix-title">
+          <div class="sec-head"><h2 id="mix-title">The latest chisme</h2><span class="stamp" id="mix-updated"></span></div>
+          <div id="mix-list" class="mix-list"><p class="loading">Gathering the chisme…</p></div>
+          <div class="mix-more"><button type="button" id="mix-more" hidden>Show more</button></div>
+          <p class="hint mix-end" id="mix-end" hidden>That's the mix for now. See everything in <button type="button" class="linkish" data-go="news">📰 News</button>, <button type="button" class="linkish" data-go="sports">🏀 Sports</button> or <button type="button" class="linkish" data-go="events">🎉 Events</button>.</p>
+        </section>
+        <aside class="card donate" id="donate-chisme" aria-labelledby="donate-chisme-t">
+          <p class="donate-text" id="donate-chisme-t">The tea ain’t free! Help a chismoso out — donate now!</p>
+          <div class="donate-btns"><a class="donate-btn cashapp" href="https://cash.app/$Slurmkaos" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">💸</span> <span class="ca-lbl"><span class="ca-main">Donate on Cash App</span><span class="ca-dot" aria-hidden="true"> · </span><span class="ca-tag">$Slurmkaos</span></span><span class="sr-only"> (opens Cash App)</span></a><a class="donate-btn bmc" href="https://buymeacoffee.com/Chismoso" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">☕</span> Buy Me a Coffee<span class="sr-only"> (opens Buy Me a Coffee)</span></a><!-- room for one more: <a class="donate-btn venmo"> (add venmo.com to DIRECT_HOSTS in app.js) --></div>
+          <p class="donate-fine">Tips go to the Chisme creator; not a charity, not tax-deductible, unlocks nothing.</p>
+        </aside>
+      </section>
+
+      <!-- ============ NEWS ============ -->
+      <section id="view-news" class="view" aria-label="Chisme: News" data-view="news" inert>
+        <nav class="mq-chips" aria-label="Chisme: show"><button type="button" class="mq-chip" data-go="chisme"><span aria-hidden="true">✨</span> All</button><button type="button" class="mq-chip" data-go="news" aria-current="true"><span aria-hidden="true">📰</span> News</button><button type="button" class="mq-chip" data-go="sports"><span aria-hidden="true">🏀</span> Sports</button><button type="button" class="mq-chip" data-go="events"><span aria-hidden="true">🎉</span> Events</button></nav>
         <div class="greet card slim">
           <p class="greet-hi" id="greet-hi" aria-live="polite">¡Buenos días, chismosos!</p>
           <p class="greet-sub" id="greet-sub">Pull up a chair, grab the tea, here’s the latest chisme.</p>
           <p class="swipe-hint" id="swipe-hint">Swipe <span aria-hidden="true">👈</span> for more · pull to refresh · tap the bubble for settings.</p>
         </div>
+
 
         <section id="near" class="card" aria-labelledby="near-title">
           <div class="sec-head"><h2 id="near-title">Check Your People</h2><span class="stamp" id="news-updated"></span></div>
@@ -250,7 +330,8 @@
       </section>
 
       <!-- ============ SPORTS ============ -->
-      <section id="view-sports" class="view" aria-label="Sports" data-view="sports" inert>
+      <section id="view-sports" class="view" aria-label="Chisme: Sports" data-view="sports" inert>
+        <nav class="mq-chips" aria-label="Chisme: show"><button type="button" class="mq-chip" data-go="chisme"><span aria-hidden="true">✨</span> All</button><button type="button" class="mq-chip" data-go="news"><span aria-hidden="true">📰</span> News</button><button type="button" class="mq-chip" data-go="sports" aria-current="true"><span aria-hidden="true">🏀</span> Sports</button><button type="button" class="mq-chip" data-go="events"><span aria-hidden="true">🎉</span> Events</button></nav>
         <section id="sports" class="card">
           <div id="gameday" class="gameday" role="region" aria-label="Game day" hidden></div>
           <div class="sec-head"><h2>Sports</h2><span class="stamp" id="sports-updated"></span></div>
@@ -395,7 +476,8 @@
       </section>
 
       <!-- ============ EVENTS ============ -->
-      <section id="view-events" class="view" aria-label="Events" data-view="events" inert>
+      <section id="view-events" class="view" aria-label="Chisme: Events" data-view="events" inert>
+        <nav class="mq-chips" aria-label="Chisme: show"><button type="button" class="mq-chip" data-go="chisme"><span aria-hidden="true">✨</span> All</button><button type="button" class="mq-chip" data-go="news"><span aria-hidden="true">📰</span> News</button><button type="button" class="mq-chip" data-go="sports"><span aria-hidden="true">🏀</span> Sports</button><button type="button" class="mq-chip" data-go="events" aria-current="true"><span aria-hidden="true">🎉</span> Events</button></nav>
         <section id="events" class="card">
           <div class="sec-head"><h2 id="events-title">What's happening</h2><span class="stamp" id="events-updated"></span></div>
           <p class="blurb" id="events-intro">¡Órale! Here's what's going on around town.</p>
@@ -449,7 +531,17 @@
     <img src="/static/mascot/avatar-64.webp?art=3" srcset="/static/mascot/avatar-64.webp?art=3 1x, /static/mascot/avatar-128.webp?art=3 2x, /static/mascot/avatar-192.webp?art=3 3x" width="60" height="60" alt="">
     <span class="sr-only">Tía Chismosa: Settings and chat</span>
     <span class="tia-fab-badge" aria-hidden="true">⚙️</span>
+    <span class="tia-flores muertos-only" aria-hidden="true"></span>
   </button>
+  <!-- v49.12 Día de Muertos photo viewer (app.js mqGallery) -->
+  <dialog id="mq-viewer" class="mq-viewer" aria-labelledby="mq-v-cap">
+    <div class="mq-v-in">
+      <button type="button" id="mq-v-x" class="mq-v-x" aria-label="Close the photo">✕</button>
+      <figure class="mq-v-fig"><div class="mq-v-frame"><img id="mq-v-img" alt=""></div>
+        <figcaption><p id="mq-v-cap" class="mq-v-cap"></p><p id="mq-v-credit" class="art-credit"></p></figcaption></figure>
+      <div class="mq-v-nav"><button type="button" id="mq-v-prev" aria-label="Previous photo">‹ Prev</button><span id="mq-v-n" aria-live="polite"></span><button type="button" id="mq-v-next" aria-label="Next photo">Next ›</button></div>
+    </div>
+  </dialog>
   <!-- v49.3: tapping Tía opens her little menu: ⚙️ Settings (notifications, location & more) or 💬 chat with her -->
   <dialog id="tia-menu" class="tia-menu" aria-labelledby="tia-menu-title">
     <div class="tia-menu-in">
@@ -562,12 +654,13 @@
         <legend>Open Chisme to</legend>
         <div class="seg seg4" role="radiogroup" aria-label="Default opening tab">
           <label class="seg-full"><input type="radio" name="deftab" value="random"><span><i class="emo" aria-hidden="true">🔀</i> Surprise me (a different tab each time)</span></label>
-          <label><input type="radio" name="deftab" value="news"><span><i class="emo" aria-hidden="true">📰</i> News</span></label>
-          <label><input type="radio" name="deftab" value="sports"><span><i class="emo" aria-hidden="true">🏀</i> Sports</span></label>
+          <label><input type="radio" name="deftab" value="chisme"><span><i class="emo" aria-hidden="true">✨</i> Chisme: All</span></label>
+          <label><input type="radio" name="deftab" value="news"><span><i class="emo" aria-hidden="true">📰</i> Chisme: News</span></label>
+          <label><input type="radio" name="deftab" value="sports"><span><i class="emo" aria-hidden="true">🏀</i> Chisme: Sports</span></label>
+          <label><input type="radio" name="deftab" value="events"><span><i class="emo" aria-hidden="true">🎉</i> Chisme: Events</span></label>
           <label><input type="radio" name="deftab" value="weather"><span><i class="emo" aria-hidden="true">🌤️</i> Weather</span></label>
           <label><input type="radio" name="deftab" value="antojos"><span><i class="emo" aria-hidden="true">🌮</i> ¿Y la dieta?</span></label>
           <label><input type="radio" name="deftab" value="juegos"><span><i class="emo" aria-hidden="true">🎲</i> Juegitos</span></label>
-          <label><input type="radio" name="deftab" value="events"><span><i class="emo" aria-hidden="true">🎉</i> Events</span></label>
         </div>
       </fieldset>
       <fieldset class="set-group set-alerts" id="set-alerts">

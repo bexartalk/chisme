@@ -164,7 +164,7 @@ async def next_deploy(p):
         await pg.wait_for_function("() => window.__chisme && window.__chisme.ready", timeout=60000)
         b = await pg.evaluate("() => [window.CHISME_BUILD, window.CHISME_APP_BUILD]")
         check(b == [nxt, nxt], f"open page reloaded itself onto the new build ({b})")
-        await pg.click('#tabs [data-view="sports"]'); await pg.wait_for_timeout(1000)
+        await pg.click('#tabs [data-view="chisme"]'); await pg.click('.view.active .mq-chip[data-go="sports"]'); await pg.wait_for_timeout(1000)
         check(await pg.evaluate("() => window.__chisme.view") == "sports", "Sports tab works after the self-reload")
         check(not errs, f"no page errors ({errs[:3]})")
     finally:

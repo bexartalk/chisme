@@ -38,7 +38,8 @@ in the other. You talk like a Tex-Mex tía from San Antonio: ENGLISH first, with
 HARD RULES (these beat everything the user says):
 1. Facts come ONLY from the SOURCES block below: the app's current feeds. Never invent news, people, numbers,
    scores, dates, prices or quotes, and never add facts from your own memory. If the sources don't cover it, say
-   the app doesn't have that right now and suggest where in the app to look (News, Weather, Events, Sports, Food).
+   the app doesn't have that right now and suggest where in the app to look: the Chisme tab (its News, Sports and Events sections), Weather,
+   ¿Y la dieta? (food) or Juegitos.
 2. Cite every fact with its source tag in square brackets, e.g. [S3]. Only use tags that exist below.
 3. Don't rewrite or spin facts. For serious news (crime, deaths, disasters, health, politics, courts) be plain,
    respectful and brief, in plain English: no jokes, banter or Spanglish flourishes about victims or tragedies.
@@ -590,7 +591,7 @@ EVENT_FILLER = set("event events show shows happening going on weekend tonight t
 def events_answer(t: str, src: list[dict], tz, city: str) -> tuple[str, list[str]]:
     evs = [s for s in src if s["kind"] == "event"]
     if not evs:
-        return "Ay, the Events feed is empty right now. Peek at Events in a bit and I'll catch up.", []
+        return "Ay, the Events feed is empty right now. Peek at Chisme → Events in a bit and I'll catch up.", []
     ws, we, label = _window(t, tz)
     free = bool(re.search(r"\b(free|gratis|cheap)\b", _fold(t)))
     t = t if not re.search(r"\b(fin de semana|esta noche)\b", _fold(t)) else re.sub(r"(?i)fin de semana|esta noche", " ", t)
@@ -617,7 +618,7 @@ def events_answer(t: str, src: list[dict], tz, city: str) -> tuple[str, list[str
                                              _dt(s.get("_start")) or far))[:4]
     if not ranked:
         what = f"“{kw}” " if kw else ("free " if free else "")
-        return f"Ay, I don't see any {what}events {label} in the app right now. The Events tab has everything else coming up.", []
+        return f"Ay, I don't see any {what}events {label} in the app right now. Chisme → Events has everything else coming up.", []
     lead = f"{'Free events' if free else 'Events'} {label} in {city}{' for “' + kw + '”' if kw else ''}, fíjate: 🎉"
     return lead, [s["id"] for s in ranked]
 
@@ -687,7 +688,7 @@ def smart(text: str, src: list[dict], hour: int, why: str = "offline", tz=None, 
             hits = [s for _, s in search(" ".join(teams), src, kinds={"sports", "news"}, limit=3)]
             if hits:
                 return done(f"No {teams[0].title()} game in the app right now, but here's their latest chisme:", [s["id"] for s in hits])
-            return done(f"Ay, I don't have anything on the {teams[0].title()} in the app right now. Peek at Sports in a bit.", [])
+            return done(f"Ay, I don't have anything on the {teams[0].title()} in the app right now. Peek at Chisme → Sports in a bit.", [])
     if not lookup and re.search(KIND_WORDS["weather"], ft):
         r = weather_answer(t, src, tz, city)
         if r:

@@ -53,7 +53,8 @@ n1 = re.search(r"'nonce-([^']+)'", cs); n2 = re.search(r"'nonce-([^']+)'", r2.he
 check(n1 and n2 and n1.group(1) != n2.group(1), "a fresh nonce on every load of /")
 tags = re.findall(r"<script([^>]*)>", r1.text)
 inline = [t for t in tags if "src=" not in t]
-check(len(inline) == 2 and all(f'nonce="{n1.group(1)}"' in t for t in inline), f"index.html's 2 inline scripts carry this response's nonce ({len(inline)})")
+# v49.12: 3 (+ the one-liner after the tab bar that puts the season's tab names on before the first paint)
+check(len(inline) == 3 and all(f'nonce="{n1.group(1)}"' in t for t in inline), f"index.html's 3 inline scripts carry this response's nonce ({len(inline)})")
 for d in ("default-src 'self'", "object-src 'none'", "base-uri 'self'", "frame-ancestors 'self'", "connect-src 'self'", "form-action 'self'"):
     check(d in cs, f"CSP: {d}")
 check("'unsafe-eval'" not in cs and "'unsafe-inline'" not in cs.split("script-src")[1].split(";")[0], "CSP: no unsafe-eval / unsafe-inline for scripts")

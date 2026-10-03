@@ -94,7 +94,7 @@ async def main():
         await game.click("#juan-ov [data-act=resume]") if await game.locator("#juan-ov [data-act=resume]").count() else None
         await game.wait_for_timeout(1500)
         check(await game.evaluate("window.__same") == 1, f"…still running ({await game.evaluate(G + '.state.mode')}): still no reload")
-        await game.evaluate("document.querySelector('.tab[data-view=news]').click()")   # (full screen hides the tabs; the app's own tab switch)
+        await game.evaluate("document.querySelector('.tab[data-view=chisme]').click()")   # (full screen hides the tabs; the app's own tab switch)
         await game.wait_for_function("window.__same === undefined && window.__chismeRefresh && __chismeRefresh.base !== null", timeout=20000)
         check(await game.evaluate("__chismeRefresh.base") == t1, "left the game (News tab) → it refreshed")
         check(not e1 and not e2, f"no page errors {e1[:1]} {e2[:1]}")

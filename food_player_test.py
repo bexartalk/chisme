@@ -30,17 +30,17 @@ async def wk(p):
     await pg.goto(URL)
     await pg.wait_for_function("() => window.__chisme && window.__chisme.ready", timeout=90000)
     tabs = await pg.evaluate("[...document.querySelectorAll('#tabs .tab')].map(t => t.textContent.trim().replace(/^\\S+\\s/, ''))")
-    check(tabs == ["News", "Sports", "Weather", "¿Y la dieta?", "Juegitos", "Events"], f"nav is News · Sports · Weather · ¿Y la dieta? · Juegitos · Events ({tabs})")
+    check(tabs == ["Chisme", "Weather", "¿Y la dieta?", "Juegitos"], f"nav is Chisme · Weather · ¿Y la dieta? · Juegitos ({tabs})")   # v49.12: one Chisme tab
     panes = await pg.evaluate("[...document.querySelectorAll('#track > .view')].map(v => v.dataset.view)")
-    check(panes == ["news", "sports", "weather", "antojos", "juegos", "events"], f"swipe panes in the same order ({panes})")
+    check(panes == ["chisme", "news", "sports", "events", "weather", "antojos", "juegos"], f"swipe panes: All · News · Sports · Events, then the other tabs ({panes})")
     opts = await pg.evaluate("[...document.querySelectorAll('#settings input[name=deftab]')].map(i => i.value).filter(v => v !== 'random')")
-    check(opts == ["news", "sports", "weather", "antojos", "juegos", "events"], f"Settings 'Open Chisme to' in the same order ({opts})")
+    check(opts == ["chisme", "news", "sports", "events", "weather", "antojos", "juegos"], f"Settings 'Open Chisme to' in the same order ({opts})")
     check(await pg.evaluate("document.querySelector('#antojos-title').textContent.trim()") == "🌮 ¿Y la dieta?", "section title is 🌮 ¿Y la dieta?")
     check(await pg.evaluate("document.querySelector('#settings input[name=deftab][value=antojos]').parentElement.textContent.trim()") == "🌮 ¿Y la dieta?", "Settings option reads 🌮 ¿Y la dieta?")
     check(await pg.evaluate("document.querySelector('#tabs [data-view=antojos] span').textContent") == "🌮", "¿Y la dieta? keeps the 🌮 icon")
     check(await pg.evaluate("!document.querySelector('#ev-chips [data-cat=food]') && !document.querySelector('#view-events #food-block')"), "no Food chip / food block left in Events")
     fit = await pg.evaluate("(() => { const i = document.querySelector('.tabs-inner'); return i.scrollWidth <= i.clientWidth && [...i.children].every(t => t.getBoundingClientRect().right <= innerWidth); })()")
-    check(fit, "6 tabs fit at 390 px")
+    check(fit, "the 4 tabs fit at 390 px")
     await pg.tap('#tabs [data-view="antojos"]')
     await pg.wait_for_function("() => window.__chisme.view === 'antojos' && window.__chisme.foodReady && document.querySelectorAll('#food-creators .fr').length > 2", timeout=60000)
     check("Diet? Not today." in (await pg.text_content("#antojos-intro")), "witty intro line")
@@ -116,7 +116,7 @@ async def wk(p):
     await pg.screenshot(path=os.path.join(OUT, "food-video-saved.png"))
     await pg.tap("#player-close")
     # Sports YouTube clips play in the same sheet (no Save button there)
-    await pg.tap('#tabs [data-view="sports"]')
+    await pg.tap('#tabs [data-view="chisme"]'); await pg.tap('.view.active .mq-chip[data-go="sports"]')
     try:
         await pg.wait_for_function("[...document.querySelectorAll('#view-sports a[aria-haspopup=dialog]')].some(a => /youtube\\.com\\/(watch|shorts)|youtu\\.be\\//.test(a.href))", timeout=30000)
         await pg.evaluate("[...document.querySelectorAll('#view-sports a[aria-haspopup=dialog]')].find(a => /youtube\\.com\\/(watch|shorts)|youtu\\.be\\//.test(a.href)).click()")   # every outside link opens a sheet now; pick a clip
@@ -154,7 +154,7 @@ async def wk(p):
     check(not errs, f"no console/page errors ({errs[:3]})")
     if third: print(f"   note: {len(third)} error(s) from framed sites' own scripts (news site / TikTok player), e.g. {third[0][:90]!r}")
     await ctx.close()
-    # 320 px, largest text: the 6 tabs still fit
+    # 320 px, largest text: the 4 tabs still fit
     for w, font in ((320, 30), (320, None), (390, 30), (390, None)):
         dev2 = dict(dev); dev2["viewport"] = {"width": w, "height": 740}; dev2["screen"] = {"width": w, "height": 740}
         ctx = await b.new_context(**dev2)
@@ -168,7 +168,7 @@ async def wk(p):
         m = await pg.evaluate("""(() => { const i = document.querySelector('.tabs-inner'), t = [...i.children];
             return { fits: i.scrollWidth <= i.clientWidth + 1 && t.every(x => x.getBoundingClientRect().right <= innerWidth + 0.5 && x.scrollWidth <= x.clientWidth + 1),
                      font: getComputedStyle(t[0]).fontSize, lines: (() => { const l = i.querySelector('[data-view=antojos] .tl'); return Math.round(l.getBoundingClientRect().height / parseFloat(getComputedStyle(l).lineHeight)); })(), rootFont: getComputedStyle(document.documentElement).fontSize, widths: t.map(x => Math.round(x.getBoundingClientRect().width)) }; })()""")
-        check(m["fits"] and m["lines"] <= 2, f"{w} px, text {font or 'default'}: 6 tabs fit, no clipping, label ≤ 2 lines ({m})")
+        check(m["fits"] and m["lines"] <= 2, f"{w} px, text {font or 'default'}: the 4 tabs fit, no clipping, label ≤ 2 lines ({m})")
         if w == 320 and font == 30:
             await settle(pg)
             await pg.screenshot(path=os.path.join(OUT, "nav-320.png"), clip={"x": 0, "y": 0, "width": 320, "height": 200})
@@ -201,7 +201,7 @@ async def chrome(p):
     await pg.evaluate("window.__chisme.goView('sports', { instant: true })"); await pg.wait_for_timeout(600)
     sy = await pg.evaluate("(() => { const r = document.querySelector('#sports h2').getBoundingClientRect(); return r.top + r.height / 2; })()")
     await swipe(cdp, 330, 50, sy); await pg.wait_for_timeout(900)
-    check(await pg.evaluate("window.__chisme.view") == "weather", "swipe left from Sports lands on Weather")
+    check(await pg.evaluate("window.__chisme.view") == "events", "swipe left from Sports lands on Events (v49.12: All · News · Sports · Events, then Weather)")
     await pg.evaluate("window.__chisme.goView('antojos', { instant: true })"); await pg.wait_for_timeout(600)
     await pg.wait_for_function("() => window.__chisme.foodReady && document.querySelectorAll('#food-creators .fr').length", timeout=60000)
     iy = await pg.evaluate("(() => { const r = document.querySelector('#antojos .sec-head').getBoundingClientRect(); return r.top + r.height / 2; })()")

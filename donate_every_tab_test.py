@@ -4,7 +4,7 @@ from static/donatelines.js (never one of the last 5). Not a pop-up, never added 
 list re-renders, ✕ hides it for the session. Node (the line picker) + WebKit, iPhone 13.
 v34: never next to a serious story (crime, death, crashes, fires, missing, urgent, NWS): the nearest slot with two light
 neighbors, else the end of the tab just above the bottom donate card.
-Screenshots: donate-every-tab.png (the bottom of all 6 tabs), donate-midfeed.png (News, mid-list card),
+Screenshots: donate-every-tab.png (the bottom of every tab and Chisme section), donate-midfeed.png (News, mid-list card),
 donate-lines.png (4 opens, 4 different lines)."""
 from popup_quiet import QUIET   # v49: the notifications card + Settings tip have their own tests
 import asyncio, io, json, os, re, subprocess
@@ -59,7 +59,7 @@ def unit():
     check(o["slots"] == [4, 3, 6, 0, 0, 0, 1], f"slot(): nearest slot with two light neighbors, else the end ({o['slots']})")
     return json.loads(subprocess.run(["node", "-e", "console.log(JSON.stringify(require(process.argv[1]).LINES))", os.path.join(HERE, "static", "donatelines.js")], capture_output=True, text=True).stdout)
 LINES = []
-TABS = ["news", "sports", "weather", "antojos", "juegos", "events"]
+TABS = ["chisme", "news", "sports", "events", "weather", "antojos", "juegos"]   # v49.12: Chisme (All · News · Sports · Events) · Weather · ¿Y la dieta? · Juegitos
 fails = 0
 def check(ok, what):
     global fails
@@ -106,7 +106,7 @@ async def main():
         b = await p.webkit.launch(); dev = dict(p.devices["iPhone 13"]); dev.pop("default_browser_type", None)
         ctx = await b.new_context(**dev); await ctx.add_init_script(QUIET + INIT)
         pg = await ctx.new_page(); errs = []
-        pg.on("pageerror", lambda e: errs.append(str(e)[:160]))
+        pg.on("pageerror", lambda e: None if "access control checks" in str(e) else errs.append(str(e)[:160]))
         await pg.goto(BASE + "/"); await ready(pg)
         print("== the donate card at the bottom of every tab")
         tiles = []
@@ -126,7 +126,7 @@ async def main():
         cards = await pg.evaluate(BTNS)
         ids = sorted(c["id"] for c in cards)
         want = [["cashapp", "https://cash.app/$Slurmkaos", "_blank", "noopener noreferrer", "💸 Donate on Cash App · $Slurmkaos"], ["bmc", "https://buymeacoffee.com/Chismoso", "_blank", "noopener noreferrer", "☕ Buy Me a Coffee"]]
-        check(len(cards) == 7 and all(c["btns"] == want for c in cards), f"every donate card (6 tabs + Settings: {ids}) has 💸 Cash App then ☕ Buy Me a Coffee → buymeacoffee.com/Chismoso")
+        check(len(cards) == 8 and all(c["btns"] == want for c in cards), f"every donate card (Chisme: All / News / Sports / Events, Weather, ¿Y la dieta?, Juegitos + Settings: {ids}) has 💸 Cash App then ☕ Buy Me a Coffee → buymeacoffee.com/Chismoso")
         check(all(c["bg"] == "rgb(255, 130, 0)" and c["fg"] == "rgb(0, 0, 0)" for c in cards), f"BMC button: Fiesta orange with black text, not BMC yellow ({cards[0]['bg']} / {cards[0]['fg']})")
         # the in-app reader leaves both alone (they open outside Chisme); a story link is still caught
         res = await pg.evaluate("""() => { const out = {}; const rec = (e) => { out[e.target.closest('a').getAttribute('href')] = e.defaultPrevented; e.preventDefault(); };
@@ -158,17 +158,17 @@ async def main():
         W, H = tiles[0].size; s = 0.34; tw, th = int(W * s), int(H * s)
         try: FONT = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 28)
         except OSError: FONT = ImageFont.load_default()
-        grid = Image.new("RGB", (tw * 3 + 40, (th + 60) * 2 + 20), "white"); dr = ImageDraw.Draw(grid)
+        grid = Image.new("RGB", (tw * 3 + 40, (th + 60) * ((len(tiles) + 2) // 3) + 20), "white"); dr = ImageDraw.Draw(grid)
         for i, (v, im) in enumerate(zip(TABS, tiles)):
             x, y = 10 + (i % 3) * (tw + 10), 10 + (i // 3) * (th + 60)
             grid.paste(im.resize((tw, th)), (x, y + 44)); dr.rectangle([x - 1, y + 43, x + tw, y + 44 + th], outline="black", width=2)
-            dr.text((x + 6, y + 8), ["News", "Sports", "Weather", "¿Y la dieta?", "Juegitos", "Events"][i], fill="black", font=FONT)
+            dr.text((x + 6, y + 8), ["Chisme: All", "Chisme: News", "Chisme: Sports", "Chisme: Events", "Weather", "¿Y la dieta?", "Juegitos"][i], fill="black", font=FONT)
         grid.save(os.path.join(OUT, "donate-every-tab.png"))
 
         await ctx.close()
         print("\n== the mid-list card: every 5th open, a different line each time")
         ctx = await b.new_context(**dev); await ctx.add_init_script(QUIET + INIT); await ctx.add_init_script(OPENS_INIT)
-        pg = await ctx.new_page(); pg.on("pageerror", lambda e: errs.append(str(e)[:160]))
+        pg = await ctx.new_page(); pg.on("pageerror", lambda e: None if "access control checks" in str(e) else errs.append(str(e)[:160]))
         seen = []
         for n in range(1, 5):
             await (pg.goto(BASE + "/") if n == 1 else pg.reload()); await ready(pg)
@@ -206,7 +206,7 @@ async def main():
         check((await pg.evaluate(MIDINFO))["n"] == 0 and (await pg.evaluate("__chisme.donateMid"))["opens"] == 6, "open 6: no card")
         # later 5th opens (new sessions): 10, 15, 20 → a different line each time
         for n in (10, 15, 20):
-            p2 = await ctx.new_page(); p2.on("pageerror", lambda e: errs.append(str(e)[:160]))
+            p2 = await ctx.new_page(); p2.on("pageerror", lambda e: None if "access control checks" in str(e) else errs.append(str(e)[:160]))
             await p2.goto(BASE + f"/?t_opens={n - 1}"); await ready(p2)
             dm = await p2.evaluate("__chisme.donateMid"); m = await p2.evaluate(MIDINFO)
             check(dm["opens"] == n and m["n"] == 1 and m["text"] == dm["line"] and dm["line"] not in lines, f"open {n}: the card again, with a new line ({dm['line']!r})")
@@ -228,7 +228,7 @@ async def main():
                                                 ((), True, 0, "every story serious → the end, just above the bottom donate card")]:
             c2 = await b.new_context(**dev, service_workers="block"); await c2.add_init_script(QUIET + INIT); await c2.add_init_script(OPENS_INIT)
             await news_route(c2, near_titles(heavy_at, all_heavy))
-            p2 = await c2.new_page(); p2.on("pageerror", lambda e: errs.append(str(e)[:160]))
+            p2 = await c2.new_page(); p2.on("pageerror", lambda e: None if "access control checks" in str(e) else errs.append(str(e)[:160]))
             await p2.goto(BASE + "/?t_opens=4"); await ready(p2)
             m = await p2.evaluate(MIDINFO); nb = await p2.evaluate(NEIGH); dm = await p2.evaluate("__chisme.donateMid")
             if want:
@@ -245,7 +245,7 @@ async def main():
 
         # a 5th open that starts on Events → the card goes in the Events list
         ctx = await b.new_context(**dev); await ctx.add_init_script(QUIET + INIT); await ctx.add_init_script(OPENS_INIT); await ctx.add_init_script("localStorage.setItem('chisme-default-tab', 'events')")
-        pg = await ctx.new_page(); pg.on("pageerror", lambda e: errs.append(str(e)[:160]))
+        pg = await ctx.new_page(); pg.on("pageerror", lambda e: None if "access control checks" in str(e) else errs.append(str(e)[:160]))
         await pg.goto(BASE + "/?t_opens=4"); await ready(pg, "#events-list .ev")
         m = await pg.evaluate(MIDINFO)
         check(m["n"] == 1 and m["view"] == "events" and m["list"] == "events-list", f"a 5th open on Events: the card is in the Events list ({m.get('view')}, {m.get('before')} items before it)")
@@ -253,7 +253,7 @@ async def main():
         check(await pg.evaluate("!document.querySelector('#view-news #donate-mid')"), "…and not in News after switching")
         await ctx.close()
         # a 5th open on Weather (#weather) → between the radar and the forecast
-        ctx = await b.new_context(**dev); await ctx.add_init_script(QUIET + INIT); await ctx.add_init_script(OPENS_INIT); pg = await ctx.new_page(); pg.on("pageerror", lambda e: errs.append(str(e)[:160]))
+        ctx = await b.new_context(**dev); await ctx.add_init_script(QUIET + INIT); await ctx.add_init_script(OPENS_INIT); pg = await ctx.new_page(); pg.on("pageerror", lambda e: None if "access control checks" in str(e) else errs.append(str(e)[:160]))
         await pg.goto(BASE + "/?t_opens=4#weather"); await ready(pg)
         where = await pg.evaluate("(() => { const c = document.getElementById('donate-mid'); return c && [c.previousElementSibling.id, c.nextElementSibling.id]; })()")
         check(where == ["radar-sec", "forecast-sec"], f"a 5th open on Weather: between the radar and the 7-day forecast ({where})")

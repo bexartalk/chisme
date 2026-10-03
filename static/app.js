@@ -765,6 +765,7 @@ window.CHISME_APP_BUILD = "49.12";
   function midSpot(tab) {
     const kids = (box, sel) => box ? [...box.children].filter((n) => n !== midCard && n.matches(sel)) : [];
     const at = (n) => (n ? [n, "after"] : null);
+    if (tab === "chisme") return midInList(tab, kids($("#mix-list"), ".mix-item"));
     if (tab === "news") return midInList(tab, kids($("#near-list"), ".story"));
     if (tab === "sports") return midInList(tab, kids($("#sports-body"), ":not(.loading):not(.error)"));
     if (tab === "events") return midInList(tab, kids($("#events-list"), ":not(.ev-day):not(.loading):not(.error):not(.donate-every)"));
@@ -1002,6 +1003,7 @@ window.CHISME_APP_BUILD = "49.12";
   $("#news-pill").onclick = showHeldNews;
   function renderNews(n, saved) {
     lastNewsData = n; lastNewsSaved = saved;
+    mixSoon();
     {
       const p = n.place || {};
       const names = (p.nearby || []).slice(0, 5).map((x) => x.name);
@@ -2249,6 +2251,7 @@ window.CHISME_APP_BUILD = "49.12";
       evData = n;
       evIntro = $("#events-intro").textContent;
       renderEventList();
+      mixSoon();
       $("#events-updated").textContent = stampFor(saved, n);
       $("#event-sources").replaceChildren(...(n.sources || []).map((f) => el("li", { class: f.ok ? "" : "bad" },
         ext(f.url, f.name), f.ok ? `: ${f.count} listings` : `: unavailable (${f.error})`)));
@@ -2556,14 +2559,91 @@ window.CHISME_APP_BUILD = "49.12";
       if (!saved) rendered.sports = true;
       renderSports();
       $("#sports-updated").textContent = stampFor(saved, d);
+      mixSoon();
       $("#sports-sources").replaceChildren(...(d.sources || []).map((f) => el("li", { class: f.ok ? "" : "bad" },
         ext(f.home, f.name), f.ok ? (f.count != null ? `: ${f.count} items` : ": ok") : `: unavailable right now (${f.error})`)));
     },
   });
   const loadSports = () => load("sports");
 
-  // ---------- views: News | Sports | Weather | ¿Y la dieta? | Juegitos | Events (tap the fixed buttons, swipe sideways or ←/→ on the tabs)
-  const VIEWS = ["news", "sports", "weather", "antojos", "juegos", "events"];
+  // ---------- v49.12 Chisme → All: News, Sports and Events mixed in one list. Each list keeps its own order (News as the
+  // News chip ranks it, sports stories newest first, events soonest first), so the newest / most relevant stay near the
+  // top; which kind comes next is shuffled (weighted 3 news : 2 sports : 2 events, seeded once per launch so a refresh
+  // doesn't reshuffle what you're reading), never 3 of a kind in a row. When only one kind is left the mix stops and
+  // points to that chip. Each card is the same card its chip shows, with a small 📰 / 🏀 / 🎉 tag on top.
+  const MIX_W = { news: 3, sports: 2, events: 2 }, MIX_FIRST = 24, MIX_STEP = 12, MIX_MAX = 60;
+  const MIX_TAG = { news: ["📰", "News"], sports: ["🏀", "Sports"], events: ["🎉", "Events"] };
+  let mixSeed = 0;
+  try { mixSeed = +sessionStorage.getItem("chisme-mix-seed") || 0; if (!mixSeed) { mixSeed = 1 + Math.floor(Math.random() * 2 ** 31); sessionStorage.setItem("chisme-mix-seed", String(mixSeed)); } }
+  catch (e) { mixSeed = 1 + Math.floor(Math.random() * 2 ** 31); }
+  function mulberry(a) { return () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+  // lists: { news: [...], sports: [...], events: [...] } → [{ cat, item }], at most 2 of a cat in a row
+  function mixFeed(lists, rnd, max = MIX_MAX) {
+    const at = { news: 0, sports: 0, events: 0 }, out = [];
+    while (out.length < max) {
+      const n = out.length, run = n >= 2 && out[n - 1].cat === out[n - 2].cat ? out[n - 1].cat : null;
+      const pool = Object.keys(at).filter((k) => at[k] < (lists[k] || []).length && k !== run);
+      if (!pool.length) break;   // only one kind left and it just had 2 in a row: the mix ends here
+      let r = rnd() * pool.reduce((t, k) => t + MIX_W[k], 0), cat = pool[pool.length - 1];
+      for (const k of pool) { r -= MIX_W[k]; if (r < 0) { cat = k; break; } }
+      out.push({ cat, item: lists[cat][at[cat]++] });
+    }
+    return out;
+  }
+  function mixLists() {
+    const n = lastNewsData, seen = new Set();
+    const uniq = (arr) => arr.filter((i) => i && i.link && !seen.has(i.link) && seen.add(i.link));
+    const news = n ? uniq([...ordered(n.near), ...ordered(n.more), ...ordered(n.metro_other || n.san_antonio || [])]) : [];
+    const d = spData, sp = [];
+    if (d) {
+      const add = (o) => { if (o && Array.isArray(o.news)) sp.push(...o.news); };
+      add(d.nba && d.nba.spurs); add(d.nfl && d.nfl.cowboys); add(d.nba); add(d.nfl); add(d.mlb); add(d.missions);
+    }
+    const sports = uniq(sp).sort((a, b) => (b.published || 0) - (a.published || 0));
+    const now = Date.now();
+    const events = ((evData && evData.events) || []).filter((e) => e && e.title && !(Date.parse(e.end || e.start) < now - 6 * 3600e3));
+    return { news, sports, events };
+  }
+  let mixPending = false, mixShown = MIX_FIRST, mixKey = "";
+  function mixCard({ cat, item }) {
+    const card = cat === "news" ? story(item, false) : cat === "sports" ? spNews(item) : eventCard(item);
+    const [emo, name] = MIX_TAG[cat];
+    return el("div", { class: "mix-item mix-" + cat, "data-cat": cat },
+      el("span", { class: "mix-tag" }, el("span", { "aria-hidden": "true", text: emo + " " }), name), card);
+  }
+  function mixRender() {
+    const box = $("#mix-list"); if (!box) return;
+    // reading the mix right now (scrolled into it)? don't re-shuffle under your thumb: wait until you come back
+    if (VIEWS[cur] === "chisme" && box.children.length > 3 && !box.querySelector(".loading") && window.scrollY > viewsTop() + 120) { mixPending = true; return; }
+    mixPending = false;
+    const L = mixLists(), all = mixFeed(L, mulberry(mixSeed)), list = all.slice(0, mixShown);
+    const key = list.map((x) => x.cat + (x.item.link || x.item.url || x.item.title)).join("|");
+    if (!list.length) {
+      if (!box.querySelector(".loading")) box.replaceChildren(el("p", { class: "loading", text: `Gathering the chisme near ${greetCity()}…` }));
+      return;
+    }
+    if (key !== mixKey) { mixKey = key; box.replaceChildren(...list.map(mixCard)); }
+    $("#mix-more").hidden = all.length <= mixShown;
+    $("#mix-end").hidden = all.length > mixShown;
+    const st = [secs.news, secs.sports, secs.events].map((x) => x && x.okAt).filter(Boolean);
+    $("#mix-updated").textContent = st.length ? "Updated " + clock(new Date(Math.max(...st))) : "";
+    placeMid();
+  }
+  let mixT = null;
+  const mixSoon = () => { clearTimeout(mixT); mixT = setTimeout(mixRender, 60); };
+  $("#mix-more").onclick = () => { mixShown = Math.min(MIX_MAX, mixShown + MIX_STEP); const y = window.scrollY; mixKey = ""; mixRender(); window.scrollTo({ top: y, behavior: "instant" }); };
+
+  // ---------- views: Chisme (All | News | Sports | Events) | Weather | ¿Y la dieta? | Juegitos (tap the fixed buttons, swipe sideways or ←/→ on the tabs)
+  // v49.12: News, Sports and Events are one "Chisme" tab (fewer tabs for new users). It opens on "All", a mix of the three
+  // (mixFeed below); the sticky chips at the top (✨ All · 📰 News · 🏀 Sports · 🎉 Events) drill into one, and the views are
+  // laid out in that order so swiping walks All → News → Sports → Events → Weather → ¿Y la dieta? → Juegitos. The Chisme tab
+  // goes back to the chip you last picked (this session; a new launch starts on All). #news, #sports, #events, ?tab=sports …
+  // still land on their chip.
+  const VIEWS = ["chisme", "news", "sports", "events", "weather", "antojos", "juegos"];
+  const CHISME_GROUP = ["chisme", "news", "sports", "events"], TABS_SHOWN = ["chisme", "weather", "antojos", "juegos"];
+  const CHIP_KEY = "chisme-chip";   // sessionStorage: the Chisme chip picked last, this session only
+  const chipLast = () => { try { const c = sessionStorage.getItem(CHIP_KEY); return CHISME_GROUP.includes(c) ? c : "chisme"; } catch (e) { return "chisme"; } };
+  const seasonOn = () => !!(window.__chismeSeason && window.__chismeSeason.on);
   // 🎲 Juegos: mounted the first time the tab opens (static/juegos.js lists the games; juan.js adds game 2, The Juan That Got Away).
   let juegos = null;
   function juegosOpen(game) {
@@ -2580,6 +2660,7 @@ window.CHISME_APP_BUILD = "49.12";
   const GAP = 24;
   const track = $("#track"), viewsEl = $("#views"), tabsEl = $("#tabs");
   const panes = VIEWS.map((v) => $("#view-" + v));
+  panes.forEach((p) => track.appendChild(p));   // DOM order = swipe order
   let cur = 0;
   const savedY = {};
   const tabsH = () => tabsEl.offsetHeight;
@@ -2590,7 +2671,7 @@ window.CHISME_APP_BUILD = "49.12";
   const pos = (i, dx = 0) => { track.style.transform = `translateX(calc(${-i} * (100% + ${GAP}px) + ${dx}px))`; };
   function updateTabs(scrollId) {
     for (const t of document.querySelectorAll(".tab")) {
-      const on = t.dataset.view === VIEWS[cur] && !t.dataset.scroll;
+      const on = (t.dataset.view === VIEWS[cur] || (t.dataset.view === "chisme" && CHISME_GROUP.includes(VIEWS[cur]))) && !t.dataset.scroll;
       t.toggleAttribute("aria-current", false);
       if (on) t.setAttribute("aria-current", "page");
       t.classList.toggle("sub-current", !!t.dataset.scroll && t.dataset.scroll === scrollId);
@@ -2631,6 +2712,8 @@ window.CHISME_APP_BUILD = "49.12";
     updateTabs(scrollId);
     if (VIEWS[i] === "weather" && map) map.invalidateSize();
     updateNewsPill();
+    if (CHISME_GROUP.includes(VIEWS[i])) { try { sessionStorage.setItem(CHIP_KEY, VIEWS[i]); } catch (e) {} }
+    if (VIEWS[i] === "chisme") { if (!rendered.sports) loadSports(); if (rendered.events !== q()) loadEvents(); if (mixPending) mixRender(); }
     if (VIEWS[i] === "events" && rendered.events !== q()) loadEvents();
     if (VIEWS[i] === "juegos") juegosOpen(juegosWant); else juegosLeave();
     juegosWant = null;
@@ -2640,23 +2723,25 @@ window.CHISME_APP_BUILD = "49.12";
     if (scrollId) { const t = document.getElementById(scrollId); if (t) window.scrollTo({ top: t.getBoundingClientRect().top + window.scrollY - tabsH() - 8, behavior: "instant" }); }
     localStorage.setItem("chisme-swiped", "1");
   }
-  let animT = null, juegosWant = null, statTabLast = null;
+  let animT = null, animOff = null, juegosWant = null, statTabLast = null;
   const statsTab = (name) => { if (name !== statTabLast) { statTabLast = name; Stats.ev("tab", name); } };
   function goView(name, opts = {}) {
     const i = typeof name === "number" ? name : VIEWS.indexOf(name);
     if (i < 0) return;
-    if (i === cur) { unpeek(); track.classList.add("animating"); pos(i); if (opts.scrollTo) finish(i, opts.scrollTo); else updateTabs(); return; }
+    if (i === cur) { clearTimeout(animT); if (animOff) { animOff(); animOff = null; } unpeek(); track.classList.add("animating"); pos(i); if (opts.scrollTo) finish(i, opts.scrollTo); else updateTabs(); return; }
     if (opts.instant || reducedMotion()) { peek(i); finish(i, opts.scrollTo); return; }
     peek(i);
     track.classList.add("animating");
     pos(i);
-    clearTimeout(animT);
-    const done = () => { clearTimeout(animT); track.removeEventListener("transitionend", onEnd); finish(i, opts.scrollTo); };
+    clearTimeout(animT); if (animOff) animOff();   // v49.12: a second tap mid-slide (tab, then a chip) wins; the first slide's end is dropped
+    const done = () => { clearTimeout(animT); animOff(); animOff = null; finish(i, opts.scrollTo); };
     const onEnd = (ev) => { if (ev.target === track) done(); };
     track.addEventListener("transitionend", onEnd);
+    animOff = () => track.removeEventListener("transitionend", onEnd);
     animT = setTimeout(done, 450);
   }
-  for (const t of document.querySelectorAll(".tab")) t.onclick = () => goView(t.dataset.view, { scrollTo: t.dataset.scroll });
+  for (const t of document.querySelectorAll(".tab")) t.onclick = () => goView(t.dataset.view === "chisme" ? chipLast() : t.dataset.view, { scrollTo: t.dataset.scroll });
+  for (const c of document.querySelectorAll(".mq-chip, #mix-end [data-go]")) c.onclick = () => goView(c.dataset.go);   // v49.12: Chisme's All / News / Sports / Events chips
 
   // Swipe: only horizontal touch drags that start outside the radar map, the hourly strip and
   // form controls. touch-action: pan-y (CSS) leaves vertical scrolling to the browser.
@@ -2706,7 +2791,7 @@ window.CHISME_APP_BUILD = "49.12";
   // Deep links (manifest shortcuts): #sports, #weather, #radar-sec, #events. Otherwise the default tab (News unless changed in Settings).
   const HASH_VIEW = { "#weather": ["weather"], "#forecast-sec": ["weather", "forecast-sec"], "#radar-sec": ["weather", "radar-sec"], "#radar": ["weather", "radar-sec"],
     "#alerts": ["weather", "alerts"], "#events": ["events"], "#antojos": ["antojos"], "#cual-dieta": ["antojos"], "#y-la-dieta": ["antojos"], "#dieta": ["antojos"], "#food": ["antojos"], "#near": ["news", "near"], "#city": ["news", "city"],
-    "#sports": ["sports"], "#spurs": ["sports"], "#nba": ["sports"], "#cowboys": ["sports"], "#nfl": ["sports"], "#mlb": ["sports"], "#missions": ["sports"], "#news": ["news"],
+    "#sports": ["sports"], "#spurs": ["sports"], "#nba": ["sports"], "#cowboys": ["sports"], "#nfl": ["sports"], "#mlb": ["sports"], "#missions": ["sports"], "#news": ["news"], "#chisme": ["chisme"], "#all": ["chisme"],
     "#juegos": ["juegos"], "#juegitos": ["juegos"], "#games": ["juegos"], "#loteria": ["juegos", null, "loteria"], "#chismeria": ["juegos", null, "loteria"], "#juan": ["juegos", null, "juan"], "#juans-long-day": ["juegos", null, "juan"], "#juan-that-got-away": ["juegos", null, "juan"] };
   pos(0); updateTabs();
 
@@ -2971,8 +3056,8 @@ window.CHISME_APP_BUILD = "49.12";
     loadNews(); loadWeather(); loadRadar(); lastWx = lastNews = Date.now();
     // events + sports load right after (immediately if their view is open), so they're saved for offline too
     clearTimeout(evBoot); clearTimeout(spBoot);
-    if (VIEWS[cur] === "events") loadEvents(); else evBoot = setTimeout(loadEvents, 1200);
-    if (VIEWS[cur] === "sports") loadSports(); else spBoot = setTimeout(loadSports, 1800);
+    if (VIEWS[cur] === "events" || VIEWS[cur] === "chisme") loadEvents(); else evBoot = setTimeout(loadEvents, 1200);
+    if (VIEWS[cur] === "sports" || VIEWS[cur] === "chisme") loadSports(); else spBoot = setTimeout(loadSports, 1800);
     if (VIEWS[cur] === "antojos") loadFood();
     lastEv = Date.now();
   }
@@ -2981,7 +3066,7 @@ window.CHISME_APP_BUILD = "49.12";
   const LG_HASH = { "#spurs": "nba", "#nba": "nba-all", "#cowboys": "cowboys", "#nfl": "nfl", "#mlb": "mlb", "#missions": "missions" };
   if (LG_HASH[location.hash]) { spLg = LG_HASH[location.hash]; localStorage.setItem(SP_KEY, spLg); }
   // v49.12: a random main tab on every launch (Settings → Open Chisme to → 🔀 Surprise me, the default), never the same one
-  // twice in a row (chisme-launch-last). The first launch stays News with the location card; deep links (#weather, #juan,
+  // twice in a row (chisme-launch-last). The first launch stays on Chisme (All) with the location card; deep links (#weather, #juan,
   // ?tab=, a story from a notification or a share) and a tab picked in Settings win; a reload Chisme does itself (an
   // update, 'Refresh everyone') comes back to the tab you were on (sessionStorage, this tab only).
   const LAUNCH_LAST = "chisme-launch-last", RELOAD_TAB = "chisme-reload-tab";
@@ -2995,18 +3080,96 @@ window.CHISME_APP_BUILD = "49.12";
     if (VIEWS.includes(q.get("tab"))) return q.get("tab");
     const fixed = defaultTab();
     if (fixed !== "random") return fixed;
-    if (firstRun()) return "news";
-    const last = localStorage.getItem(LAUNCH_LAST), pool = VIEWS.filter((v) => v !== last);
+    if (firstRun()) return "chisme";
+    let last = localStorage.getItem(LAUNCH_LAST); if (CHISME_GROUP.includes(last)) last = "chisme";   // only the 4 tabs on show
+    const pool = TABS_SHOWN.filter((v) => v !== last);
     return pool[Math.floor(Math.random() * pool.length)];
   }
   function reloadHere() { try { sessionStorage.setItem(RELOAD_TAB, VIEWS[cur]); } catch {} location.reload(); }
   const hv = HASH_VIEW[location.hash] || [launchTab()];
   lsSet(LAUNCH_LAST, hv[0]);
   juegosWant = hv[2] || null;
-  if (hv[0] !== "news") goView(hv[0], { instant: true });
+  if (hv[0] !== VIEWS[0]) goView(hv[0], { instant: true });
   delete document.documentElement.dataset.launch;   // v49.12: the launch tab is in place, show the track
   // v49.12 legal: a one-time bar at the bottom: "By using Chisme you agree to our Terms and Privacy Policy" + OK (remembered).
   // Non-modal, so the first launch's location card works as before; existing users see it once too.
+  // v49.12 Día de Muertos: the season script in index.html decides (dates in Chicago time + the owner's THEME_OVERRIDE).
+  // Here: the newest override from the server (/api/theme, so a switched-off theme goes away without waiting for a new page),
+  // a re-check now and then (the theme ends by itself on Nov 3 even if Chisme stays open), and the greeting's ✕.
+  const Season = window.__chismeSeason;
+  function seasonSync() {
+    if (!Season) return;
+    Season.apply();
+    if (seasonOn()) mqGalleryInit();
+  }
+  async function seasonFetch() {
+    try {
+      const r = await fetch("/api/theme", { cache: "no-store" });
+      if (r.ok) { const j = await r.json(); if (j && typeof j.override === "string") lsSet("chisme-theme-override", JSON.stringify({ v: j.override, at: +j.at || Date.now() })); }
+    } catch {}
+    seasonSync();
+  }
+  if (Season) {
+    Season.apply();   // the views' accessible names (the sections exist now)
+    if (seasonOn()) mqGalleryInit();
+    setTimeout(seasonFetch, 1500);
+    setInterval(seasonSync, 5 * 60 * 1000);
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") seasonFetch(); });
+    const mbx = $("#muertos-banner-x");
+    if (mbx) mbx.onclick = () => { lsSet("chisme-muertos-banner-x", "1"); Season.apply(); };
+  }
+  // v49.12 Día de Muertos gallery (Chisme → News, in season only): freely licensed Commons photos of past celebrations in
+  // San Antonio and México (static/season/gallery.json). Every photo carries its credit line: "Photo: name / license /
+  // Wikimedia Commons (resized)", the license and Commons page linked (they open in Chisme's reader like other credits).
+  var mqGal = null;   // var: seasonSync (above) may call mqGalleryInit before this line runs
+  function mqCredit(ph) {
+    const lic = ph.license_url ? ext(ph.license_url, ph.license, null, { title: ph.license, source: "License", summary: `The license for this photo by ${ph.photographer}.` })
+      : el("span", { text: ph.license });
+    const src = ext(ph.source_url, "Wikimedia Commons", null, { title: `${ph.title} · ${ph.place}, ${ph.year}`, source: "Wikimedia Commons",
+      summary: `Photo: ${ph.photographer} · ${ph.license}`, image: ph.thumb });
+    return el("p", { class: "art-credit mq-credit" }, "Photo: ", el("b", { text: ph.photographer }), " / ", lic, " / ", src, ph.resized ? " (resized)" : "");
+  }
+  function mqView(i) {
+    const list = mqGal || [], dlg = $("#mq-viewer"); if (!list.length || !dlg) return;
+    i = (i + list.length) % list.length; dlg.dataset.i = String(i);
+    const ph = list[i], img = $("#mq-v-img");
+    img.src = ph.file; img.width = ph.w; img.height = ph.h; img.alt = `${ph.title}, ${ph.place}, ${ph.year}`;
+    $("#mq-v-cap").textContent = `${ph.title} · ${ph.place}, ${ph.year}`;
+    $("#mq-v-credit").replaceWith(Object.assign(mqCredit(ph), { id: "mq-v-credit" }));
+    $("#mq-v-n").textContent = `${i + 1} of ${list.length}`;
+    if (!dlg.open) dlg.showModal();
+  }
+  function mqGalleryInit() {
+    if (mqGal) return;
+    mqGal = [];
+    const strip = $("#mq-gal-strip"); if (!strip) return;
+    fetch("/static/season/gallery.json").then((r) => r.json()).then((j) => {
+      mqGal = (j.photos || []).filter((p) => p.file && p.photographer && p.license && p.source_url);
+      strip.replaceChildren(...mqGal.map((ph, i) => {
+        const img = el("img", { src: ph.thumb, alt: `${ph.title}, ${ph.place}, ${ph.year}`, width: ph.tw, height: ph.th, loading: "lazy", decoding: "async", draggable: "false" });
+        const btn = el("button", { type: "button", class: "mq-gal-open", "aria-label": `See it big: ${ph.title}` }, img);
+        btn.onclick = () => mqView(i);
+        return el("figure", { class: "mq-gal-item", role: "listitem", "data-id": ph.id }, btn,
+          el("figcaption", {}, el("p", { class: "mq-gal-cap", text: ph.title }), el("p", { class: "mq-gal-place", text: `${ph.place} · ${ph.year}` }), mqCredit(ph)));
+      }));
+    }).catch(() => { mqGal = null; });
+  }
+  {
+    const dlg = $("#mq-viewer");
+    if (dlg) {
+      $("#mq-v-x").onclick = () => dlg.close();
+      $("#mq-v-prev").onclick = () => mqView(+dlg.dataset.i - 1);
+      $("#mq-v-next").onclick = () => mqView(+dlg.dataset.i + 1);
+      dlg.addEventListener("keydown", (e) => { if (e.key === "ArrowLeft") mqView(+dlg.dataset.i - 1); if (e.key === "ArrowRight") mqView(+dlg.dataset.i + 1); });
+      dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });   // a tap outside the photo
+      let sx = null;
+      dlg.addEventListener("touchstart", (e) => { sx = e.touches.length === 1 ? e.touches[0].clientX : null; }, { passive: true });
+      dlg.addEventListener("touchend", (e) => { if (sx == null) return; const dx = e.changedTouches[0].clientX - sx; sx = null;
+        if (Math.abs(dx) > 50) mqView(+dlg.dataset.i + (dx < 0 ? 1 : -1)); });
+    }
+    const mbp = $("#mb-photos");
+    if (mbp) mbp.onclick = () => { mqGalleryInit(); goView("chisme", { scrollTo: "mq-gallery" }); };
+  }
   const TERMS_KEY = "chisme-terms-ok";
   if (!lsGet(TERMS_KEY)) {
     const bar = $("#terms-bar"); bar.hidden = false;
@@ -3551,7 +3714,7 @@ window.CHISME_APP_BUILD = "49.12";
   const SHARE_E7 = { title: "Chisme", text: "Tía found the best chisme in town and she can't keep it to herself. ☕", url: "https://chisme.onrender.com/" };
   document.addEventListener("click", (e) => { const b = e.target.closest && e.target.closest(".share-chisme"); if (b) { e.preventDefault(); shareChisme(SHARE_E7).then((r) => { lastShare = r; }); } });
   let lastShare = null;
-  window.__chisme = { reloadHere, get every() { return { gone: e7Gone(), news: e7Where.news, events: e7Where.events, feed: e7Where.feed, lastShare, share: SHARE_E7 }; }, stats: Stats, get newsPill() { return { held: !!newsHold, n: newsHoldN, shown: !$("#news-pill").hidden }; }, checkNews: () => { loadNews(); lastNews = Date.now(); }, openFromAlert, get pushPrefs() { return pushPrefs(); },
+  window.__chisme = { reloadHere, mixFeed, mulberry, get mix() { return { seed: mixSeed, shown: mixShown, pending: mixPending }; }, get every() { return { gone: e7Gone(), news: e7Where.news, events: e7Where.events, feed: e7Where.feed, lastShare, share: SHARE_E7 }; }, stats: Stats, get newsPill() { return { held: !!newsHold, n: newsHoldN, shown: !$("#news-pill").hidden }; }, checkNews: () => { loadNews(); lastNews = Date.now(); }, openFromAlert, get pushPrefs() { return pushPrefs(); },
     get frames() { return frames; }, get map() { return map; }, get loc() { return loc; },
     // ready = showing this location's news + weather (fresh or the saved copy); fresh = straight from the server
     get ready() { return secs.weather.shownUrl === secs.weather.url() && secs.news.shownUrl === secs.news.url(); },

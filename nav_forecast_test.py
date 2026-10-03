@@ -62,7 +62,7 @@ async def main():
         rep["weather_far_down"] = await page.evaluate(NAV_JS)
         await page.screenshot(path=str(OUT / "fixed-nav-weather.png"))
         # Events
-        await page.tap(".tab[data-view=events]")
+        await page.tap("#tabs [data-view='chisme']"); await page.tap(".view.active .mq-chip[data-go='events']")
         await page.wait_for_function("() => window.__chisme.eventsReady && document.querySelectorAll('#events-list .ev').length", timeout=120000)
         await page.wait_for_timeout(800)
         await vscroll(cdp, 25)
