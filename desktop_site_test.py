@@ -302,7 +302,7 @@ async def desktop_checks(browser, w, h, tag):
     await pg.set_viewport_size({"width": 800, "height": 900}); await pg.wait_for_timeout(600)
     back = await pg.evaluate("""() => ({ dk: document.documentElement.classList.contains('dk'), main: !!document.querySelector('.dk-main'),
       shown: [...document.querySelectorAll('#dk-hero, #dk-getapp, .dk-side, .dk-foot, .dk-navend, .dk-logo')].filter((e) => e.getClientRects().length).length,
-      set: !!document.querySelector('#topbar #settings-btn'), sync: !document.querySelector('#sync').closest('#tabs'), topbar: getComputedStyle(document.querySelector('#topbar')).display !== 'none' })""")
+      set: !!document.querySelector('#fbtop #settings-btn'), sync: !document.querySelector('#sync').closest('#tabs'), topbar: getComputedStyle(document.querySelector('#fbtop')).display !== 'none' })""")   # v49.15: the phone top bar (#fbtop) holds the Chisme bubble
     check(not back["dk"] and not back["main"] and back["shown"] == 0 and back["set"] and back["sync"] and back["topbar"], f"{tag}: narrowed to 800px → the phone layout {back}")
     await pg.set_viewport_size({"width": w, "height": h}); await pg.wait_for_timeout(600)
     check(await pg.evaluate("document.documentElement.classList.contains('dk') && !!document.querySelector('#view-chisme > .dk-main #mix-list') && !document.querySelector('#dk-hero').hidden"), f"{tag}: widened again → desktop")
@@ -383,14 +383,14 @@ async def phone_checks(p):
     pg = await ctx.new_page(); errs = []
     pg.on("pageerror", lambda e: errs.append(str(e)))
     await pg.goto(BASE + "/"); await pg.wait_for_function(READY, timeout=90000); await pg.wait_for_timeout(1500)
-    r = await pg.evaluate("""() => { const tb = document.querySelector('#topbar'), tabs = document.querySelector('#tabs');
+    r = await pg.evaluate("""() => { const tb = document.querySelector('#fbtop'), tabs = document.querySelector('#tabs');   // v49.15: the phone top bar
       return { dk: document.documentElement.classList.contains('dk'), inj: [...document.querySelectorAll('#dk-hero, #dk-getapp, .dk-side, .dk-main, .dk-foot, .dk-logo, .dk-navend, #set-sponsors, #moved-banner')].length,
         topbar: getComputedStyle(tb).display !== 'none' && tb.getBoundingClientRect().height > 0, set: !!tb.querySelector('#settings-btn'),
         tabs: [...tabs.querySelectorAll('.tab')].filter((b) => b.getClientRects().length).length, w: document.documentElement.scrollWidth, iw: innerWidth,
         css: [...document.styleSheets].some((s) => (s.href || '').includes('desktop.css') && s.media && s.media.mediaText.includes('1024')),
         list: getComputedStyle(document.querySelector('#mix-list')).display, title: document.title }; }""")
     check(not r["dk"] and r["inj"] == 0, f"phone: no desktop class, nothing injected ({r['inj']})")
-    check(r["topbar"] and r["set"] and r["tabs"] == 4, "phone: the app's own header (with the Chisme bubble / Settings) and its 4 tabs")
+    check(r["topbar"] and r["set"] and r["tabs"] == 4, "phone: the app's own top bar (with the Chisme bubble / Settings) and its 4 tabs")
     check(r["list"] != "grid" and r["w"] <= r["iw"], f"phone: single-column feed, no sideways scroll ({r['list']})")
     check(r["css"], "phone: desktop.css only applies at min-width 1024px")
     await pg.screenshot(path=os.path.join(SHOTS, "phone-unchanged.png"))
@@ -454,9 +454,9 @@ def http_checks(FLAGS):
     st, hd, qr = get(BASE + "/qr.svg")
     check(st == 200 and "image/svg+xml" in hd.get("content-type", "") and "<path" in qr, "/qr.svg")
     st, _, site = get(BASE + "/api/site"); j = json.loads(site)
-    check(j["goal"]["amount"] == 99 and "buymeacoffee.com/Chismoso" in j["goal"]["url"] and not j["moved"]["on"] and j["build"] == "49.14", "/api/site (goal $99, moved off, build 49.14)")
+    check(j["goal"]["amount"] == 99 and "buymeacoffee.com/Chismoso" in j["goal"]["url"] and not j["moved"]["on"] and j["build"] == "49.15", "/api/site (goal $99, moved off, build 49.15)")
     st, _, sw = get(BASE + "/sw.js")
-    check('"chisme-v49.14"' in sw or "'chisme-v49.14'" in sw, "service worker cache chisme-v49.14")
+    check('"chisme-v49.15"' in sw or "'chisme-v49.15'" in sw, "service worker cache chisme-v49.15")
     # redirect flag OFF (default): the old host is served as is
     st, hd, _ = get(BASE + "/", dict(NAV, Host="chisme.onrender.com"))
     check(st == 200, f"DOMAIN_REDIRECT off → no redirect from chisme.onrender.com ({st})")

@@ -1,7 +1,7 @@
 /* Chisme service worker: caches the app shell and the last-loaded news/weather
    so the app opens instantly (and shows the last saved data) even when the server is asleep
    or there's no connection. */
-const VERSION = "chisme-v49.14";   // v49.2 … v49.14: same-day follow-ups (a ".N" after the number is allowed)
+const VERSION = "chisme-v49.15";   // v49.2 … v49.15: same-day follow-ups (a ".N" after the number is allowed)
 const BUILD = VERSION.replace("chisme-v", "");          // index.html asks for app.js?v=<BUILD>
 const SHELL_CACHE = `${VERSION}-shell`;
 const DATA_CACHE = `${VERSION}-data`;
@@ -36,7 +36,7 @@ ART.push(...["spurs-arena", "spurs-bluehour", "missions-wolff", "missions-game",
 // ?art=N changes whenever tools/make_mascot_assets.py rebuilds her (same query in index.html, app.js, juegos.js)
 ART.push(...["avatar-64", "avatar-128", "avatar-192", "header-480", "header-960"].map((n) => `/static/mascot/${n}.webp?art=3`));
 // v49.12 Día de Muertos season art (~10 KB of SVG) + the gallery's list; its photos load only in season, when shown.
-ART.push(...["papel-picado", "marigold", "sugar-skull", "candle"].map((n) => `/static/season/${n}.svg`), "/static/season/gallery.json");
+ART.push(...["papel-picado", "marigold", "sugar-skull", "candle", "calavera", "vela"].map((n) => `/static/season/${n}.svg`), "/static/season/gallery.json");
 // v49.3: the 3 KB display face for "Tía Chismosa" in her chat header
 ART.push("/static/fonts/chewy-tia.woff2");
 // v49.14: the desktop website's art (~40 KB): the icon's "Chisme" bubble logo, the confetti page tiles, the Chewy display face

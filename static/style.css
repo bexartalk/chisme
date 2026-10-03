@@ -1798,3 +1798,148 @@ dialog.reel-share[open]{animation:rs-up .22s ease-out}
 .rs-more .rs-ic{background:#a7a9ac;color:#000}.rs-more .rs-ic::before{content:"•••";font-size:.8rem}
 .rs-note{min-height:1.2em;margin:.8em 0 0;color:var(--turq,#00C9CD);font-weight:800;font-size:.88rem;text-align:center}
 .rs-note:empty{display:none}
+
+/* ================= v49.15 phone nav (screens under 1024 px; desktop.css owns 1024 px and up, untouched).
+   Facebook-style: a slim top bar (the Chisme bubble = Settings, as it always was; ⚙️ Settings; Tía's bubble = her chat)
+   and the section tabs as a bottom tab bar. Both slide away while you scroll down and come back on any scroll up
+   (app.js fbNav toggles html.fb-hide). Content is padded for both bars, so nothing jumps when they hide.
+   --tabs-h = the top bar's height on phones (app.js measures it); --fbbot-h = the bottom bar's. Fiesta colours, no yellow. */
+.fbtop{display:none}
+@media (max-width:1023.98px){
+  html{--fb-turq:#00C9CD;--fb-pink:#FF1A7F;--fb-orange:#FF6A0B;--fb-silver:#C9CCCE;--fb-ease:.22s cubic-bezier(.3,.7,.3,1);
+    --fbbot-h:calc(66px + env(safe-area-inset-bottom,0px))}   /* pre-JS fallback; app.js measures the real height */
+  .topbar{display:none}            /* the skyline header: its Chisme bubble lives in the top bar now */
+  body > .tagline{display:none}    /* the top bar says it: [Chisme bubble] ¿Oyistes? */
+  body{padding-top:var(--tabs-h,calc(57px + env(safe-area-inset-top,0px)));padding-bottom:calc(var(--fbbot-h) + 18px)}
+  .tia-fab,.stip-anchor{display:none}   /* Tía is in the top bar (one Tía, not two) */
+
+  /* --- top bar */
+  .fbtop{display:block;position:fixed;top:0;left:0;right:0;z-index:2001;background:var(--fb-turq);color:#000;
+    padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) 0 env(safe-area-inset-left,0px);
+    box-shadow:0 2px 10px rgba(0,0,0,.22);transform:translateY(0);transition:transform var(--fb-ease),box-shadow var(--fb-ease);will-change:transform}
+  .fbtop-in{display:flex;align-items:center;gap:6px;height:52px;max-width:1200px;margin:0 auto;padding:0 10px 0 8px}
+  .fbtop .brand-bubble{position:relative;left:auto;top:auto;flex:none;width:60px;height:47px;margin:0;border-radius:45%;transform-origin:30% 90%}
+  .fbtop .bubble-edge{fill:var(--fb-turq);stroke:var(--fb-turq)}
+  .fb-tag{flex:0 1 auto;min-width:0;font-size:19px;font-weight:900;letter-spacing:-.01em;line-height:1;white-space:nowrap;overflow:hidden;text-overflow:clip}
+  .fb-right{margin-left:auto;display:flex;align-items:center;gap:10px;flex:none}
+  .fbtop .install{min-height:40px;padding:0 .7em;font-size:15px;border-radius:999px}
+  .fbtop .fb-ico{display:grid;place-items:center;width:42px;height:42px;min-height:0;padding:0;border-radius:50%;border:0;background:#000;color:#fff;
+    font-size:20px;line-height:1;box-shadow:none}
+  .fbtop .fb-ico:active,.fbtop .fb-tia:active{transform:scale(.92)}
+  /* Tía's bubble: her avatar in a circle with a pink ring and a little speech-bubble tail */
+  .fbtop .fb-tia{position:relative;width:44px;height:44px;min-height:0;padding:0;border-radius:50%;border:2px solid #000;background:#0b0b2a;
+    box-shadow:0 0 0 3px var(--fb-pink);overflow:visible}
+  .fbtop .fb-tia img{display:block;width:100%;height:100%;border-radius:50%;object-fit:cover}
+  .fbtop .fb-tia::after{content:"";position:absolute;left:-7px;bottom:-5px;width:0;height:0;border-style:solid;border-width:9px 0 0 12px;
+    border-color:transparent transparent transparent var(--fb-pink);transform:rotate(18deg);pointer-events:none}
+  .fbtop .fb-ico:focus-visible,.fbtop .fb-tia:focus-visible,.fbtop .brand-bubble:focus-visible{outline:4px solid var(--focus);outline-offset:3px}
+  .fb-picado{height:5px;background:repeating-linear-gradient(90deg,var(--fb-pink) 0 26px,var(--fb-orange) 26px 52px,#000 52px 78px)}
+  @media (max-width:359px){ .fb-tag{font-size:16px} .fb-right{gap:8px} .fbtop .brand-bubble{width:54px;height:42px} }
+
+  /* --- bottom tab bar: the app's own #tabs (same buttons, same ids, same handlers), moved to the bottom */
+  .tabs{top:auto;bottom:0;padding-top:0;padding-bottom:env(safe-area-inset-bottom,0px);box-shadow:0 -2px 12px rgba(0,0,0,.3);
+    border-top:1px solid #222;transform:translateY(0);transition:transform var(--fb-ease),box-shadow var(--fb-ease);will-change:transform}
+  .tabs .tabs-inner{grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:2px;padding:5px 4px 4px;max-width:720px}
+  .tabs .tab{position:relative;flex-direction:column;justify-content:flex-start;gap:3px;min-height:58px;padding:2px 1px 3px;border-radius:12px;
+    background:transparent!important;border-color:transparent!important;color:var(--fb-silver);
+    font-size:clamp(11.5px,3.3vw,13.5px);font-weight:800;line-height:1.05;letter-spacing:0;white-space:normal;text-align:center}
+  .tabs .tab > span[aria-hidden]:first-child{display:grid;place-items:center;width:54px;height:30px;border-radius:999px;font-size:20px;line-height:1;transition:background .15s}
+  .tabs .tab .tab-l,.tabs .tab .tl{font-size:1em;line-height:1.05}
+  .tabs .tab[aria-current="page"]{color:var(--fb-turq)}
+  .tabs .tab[aria-current="page"] > span[aria-hidden]:first-child{background:var(--fb-turq)}
+  .tabs .tab[aria-current="page"]::before{content:"";position:absolute;top:-5px;left:50%;width:34px;margin-left:-17px;height:3px;border-radius:0 0 3px 3px;background:var(--fb-pink)}
+  .tabs .tab:hover{border-color:transparent}
+  .tabs .tab:focus-visible{outline:4px solid var(--focus);outline-offset:-4px}
+  html[data-launch] .tabs .tab[aria-current="page"]{color:var(--fb-silver)}
+  html[data-launch] .tabs .tab[aria-current="page"]::before{content:none}
+  html[data-launch] .tabs .tab[aria-current="page"] > span[aria-hidden]:first-child{background:transparent}
+  @media (max-width:359px){ .tabs .tab > span[aria-hidden]:first-child{width:46px;height:28px;font-size:18px} .tabs .tab{font-size:11px} }
+
+  /* --- hidden (scrolling down): both bars slide off; a strip the height of the status bar stays at the top */
+  html.fb-hide .fbtop,html.feed-open .fbtop{transform:translateY(calc(-100% + env(safe-area-inset-top,0px)));box-shadow:none}
+  html.fb-hide .tabs,html.feed-open .tabs{transform:translateY(calc(100% + 2px));box-shadow:none}
+  html.game-fs .fbtop{display:none!important}
+
+  /* --- things that sat under the old top tabs or above the floating Tía follow the bars */
+  .mq-chips{transition:top var(--fb-ease)}
+  html.fb-hide .mq-chips{top:env(safe-area-inset-top,0px)}
+  .news-pill{transition:top var(--fb-ease)}
+  html.fb-hide .news-pill{top:calc(env(safe-area-inset-top,0px) + 62px)}
+  .sync{left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right));bottom:calc(var(--fbbot-h) + 10px);
+    transition:opacity .3s,transform .3s,bottom var(--fb-ease)}
+  .terms-bar{right:max(10px,env(safe-area-inset-right));bottom:calc(var(--fbbot-h) + 10px);transition:bottom var(--fb-ease)}
+  html.fb-hide .sync,html.fb-hide .terms-bar{bottom:calc(12px + env(safe-area-inset-bottom,0px))}
+  .share-toast{bottom:calc(var(--fbbot-h) + 16px)}
+  .update-toast:not(.rf-pill),.boot-fail{bottom:calc(var(--fbbot-h) + 12px)}
+
+  /* --- dark mode: a black top bar; the bubble gets the turquoise ring the old dark header gave it */
+  [data-theme="dark"] .fbtop{background:#000;color:#fff;box-shadow:0 2px 10px rgba(0,0,0,.6),inset 0 -1px 0 #1d1d1d}
+  [data-theme="dark"] .fbtop .bubble-edge{fill:#000;stroke:var(--fb-turq);stroke-width:16}
+  [data-theme="dark"] .fbtop .fb-ico{background:#1e2224;color:#fff;box-shadow:inset 0 0 0 2px #3a4144}
+  [data-theme="dark"] .fbtop .fb-tia{border-color:#000}
+  [data-theme="dark"] .fb-picado{background:repeating-linear-gradient(90deg,var(--fb-pink) 0 26px,var(--fb-orange) 26px 52px,var(--fb-turq) 52px 78px)}
+  [data-theme="dark"] .tabs{background:#000;border-top-color:#1d1d1d}
+
+  /* --- Día de Muertos: midnight bars, pink + orange accents (no marigold yellow on the bars) */
+  [data-season="muertos"] .fbtop,[data-season="muertos"][data-theme="dark"] .fbtop{color:#fff;
+    background:radial-gradient(90px 46px at 0 100%,rgba(255,106,11,.38),transparent 70%),radial-gradient(90px 46px at 100% 100%,rgba(255,26,127,.32),transparent 70%),linear-gradient(180deg,#0e0520,#2a1250)}
+  [data-season="muertos"] .fbtop .bubble-edge,[data-season="muertos"][data-theme="dark"] .fbtop .bubble-edge{fill:#2a1250;stroke:var(--fb-pink);stroke-width:16}
+  [data-season="muertos"] .fbtop .ip{fill:#ff3d8b} [data-season="muertos"] .fbtop .il{fill:#8eebeb}
+  [data-season="muertos"] .fbtop .fb-ico{background:#2a1250;color:#fff;box-shadow:inset 0 0 0 2px #563b84}
+  [data-season="muertos"] .fbtop .fb-tia{box-shadow:0 0 0 3px var(--fb-orange),0 0 12px 2px rgba(255,106,11,.45)}
+  [data-season="muertos"] .fbtop .fb-tia::after{border-left-color:var(--fb-orange)}
+  [data-season="muertos"] .fb-picado,[data-season="muertos"][data-theme="dark"] .fb-picado{background:repeating-linear-gradient(90deg,var(--fb-pink) 0 22px,var(--fb-orange) 22px 44px,var(--fb-turq) 44px 66px,#0e0520 66px 88px)}
+  [data-season="muertos"] .tabs,[data-season="muertos"][data-theme="dark"] .tabs{background:#0e0520;border-top-color:#2a1250;box-shadow:0 -2px 12px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,106,11,.55)}
+  [data-season="muertos"] .tabs .tab{color:#e6dcf7}
+  [data-season="muertos"] .tabs .tab[aria-current="page"]{color:var(--fb-pink)}
+  [data-season="muertos"] .tabs .tab[aria-current="page"] > span[aria-hidden]:first-child{background:var(--fb-pink)}
+  [data-season="muertos"] .tabs .tab[aria-current="page"]::before{background:var(--fb-orange)}
+  html[data-season="muertos"][data-launch] .tabs .tab[aria-current="page"]{color:#e6dcf7}
+}
+/* reduced motion (the phone's setting or Settings → Reduce motion): the bars show and hide at once */
+@media (max-width:1023.98px) and (prefers-reduced-motion:reduce){ .fbtop,.tabs,.mq-chips,.news-pill,.sync,.terms-bar{transition:none!important} }
+@media (max-width:1023.98px){ .reduce-motion .fbtop,.reduce-motion .tabs,.reduce-motion .mq-chips,.reduce-motion .news-pill,.reduce-motion .sync,.reduce-motion .terms-bar{transition:none!important} }
+
+/* ---------- v49.15 Día de Muertos logo decorations: a candle + a calavera beside the Chisme bubble (phone top bar; the
+   desktop hero's are sized in desktop.css). Only in the Muertos season (.muertos-only). Clean SVGs in the Fiesta palette
+   with a marigold-orange accent; the flame is CSS (white core → marigold orange → Fiesta orange, a pink glow, no yellow)
+   and flickers, except under Reduce motion (system setting or Chisme's own .reduce-motion). */
+.mq-deco{display:none}
+.mq-deco img{display:block;width:100%;height:auto}
+.mq-vela{position:relative}
+.mq-flame{position:absolute;left:50%;bottom:calc(100% - 4%);width:58%;aspect-ratio:7/11;transform:translateX(-50%);transform-origin:50% 92%;
+  border-radius:50% 50% 46% 46% / 62% 62% 38% 38%;pointer-events:none;
+  background:radial-gradient(ellipse 40% 34% at 50% 72%,#fff 0 55%,transparent 100%),radial-gradient(ellipse 70% 60% at 50% 70%,#FF8A00 0 60%,#FF6A0B 100%);
+  box-shadow:0 0 6px 1px rgba(255,26,127,.55),0 0 12px 3px rgba(255,106,11,.35);animation:mq-flicker 1.7s ease-in-out infinite alternate}
+@keyframes mq-flicker{
+  0%{transform:translateX(-50%) scale(1,1) rotate(-2deg);opacity:1}
+  30%{transform:translateX(-50%) scale(.92,1.08) rotate(2deg);opacity:.92}
+  55%{transform:translateX(-50%) scale(1.04,.95) rotate(-1deg);opacity:1}
+  80%{transform:translateX(-50%) scale(.95,1.06) rotate(3deg);opacity:.9}
+  100%{transform:translateX(-50%) scale(1,1.02) rotate(-1deg);opacity:1}}
+.reduce-motion .mq-flame{animation:none}
+@media (prefers-reduced-motion:reduce){ .mq-flame{animation:none} }
+@media (max-width:1023.98px){
+  html[data-season="muertos"] .fbtop .mq-deco{display:block;flex:none;pointer-events:none}
+  html[data-season="muertos"] .fbtop .mq-vela{width:12px;margin:12px -1px 0 0;align-self:center}      /* 12×27 + the flame above */
+  html[data-season="muertos"] .fbtop .mq-skull{width:22px;margin:0 2px 0 -1px}                          /* 22×24 */
+  @media (max-width:359px){ html[data-season="muertos"] .fbtop .mq-vela{width:10px} html[data-season="muertos"] .fbtop .mq-skull{width:19px} }
+}
+
+/* ---------- v49.15 weather close buttons: the disclaimer and each alert bubble on the Weather tab get a round 44 px × in
+   the top-right corner (aria-label "Close"). Same look as the strip's ✕ (white, Fiesta pink ring; dark: turquoise ring). */
+.wx-disclaimer{position:relative;padding-right:56px}
+.wx-disclaimer[hidden]{display:none}
+#alerts .has-x{position:relative;padding-right:58px}
+.wx-x{position:absolute;top:6px;right:6px;width:44px;height:44px;min-width:44px;min-height:44px;padding:0;margin:0;border-radius:50%;
+  display:inline-flex;align-items:center;justify-content:center;background:#fff;color:#000;border:3px solid var(--pink);
+  font-size:1.5rem;font-weight:900;line-height:1;box-shadow:0 2px 0 #b3264e;cursor:pointer;z-index:1}
+.no-alerts.has-x{min-height:44px;display:flex;align-items:center}
+.no-alerts.has-x .wx-x{top:50%;margin-top:-22px;right:4px}
+.wx-x:active{transform:translateY(1px);box-shadow:none}
+.no-alerts.has-x .wx-x:active{transform:translateY(1px)}
+.wx-x:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.alert.sev-Extreme .wx-x,.alert.sev-Severe .wx-x{border-color:#fff;box-shadow:0 2px 0 #4a0905}
+.wx-unhide{display:block;margin:0 0 14px;min-height:44px;font-weight:800}
+[data-theme="dark"] .wx-x{background:#111;color:#fff;border-color:var(--turq);box-shadow:0 2px 0 #007f82}
+[data-theme="dark"] .alert.sev-Extreme .wx-x,[data-theme="dark"] .alert.sev-Severe .wx-x{border-color:#fff;box-shadow:0 2px 0 #000}

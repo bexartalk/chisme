@@ -1,7 +1,7 @@
 /* Chisme — frontend (location-aware) */
 // Build of this file. Must equal the number in sw.js VERSION ("chisme-v22"); the page compares it
 // with the build the HTML was served for and reloads once if an old cached app.js got mixed in.
-window.CHISME_APP_BUILD = "49.14";
+window.CHISME_APP_BUILD = "49.15";
 (() => {
   "use strict";
   // v49.13: Chisme's public address for share links + the promo text: one setting on the server (PUBLIC_BASE_URL, else the
@@ -492,28 +492,92 @@ window.CHISME_APP_BUILD = "49.14";
     else line = "Brrr! Bundle up, it's legit cold out there. 🥶";
     box.textContent = line; box.hidden = false;
   }
+  // v49.15: the Weather tab's alert bubbles get a × too (aria-label "Close", 44 px). Remembered in localStorage per alert
+  // (by NWS id, by event + severity + end time, and by headline), until the alert ends (no end time: 12 hours). A new
+  // alert, or an upgrade (higher severity), shows again, and a Severe/Extreme alert is only ever hidden by its own id or
+  // exact event + severity + end time (never by a look-alike headline). "Show hidden alerts" brings them back. Closing a
+  // card also hides it from the top strip; closing the strip does NOT hide the card (the tab keeps the full alerts).
+  // The all-clear bubble stays closed until an alert arrives. The disclaimer under the alerts stays closed for good (the
+  // same text stays in Settings → Weather).
+  const WX_CARDS = "chisme-wx-cards-hidden", WX_CLEAR_X = "chisme-wx-allclear-x", WX_DISC_X = "chisme-wx-disclaimer-x";
+  // (own tiny helpers: this runs before the shared lsGet/lsSet consts further down are initialised)
+  const wxLsGet = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
+  const wxLsSet = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
+  const wxLsDel = (k) => { try { localStorage.removeItem(k); } catch {} };
+  const wxSevere = (a) => /^(severe|extreme)$/i.test(a.severity || "");
+  const wxHlKey = (a) => `hl:${(a.headline || "").trim()}|${a.severity || ""}`;
+  function wxCardsHidden() {
+    let m = {};
+    try { m = JSON.parse(localStorage.getItem(WX_CARDS) || "{}") || {}; } catch {}
+    const now = Date.now(); let pruned = false;
+    for (const k of Object.keys(m)) if (!(m[k] > now)) { delete m[k]; pruned = true; }
+    if (pruned) try { localStorage.setItem(WX_CARDS, JSON.stringify(m)); } catch {}
+    return m;
+  }
+  const wxCardIsHidden = (a, m) => !!((a.id && m[wxIdKey(a)]) || m[wxKey(a)] ||
+    (!wxSevere(a) && (a.headline || "").trim() && m[wxHlKey(a)]));
+  function wxCardHide(a) {
+    const m = wxCardsHidden(), end = Date.parse(a.ends || a.expires || "");
+    const until = Number.isFinite(end) && end > Date.now() ? end : Date.now() + 12 * 3600e3;
+    m[wxKey(a)] = until; if (a.id) m[wxIdKey(a)] = until;
+    if ((a.headline || "").trim()) m[wxHlKey(a)] = until;
+    try { localStorage.setItem(WX_CARDS, JSON.stringify(m)); } catch {}
+  }
+  const wxX = (onclick, title) => {
+    const x = el("button", { type: "button", class: "wx-x", "aria-label": "Close", title: title || "Close" }, el("span", { "aria-hidden": "true", text: "×" }));
+    x.onclick = onclick; return x;
+  };
+  function wxFocusAfterClose() {   // keep keyboard/screen-reader users in place after a bubble goes away
+    const t = $("#alerts .wx-x") || $("#alerts .wx-unhide") || $("#wx-disclaimer:not([hidden]) .wx-x") || $("#wx-title");
+    if (t) { if (!t.matches("button")) t.setAttribute("tabindex", "-1"); t.focus({ preventScroll: true }); }
+  }
+  {
+    const disc = $("#wx-disclaimer"), dx = $("#wx-disclaimer-x");
+    if (wxLsGet(WX_DISC_X) === "1") disc.hidden = true;
+    dx.onclick = () => { wxLsSet(WX_DISC_X, "1"); disc.hidden = true; wxFocusAfterClose(); };
+  }
+  let lastAlertsW = null;
   function renderAlerts(w) {
+    lastAlertsW = w;
     renderAlertStrip(w);
     const box = $("#alerts");
     box.replaceChildren();
+    const closeClear = () => { wxLsSet(WX_CLEAR_X, "1"); renderAlerts(lastAlertsW); wxFocusAfterClose(); };
     if (w && w.supported === false) {
-      box.append(el("div", { class: "no-alerts info", text: "ℹ︎ Weather alerts come from the U.S. National Weather Service and aren't available for " + placeName() + "." }));
+      if (wxLsGet(WX_CLEAR_X) !== "1")
+        box.append(el("div", { class: "no-alerts info has-x" }, wxX(closeClear), el("span", { text: "ℹ︎ Weather alerts come from the U.S. National Weather Service and aren't available for " + placeName() + "." })));
       return;
     }
     const alerts = (w && w.alerts) || [];
     if (!alerts.length) {
-      box.append(el("div", { class: "no-alerts", text: "✓ No active National Weather Service alerts for " + placeName() + "." }));
+      if (wxLsGet(WX_CLEAR_X) !== "1")
+        box.append(el("div", { class: "no-alerts has-x" }, wxX(closeClear), el("span", { text: "✓ No active National Weather Service alerts for " + placeName() + "." })));
       return;
     }
+    if (wxLsGet(WX_CLEAR_X) === "1") wxLsDel(WX_CLEAR_X);   // an alert arrived: the next all-clear shows again
+    const m = wxCardsHidden();
+    let hiddenN = 0;
     for (const a of alerts) {
+      if (wxCardIsHidden(a, m)) { hiddenN++; continue; }
       const ends = a.ends || a.expires;
       const meta = [a.severity, a.urgency, ends ? "Until " + dateTimeT(new Date(ends)) : null].filter(Boolean).join(" · ");
       const det = el("details", {}, el("summary", { text: "Read full alert" }),
         el("pre", { text: (a.description || "") + (a.instruction ? "\n\nWHAT TO DO:\n" + a.instruction : "") }),
         el("p", { class: "meta", text: "Areas: " + (a.areaDesc || "") }));
-      box.append(el("article", { class: "alert sev-" + (a.severity || "Unknown"), role: "alert" },
-        el("h3", { text: "⚠ " + a.event }), el("p", { class: "meta", text: meta }),
+      const x = wxX(() => { wxCardHide(a); wxHide(a); renderAlerts(lastAlertsW); wxFocusAfterClose(); }, "Close this alert: " + (a.event || ""));
+      box.append(el("article", { class: "alert has-x sev-" + (a.severity || "Unknown"), role: "alert" },
+        x, el("h3", { text: "⚠ " + a.event }), el("p", { class: "meta", text: meta }),
         a.headline ? el("p", { text: a.headline }) : null, det));
+    }
+    if (hiddenN) {
+      const u = el("button", { type: "button", class: "wx-unhide", text: `Show ${hiddenN} closed alert${hiddenN > 1 ? "s" : ""}` });
+      u.onclick = () => {
+        const mm = wxCardsHidden();
+        for (const a of alerts) { delete mm[wxKey(a)]; if (a.id) delete mm[wxIdKey(a)]; delete mm[wxHlKey(a)]; }
+        try { localStorage.setItem(WX_CARDS, JSON.stringify(mm)); } catch {}
+        renderAlerts(lastAlertsW); wxFocusAfterClose();
+      };
+      box.append(u);
     }
   }
   function renderCurrent(c) {
@@ -2881,10 +2945,44 @@ window.CHISME_APP_BUILD = "49.14";
   panes.forEach((p) => track.appendChild(p));   // DOM order = swipe order
   let cur = 0;
   const savedY = {};
-  const tabsH = () => tabsEl.offsetHeight;
-  const setTabsVar = () => document.documentElement.style.setProperty("--tabs-h", tabsH() + "px");
+  // v49.15: under 1024 px the tabs are a bottom bar and the top bar (#fbtop) is what sits over the page, so --tabs-h (and
+  // every scroll offset below) is the top bar's height there; --fbbot-h is the bottom bar's (body padding, toasts).
+  const fbTop = $("#fbtop"), fbMQ = matchMedia("(max-width: 1023.98px)");
+  const fbOn = () => !!fbTop && fbMQ.matches && !document.documentElement.classList.contains("dk");
+  const tabsH = () => (fbOn() ? fbTop.offsetHeight : tabsEl.offsetHeight);
+  const setTabsVar = () => {
+    const ds = document.documentElement.style;
+    ds.setProperty("--tabs-h", tabsH() + "px");
+    if (fbOn()) ds.setProperty("--fbbot-h", tabsEl.offsetHeight + "px"); else ds.removeProperty("--fbbot-h");
+  };
   setTabsVar(); window.addEventListener("resize", setTabsVar);
-  if ("ResizeObserver" in window) new ResizeObserver(setTabsVar).observe(tabsEl);  // A−/A+ or rotation changes its height
+  if ("ResizeObserver" in window) { const ro = new ResizeObserver(setTabsVar); ro.observe(tabsEl); if (fbTop) ro.observe(fbTop); }  // A−/A+ or rotation changes its height
+  // v49.15 Facebook-style bars (phones and tablets): scrolling down past 60 px slides the top bar and the tab bar away
+  // (CSS transform, html.fb-hide); any scroll up of 8 px or more brings both back; near the top they always show.
+  // One rAF per frame at most, passive listeners, no layout reads besides scrollY / the page height.
+  const fbNav = (() => {
+    const html = document.documentElement, TOP = 60, UP = 8, DOWN = 6;
+    let lastY = Math.max(0, window.scrollY), turnY = lastY, dir = 0, ticking = false, hidden = false;
+    const set = (h) => { if (h === hidden) return; hidden = h; html.classList.toggle("fb-hide", h); };
+    const reset = () => { lastY = turnY = Math.max(0, window.scrollY); dir = 0; set(false); };
+    function frame() {
+      ticking = false;
+      const max = Math.max(0, html.scrollHeight - window.innerHeight);
+      const y = Math.min(max, Math.max(0, window.scrollY));   // iOS rubber-banding past either end isn't a direction change
+      if (!fbOn() || html.classList.contains("game-fs") || y <= TOP) { lastY = turnY = y; dir = 0; set(false); return; }
+      const d = y > lastY ? 1 : y < lastY ? -1 : 0;
+      if (d && d !== dir) { dir = d; turnY = lastY; }
+      if (dir > 0 && y - turnY >= DOWN) set(true);
+      else if (dir < 0 && turnY - y >= UP) set(false);
+      lastY = y;
+    }
+    window.addEventListener("scroll", () => { if (!ticking) { ticking = true; requestAnimationFrame(frame); } }, { passive: true });
+    fbMQ.addEventListener ? fbMQ.addEventListener("change", reset) : fbMQ.addListener && fbMQ.addListener(reset);
+    // keyboard users: a button in a hidden bar comes back when it gets focus
+    for (const el of [fbTop, tabsEl]) if (el) el.addEventListener("focusin", () => { set(false); turnY = lastY; });
+    return { reset, show: () => set(false), hide: () => set(true), get hidden() { return hidden; }, get on() { return fbOn(); } };
+  })();
+  window.__chismeNav = fbNav;
   const viewsTop = () => viewsEl.getBoundingClientRect().top + window.scrollY;
   const pos = (i, dx = 0) => { track.style.transform = `translateX(calc(${-i} * (100% + ${GAP}px) + ${dx}px))`; };
   function updateTabs(scrollId) {
@@ -2939,6 +3037,7 @@ window.CHISME_APP_BUILD = "49.14";
     if (VIEWS[i] === "antojos" && (!foodData || secs.food.shownUrl !== secs.food.url())) loadFood();   // new place → new city's food
     if (VIEWS[i] === "antojos") preparePlayer();
     if (scrollId) { const t = document.getElementById(scrollId); if (t) window.scrollTo({ top: t.getBoundingClientRect().top + window.scrollY - tabsH() - 8, behavior: "instant" }); }
+    fbNav.reset();   // v49.15: a new tab shows both bars (its own scroll jump isn't a swipe)
     localStorage.setItem("chisme-swiped", "1");
   }
   let animT = null, animOff = null, juegosWant = null, statTabLast = null;
@@ -3882,6 +3981,11 @@ window.CHISME_APP_BUILD = "49.14";
   $("#tia-menu-settings").onclick = () => { tiaMenu.close(); $("#settings-btn").click(); };
   $("#tia-menu-chat").onclick = () => { tiaMenu.close(); openTia(); tiaOpener = $("#tia-btn"); };
   tiaMenu.addEventListener("close", () => { if (!document.querySelector("dialog[open]")) $("#tia-btn").focus({ preventScroll: true }); });
+  // v49.15 phones: the top bar's Tía bubble opens her chat (Settings has its own ⚙️ there, and the Chisme bubble still
+  // opens Settings too); the floating Tía and her two-choice menu stay for desktop. Same openTia() the menu's 💬 uses.
+  { const fbTia = $("#fb-tia"), fbSet = $("#fb-set");
+    if (fbTia) fbTia.onclick = () => { if (document.querySelector("dialog[open]")) return; tipEnd("tia"); openTia(); tiaOpener = fbTia; };
+    if (fbSet) fbSet.onclick = () => { if (document.querySelector("dialog[open]")) return; $("#settings-btn").click(); }; }
   $("#tia-close").onclick = () => tiaDlg.close();
   $("#tia-settings").onclick = () => { tiaOpener = null; tiaDlg.close(); $("#settings-btn").click(); };   // v49.3: Settings from her chat
 

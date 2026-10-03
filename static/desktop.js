@@ -134,7 +134,14 @@
   function heroTitle() {
     var m = /^Chisme[.,!]?\s+(.+)$/.exec(TAGLINE);
     if (!m) return h("h1", { class: "dk-hero-t", id: "dk-hero-t", text: TAGLINE });
-    return h("h1", { class: "dk-hero-t dk-hero-t-logo", id: "dk-hero-t" }, logoImg("dk-hero-logo", 200), h("span", { class: "dk-hero-q", text: m[1] }));
+    // v49.15: Día de Muertos only (.muertos-only, hidden the rest of the year, so the hero is unchanged then): a candle
+    // (CSS flame, still under Reduce motion) left of the bubble and a calavera right of it; absolutely placed (desktop.css),
+    // so they go after the logo img (the hero's first img stays the logo)
+    var vela = h("span", { class: "mq-deco mq-vela muertos-only", "aria-hidden": "true" }, h("i", { class: "mq-flame" }),
+      h("img", { src: "/static/season/vela.svg", alt: "", width: "16", height: "36" }));
+    var skull = h("span", { class: "mq-deco mq-skull muertos-only", "aria-hidden": "true" },
+      h("img", { src: "/static/season/calavera.svg", alt: "", width: "40", height: "44" }));
+    return h("h1", { class: "dk-hero-t dk-hero-t-logo", id: "dk-hero-t" }, logoImg("dk-hero-logo", 200), vela, skull, h("span", { class: "dk-hero-q", text: m[1] }));
   }
   // ---------------------------------------------------------------- 2. the homepage hero
   function buildHero(view) {

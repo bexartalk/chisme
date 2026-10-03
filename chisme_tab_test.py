@@ -63,7 +63,7 @@ async def phone(b, name, dev, theme, w=None):
     check([c[0] for c in chips] == ["chisme", "news", "sports", "events"] and all(c[2] >= 44 and c[3] >= 44 and c[4] for c in chips),
           f"chips All · News · Sports · Events, 44 px+, on screen, labels not cut off ({[(c[1], c[2], c[3]) for c in chips]})")
     await pg.evaluate("window.scrollTo(0, 2200)"); await pg.wait_for_timeout(500)
-    st = await pg.evaluate("(() => { const r = document.querySelector('#view-chisme .mq-chips').getBoundingClientRect(), t = document.querySelector('#tabs').getBoundingClientRect(); return [Math.round(r.top), Math.round(t.bottom)]; })()")
+    st = await pg.evaluate("(() => { const r = document.querySelector('#view-chisme .mq-chips').getBoundingClientRect(), t = document.querySelector('#tabs').getBoundingClientRect(), f = document.querySelector('#fbtop'); const under = f && getComputedStyle(f).display !== 'none' ? Math.max(0, f.getBoundingClientRect().bottom) : t.bottom; return [Math.round(r.top), Math.round(under)]; })()")   # v49.15: on phones the top bar (or the very top while it's away)
     check(abs(st[0] - st[1]) <= 2, f"…sticky: still right under the tab bar after scrolling ({st})")
     await pg.evaluate("window.scrollTo(0, 0)")
     for cat in ("sports", "events", "news", "chisme"):

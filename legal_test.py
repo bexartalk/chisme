@@ -42,9 +42,10 @@ async def main():
                 check(vis[0] and not vis[1] and "By using Chisme you agree to our Terms and Privacy Policy" in vis[2], f"{bname} {w}: once the card is answered (Not now), the Terms bar shows ({vis})")
                 # v49.12: while the sync toast is up the Terms bar steps aside (CSS); it's back once the toast is done
                 await pg.wait_for_function("() => { const s = document.querySelector('#sync'); return s.hidden || s.dataset.state === 'done'; }", timeout=45000); await pg.wait_for_timeout(400)
-                cov = {s: await pg.evaluate(COVER, s) for s in ("#tia-btn", "#terms-ok")}
-                tb = await pg.evaluate("(() => { const b = document.querySelector('#terms-bar').getBoundingClientRect(), t = document.querySelector('#tia-btn').getBoundingClientRect(); return [b.right <= t.left || b.bottom <= t.top || b.top >= t.bottom, b.left >= 0 && b.right <= innerWidth && b.bottom <= innerHeight] })()")
-                check(cov["#terms-ok"] == "free" and cov["#tia-btn"] == "free" and all(tb), f"{bname} {w}: the bar is on screen and clear of Tía ({cov}, {tb})")
+                tia = "#tia-btn" if await pg.is_visible("#tia-btn") else "#fb-tia"   # v49.15 phones: Tía is in the top bar
+                cov = {s: await pg.evaluate(COVER, s) for s in (tia, "#terms-ok")}
+                tb = await pg.evaluate("(sel) => { const b = document.querySelector('#terms-bar').getBoundingClientRect(), t = document.querySelector(sel).getBoundingClientRect(), n = document.querySelector('#tabs').getBoundingClientRect(), nav = getComputedStyle(document.querySelector('#tabs')).bottom === '0px'; return [b.right <= t.left || b.bottom <= t.top || b.top >= t.bottom, b.left >= 0 && b.right <= innerWidth && b.bottom <= innerHeight, !nav || b.bottom <= n.top + 0.5] }", tia)
+                check(cov["#terms-ok"] == "free" and cov[tia] == "free" and all(tb), f"{bname} {w}: the bar is on screen and clear of Tía and the tab bar ({cov}, {tb})")
                 links = await pg.evaluate("[...document.querySelectorAll('#terms-bar a')].map(a => a.getAttribute('href'))")
                 check(links == ["/terms", "/privacy"], f"{bname} {w}: the bar links /terms and /privacy ({links})")
                 await pg.click("#terms-ok"); await pg.wait_for_timeout(200)

@@ -323,6 +323,17 @@ html.dk .dk-hero-t-logo{display:flex;align-items:flex-end;flex-wrap:wrap;gap:4px
 html.dk .dk-hero-logo{display:block;width:300px;height:auto;margin:-6px 0 -4px -6px}
 html.dk .dk-hero-q{font-size:4.1rem;line-height:1;padding-bottom:18px;color:#fff;transform:rotate(-3deg);transform-origin:left bottom}
 @media (max-width:1180px){ html.dk .dk-hero-logo{width:240px} html.dk .dk-hero-q{font-size:3.3rem;padding-bottom:14px} }
+/* v49.15 Día de Muertos only: a small candle in the empty corner left of the bubble's tail and a calavera on the bubble's
+   top-right shoulder (art + flame in style.css). Absolutely placed over the logo box's transparent corners, so the hero
+   lays out exactly as the rest of the year (no extra width, no new line wraps). */
+html.dk[data-season="muertos"] .dk-hero-t-logo{position:relative}
+html.dk[data-season="muertos"] .dk-hero-t-logo .mq-deco{display:block;position:absolute;pointer-events:none;z-index:1}
+html.dk[data-season="muertos"] .dk-hero-t-logo .mq-vela{width:24px;left:4px;top:168px}
+html.dk[data-season="muertos"] .dk-hero-t-logo .mq-skull{width:40px;left:258px;top:-12px;transform:rotate(10deg)}
+@media (max-width:1180px){
+  html.dk[data-season="muertos"] .dk-hero-t-logo .mq-vela{width:20px;left:2px;top:130px}
+  html.dk[data-season="muertos"] .dk-hero-t-logo .mq-skull{width:34px;left:205px;top:-12px}
+}
 /* the footer brand */
 html.dk .dk-foot-brand{align-items:center}
 html.dk .dk-foot-logo{display:block;flex:0 0 auto;width:84px;height:auto;border-radius:0}
