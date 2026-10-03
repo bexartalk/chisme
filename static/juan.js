@@ -1142,6 +1142,7 @@
         <h3 class="juan-hs-t" id="juan-hs-t"><span aria-hidden="true">🏆</span> Top 10</h3>
         <ol class="juan-hs-list" id="juan-hs-list" aria-live="polite"></ol>
         <p class="juan-hs-note" id="juan-hs-note" hidden></p>
+        <p class="juan-hs-report"><a href="mailto:bexartalkradio@gmail.com?subject=${encodeURIComponent("Report a Top 10 name (Chisme)")}&amp;body=${encodeURIComponent("Which name, and why:\n")}">Report a name</a> · nicknames are public; no real names or slurs</p>
       </section>`;
     const cv = el.querySelector("#juan-cv"), g = cv.getContext("2d", { alpha: false }), ov = el.querySelector("#juan-ov"), wrap = el.querySelector(".juan-wrap"), $ = (s) => el.querySelector(s);
     const HAT = `<svg class="gfs-juan-hat" viewBox="0 0 32 20" aria-hidden="true" focusable="false"><path d="M4 15a12 12 0 0 1 24 0z" fill="#fff"/><rect x="1" y="14" width="30" height="4" rx="2" fill="#e1e6ea"/><rect x="14.5" y="3.4" width="3" height="11" rx="1.2" fill="#c9d0d8"/></svg>`;
@@ -1663,6 +1664,20 @@
       for (const p of lsGet(HS_PENDING, [])) { try { const d = await postScore(p); if (d.ok) { last = d.id; if (d.rank && d.rank <= 10) unlockSkins(d); } else if (d.status === 429) left.push(p); } catch (e) { left.push(p); } }   // 400 = a bad score: dropped
       lsSet(HS_PENDING, left); if (last) hiId = last; return last;
     }
+    // v49.12 (legal audit M5/M6): the same name filter as the server (static/name_blocklist.json, namefilter.py), checked
+    // before posting so a blocked nickname gets a friendly "pick another one" instead of a failed save
+    let blockList = null;
+    const loadBlockList = () => blockList || (blockList = fetch("/static/name_blocklist.json").then((r) => r.json()).catch(() => ({ contains: [], words: [] })));
+    const LEET = { "0": "o", "1": "i", "!": "i", "|": "i", "3": "e", "4": "a", "@": "a", "5": "s", "$": "s", "7": "t", "8": "b", "9": "g" };
+    const squeeze = (x) => x.replace(/(.)\1+/g, "$1");
+    function nameBlocked(name, bl) {
+      if (!bl) return false;
+      const b = String(name || "").normalize("NFKD").toLowerCase().replace(/[\u0300-\u036f]/g, "").replace(/[0-9!|@$]/g, (c) => LEET[c] || c);
+      const joined = b.replace(/[^a-z]/g, ""), W = new Set(bl.words || []);
+      if ((bl.contains || []).some((w) => joined.includes(w) || squeeze(joined).includes(w))) return true;
+      return b.split(/[^a-z]+/).filter(Boolean).some((w) => W.has(w) || W.has(squeeze(w))) || W.has(joined) || W.has(squeeze(joined));
+    }
+    const NAME_NO = "Pick another nickname: that one can't go on the public board.";
     const makes = (sc, rows) => sc > 0 && (rows.length < 10 || sc > rows[rows.length - 1].score);
     let offering = false;
     async function offer(sc, lvl) {
@@ -1678,10 +1693,11 @@
       const d = document.createElement("dialog"); d.className = "juan-hs-sheet"; d.setAttribute("aria-labelledby", "juan-hs-big");
       d.innerHTML = `<form method="dialog" class="juan-hs-card" novalidate>
         <p class="juan-hs-big" id="juan-hs-big"><span aria-hidden="true">🏆</span> New high score!</p>
-        <p class="juan-hs-sub">Put your name on the board</p>
+        <p class="juan-hs-sub">Put your nickname on the board</p>
         <p class="juan-hs-score"><b>${fmt(sc)}</b> points · <span class="juan-hs-rank">#${num(rank)}</span></p>
-        <label class="juan-hs-lbl" for="juan-hs-name">Your name <small>(12 max)</small></label>
-        <input id="juan-hs-name" class="juan-hs-in" type="text" maxlength="12" autocomplete="nickname" autocapitalize="words" enterkeyhint="done" spellcheck="false" placeholder="Your name" value="${escH(lsGet(HS_NAME, ""))}">
+        <label class="juan-hs-lbl" for="juan-hs-name">Nickname (public) <small>(12 max)</small></label>
+        <p class="juan-hs-fine" id="juan-hs-fine">Everyone sees it on the board. Don't use your real name.</p>
+        <input id="juan-hs-name" class="juan-hs-in" type="text" maxlength="12" autocomplete="nickname" autocapitalize="words" enterkeyhint="done" spellcheck="false" aria-describedby="juan-hs-fine" placeholder="Nickname" value="${escH(lsGet(HS_NAME, ""))}">
         <button type="submit" class="juan-hs-save" value="save">Save</button>
         <button type="button" class="juan-hs-skip">Not now</button>
         <p class="juan-hs-msg" role="status"></p></form>`;
@@ -1692,7 +1708,9 @@
       d.addEventListener("cancel", (e) => { e.preventDefault(); close(); });
       d.querySelector("form").addEventListener("submit", async (e) => {
         e.preventDefault(); if (btn.disabled) return;
-        const name = inp.value.replace(/\s+/g, " ").trim().slice(0, 12) || "Juan"; lsSet(HS_NAME, name === "Juan" ? lsGet(HS_NAME, "") : name);
+        const name = inp.value.replace(/\s+/g, " ").trim().slice(0, 12) || "Juan";
+        if (nameBlocked(name, await loadBlockList())) { msgEl.textContent = NAME_NO; inp.focus(); return; }
+        lsSet(HS_NAME, name === "Juan" ? lsGet(HS_NAME, "") : name);
         const entry = { name, score: sc, level: lvl, t: Math.floor(Date.now() / 1000) };
         btn.disabled = true; btn.textContent = "Saving…"; msgEl.textContent = "";
         let res = null; try { res = await postScore(entry); } catch (err) { res = null; }
@@ -1701,8 +1719,9 @@
           const q = lsGet(HS_PENDING, []); q.push(entry); lsSet(HS_PENDING, q.slice(-5)); run.sent = true; hiId = "pending-" + (Math.min(q.length, 5) - 1); drawBoard();
           done(d, "📴 Saved on this phone. It goes on the board when you're back online."); return; }
         btn.disabled = false; btn.textContent = "Save";
-        msgEl.textContent = res.status === 429 ? "Too many tries. Wait a minute and tap Save again." : "That score can't go on the board.";
+        msgEl.textContent = res.status === 429 ? "Too many tries. Wait a minute and tap Save again." : res.error === "name" ? NAME_NO : "That score can't go on the board.";
       });
+      loadBlockList();
       d.showModal(); setTimeout(() => { try { inp.focus(); inp.select(); } catch (e) {} }, 60);
     }
     function done(d, line) {

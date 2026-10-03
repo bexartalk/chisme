@@ -1,5 +1,5 @@
 """v49.5: the owner's 🏆 Juan High Scores manager on /stats + the score endpoints.
-  • public: POST /api/juan/scores trims the name and keeps 12 characters (no word filter); GET returns the top 10
+  • public: POST /api/juan/scores trims the name and keeps 12 characters; v49.12: slurs / the worst profanity are refused (400 name), Massive/Cassandra pass; GET returns the top 10
   • v49.5 sanity check: scores the game can't give are refused (over levels 1..L's maximum, re-counted here from juan.js's
     seeded levels; not a multiple of 5; a level that doesn't exist)
   • owner only (the /stats sign-in): GET /stats/juan/scores, DELETE + PATCH /api/juan/scores/{id} (+ /stats/juan/...
@@ -38,14 +38,19 @@ async def main():
     print("== the endpoints")
     async with httpx.AsyncClient(base_url=BASE, timeout=20) as c:
         open(FILE, "w").write("{}")
-        r = (await c.post("/api/juan/scores", json={"name": "   pinche   cabrón chingón ", "score": 775, "level": 2}, headers={"X-Forwarded-For": "10.9.9.1"})).json()
-        check(r["ok"] and r["entry"]["name"] == "pinche cabró", f"name trimmed + cut to 12 characters, no word filter ({r['entry']['name']!r})")
+        r = (await c.post("/api/juan/scores", json={"name": "   pinche   Juanito  Loco ", "score": 775, "level": 2}, headers={"X-Forwarded-For": "10.9.9.1"})).json()
+        check(r["ok"] and r["entry"]["name"] == "pinche Juani", f"name trimmed + cut to 12 characters ({r['entry']['name']!r})")
+        for nm in ("cabrón", "F.U.C.K", "Sh1t head", "Pendejo"):
+            rb = await c.post("/api/juan/scores", json={"name": nm, "score": 20, "level": 1}, headers={"X-Forwarded-For": "10.9.9.%d" % (3 + len(nm))})
+            check(rb.status_code == 400 and rb.json().get("error") == "name", f"v49.12: {nm!r} is refused for the public board (400 name)")
+        rk = (await c.post("/api/juan/scores", json={"name": "Massive", "score": 30, "level": 1}, headers={"X-Forwarded-For": "10.9.9.2"})).json()
+        check(rk["ok"] and rk["entry"]["name"] == "Massive", "…but an ordinary nickname that only contains letters of one (Massive) is fine")
         r2 = (await c.post("/api/juan/scores", json={"name": "", "score": 5, "level": 1}, headers={"X-Forwarded-For": "10.9.9.1"})).json()
         check(r2["ok"] and r2["entry"]["name"] == "Juan", "an empty name → Juan")
         bad = await c.post("/api/juan/scores", json={"name": "x", "score": -3}, headers={"X-Forwarded-For": "10.9.9.1"})
         check(bad.status_code == 400, "a bad score is refused (400)")
         top = (await c.get("/api/juan/scores")).json()["scores"]
-        check([t["score"] for t in top] == [775, 5] and set(top[0]) == {"id", "name", "score", "level", "t"}, "GET /api/juan/scores: best first")
+        check([t["score"] for t in top] == [775, 30, 5] and set(top[0]) == {"id", "name", "score", "level", "t"}, "GET /api/juan/scores: best first")
         sid = r["id"]
         for m, path, body in [("DELETE", f"/api/juan/scores/{sid}", None), ("PATCH", f"/api/juan/scores/{sid}", {"name": "x"}), ("POST", "/api/juan/scores/clear", {"confirm": "CLEAR"}),
                               ("GET", "/stats/juan/scores", None), ("DELETE", f"/stats/juan/scores/{sid}", None)]:
@@ -59,7 +64,7 @@ async def main():
         rr = await c.delete(f"/api/juan/scores/{sid}", headers=H); check(rr.status_code == 200 and rr.json()["ok"], "DELETE with the owner token deletes")
         rr = await c.delete(f"/api/juan/scores/{sid}", headers=H); check(rr.status_code == 404, "deleting it again → 404")
         rr = await c.post("/api/juan/scores/clear", json={}, headers=H); check(rr.status_code == 400, "clear without confirm → 400")
-        rr = await c.post("/api/juan/scores/clear", json={"confirm": "CLEAR"}, headers=H); check(rr.status_code == 200 and rr.json()["cleared"] == 1, "clear with confirm CLEAR empties the board")
+        rr = await c.post("/api/juan/scores/clear", json={"confirm": "CLEAR"}, headers=H); check(rr.status_code == 200 and rr.json()["cleared"] == 2, "clear with confirm CLEAR empties the board")
         # v49.5 sanity check: impossible scores for the game are refused
         import juanscores, subprocess
         js = "const J=require(%r);const o=[];for(let n=1;n<=J.LEVELS.length;n++){let s=500;for(const e of J.buildLevel(n)){const t=e.t;s+=t==='concha'?10:t==='beer'?15:t==='feria'?25:['coffee','taco','flipflops'].includes(t)?50:t==='agent'?150:t==='suv'?300:J.HAZ[t]?25:0;}o.push(s);}console.log(JSON.stringify(o))" % os.path.join(HERE, "static", "juan.js")

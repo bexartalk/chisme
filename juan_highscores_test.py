@@ -3,7 +3,7 @@
     "Be the first on the board!" when empty, hidden while the game is full screen; the last board is kept on the phone and
     still shows offline (with an offline note)
   • a run ends when Juan makes it through Dice City VI (level 7), or when you leave the game (✕) with points: if the score makes the Top 10,
-    a sheet says "🏆 New high score! Put your name on the board" with a 12-character name box and a big Save → POST → the
+    a sheet says "🏆 New high score! Put your nickname on the board" with a 12-character name box and a big Save → POST → the
     board refreshes with the new row highlighted (in the sheet and on the page); a score that doesn't make it asks nothing
   • offline: Save keeps the name on the phone ("waiting") and posts it when the phone is back online
   • light + dark at 390×844 and 320×640: big bold text (rows ≥ 44 px, ≥ 16 px), nothing clipped or sideways-scrolling
@@ -94,7 +94,7 @@ async def main():
         await pg.wait_for_function(G + ".state.mode === 'win'", timeout=10000)
         await pg.wait_for_selector("dialog.juan-hs-sheet[open]", timeout=8000)
         sc = await pg.evaluate(G + ".state.score"); sh = await pg.evaluate(SHEET)
-        check(sh["big"] == "🏆 New high score!" and sh["sub"] == "Put your name on the board" and sh["max"] == 12 and sh["saveTxt"].lower() == "save" and sh["saveH"] >= 56 and sh["savePx"] >= 20 and sh["fits"],
+        check(sh["big"] == "🏆 New high score!" and sh["sub"] == "Put your nickname on the board" and sh["max"] == 12 and sh["saveTxt"].lower() == "save" and sh["saveH"] >= 56 and sh["savePx"] >= 20 and sh["fits"],
               f"the run's over ({sc} points) and it makes the Top 10 → '{sh['big']} {sh['sub']}', a 12-char name box, a big Save ({sh['saveH']:.0f}px, {sh['savePx']:.0f}px text, {sh['saveBg']})")
         await pg.fill("dialog.juan-hs-sheet input", "Goonie El Tejano")
         val = await pg.input_value("dialog.juan-hs-sheet input")

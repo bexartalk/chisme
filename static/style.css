@@ -1574,3 +1574,7 @@ dialog.juan-skins button.juan-sk-done{position:sticky;bottom:8px;z-index:2}
 .wx-disclaimer a,.wx-disclaimer-set a{color:inherit;text-decoration:underline;font-weight:700;display:inline-block;padding:4px 0}
 /* v49.12 legal (M10): what a tip is, under every set of tip buttons */
 .donate-fine{margin:6px 0 0;font-size:.8rem;line-height:1.35;opacity:.85}
+/* v49.12 Top 10: the nickname is public; Report a name */
+.juan-hs-fine{margin:-2px 0 6px;font-size:.85rem;opacity:.9}
+.juan-hs-report{margin:8px 0 0;font-size:.85rem}
+.juan-hs-report a{color:inherit;text-decoration:underline;font-weight:800;display:inline-block;padding:8px 0}

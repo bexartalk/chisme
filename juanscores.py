@@ -1,8 +1,9 @@
 """v49.5: The Juan That Got Away high scores (server side) + the owner's manager.
 
 Public:  GET  /api/juan/scores           → the top 10 {id, name, score, level, t} (+ "max": the highest possible score)
-         POST /api/juan/scores {name, score, level} → saves one (name: trimmed, at most 12 characters, nothing else
-                                                      filtered, per the owner; empty → "Juan")
+         POST /api/juan/scores {name, score, level} → saves one (name: trimmed, at most 12 characters; empty → "Juan";
+                                                      v49.12: a slur / the worst profanity → 400 {"error": "name"},
+                                                      namefilter.py; one already on the board shows as "Juan")
 Owner (the same sign-in as /stats: the /stats cookie, or Authorization: Bearer ADMIN_TOKEN):
          GET    /stats/juan/scores                     → every score
          DELETE /api/juan/scores/{id}                  → delete one     (also /stats/juan/scores/{id}, which gets the cookie)
@@ -19,6 +20,7 @@ import time
 
 import unicodedata
 
+import namefilter
 import stats
 
 KEY = "chisme:juan:scores"
@@ -128,7 +130,11 @@ def store():
 
 
 async def board(n: int = TOP) -> list[dict]:
-    return [{k: r.get(k) for k in ("id", "name", "score", "level", "t")} for r in _sorted(await store().all())[:n]]
+    rows = [{k: r.get(k) for k in ("id", "name", "score", "level", "t")} for r in _sorted(await store().all())[:n]]
+    for r in rows:   # v49.12: an older entry that the filter would block is shown as "Juan" (the owner can still rename/delete it)
+        if namefilter.blocked(r.get("name") or ""):
+            r["name"] = "Juan"
+    return rows
 
 
 async def everything() -> list[dict]:
@@ -139,6 +145,8 @@ async def add(body: dict) -> dict:
     e = clean_entry(body)
     if not e:
         return {"ok": False, "error": "bad score"}
+    if namefilter.blocked(e["name"]):   # v49.12: not on a public board kids see
+        return {"ok": False, "error": "name"}
     s = store(); id_ = secrets.token_hex(6)
     await s.put(id_, e)
     rows = _sorted(await s.all())
