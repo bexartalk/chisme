@@ -225,7 +225,9 @@ async def webkit_tests(p, data):
     url0 = await pg.evaluate("[...document.querySelectorAll('#feed-scroll .vf-slide')][window.__chisme.forYou.cur].dataset.url")
     box = await pg.evaluate("(() => { const r = [...document.querySelectorAll('#feed-scroll .vf-slide')][window.__chisme.forYou.cur].querySelector('.vf-shield').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height * 0.4 }; })()")
     was = await pg.evaluate("window.__chisme.forYou.sound ? [...document.querySelectorAll('#feed-scroll .vf-slide')][window.__chisme.forYou.cur].classList.contains('vf-playing') : null")
+    await pg.evaluate("window.__tapT = []; document.addEventListener('click', (e) => { if (e.target.closest && e.target.closest('.vf-shield')) window.__tapT.push(Date.now()); }, true)")
     await pg.touchscreen.tap(box["x"], box["y"]); await pg.wait_for_timeout(120); await pg.touchscreen.tap(box["x"], box["y"]); await pg.wait_for_timeout(250)
+    tt = await pg.evaluate("window.__tapT"); print(f"     (the two taps' clicks: {[t - tt[0] for t in tt]} ms apart)")
     h = await pg.evaluate(f"({{ heart: document.querySelectorAll('#feed-scroll .vf-heart').length, liked: !!({PROF}).s[{json.dumps(url0)}]?.lk, pressed: [...document.querySelectorAll('#feed-scroll .vf-slide')][window.__chisme.forYou.cur].querySelector('.vf-act .vf-like').getAttribute('aria-pressed'), q: {STATQ}.filter(e => e[0] === 'reel') }})")
     h["q"] = h["q"] + sent()
     await pg.screenshot(path=os.path.join(SHOTS, "reels-heart.png"))
@@ -340,7 +342,8 @@ async def chromium_tests(p, data):
       return { n: all.length, batches: r.batches, endLast: all[all.length - 1].classList.contains('vf-end'), urls: all.filter((s) => s.dataset.url).map((s) => s.dataset.url) }; }""")
     check(e["batches"] >= 1 and e["n"] > n0 and e["endLast"], f"endless: 4 videos before the end, the next batch is already there ({n0} → {e['n']} slides, the end card stays last)")
     old, new = e["urls"][:-10], e["urls"][-10:]
-    check(not (set(new) & set(old[-12:])) and len(set(new)) == len(new), "…none of the new batch repeats the last 12 videos, no duplicates inside it")
+    rep = [u for u in new if u in old[-12:]]
+    check(not rep and len(set(new)) == len(new), f"…none of the new batch repeats the last 12 videos, no duplicates inside it ({len(old)} before, repeats {[u[-14:] for u in rep]}, dupes {len(new) - len(set(new))})")
     check(not errs, "no page errors" + (f": {errs[:2]}" if errs else ""))
     await ctx.close()
 
@@ -364,8 +367,8 @@ async def chromium_tests(p, data):
     check(H.unescape(og.get("og:title", "")).rstrip("…")[:40] == want[:40] and H.unescape(og.get("og:description", "")).startswith("Check out this chisme, metiche 👀") and "the community for los metiches" in H.unescape(og.get("og:description", "")),
           f"…title = the video's, description = the share line ({H.unescape(og.get('og:title', ''))[:60]!r})")
     html2 = urllib.request.urlopen(URL + "?reel=%3Cscript%3E", timeout=30).read().decode()
-    check('property="og:title" content="Chisme — San Antonio' in html2 and "<script>" not in html2.split("<body")[0].replace("<script>", "") , "a bad ?reel= value: the normal Open Graph tags, nothing injected")
-    check('property="og:title" content="Chisme — San Antonio' in urllib.request.urlopen(URL, timeout=30).read().decode(), "the home page has Open Graph tags too")
+    check('property="og:title" content="Chisme, the community for los metiches"' in html2 and "<script>" not in html2.split("<body")[0].replace("<script>", "") , "a bad ?reel= value: the normal Open Graph tags, nothing injected")
+    check('property="og:title" content="Chisme, the community for los metiches"' in urllib.request.urlopen(URL, timeout=30).read().decode(), "the home page has Open Graph tags too")
     pop = json.load(urllib.request.urlopen(URL + "api/reels/popular", timeout=30))
     check(isinstance(pop.get("pop"), dict), f"/api/reels/popular answers ({len(pop.get('pop') or {})} videos)")
     await b.close()

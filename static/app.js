@@ -1884,7 +1884,7 @@ window.CHISME_APP_BUILD = "49.13";
     shield.onclick = (e) => {
       if (!isCur(slide)) return;
       // v49.13: a double-tap likes it (♥ where you tapped); its first tap already paused/played, so the second puts that back
-      const now = Date.now(), dbl = !!slide._tapAt && now - slide._tapAt < 330;
+      const now = Date.now(), dbl = !!slide._tapAt && now - slide._tapAt < 400;   // 400 ms: slower double-taps count too (the first tap still acts at once)
       slide._tapAt = dbl ? 0 : now;
       if (dbl) { if (slide._tapToggled) toggle(); slide._tapToggled = false; toggleLike(slide, it, true, e); return; }
       slide._tapToggled = false;
