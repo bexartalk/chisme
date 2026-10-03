@@ -252,7 +252,7 @@ def site_footer() -> str:
 
 
 def site_nav(active: str = "") -> str:
-    tabs = [("/#chisme", "📰", "Chisme"), ("/#weather", "🌤️", "Weather"), ("/#dieta", "🌮", dieta_label()), ("/#juegos", "🎲", "Juegos")]
+    tabs = [("/#chisme", "📰", "Chisme"), ("/#dieta", "🌮", dieta_label()), ("/#weather", "🌤️", "Weather"), ("/#juegos", "🎲", "Juegos")]   # v49.15.3 order, as the app's tabs
     links = "".join(f'<a href="{h}"><span aria-hidden="true">{e}</span> {esc(t)}</a>' for h, e, t in tabs)
     return f"""<header class="site-nav">
   <div class="sn-in">

@@ -362,3 +362,5 @@ html.dk .dk-w{position:relative;border-radius:22px;box-shadow:none}
 html.dk .dk-w::after{content:"";position:absolute;left:30px;bottom:-9px;width:16px;height:16px;background:inherit;border:solid var(--dk-wline);border-width:0 2px 2px 0;transform:rotate(45deg) skew(8deg,8deg);pointer-events:none}
 html.dk .dk-w.dk-house::after{border-style:dashed}
 html.dk #mix-list .story,html.dk #mix-list .sn,html.dk #mix-list .ev,html.dk #mix-list>.donate{border-radius:20px}
+/* v49.15.3: the "From Chisme" card (every 5th post) takes one cell of the All grid instead of a full row */
+html.dk #mix-list>.from-chisme{grid-column:auto;max-width:none;margin:0;aspect-ratio:auto;min-height:100%}

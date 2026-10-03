@@ -1,9 +1,10 @@
 """v46: a donation reminder after every 7 posts in News and Events, and its own swipeable slide every 7 videos in the
-full-screen For You food feed. Tia's voice, the Cash App ($Slurmkaos) + Buy Me a Coffee (Chismoso) buttons (they open
+full-screen For You food feed (v49.15.3: in the Chisme lists the every-5 "From Chisme" card replaced it, see from_chisme_test.py;
+the feed slide is unchanged and is where the buttons are tested now). Tia's voice, the Cash App ($Slurmkaos) + Buy Me a Coffee (Chismoso) buttons (they open
 outside the app, never in the in-app reader), a Share Chisme button (navigator.share with the title Chisme, a line and
 Chisme's address (v49.13: PUBLIC_BASE_URL, else the page's own); without it the link is copied and a "Link copied!" toast shows), the X hides them for the
 session, never next to a serious story, no yellow. WebKit iPhone 13.
-Screenshots: donate-news.png, donate-events.png, donate-food.png."""
+Screenshots: donate-food.png."""
 from popup_quiet import QUIET   # v49: the notifications card + Settings tip have their own tests
 import asyncio, colorsys, os, re
 from playwright.async_api import async_playwright
@@ -46,50 +47,12 @@ async def main():
         await ctx.route(re.compile(r"https://(cash\.app|buymeacoffee\.com)/.*"), lambda r: r.fulfill(status=200, content_type="text/html", body="<p>donate page</p>"))
         pg = await ctx.new_page(); errs = []; pg.on("pageerror", lambda e: errs.append(str(e)))
         await pg.goto(BASE + "/"); await pg.wait_for_function("window.__chisme && __chisme.ready && __chisme.newsReady", timeout=120000); await pg.wait_for_timeout(800)
-        print("== News")
-        ev = await pg.evaluate("__chisme.every"); n_st = await pg.evaluate("document.querySelectorAll('#near-list .story, #city-list .story, #sa-list .story').length")
-        cards = await pg.evaluate("document.querySelectorAll('#view-news .donate-every').length")
-        check(n_st >= 14 and cards >= 2 and cards == len(ev["news"]) and spaced(ev["news"]), f"a donate card after about every 7th story ({n_st} stories, cards after {ev['news']})")
-        gaps = await pg.evaluate("""() => { const all = [...document.querySelectorAll('#near-list > *, #city-list > *, #sa-list > *')], out = []; let k = 0;
-          for (const n of all) { if (n.matches('.story')) k++; else if (n.matches('.donate-every')) out.push(k); } return out; }""")
-        check(gaps == ev["news"], f"...counted across the News lists in order ({gaps})")
-        heavy = await pg.evaluate("""() => [...document.querySelectorAll('#view-news .donate-every')].filter((c) => [c.previousElementSibling, c.nextElementSibling]
-          .filter((n) => n && n.matches('.story')).some((n) => window.ChismeDonate.serious((n.querySelector('h3') || n).textContent + ' ' + ((n.querySelector('.sum') || {}).textContent || ''), (n.querySelector('.src') || {}).textContent || ''))).length""")
-        check(heavy == 0, "never right next to a serious story")
-        c = await pg.evaluate(CARD_JS, "#view-news .donate-every")
-        check(c["links"] == [["https://cash.app/$Slurmkaos", "_blank", "noopener noreferrer"], ["https://buymeacoffee.com/Chismoso", "_blank", "noopener noreferrer"]] and c["tag"] == "$Slurmkaos",
-              f"the same buttons as the other donate cards: Cash App $Slurmkaos + Buy Me a Coffee, opening outside ({c['links']})")
-        check(c["share"] == "📣 Share Chisme" and c["shareH"] >= 44 and c["x"] == "Dismiss these for now", f"...a Share Chisme button next to them and an X ({c['share']!r}, {c['shareH']:.0f} px)")
-        lines = await pg.evaluate("[...document.querySelectorAll('.donate-every .donate-text')].map(p => p.textContent)")
-        check(all(len(t) <= 110 for t in lines) and all(a != b for a, b in zip(lines, lines[1:])) and len(set(lines)) == min(5, len(lines)), f"short, a different line on each card in turn ({lines[:2]})")
-        bad = [x for x in c["cols"] if yellowish(x)]
-        check(not bad, f"no yellow in the card ({bad[:3]})")
-        await pg.evaluate("document.querySelector('#view-news .donate-every').scrollIntoView({ block: 'center' })"); await pg.wait_for_timeout(500)
-        await pg.screenshot(path=os.path.join(OUT, "donate-news.png"))
-        await pg.click("#view-news .donate-every .share-chisme"); await pg.wait_for_timeout(300)
-        sh = await pg.evaluate("__shared")
-        check(len(sh) == 1 and sh[0]["title"] == "Chisme" and sh[0]["url"] == URL and 10 < len(sh[0]["text"]) <= 90, f"Share Chisme -> navigator.share: title Chisme, a witty line, {URL} ({sh})")
-        await pg.evaluate("Object.defineProperty(navigator, 'share', { configurable: true, value: undefined })")
-        await pg.click("#view-news .donate-every .share-chisme"); await pg.wait_for_timeout(300)
-        cp = await pg.evaluate("__copied"); toast = await pg.evaluate("(() => { const t = document.querySelector('#share-toast'); return { shown: !t.hidden, text: t.textContent, bg: getComputedStyle(t).backgroundColor }; })()")
-        check(cp == [URL] and toast["shown"] and toast["text"] == "Link copied!" and not yellowish(toast["bg"]), f"no share sheet: the link is copied and a 'Link copied!' toast shows ({cp}, {toast})")
-        async with ctx.expect_page() as newp:
-            await pg.click("#view-news .donate-every a.donate-btn.cashapp")
-        np = await newp.value; await np.wait_for_load_state()
-        rd = await pg.evaluate("[...document.querySelectorAll('dialog')].filter(d => d.open).map(d => d.id)")
-        check(np.url.startswith("https://cash.app/$Slurmkaos") and not rd, f"Donate on Cash App opens outside the app, not in the reader ({np.url}, open dialogs {rd})")
-        await np.close()
-        print("== Events")
-        await pg.evaluate("__chisme.goView('events', { instant: true })")
-        await pg.wait_for_function("__chisme.eventsReady", timeout=90000); await pg.wait_for_timeout(1500)
-        ev = await pg.evaluate("__chisme.every"); n_ev = await pg.evaluate("document.querySelectorAll('#events-list article.ev').length")
-        evc = await pg.evaluate("document.querySelectorAll('#view-events .donate-every').length")
-        check(n_ev > 7 and evc >= 1 and evc == len(ev["events"]) and spaced(ev["events"]), f"Events: a donate card after about every 7th event ({n_ev} events, cards after {ev['events']})")
-        if evc:
-            ce = await pg.evaluate(CARD_JS, "#view-events .donate-every")
-            check(ce["share"] == "📣 Share Chisme" and len(ce["links"]) == 2 and not [x for x in ce["cols"] if yellowish(x)], "...same card: donate buttons + Share Chisme, no yellow")
-            await pg.evaluate("document.querySelector('#view-events .donate-every').scrollIntoView({ block: 'center' })"); await pg.wait_for_timeout(500)
-            await pg.screenshot(path=os.path.join(OUT, "donate-events.png"))
+        print("== News, Sports, Events, All (v49.15.3)")
+        # v49.15.3: in the Chisme lists the square "From Chisme" card after every 5th post (from_chisme_test.py) took the
+        # every-7 card's place (one donate + share card, not two); the every-7 slide stays in the ChismeTV food feed (below)
+        n7 = await pg.evaluate("document.querySelectorAll('#view-chisme .donate-every, #view-news .donate-every, #view-sports .donate-every, #view-events .donate-every').length")
+        fc = await pg.evaluate("__chisme.fromChisme.where")
+        check(n7 == 0 and fc["news"][:2] == [5, 10], f"no every-7 cards in the Chisme lists; the From Chisme card sits after every 5th story instead (after {fc['news'][:4]}…)")
         print("== For You food feed")
         await pg.evaluate("__chisme.goView('antojos', { instant: true })")
         await pg.wait_for_function("__chisme.foodReady && document.querySelector('#fy-start')", timeout=90000); await pg.wait_for_timeout(800)
@@ -104,7 +67,26 @@ async def main():
         check(fd["donate"] and fd["cur"] == 7 and fd["full"] and fd["share"] and fd["links"] == 2, f"swipe to it: the donate slide fills the screen, with the donate + Share Chisme buttons {fd}")
         cf = await pg.evaluate(CARD_JS, "#feed-scroll .vf-donate .donate-every")
         check(cf and not [x for x in cf["cols"] if yellowish(x)], "...no yellow")
+        c = cf
+        check(c["links"] == [["https://cash.app/$Slurmkaos", "_blank", "noopener noreferrer"], ["https://buymeacoffee.com/Chismoso", "_blank", "noopener noreferrer"]] and c["tag"] == "$Slurmkaos",
+              f"the same buttons as the other donate cards: Cash App $Slurmkaos + Buy Me a Coffee, opening outside ({c['links']})")
+        check(c["share"] == "📣 Share Chisme" and c["shareH"] >= 44 and c["x"] == "Dismiss these for now", f"...a Share Chisme button next to them and an X ({c['share']!r}, {c['shareH']:.0f} px)")
+        lines = await pg.evaluate("[...document.querySelectorAll('.donate-every .donate-text')].map(p => p.textContent)")
+        check(all(len(t) <= 110 for t in lines) and all(a != b for a, b in zip(lines, lines[1:])) and len(set(lines)) == min(5, len(lines)), f"short, a different line on each card in turn ({lines[:2]})")
         await pg.screenshot(path=os.path.join(OUT, "donate-food.png"))
+        await pg.click("#feed-scroll .vf-donate .share-chisme"); await pg.wait_for_timeout(300)
+        sh = await pg.evaluate("__shared")
+        check(len(sh) == 1 and sh[0]["title"] == "Chisme" and sh[0]["url"] == URL and 10 < len(sh[0]["text"]) <= 90, f"Share Chisme -> navigator.share: title Chisme, a witty line, {URL} ({sh})")
+        await pg.evaluate("Object.defineProperty(navigator, 'share', { configurable: true, value: undefined })")
+        await pg.click("#feed-scroll .vf-donate .share-chisme"); await pg.wait_for_timeout(300)
+        cp = await pg.evaluate("__copied"); toast = await pg.evaluate("(() => { const t = document.querySelector('#share-toast'); return { shown: !t.hidden, text: t.textContent, bg: getComputedStyle(t).backgroundColor }; })()")
+        check(cp == [URL] and toast["shown"] and toast["text"] == "Link copied!" and not yellowish(toast["bg"]), f"no share sheet: the link is copied and a 'Link copied!' toast shows ({cp}, {toast})")
+        async with ctx.expect_page() as newp:
+            await pg.click("#feed-scroll .vf-donate a.donate-btn.cashapp")
+        np = await newp.value; await np.wait_for_load_state()
+        rd = await pg.evaluate("[...document.querySelectorAll('dialog')].filter(d => d.open && d.id !== 'feed').map(d => d.id)")
+        check(np.url.startswith("https://cash.app/$Slurmkaos") and not rd, f"Donate on Cash App opens outside the app, not in the reader ({np.url}, open dialogs {rd})")
+        await np.close()
         await pg.evaluate(GO, 8); await pg.wait_for_timeout(1000)
         nx = await pg.evaluate("(() => { const s = [...document.querySelectorAll('#feed-scroll .vf-slide')][8]; return { url: !!s.dataset.url, cur: window.__chisme.forYou.cur }; })()")
         check(nx["url"] and nx["cur"] == 8, f"...and the next swipe is the 8th video {nx}")
@@ -117,7 +99,7 @@ async def main():
         check(await pg.evaluate("document.querySelectorAll('.donate-every').length") == 0, "...still hidden after a reload in the same session")
         c2 = await b.new_context(**dev, service_workers="block"); await c2.add_init_script(QUIET + INIT); pg2 = await c2.new_page()
         await pg2.goto(BASE + "/"); await pg2.wait_for_function("window.__chisme && __chisme.ready && __chisme.newsReady", timeout=120000); await pg2.wait_for_timeout(800)
-        check(await pg2.evaluate("document.querySelectorAll('#view-news .donate-every').length") >= 1, "...and back in a new session")
+        check(not (await pg2.evaluate("__chisme.every"))["gone"], "...and back in a new session")
         check(not errs, f"no page errors ({errs[:2]})")
         await b.close()
     print("\nALL PASS" if not fails else f"\n{fails} FAILED")

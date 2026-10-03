@@ -148,7 +148,7 @@
        (the Chisme bubble = Settings, as before; ⚙️; Tía's bubble = her chat) and the section tabs as a bottom bar (#tabs).
        Both slide away while you scroll down and come back on any scroll up (app.js fbNav). On desktop #settings-btn
        moves into the desktop nav (desktop.js) and back here when the window gets narrow again. -->
-  <header id="fbtop" class="fbtop">
+  <header id="fbtop" class="fbtop" data-skyline="sa">   <!-- v49.15.3: app.js puts a copy of the header skyline (#topbar .skyline) in here as the bar's band; no ¿Oyistes? on phones -->
     <h1 class="sr-only">Chisme</h1>
     <div class="fbtop-in">
       <!-- v49.15 Día de Muertos only (.muertos-only): a candle and a calavera on either side of the Chisme bubble. -->
@@ -160,7 +160,6 @@
         </svg>
       </button>
       <span class="mq-deco mq-skull muertos-only" aria-hidden="true"><img src="/static/season/calavera.svg" alt="" width="40" height="44"></span>
-      <span class="fb-tag" aria-hidden="true">¿Oyistes?</span>
       <div class="fb-right">
         <button type="button" id="install-btn" class="install" hidden>📲 Install</button>
         <button type="button" id="fb-set" class="fb-ico" aria-label="Settings" aria-haspopup="dialog" aria-controls="settings"><span aria-hidden="true">⚙️</span></button>
@@ -171,12 +170,13 @@
     </div>
     <div class="fb-picado" aria-hidden="true"></div>
   </header>
+  <div class="fb-safe" aria-hidden="true"></div>   <!-- v49.15.3: the status-bar strip (safe-area-inset-top) in the bar's colour; the bar slides under it -->
   <!-- Section buttons: position:fixed. Desktop: the top nav (body gets matching top padding). v49.15 phones/tablets: the bottom tab bar -->
   <nav id="tabs" class="tabs" aria-label="Sections">
     <div class="wrap tabs-inner">
       <button type="button" class="tab" data-view="chisme" aria-controls="view-chisme" aria-current="page"><span aria-hidden="true">📰</span> <span class="tab-l">Chisme</span></button>
-      <button type="button" class="tab" data-view="weather" aria-controls="view-weather"><span aria-hidden="true">🌤️</span> Weather</button>
       <button type="button" class="tab" data-view="antojos" aria-controls="view-antojos"><span aria-hidden="true">🌮</span> <b class="tl tab-l">¿Y la dieta?</b></button>
+      <button type="button" class="tab" data-view="weather" aria-controls="view-weather"><span aria-hidden="true">🌤️</span> Weather</button>
       <button type="button" class="tab" data-view="juegos" aria-controls="view-juegos"><span aria-hidden="true">🎲</span> Juegos</button>
     </div>
   </nav>
@@ -696,8 +696,8 @@
           <label><input type="radio" name="deftab" value="news"><span><i class="emo" aria-hidden="true">📰</i> Chisme: News</span></label>
           <label><input type="radio" name="deftab" value="sports"><span><i class="emo" aria-hidden="true">🏀</i> Chisme: Sports</span></label>
           <label><input type="radio" name="deftab" value="events"><span><i class="emo" aria-hidden="true">🎉</i> Chisme: Events</span></label>
-          <label><input type="radio" name="deftab" value="weather"><span><i class="emo" aria-hidden="true">🌤️</i> Weather</span></label>
           <label><input type="radio" name="deftab" value="antojos"><span><i class="emo" aria-hidden="true">🌮</i> ¿Y la dieta?</span></label>
+          <label><input type="radio" name="deftab" value="weather"><span><i class="emo" aria-hidden="true">🌤️</i> Weather</span></label>
           <label><input type="radio" name="deftab" value="juegos"><span><i class="emo" aria-hidden="true">🎲</i> Juegos</span></label>
         </div>
       </fieldset>

@@ -16,8 +16,16 @@ Desktop (1024 px and up) must be exactly as before.
   • Día de Muertos logo art (v49.15): a candle + a calavera beside the Chisme bubble in the phone top bar (390 + 320 px) and
     the desktop hero; only in the season; small; clear of the bubble, the tagline and Tía; no yellow in the SVGs or the CSS
     flame; the flame flickers, and stops under Reduce motion (system or Chisme's own); the desktop hero doesn't re-flow
-Screenshots: /workspace/chisme-navbar-shots/ (top, scrolled, scroll-up, tia-open, dark, chismetv, muertos, weather, desktop-1440,
-muertos-logo (phone), muertos-logo-desktop).
+  • v49.15.3 smooth bars: the top bar, the chip row and the tab bar slide AND fade (transform + opacity, 250–300 ms, an
+    ease-out curve); at the start of the slide-in they're still out of sight (no snap), half-way they're part-way in with
+    the chip row glued under the top bar, at the end they're fully in; turning around mid-slide never jumps or flickers;
+    the new-stories pill, the sync pill and the Terms bar ride on `translate` with the same timing; the status-bar strip
+    (.fb-safe) stays put in the bar's colour; Reduce motion = no sliding, only a short fade
+  • v49.15.3 the phone top bar has the city skyline (the old header's art) behind its buttons, no ¿Oyistes?, the same height;
+    the tab bar is Chisme · ¿Y la dieta? (Ofrendas in the Día de Muertos season) · Weather · Juegos
+Screenshots: SHOTS (default /workspace/chisme-navbar-shots/): top, scrolled, scroll-up, tia-open, dark, chismetv, muertos, weather,
+desktop-1440, muertos-logo (phone), muertos-logo-desktop, top-skyline, top-skyline-dark, tabbar-offseason, tabbar-season,
+slide-in-1-start, slide-in-2-mid, slide-in-3-end.
     URL=http://127.0.0.1:8297/ REF_URL=http://127.0.0.1:8298/ ./venv/bin/python fb_nav_test.py"""
 import asyncio, os, sys
 from playwright.async_api import async_playwright
@@ -38,7 +46,7 @@ BARS = """() => { const R = (e) => { const r = e.getBoundingClientRect(); return
   return { top: R(top), tabs: R(tabs), vh: innerHeight, vw: innerWidth, y: scrollY, hide: document.documentElement.classList.contains('fb-hide'),
     topShown: R(top).t > -1 && R(top).b > 40, tabsShown: R(tabs).b <= innerHeight + 1 && R(tabs).t < innerHeight - 40,
     topGone: R(top).b <= 1, tabsGone: R(tabs).t >= innerHeight - 1 }; }"""
-SETTLE = 380   # the slide is 220 ms
+SETTLE = 480   # v49.15.3: the slide is 280 ms
 
 async def scroll_to(pg, y, step=None):
     """scrolls like a finger would: in steps, one frame apart (the nav reads the scroll once per animation frame)"""
@@ -72,6 +80,118 @@ YELLOWISH = """(sels) => { const out = []; const yellow = (c) => { const m = c.m
     for (const g of [cs.backgroundImage, cs.boxShadow]) if (g && g !== 'none' && (g.match(/rgba?\\([^)]*\\)/g) || []).some(yellow)) out.push(s + ' gradient/shadow ' + g.slice(0, 60)); }
   return out; }"""
 
+SKY = """() => { const top = document.querySelector('#fbtop'), sky = top.querySelector('svg.fb-sky'), tb = top.getBoundingClientRect();
+  const R = (e) => { const r = e.getBoundingClientRect(); return { l: r.left, t: r.top, r: r.right, b: r.bottom, w: r.width, h: r.height }; };
+  const shapes = sky ? [...sky.querySelectorAll('g[class^="sky-"]')].filter((g) => getComputedStyle(g).display !== 'none') : [];
+  const s = sky && R(sky), cs = sky && getComputedStyle(sky), win = shapes[0] && shapes[0].querySelector('.sky-win');
+  const btns = ['#settings-btn', '#fb-set', '#fb-tia'].map((q) => top.querySelector(q)).filter(Boolean);
+  const hits = btns.map((x) => { const r = R(x), at = document.elementFromPoint((r.l + r.r) / 2, (r.t + r.b) / 2); return !!at && (at === x || x.contains(at)); });
+  const rgb = (c) => (String(c).match(/[\\d.]+/g) || []).slice(0, 3).map(Number);
+  const mix = (a, b, o) => a.map((v, i) => v * o + b[i] * (1 - o));
+  const bg = rgb(getComputedStyle(top).backgroundColor), bgGrad = getComputedStyle(top).backgroundImage;
+  const base = bgGrad && bgGrad !== 'none' ? rgb((bgGrad.match(/rgba?\\([^)]*\\)/g) || []).pop() || '') : bg;
+  const fill = cs ? rgb(cs.fill) : [0, 0, 0], op = cs ? +cs.opacity : 0, seen = mix(fill, base, op);
+  return { sky: !!sky, which: top.dataset.skyline, shown: shapes.reduce((n, g) => n + g.querySelectorAll('path').length, 0),
+    inBar: !!s && s.t >= tb.top - 0.5 && s.b <= tb.bottom + 0.5 && s.w >= tb.width - 1, barH: Math.round(tb.height),
+    oyistes: /Oyistes/i.test(top.textContent), tag: !!top.querySelector('.fb-tag'), under: hits.length === 3 && hits.every(Boolean), hits,
+    fills: [cs && cs.fill, win && getComputedStyle(win).fill].filter(Boolean), fillDiff: Math.round(Math.max(...seen.map((v, i) => Math.abs(v - base[i])))) }; }"""
+def sky_yellow(fills):
+    import re
+    for f in fills:
+        m = re.findall(r"[\d.]+", f)
+        if len(m) >= 3:
+            r, g, b_ = map(float, m[:3])
+            if r > 180 and g > 150 and b_ < 110 and abs(r - g) < 90: return True
+    return False
+# the bars' transitions: [property, seconds, timing function] per element
+TRANS = """() => { const out = {}; const sec = (x) => x.trim().endsWith('ms') ? parseFloat(x) / 1000 : parseFloat(x);
+  for (const [k, q] of [['top', '#fbtop'], ['tabs', '#tabs'], ['chips', '#view-chisme .mq-chips'], ['pill', '#news-pill'], ['sync', '#sync'], ['terms', '.terms-bar']]) {
+    const e = document.querySelector(q); if (!e) continue; const cs = getComputedStyle(e);
+    const p = cs.transitionProperty.split(','), d = cs.transitionDuration.split(','), f = cs.transitionTimingFunction.split(/,(?![^(]*\\))/);
+    out[k] = { list: p.map((x, i) => [x.trim(), sec(d[i % d.length]), (f[i % f.length] || '').trim()]) }; }
+  return out; }"""
+FRAME = """() => { const R = (q) => { const e = document.querySelector(q); if (!e) return null; const r = e.getBoundingClientRect(); return { t: +r.top.toFixed(1), b: +r.bottom.toFixed(1), o: +(+getComputedStyle(e).opacity).toFixed(3) }; };
+  return { top: R('#fbtop'), tabs: R('#tabs'), chips: R('#view-chisme .mq-chips'), vh: innerHeight }; }"""
+# shows the bars and freezes their CSS transitions at the very start (so the test can step through the slide-in)
+SHOW_PAUSED = """() => { window.__chismeNav.show(); const els = ['#fbtop', '#tabs', '#view-chisme .mq-chips'].map((q) => document.querySelector(q));
+  getComputedStyle(els[0]).transform;
+  const an = document.getAnimations().filter((a) => a.effect && els.includes(a.effect.target) && a.transitionProperty);
+  an.forEach((a) => { a.pause(); a.currentTime = 0; }); window.__fbAn = an;
+  return an.map((a) => a.effect.target.id || a.effect.target.className.split(' ')[0]).map((t, i) => t + ':' + an[i].transitionProperty + ':' + Math.round(an[i].effect.getComputedTiming().duration)); }"""
+SEEK = "(ms) => { for (const a of window.__fbAn) a.currentTime = Math.min(ms, a.effect.getComputedTiming().duration); }"
+
+async def motion(b, bname, dev, shots):
+    print(f"\n== smooth bars ({bname})")
+    ctx, pg = await new_page(b, 390, 844, dev=dev); await ready(pg)
+    tr = await pg.evaluate(TRANS)
+    def has(k, prop):
+        return [x for x in tr.get(k, {"list": []})["list"] if x[0] == prop]
+    for k, name in (("top", "top bar"), ("tabs", "tab bar"), ("chips", "chip row")):
+        t, o = has(k, "transform"), has(k, "opacity")
+        ok = t and o and all(0.25 <= x[1] <= 0.30 for x in t + o) and all(x[2] not in ("linear", "ease-in") and ("ease-out" in x[2] or "cubic-bezier" in x[2]) for x in t + o)
+        check(bool(ok), f"{bname}: the {name} slides and fades: transform + opacity transitions, 250–300 ms, ease-out {t + o}")
+    same = {x[1] for k in ("top", "tabs", "chips") for x in has(k, "transform") + has(k, "opacity")} | {x[1] for k in ("pill", "sync", "terms") for x in has(k, "translate")}
+    check(len(same) == 1 and all(has(k, "translate") for k in ("pill", "sync", "terms")),
+          f"{bname}: the new-stories pill, the sync pill and the Terms bar move on `translate` with the bars' exact timing (one duration for all: {sorted(same)})")
+    safe = await pg.evaluate("""() => { const s = document.querySelector('.fb-safe'), t = document.querySelector('#fbtop'); if (!s) return null; const cs = getComputedStyle(s);
+      return { pos: cs.position, top: s.getBoundingClientRect().top, z: +cs.zIndex, tz: +getComputedStyle(t).zIndex, bg: cs.backgroundColor, bar: getComputedStyle(t).backgroundColor, tr: cs.transitionDuration, h: cs.height }; }""")
+    check(safe and safe["pos"] == "fixed" and safe["top"] == 0 and safe["z"] > safe["tz"] and safe["bg"] == safe["bar"] and safe["tr"] == "0s",
+          f"{bname}: the status-bar strip (.fb-safe, safe-area-inset-top tall) is fixed at the top, over the bar, in the bar's colour, and doesn't move (the bar slides under it) {safe}")
+    # hide them, then step through the slide-in
+    await scroll_to(pg, 1200, 60)
+    hid = await pg.evaluate(FRAME)
+    check(hid["top"]["b"] <= 0.5 and hid["top"]["o"] == 0 and hid["tabs"]["t"] >= hid["vh"] - 0.5 and hid["tabs"]["o"] == 0 and hid["chips"]["b"] <= 0.5 and hid["chips"]["o"] == 0,
+          f"{bname}: hidden: the top bar, the chip row and the tab bar are off screen and faded out {hid}")
+    an = await pg.evaluate(SHOW_PAUSED)
+    check(len(an) >= 6, f"{bname}: showing them starts CSS transitions on all three (transform + opacity each) {an}")
+    f0 = await pg.evaluate(FRAME)
+    check(f0["top"]["b"] <= 0.5 and f0["top"]["o"] <= 0.02 and f0["tabs"]["t"] >= f0["vh"] - 0.5 and f0["tabs"]["o"] <= 0.02 and f0["chips"]["b"] <= 0.5,
+          f"{bname}: at the start of the slide-in the bars are still out of sight (not already half-way in: no snap) {f0}")
+    if shots: await pg.screenshot(path=f"{OUT}/slide-in-1-start.png")
+    durs = [int(x.rsplit(":", 1)[1]) for x in an]; D = max(durs) if durs else 280
+    await pg.evaluate(SEEK, D * 0.3)
+    fm = await pg.evaluate(FRAME)
+    check(-hid["top"]["t"] > -fm["top"]["t"] > 0 and 0.05 < fm["top"]["o"] < 0.99 and hid["tabs"]["t"] > fm["tabs"]["t"] > fm["vh"] - 70 and 0.05 < fm["tabs"]["o"] < 0.99,
+          f"{bname}: mid-slide the bars are part-way in and part-faded (top bar at {fm['top']['t']}, opacity {fm['top']['o']}; tab bar at {fm['tabs']['t']})")
+    check(abs(fm["chips"]["t"] - fm["top"]["b"]) <= 1.5 and abs(fm["chips"]["o"] - fm["top"]["o"]) < 0.02,
+          f"{bname}: mid-slide the chip row is glued right under the top bar (no gap, no overlap: {fm['chips']['t']} vs {fm['top']['b']}), same fade")
+    if shots: await pg.screenshot(path=f"{OUT}/slide-in-2-mid.png")
+    await pg.evaluate("() => { for (const a of window.__fbAn) a.finish(); }")
+    fe = await pg.evaluate(FRAME)
+    check(fe["top"]["t"] == 0 and fe["top"]["o"] == 1 and abs(fe["tabs"]["b"] - fe["vh"]) < 0.5 and fe["tabs"]["o"] == 1 and abs(fe["chips"]["t"] - fe["top"]["b"]) <= 1,
+          f"{bname}: at the end the bars are fully in and opaque, the chip row right under the top bar {fe}")
+    if shots: await pg.screenshot(path=f"{OUT}/slide-in-3-end.png")
+    # turning around mid-slide: no jump, no flicker
+    SAMPLE = """(n) => new Promise((ok) => { const out = []; const f = () => { const R = (q) => { const e = document.querySelector(q), r = e.getBoundingClientRect(); return [r.top, r.bottom, +getComputedStyle(e).opacity]; };
+      out.push({ top: R('#fbtop'), tabs: R('#tabs'), chips: R('#view-chisme .mq-chips') }); if (out.length < n) requestAnimationFrame(f); else ok(out); }; requestAnimationFrame(f); })"""
+    for flip in (60, 120, 200):
+        await pg.evaluate("window.__chismeNav.show()"); await pg.wait_for_timeout(SETTLE)
+        await pg.evaluate("window.__chismeNav.hide()"); await pg.wait_for_timeout(flip)
+        await pg.evaluate("window.__chismeNav.show()")
+        fr = await pg.evaluate(SAMPLE, 26)
+        tops = [x["top"][0] for x in fr]; ops = [x["top"][2] for x in fr]; tb = [x["tabs"][0] for x in fr]
+        mono = all(b2 >= a2 - 0.5 for a2, b2 in zip(tops, tops[1:])) and all(b2 >= a2 - 0.01 for a2, b2 in zip(ops, ops[1:])) and all(b2 <= a2 + 0.5 for a2, b2 in zip(tb, tb[1:]))
+        jump = max(abs(b2 - a2) for a2, b2 in zip(tops, tops[1:]))
+        glued = all(abs(x["chips"][0] - x["top"][1]) <= 1.5 for x in fr)
+        check(mono and jump < 45 and glued and tops[-1] == 0 and ops[-1] == 1,
+              f"{bname}: hide then show again after {flip} ms: they turn around smoothly (only towards shown, biggest step {jump:.0f} px, the chip row stays glued, ends fully in)")
+    # fast flicking: down/up/down/up a few px at a time must not leave them half-way or blinking
+    await pg.evaluate("window.__chismeNav.show()"); await pg.wait_for_timeout(SETTLE)
+    y0 = await pg.evaluate("scrollY")
+    for k in range(6):
+        await pg.evaluate("(y) => new Promise((ok) => { scrollTo({ top: y, behavior: 'instant' }); requestAnimationFrame(() => ok()); })", y0 + (40 if k % 2 == 0 else 0))
+        await pg.wait_for_timeout(35)
+    r = await scroll_to(pg, y0 + 60, 20)
+    end = await pg.evaluate(FRAME)
+    check(r["hide"] and end["top"]["b"] <= 0.5 and end["top"]["o"] == 0, f"{bname}: after flicking up and down fast, they settle cleanly (hidden after the last scroll down, nothing left half-way) {end['top']}")
+    # the new-stories pill rides along
+    await pg.evaluate("window.__chismeNav.show()"); await pg.wait_for_timeout(SETTLE)
+    pill = await pg.evaluate("""async () => { const p = document.querySelector('#news-pill'), h = document.documentElement; p.hidden = false; p.style.transition = 'none';   // (the end values, not mid-slide)
+      const shown = getComputedStyle(p).translate; h.classList.add('fb-hide'); const hid = getComputedStyle(p).translate, tr = getComputedStyle(p, null).getPropertyValue('top');
+      h.classList.remove('fb-hide'); p.style.transition = ''; p.hidden = true; return { shown, hid }; }""")
+    check(pill["shown"] in ("none", "0px", "0px 0px") and pill["hid"] not in ("none", "0px", "0px 0px"), f"{bname}: the 'N new stories' pill moves up with the top bar on `translate` {pill}")
+    await ctx.close()
+
 async def phone(b, bname, dev, shots):
     print(f"\n== phone 390x844 ({bname})")
     ctx, pg = await new_page(b, 390, 844, dev=dev)
@@ -92,7 +212,14 @@ async def phone(b, bname, dev, shots):
           f"{bname}: the skyline header and the floating Tía are off on phones; #settings-btn sits in the top bar; every id is still there {lay}")
     tabs = await pg.evaluate("[...document.querySelectorAll('#tabs .tab')].map((t) => { const r = t.getBoundingClientRect(); return { v: t.dataset.view, w: r.width, h: r.height, b: r.bottom, l: t.textContent.trim() }; })")
     check(len(tabs) == 4 and all(t["w"] >= 44 and t["h"] >= 44 for t in tabs), f"{bname}: 4 tabs on the bottom bar, each a 44 px+ target {[(t['v'], round(t['w']), round(t['h'])) for t in tabs]}")
-    if shots: await pg.screenshot(path=f"{OUT}/top.png")
+    check([t["v"] for t in tabs] == ["chisme", "antojos", "weather", "juegos"] and "¿Y la dieta?" in tabs[1]["l"] and len({round(t["b"]) for t in tabs}) == 1,
+          f"{bname}: the tab bar reads Chisme · ¿Y la dieta? · Weather · Juegos {[t['l'] for t in tabs]}")
+    sky = await pg.evaluate(SKY)
+    check(sky["sky"] and sky["shown"] > 0 and sky["inBar"] and not sky["oyistes"] and not sky["tag"] and sky["barH"] <= 60,
+          f"{bname}: the top bar has the city skyline behind its buttons ({sky['which']} skyline, {sky['shown']} shapes, inside the {sky['barH']} px bar), no ¿Oyistes? {sky}")
+    check(sky["under"], f"{bname}: the skyline sits behind the bubble, ⚙️ and Tía (they're still what you tap) {sky['hits']}")
+    if shots: await pg.screenshot(path=f"{OUT}/top.png"); await pg.screenshot(path=f"{OUT}/top-skyline.png", clip={"x": 0, "y": 0, "width": 390, "height": 140})
+    if shots: await pg.screenshot(path=f"{OUT}/tabbar-offseason.png", clip={"x": 0, "y": 844 - 110, "width": 390, "height": 110})
     CHIPS = "(() => { const c = document.querySelector('#view-chisme .mq-chips'), r = c.getBoundingClientRect(), t = document.querySelector('#fbtop').getBoundingClientRect(); return { t: r.top, b: r.bottom, vis: getComputedStyle(c).visibility, under: t.bottom, hit: document.elementFromPoint(innerWidth / 2, (r.top + r.bottom) / 2)?.closest('.mq-chips') === c }; })()"
     c = await pg.evaluate(CHIPS)
     check(c["vis"] == "visible" and c["t"] >= c["under"] - 1 and c["hit"], f"{bname}: at the very top the chip row shows, under the top bar {c}")
@@ -159,11 +286,14 @@ async def phone(b, bname, dev, shots):
     check(not y, f"{bname}: no yellow on the bars (light) {y[:3]}")
     await ctx.close()
 
-    # reduced motion: no slide
+    # reduced motion: no slide, just a short fade (v49.15.3)
     ctx, pg = await new_page(b, 390, 844, dev=dev, reduced="reduce"); await ready(pg)
-    tr = await pg.evaluate("[getComputedStyle(document.querySelector('#fbtop')).transitionDuration, getComputedStyle(document.querySelector('#tabs')).transitionDuration]")
+    tr = await pg.evaluate(TRANS)
     r = await scroll_to(pg, 1000, 100)
-    check(all(all(float(x.strip().rstrip("s") or 0) == 0 for x in d.split(",")) for d in tr) and r["hide"], f"{bname}: reduced motion: the bars hide and show at once (transition {tr})")
+    ok = all(not any(p in ("transform", "all") and d > 0 for p, d, _ in t["list"]) and all(d <= 0.15 for p, d, _ in t["list"] if p == "opacity") for t in tr.values())
+    check(ok and r["hide"] and r["topGone"], f"{bname}: reduced motion: the bars don't slide (no transform transition), only a short fade of 0.15 s or less {tr}")
+    r = await scroll_to(pg, 970, 5)
+    check(not r["hide"] and r["top"]["t"] == 0, f"{bname}: reduced motion: scrolling up puts the top bar straight back in place (no slide) {r['top']}")
     await ctx.close()
 
     for theme, season, name in (("dark", "off", "dark"), ("light", "muertos", "muertos"), ("dark", "muertos", None)):
@@ -171,7 +301,16 @@ async def phone(b, bname, dev, shots):
         y = await pg.evaluate(YELLOWISH, ["#fbtop", "#fbtop *", "#tabs", "#tabs *"])
         bg = await pg.evaluate("[getComputedStyle(document.querySelector('#fbtop')).backgroundColor, getComputedStyle(document.querySelector('#fbtop')).backgroundImage.slice(0, 30), getComputedStyle(document.querySelector('#tabs')).backgroundColor]")
         check(not y, f"{bname}: {theme}{' + Día de Muertos' if season == 'muertos' else ''}: no yellow on the bars {y[:3]} {bg}")
+        sky = await pg.evaluate(SKY)
+        tag = f"{theme}{' + Día de Muertos' if season == 'muertos' else ''}"
+        check(sky["sky"] and sky["shown"] > 0 and not sky["oyistes"] and not sky_yellow(sky["fills"]) and sky["fillDiff"] >= 40,
+              f"{bname}: {tag}: the skyline shows in the top bar, stands out from it (colour difference {sky['fillDiff']}) and isn't yellow {sky['fills']}")
+        tl = await pg.evaluate("[...document.querySelectorAll('#tabs .tab')].map((t) => t.dataset.view + ':' + t.textContent.trim())")
+        want2 = "Ofrendas" if season == "muertos" else "¿Y la dieta?"
+        check([x.split(":")[0] for x in tl] == ["chisme", "antojos", "weather", "juegos"] and want2 in tl[1], f"{bname}: {tag}: tab order Chisme · {want2} · Weather · Juegos {tl}")
         if shots and name: await pg.screenshot(path=f"{OUT}/{name}.png")
+        if shots and name == "dark": await pg.screenshot(path=f"{OUT}/top-skyline-dark.png", clip={"x": 0, "y": 0, "width": 390, "height": 140})
+        if shots and name == "muertos": await pg.screenshot(path=f"{OUT}/tabbar-season.png", clip={"x": 0, "y": 844 - 110, "width": 390, "height": 110})
         await ctx.close()
 
 async def reels(b, bname, dev, shots):
@@ -295,9 +434,9 @@ async def muertos_logo(b, bname, dev, shots):
         if p["vela"] and p["skull"]:
             check(p["vela"]["w"] <= 14 and p["vela"]["h"] <= 30 and p["skull"]["w"] <= 24 and p["skull"]["h"] <= 26,
                   f"{bname} {w}: small: candle {p['vela']['w']:.0f}x{p['vela']['h']:.0f}, calavera {p['skull']['w']:.0f}x{p['skull']['h']:.0f} (bubble {d['bubble']['w']:.0f}x{d['bubble']['h']:.0f})")
-            check(p["vela"]["r"] <= d["bubble"]["l"] + 3 and p["skull"]["l"] >= d["bubble"]["r"] - 3 and not hit(p["skull"], d["tag"], 1),
-                  f"{bname} {w}: one on each side of the bubble, not over it or the ¿Oyistes? tag")
-            check(p["skull"]["r"] < d["right"]["l"] - 8 and d["tag"]["r"] <= d["right"]["l"] and not hit(p["flame"], d["tia"]),
+            check(p["vela"]["r"] <= d["bubble"]["l"] + 3 and p["skull"]["l"] >= d["bubble"]["r"] - 3 and not d["tag"],
+                  f"{bname} {w}: one on each side of the bubble, not over it (v49.15.3: no ¿Oyistes? tag in the bar)")
+            check(p["skull"]["r"] < d["right"]["l"] - 8 and not hit(p["flame"], d["tia"]),
                   f"{bname} {w}: clear of ⚙️ and the Tía bubble ({d['right']['l'] - p['skull']['r']:.0f} px to spare)")
             check(all(x["t"] >= d["bar"]["t"] - 0.5 and x["b"] <= d["bar"]["b"] for x in (p["vela"], p["skull"], p["flame"])), f"{bname} {w}: inside the top bar (flame top {p['flame']['t']:.0f})")
         check(p["anim"] == "mq-flame-flicker", f"{bname} {w}: the flame flickers ({p['anim']} {p['dur']})")
@@ -348,6 +487,7 @@ async def main():
         b = await pw.chromium.launch()
         cdev = dict(is_mobile=True, has_touch=True, device_scale_factor=3)
         await phone(b, "android-chromium", cdev, True)
+        await motion(b, "android-chromium", cdev, True)
         await reels(b, "android-chromium", cdev, True)
         await desktop(b, True)
         await muertos_logo(b, "android-chromium", cdev, True)
@@ -358,6 +498,7 @@ async def main():
             w = await pw.webkit.launch()
             wdev = dict(is_mobile=True, has_touch=True, device_scale_factor=3)
             await phone(w, "iphone-webkit", wdev, False)
+            await motion(w, "iphone-webkit", wdev, False)
             await reels(w, "iphone-webkit", wdev, False)
             await muertos_logo(w, "iphone-webkit", wdev, False)
             await muertos_no_yellow(w, "iphone-webkit", wdev, False)

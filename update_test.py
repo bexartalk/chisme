@@ -132,7 +132,7 @@ async def main():
         c1 = await page.evaluate("(() => { const c = window.__chisme.map.getCenter(); return [c.lat, c.lng]; })()")
         rep["6_map_pan"] = {"view": await page.evaluate("window.__chisme.view"), "map_center_moved_deg": round(abs(c1[1] - c0[1]), 4)}
         await page.evaluate("window.__chisme.map.setView([window.__chisme.loc.lat, window.__chisme.loc.lon], 8)")
-        # swipe back (weather -> Sports, the tab before Weather)
+        # swipe back (weather -> ¿Y la dieta?, the tab before Weather since v49.15.3)
         await page.evaluate("window.scrollTo({top: document.querySelector('#weather').getBoundingClientRect().top + scrollY - 90, behavior: 'instant'})")
         await swipe(cdp, 60, 330, 420)
         await page.wait_for_timeout(700)

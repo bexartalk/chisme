@@ -1,7 +1,7 @@
 /* Chisme — frontend (location-aware) */
 // Build of this file. Must equal the number in sw.js VERSION ("chisme-v22"); the page compares it
 // with the build the HTML was served for and reloads once if an old cached app.js got mixed in.
-window.CHISME_APP_BUILD = "49.15.2";
+window.CHISME_APP_BUILD = "49.15.3";
 (() => {
   "use strict";
   // v49.13: Chisme's public address for share links + the promo text: one setting on the server (PUBLIC_BASE_URL, else the
@@ -9,6 +9,15 @@ window.CHISME_APP_BUILD = "49.15.2";
   const PUBLIC_BASE = (() => {
     const m = document.querySelector('meta[name="chisme-base"]'), v = ((m && m.content) || "").trim().replace(/\/+$/, "");
     return /^https?:\/\/[^\s"'<>]+$/.test(v) ? v : (/^https?:$/.test(location.protocol) ? location.origin : "");
+  })();
+  // v49.15.3: the phone top bar (#fbtop) gets the city skyline from the old header as its band (one copy of the art in the
+  // page; this clones it, minus the confetti). style.css shows it under 1024 px only.
+  (() => {
+    const fb = document.getElementById("fbtop"), src = document.querySelector("#topbar .skyline");
+    if (!fb || !src || fb.querySelector(".fb-sky")) return;
+    const sky = src.cloneNode(true); sky.classList.add("fb-sky"); sky.removeAttribute("id");
+    sky.querySelectorAll("[id]").forEach((n) => n.removeAttribute("id"));
+    fb.prepend(sky);
   })();
   const WEATHER_MS = 10 * 60 * 1000;
   const NEWS_MS = 4 * 60 * 1000;          // while the app is open and on screen: check for new stories every 4 min
@@ -275,6 +284,7 @@ window.CHISME_APP_BUILD = "49.15.2";
     const p = loc.place || {}, m = metroOf();
     const sky = loc.source === "default" ? "sa" : m ? m.skyline : (!p.city && !p.county) ? (kmBetween(loc, DEFAULT_LOC) < 60 ? "sa" : "city") : "city";
     $("#topbar").dataset.skyline = sky;
+    const fb = $("#fbtop"); if (fb) fb.dataset.skyline = sky;   // v49.15.3: the phone top bar has the same skyline
   }
   function renderLocLabel() {
     renderSkyline();
@@ -873,7 +883,7 @@ window.CHISME_APP_BUILD = "49.15.2";
     if (tab === "chisme") return midInList(tab, kids($("#mix-list"), ".mix-item"));
     if (tab === "news") return midInList(tab, kids($("#near-list"), ".story"));
     if (tab === "sports") return midInList(tab, kids($("#sports-body"), ":not(.loading):not(.error)"));
-    if (tab === "events") return midInList(tab, kids($("#events-list"), ":not(.ev-day):not(.loading):not(.error):not(.donate-every)"));
+    if (tab === "events") return midInList(tab, kids($("#events-list"), ":not(.ev-day):not(.loading):not(.error):not(.donate-every):not(.from-chisme)"));
     if (tab === "weather") return at($("#radar-sec"));      // between the radar and the 7-day forecast
     if (tab === "antojos") return at($("#food-block"));     // after the videos, before the food news desk
     if (tab === "juegos") return at($("#juegos"));          // between the list of games and the game
@@ -899,6 +909,7 @@ window.CHISME_APP_BUILD = "49.15.2";
       };
     }
     if ((how === "after" ? ref.nextSibling : ref.previousSibling) !== midCard) ref[how](midCard);
+    if (FC_TABS.includes(midTab)) placeFrom(midTab);   // v49.15.3: the From Chisme cards step around it
   }
 
   // ---------- v46: a donation reminder after every 7 posts: News (all three lists, counted in order), Events, and its
@@ -936,6 +947,7 @@ window.CHISME_APP_BUILD = "49.15.2";
   function placeEvery(tab) {   // after the 7th, 14th … post (nudged a slot or two to stay clear of serious stories and the mid-list card)
     document.querySelectorAll(`#view-${tab} .donate-every`).forEach((n) => n.remove());
     e7Where[tab] = [];
+    if (FC_TABS.includes(tab)) return;   // v49.15.3: the Chisme lists have the every-5 "From Chisme" card instead (below)
     if (e7Gone()) return;
     const boxes = tab === "news" ? ["#near-list", "#city-list", "#sa-list"] : ["#events-list"];
     const items = boxes.flatMap((b) => { const box = $(b); return box && !box.closest("[hidden]") ? [...box.children].filter((n) => n.matches(tab === "news" ? ".story" : "article.ev")) : []; });
@@ -948,6 +960,68 @@ window.CHISME_APP_BUILD = "49.15.2";
       items[c - 1].after(e7Card(false)); e7Where[tab].push(c); last = c; k = c + E7;
     }
   }
+
+  // ---------- v49.15.3: a square "From Chisme" card after every 5th post in the Chisme feed (All, News, Sports, Events).
+  // Not a post (no .story / .mix-item / .sn / .ev, so nothing counts it: not the "N new stories" pill, not the mix, not
+  // the mid-list card). It has the App Store goal, worded like the desktop site's goal card ("Help get Chisme on the
+  // App Store, $99") with ☕ Buy Me a Coffee (opens in Chisme's in-app reader), and 📣 Share Chisme (the phone's share
+  // sheet / Web Share, else the link is copied). In the store app (window.ChismeNative, Capacitor) there's no donate ask
+  // at all, only Share (store rules on outside donations). Its words are plain (not Tía's jokes), so unlike the jokey
+  // donate cards it keeps its exact slot next to any story. Re-renders put
+  // the cards back in the same slots, and a card is never right next to another promo (it moves down one post).
+  const FC_EVERY = 5, FC_TABS = ["chisme", "news", "sports", "events"];
+  const FC_GOAL = { title: "Help get Chisme on the App Store", amount: 99, url: "https://buymeacoffee.com/Chismoso",
+    line: "Putting Chisme in the App Store costs $99 a year. A coffee helps get it there." };
+  const SHARE_FC = { title: "Chisme", text: "Download Chisme 👀 San Antonio's news, weather, sports and events in one free app:",
+    url: (PUBLIC_BASE || "https://chisme.onrender.com") + "/" };
+  const fcNative = () => !!window.ChismeNative;
+  let fcWhere = { chisme: [], news: [], sports: [], events: [] };
+  const isPromo = (n) => !!n && n.matches("aside.donate, .donate-every, .from-chisme, #donate-mid");
+  function fcCard(k, ask) {
+    ask = ask && !fcNative();
+    const c = el("aside", { class: "card from-chisme" + (ask ? "" : " fc-share-only"), "aria-label": "From Chisme", "data-fc": String(k) });
+    const logo = el("span", { class: "fc-logo", "aria-hidden": "true" });
+    const b = document.querySelector("#settings-btn svg.bubble"); if (b) { const x = b.cloneNode(true); x.removeAttribute("id"); logo.append(x); }
+    c.append(el("p", { class: "fc-label", text: "From Chisme" }), logo,
+      el("h3", { class: "fc-t", text: ask ? `${FC_GOAL.title}, $${FC_GOAL.amount}` : "Love the chisme? Pass it on." }),
+      el("p", { class: "fc-p", text: ask ? FC_GOAL.line : "Send Chisme to your people: news, weather, sports and events in one free app." }),
+      el("div", { class: "fc-btns" },
+        ask ? el("a", { class: "fc-bmc", href: FC_GOAL.url, "aria-haspopup": "dialog" }, el("span", {}, el("span", { "aria-hidden": "true", text: "☕ " }), "Buy Me a Coffee")) : null,
+        el("button", { type: "button", class: "fc-share" }, el("span", {}, el("span", { "aria-hidden": "true", text: "📣 " }), "Share Chisme"))));
+    return c;
+  }
+  function fcItems(tab) {
+    const V = $("#view-" + tab); if (!V) return [];
+    if (tab === "chisme") return [...V.querySelectorAll("#mix-list > .mix-item")];
+    if (tab === "news") return ["#near-list", "#city-list", "#sa-list"].flatMap((b) => { const box = $(b); return box && !box.closest("[hidden]") ? [...box.children].filter((n) => n.matches(".story")) : []; });
+    if (tab === "sports") return [...V.querySelectorAll("#sports-body .sn-list > article.sn")];
+    if (tab === "events") return [...V.querySelectorAll("#events-list > article.ev")];
+    return [];
+  }
+  function placeFrom(tab) {
+    if (!FC_TABS.includes(tab)) return;
+    document.querySelectorAll(`#view-${tab} .from-chisme`).forEach((n) => n.remove());
+    const items = fcItems(tab), where = [];
+    for (let k = FC_EVERY; k <= items.length; k += FC_EVERY) {
+      let j = k;
+      while (j <= items.length && isPromo(items[j - 1].nextElementSibling)) j++;   // never right next to another promo card
+      if (j > items.length || (where.length && j - where[where.length - 1] < 2)) continue;
+      items[j - 1].after(fcCard(j, true));
+      where.push(j);
+    }
+    fcWhere[tab] = where;
+  }
+  document.addEventListener("click", (e) => {
+    if (e.button > 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    const a = e.target.closest && e.target.closest(".from-chisme .fc-bmc");
+    if (a) {   // the goal link opens inside Chisme (the in-app reader), like every other link in the feed
+      e.preventDefault(); Stats.ev("donate", "fc-bmc"); Stats.send();
+      openReader({ url: a.href, title: `${FC_GOAL.title}, $${FC_GOAL.amount}`, source: "Buy Me a Coffee", summary: FC_GOAL.line }, a);
+      return;
+    }
+    const s = e.target.closest && e.target.closest(".from-chisme .fc-share");
+    if (s) { e.preventDefault(); shareChisme(SHARE_FC).then((r) => { lastShare = r; }); }
+  });
 
   // ---------- news order: when nothing's new, each visit shows the stories in a different order (static/newsorder.js).
   // What you've seen/opened stays on this phone; Settings → Reset my feed and Forget me clear it.
@@ -1124,7 +1198,7 @@ window.CHISME_APP_BUILD = "49.15.2";
       $("#sa-list").replaceChildren(...withArt(otherO.map((i) => story(i, false))));
       saveArtCursor();
       trackNews([nearO, moreO, otherO]);
-      placeMid(); placeEvery("news");
+      placeMid(); placeEvery("news"); placeFrom("news");
       $("#news-updated").textContent = stampFor(saved, n);
       $("#feeds").replaceChildren(...(n.feeds || []).map((f) => el("li", { class: f.ok ? "" : "bad",
         text: (f.ok ? `${f.name}: ${f.count} items` : `${f.name}: unavailable (${f.error})`) + (f.query ? ` — search: ${f.query}` : "") })));
@@ -1267,7 +1341,7 @@ window.CHISME_APP_BUILD = "49.15.2";
       : [el("p", { class: "loading", text: empty })]));
     $("#ongoing-sec").hidden = !ongoing.length;
     $("#ongoing-list").replaceChildren(...ongoing.map(eventCard));
-    placeMid(); placeEvery("events");
+    placeMid(); placeEvery("events"); placeFrom("events");
   }
   for (const b of document.querySelectorAll("#ev-chips .chip")) {
     b.onclick = () => {
@@ -2851,7 +2925,7 @@ window.CHISME_APP_BUILD = "49.15.2";
     } else kids = renderMissions(d.missions);
     $("#sports-body").replaceChildren(...kids.filter(Boolean));
     $("#sports-body").dataset.lg = spLg;
-    placeMid();
+    placeMid(); placeFrom("sports");
   }
   for (const b of document.querySelectorAll("#sp-chips .chip")) {
     b.onclick = () => { spLg = b.dataset.lg; localStorage.setItem(SP_KEY, spLg); renderSports(); };
@@ -2933,7 +3007,7 @@ window.CHISME_APP_BUILD = "49.15.2";
     $("#mix-end").hidden = all.length > mixShown;
     const st = [secs.news, secs.sports, secs.events].map((x) => x && x.okAt).filter(Boolean);
     $("#mix-updated").textContent = st.length ? "Updated " + clock(new Date(Math.max(...st))) : "";
-    placeMid();
+    placeMid(); placeFrom("chisme");
   }
   let mixT = null;
   const mixSoon = () => { clearTimeout(mixT); mixT = setTimeout(mixRender, 60); };
@@ -2942,11 +3016,13 @@ window.CHISME_APP_BUILD = "49.15.2";
   // ---------- views: Chisme (All | News | Sports | Events) | Weather | ¿Y la dieta? | Juegos (tap the fixed buttons, swipe sideways or ←/→ on the tabs)
   // v49.12: News, Sports and Events are one "Chisme" tab (fewer tabs for new users). It opens on "All", a mix of the three
   // (mixFeed below); the sticky chips at the top (✨ All · 📰 News · 🏀 Sports · 🎉 Events) drill into one, and the views are
-  // laid out in that order so swiping walks All → News → Sports → Events → Weather → ¿Y la dieta? → Juegos. The Chisme tab
+  // laid out in that order so swiping walks All → News → Sports → Events → ¿Y la dieta? → Weather → Juegos (v49.15.3 order). The Chisme tab
   // goes back to the chip you last picked (this session; a new launch starts on All). #news, #sports, #events, ?tab=sports …
   // still land on their chip.
-  const VIEWS = ["chisme", "news", "sports", "events", "weather", "antojos", "juegos"];
-  const CHISME_GROUP = ["chisme", "news", "sports", "events"], TABS_SHOWN = ["chisme", "weather", "antojos", "juegos"];
+  // v49.15.3: the tab order is Chisme · ¿Y la dieta? (Ofrendas in the Día de Muertos season) · Weather · Juegos, and the
+  // swipe order follows it.
+  const VIEWS = ["chisme", "news", "sports", "events", "antojos", "weather", "juegos"];
+  const CHISME_GROUP = ["chisme", "news", "sports", "events"], TABS_SHOWN = ["chisme", "antojos", "weather", "juegos"];
   const CHIP_KEY = "chisme-chip";   // sessionStorage: the Chisme chip picked last, this session only
   const chipLast = () => { try { const c = sessionStorage.getItem(CHIP_KEY); return CHISME_GROUP.includes(c) ? c : "chisme"; } catch (e) { return "chisme"; } };
   const seasonOn = () => !!(window.__chismeSeason && window.__chismeSeason.on);
@@ -2978,9 +3054,16 @@ window.CHISME_APP_BUILD = "49.15.2";
     const ds = document.documentElement.style;
     ds.setProperty("--tabs-h", tabsH() + "px");
     if (fbOn()) ds.setProperty("--fbbot-h", tabsEl.offsetHeight + "px"); else ds.removeProperty("--fbbot-h");
+    setChipsVar();
   };
+  // v49.15.3: on the Chisme tab the top bar and the sticky chip row slide up together by the same distance (CSS --fb-up =
+  // the bar + the row), so the row stays glued under the bar while they glide in and out; other tabs: just the bar.
+  function setChipsVar() {
+    const v = panes[cur], c = v && CHISME_GROUP.includes(VIEWS[cur]) ? v.querySelector(".mq-chips") : null;
+    document.documentElement.style.setProperty("--fb-chips-h", (c && fbOn() ? Math.ceil(c.offsetHeight) : 0) + "px");
+  }
   setTabsVar(); window.addEventListener("resize", setTabsVar);
-  if ("ResizeObserver" in window) { const ro = new ResizeObserver(setTabsVar); ro.observe(tabsEl); if (fbTop) ro.observe(fbTop); }  // A−/A+ or rotation changes its height
+  if ("ResizeObserver" in window) { const ro = new ResizeObserver(setTabsVar); ro.observe(tabsEl); if (fbTop) ro.observe(fbTop); document.querySelectorAll(".mq-chips").forEach((c) => ro.observe(c)); }  // A−/A+ or rotation changes its height
   // v49.15 Facebook-style bars (phones and tablets): scrolling down past 60 px slides the top bar, the tab bar and the
   // Chisme tab's sticky chip row (All · News · Sports · Events) away (CSS transform, html.fb-hide); any scroll up of 8 px or more brings both back; near the top they always show.
   // One rAF per frame at most, passive listeners, no layout reads besides scrollY / the page height.
@@ -3062,6 +3145,7 @@ window.CHISME_APP_BUILD = "49.15.2";
     if (VIEWS[i] === "antojos" && (!foodData || secs.food.shownUrl !== secs.food.url())) loadFood();   // new place → new city's food
     if (VIEWS[i] === "antojos") preparePlayer();
     if (scrollId) { const t = document.getElementById(scrollId); if (t) window.scrollTo({ top: t.getBoundingClientRect().top + window.scrollY - tabsH() - 8, behavior: "instant" }); }
+    setChipsVar();   // v49.15.3: the chip row (Chisme tab only) slides with the top bar
     fbNav.reset();   // v49.15: a new tab shows both bars (its own scroll jump isn't a swipe)
     localStorage.setItem("chisme-swiped", "1");
   }
@@ -4080,7 +4164,7 @@ window.CHISME_APP_BUILD = "49.15.2";
   const SHARE_E7 = { title: "Chisme", text: "Tía found the best chisme in town and she can't keep it to herself. ☕", url: PUBLIC_BASE + "/" };
   document.addEventListener("click", (e) => { const b = e.target.closest && e.target.closest(".share-chisme"); if (b) { e.preventDefault(); shareChisme(SHARE_E7).then((r) => { lastShare = r; }); } });
   let lastShare = null;
-  window.__chisme = { reloadHere, mixFeed, mulberry, get mix() { return { seed: mixSeed, shown: mixShown, pending: mixPending }; }, get every() { return { gone: e7Gone(), news: e7Where.news, events: e7Where.events, feed: e7Where.feed, lastShare, share: SHARE_E7 }; }, stats: Stats, get newsPill() { return { held: !!newsHold, n: newsHoldN, shown: !$("#news-pill").hidden }; }, checkNews: () => { loadNews(); lastNews = Date.now(); }, openFromAlert, get pushPrefs() { return pushPrefs(); },
+  window.__chisme = { reloadHere, mixFeed, mulberry, get mix() { return { seed: mixSeed, shown: mixShown, pending: mixPending }; }, get every() { return { gone: e7Gone(), news: e7Where.news, events: e7Where.events, feed: e7Where.feed, lastShare, share: SHARE_E7 }; }, get fromChisme() { return { where: fcWhere, every: FC_EVERY, share: SHARE_FC, goal: FC_GOAL, lastShare, native: fcNative() }; }, placeFrom, stats: Stats, get newsPill() { return { held: !!newsHold, n: newsHoldN, shown: !$("#news-pill").hidden }; }, checkNews: () => { loadNews(); lastNews = Date.now(); }, openFromAlert, get pushPrefs() { return pushPrefs(); },
     get frames() { return frames; }, get map() { return map; }, get loc() { return loc; },
     // ready = showing this location's news + weather (fresh or the saved copy); fresh = straight from the server
     get ready() { return secs.weather.shownUrl === secs.weather.url() && secs.news.shownUrl === secs.news.url(); },
