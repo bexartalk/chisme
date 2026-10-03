@@ -73,6 +73,7 @@
   const HAZ = { cone: [10, "Bonk! A cone"], pothole: [15, "¡Híjole! A pothole"], cart: [20, "Runaway cart!"], chancla: [10, "¡La chancla!"], chihuahua: [15, "Yap yap yap!"], sprinkler: [8, "Soaked!"] };
   const HAZARDS = Object.keys(HAZ), SOLID = ["pallet", "tires", "suv", "lowcar", "sportscar"], ICE = ["agent", "suv", "chaser"];   // v46: the ICE agents (not in HAZ: they don't cost health, they catch Juan)
   const OOPS = ["¡Ay no!", "¡Híjole!", "¡Ándale, otra vez!"];
+  const CHASE_T = 3.4;   // v49.15.x: how long a chaser runs before he's out of breath (s)
   const FUERA = "¡Fuera!", VAMONOS = "¡Vámonos, amigo!";   // v46: the old Ice Ice Bebé lines (kept in Spanish on purpose)
   // v47: caught by ICE → one of these, picked at random, never the same one twice in a row (the user's picks; the original "¡Ay no!" stays in)
   const CAUGHT = ["¡Ay no!", "¡Ay cabrón!", "¡Chingao!", "¡Pinche ICE!", "¡Ay, vengo mamá!"];
@@ -1583,8 +1584,8 @@
         else if (e.t === "chancla") { e.y = -e.h - Math.abs(Math.sin(t * 3.2 + e.ph)) * 46; if (e.x - h.x < 520) e.x -= 28 * dt; }
         else if (e.t === "sprinkler") e.on = mod(t + e.ph, 2.4) < 1.3;
         if (e.t === "agent" || e.t === "chaser") { if (iceStep(e, h, dt)) return; continue; }
-        if (e.t === "suv" && !e.out && h.x > e.x + e.w + 34) {   // an agent hops out and gives chase
-          e.out = true; ents.push({ t: "chaser", x: h.x - 74, y: -64, w: 30, h: 64, vy: 0, st: "chase", tt: 3.4, run: 0, sk: e.sk, st2: !!(e.sk % 2) });
+        if (e.t === "suv" && !e.out && h.x > e.x + e.w + 34 && END - h.x > CHASE_T * L().speed) {   // an agent hops out and gives chase (v49.15.x: only with road enough left to shake him, so no agent stands frozen at the finish)
+          e.out = true; ents.push({ t: "chaser", x: h.x - 74, y: -64, w: 30, h: 64, vy: 0, st: "chase", tt: CHASE_T, run: 0, sk: e.sk, st2: !!(e.sk % 2) });
           msg = VAMONOS; msgT = 1.3; SFX.whistle();
         }
         if (e.t === "flag") { if (!e.done && h.x >= e.x) { e.done = true; ck = CHECKS.indexOf(e.x); ckScore = score; SFX.check(); msg = "Checkpoint! 🚩"; msgT = 1.2; puff(e.x + 16, -60, 12, "spark"); } continue; }

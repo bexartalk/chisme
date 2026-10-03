@@ -393,6 +393,14 @@ async def webkit(p):
         got = await until(pg, G + ".state.mode === 'oops'", 4); s = await st(pg)
         check(got and s["caughtBy"] == "chaser" and s["oopsMsg"] in CAUGHT and s["oopsMsg"] != last_caught, f"v46: slowed down while chased → the agent catches up: {s['oopsMsg']!r}, not {last_caught!r} again ({s['caughtBy']})")
         await until(pg, G + ".state.mode === 'run'", 3)
+    # v49.15.x (found playing every level in god mode): O'Reillees parks its last SUV ~1.6 s from the finish, too late for a chase to end
+    # (3.4 s), so its agent used to stand frozen beside Juan on the level-clear screen; now an agent only hops out with road left to shake him
+    await pg.evaluate(f"{G}.warp(4, 10)"); await pg.wait_for_timeout(100)
+    late = max(e["x"] + e["w"] for e in await pg.evaluate(G + ".ents()") if e["t"] == "suv")
+    await pg.evaluate(f"{G}.warp(4, {late + 70})"); await pg.wait_for_timeout(600); s = await st(pg)
+    es = await pg.evaluate(G + ".ents()")
+    check(late > 5400 and s["mode"] == "run" and not s["chase"] and not [e for e in es if e["t"] == "chaser"],
+          f"v49.15.x: O'Reillees' last SUV (ends {late}) is too close to the finish for a chase: nobody hops out, so no agent stands frozen at the finish ({s['mode']}, chase {s['chase']}, {[e for e in es if e['t'] == 'chaser']})")
     await pg.evaluate(f"{G}.warp(1, 5900)")
     await until(pg, G + ".state.mode === 'clear'", 6)
     s = await st(pg)
