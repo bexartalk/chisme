@@ -694,7 +694,7 @@ window.CHISME_APP_BUILD = "49.12";
     if (!layers[frame.path]) {
       // RainViewer's free tiles only go to zoom 7; Leaflet upsamples beyond that.
       layers[frame.path] = new (RadarTiles || L.TileLayer)(radarHost + frame.path + "/256/{z}/{x}/{y}/2/1_1.png", {
-        tileSize: 256, opacity: 0, maxNativeZoom: 7, maxZoom: 12, zIndex: 10, className: "radar-tiles" });
+        tileSize: 256, opacity: 0, maxNativeZoom: 7, maxZoom: 12, zIndex: 10, className: "radar-tiles", keepBuffer: 1, updateWhenZooming: false });
     }
     return layers[frame.path];
   }
@@ -705,7 +705,15 @@ window.CHISME_APP_BUILD = "49.12";
     if (!map.hasLayer(lyr)) lyr.addTo(map);
     const nxt = radarLayer(frames[(idx + 1) % frames.length]);
     if (!map.hasLayer(nxt)) nxt.addTo(map);
-    for (const [p, l] of Object.entries(layers)) l.setOpacity(p === f.path ? 0.8 : 0);
+    // v49.12: only the frame on show + the next one stay on the map. Every frame used to stay on (at opacity 0), so each
+    // pan / zoom re-requested tiles for all ~13 frames at once; on a big screen that's 150+ tiles per move, past
+    // RainViewer's free limit (since 2026: a 300-request burst / 500 a minute per IP), and its "Too Many Requests" replies
+    // carry no Access-Control-Allow-Origin, so the browser logged a CORS error per tile. Old frames come back from the HTTP cache.
+    for (const [p, l] of Object.entries(layers)) {
+      if (p === f.path) l.setOpacity(0.8);
+      else if (l === nxt) l.setOpacity(0);
+      else if (map.hasLayer(l)) map.removeLayer(l);
+    }
     const latest = idx === frames.length - 1;
     $("#radar-time").textContent = (f.nowcast ? "Forecast " : "") + timeT(new Date(f.time * 1000)) + (latest ? " · Latest" : " · " + Math.round((frames[frames.length - 1].time - f.time) / 60) + " min ago");
     $(".radar-time").classList.toggle("latest", latest);
