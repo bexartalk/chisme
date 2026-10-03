@@ -7,7 +7,7 @@
    level, cold ones to jump for on the cantina level, hazards on every level but none right at a checkpoint.
 2. WebKit iPhone 13: the 🎲 Juegitos tab (between ¿Y la dieta? and Events) fits; a list of games. Lotería: Tía (avatar) calls
    cards in Spanish from recorded clips (the phone's es-MX voice only if a clip fails), 🔇 Sound, pause, speed, new board; a bean drops only on a
-   called card (an uncalled one shakes), tap again to take it off; ¡Buenas! checks the beans,
+   called card (an uncalled one shakes), tap again to take it off; ¡Órale! checks the beans,
    confetti + a brag on a win, wins/streak/best in localStorage. The Juan That Got Away (v44, replaces Ice Ice Bebé): run, jump (tap / Space),
    a bump costs health, out of health → a random "¡Ay no!" / "¡Híjole!" / "¡Ándale, otra vez!" (kept in Spanish) and back to the checkpoint,
    v47: caught by ICE → a random "¡Ay no!" / "¡Ay cabrón!" / "¡Chingao!" / "¡Pinche ICE!" / "¡Ay, vengo mamá!", never the same twice in a row; the longest fits 320 px,
@@ -104,13 +104,13 @@ def unit():
     check(len(okimg) == 54 and all(okimg), f"v43: every card has its finished vintage picture (static/loteria/cards/01–54.webp, made by tools/make_loteria_cards.py from our drawings) ({sum(okimg)})")
     check(len(o["presets"]) >= 4 and all(n == 16 and u == 16 for _, n, u in o["presets"]), f"v43: ready-made tablas of 16 different cards each ({o['presets']})")
     check(o["calls"] and o["call1"] == "El que le cantó a San Pedro no le volverá a cantar. ¡El Gallo!", f"each call is the traditional verse, then the name ({o['call1']!r})")
-    check(o["lines_es"] == {"intro": "¡Se va y se corre con…!", "loteria": "¡Buenas!", "over": "¡Se acabaron las cartas!"}, f"the other calls are Spanish too ({o['lines_es']})")
+    check(o["lines_es"] == {"intro": "¡Se va y se corre con…!", "loteria": "¡Órale!", "over": "¡Se acabaron las cartas!"}, f"the other calls are Spanish too ({o['lines_es']})")
     es = [w for w in SPANISH if any(w.lower() in t.lower().split() or (" " in w and w.lower() in t.lower()) for t in o["hints"])]
     check(not es, f"The Juan That Got Away's level hints are English ({es})")
     audio = os.path.join(HERE, "static", "loteria", "audio"); clips = [f"{i:02d}.mp3" for i in range(1, 55)] + ["intro.mp3", "loteria.mp3", "over.mp3"]
     sizes = [os.path.getsize(os.path.join(audio, f)) if os.path.exists(os.path.join(audio, f)) else 0 for f in clips]
     heads = [open(os.path.join(audio, f), "rb").read(3) for f in clips if os.path.exists(os.path.join(audio, f))]
-    check(all(3000 < z < 80000 for z in sizes) and all(h[:3] == b"ID3" or h[0] == 0xFF for h in heads), f"57 recorded calls (54 cards + intro / ¡Buenas! / end), small mp3s ({sum(sizes) // 1024} KB total)")
+    check(all(3000 < z < 80000 for z in sizes) and all(h[:3] == b"ID3" or h[0] == 0xFF for h in heads), f"57 recorded calls (54 cards + intro / ¡Órale! / end), small mp3s ({sum(sizes) // 1024} KB total)")
     check(o["tabla"] == 16 and o["uniq"] == 16, "a tabla is 4×4 with 16 different cards")
     check(o["row"]["win"] and o["col"]["win"] and o["diag"]["win"] and o["corners"]["win"] and o["lines"] == 11, "wins: a row, a column, a diagonal, the 4 corners (11 lines)")
     check(not o["none"]["win"], "4 marks that aren't a line: no win")
@@ -147,8 +147,8 @@ FS_JS = """(() => { const st = document.querySelector('#game-stage'), r = st.get
     tabs: vis('#tabs'), foot: vis('.foot'), fab: vis('.tia-fab'), x: !!x && xr.right > innerWidth - 70 && xr.top < 70 && xr.width >= 44, xlabel: x ? x.getAttribute('aria-label') : '', xtext: x ? x.textContent.trim() : '',
     badge: badge ? badge.textContent.trim() : '', badgeMid: !!br && Math.abs((br.left + br.right) / 2 - innerWidth / 2) < 24 && br.top < 70, ih: innerHeight, iw: innerWidth }; })()"""
 async def fs(pg): return await pg.evaluate(FS_JS)
-# v41: the full-screen Lotería layout: top row, board, ¡Buenas!, controls stacked in order and all on screen; how big the board is
-# (v43: bar → the called-card strip with ¡Buenas! in it → the board → Limpiar / Nueva tabla)
+# v41: the full-screen Lotería layout: top row, board, ¡Órale!, controls stacked in order and all on screen; how big the board is
+# (v43: bar → the called-card strip with ¡Órale! in it → the board → Limpiar / Nueva tabla)
 LAYOUT_JS = """(() => { const r = (s) => document.querySelector(s).getBoundingClientRect(); const t = r('#lot-tabla'), c = r('#lot-claim'), k = r('.lot-controls'), top = r('.lot-now'), bar = r('.gfs-bar'), st = document.querySelector('#game-stage');
   const cell = document.querySelector('#lot-tabla .lcard').getBoundingClientRect(), card = document.querySelector('#lot-card .lcard');
   const names = [...document.querySelectorAll('#lot-tabla .lc-img')].filter(e => !e.complete || !e.naturalWidth).map(e => e.getAttribute('src'));   // v43: the name is in the picture, so 'clipped' = a picture that didn't load
@@ -200,7 +200,7 @@ async def webkit(p):
     # --- Lotería
     clips = []
     pg.on("requestfinished", lambda r: clips.append(r.url.split("/")[-1]) if "/static/loteria/audio/" in r.url else None)
-    await pg.click("#lot-claim"); check("play first" in await pg.text_content("#lot-line"), "¡Buenas! before starting: Tía says to start first (in English)")
+    await pg.click("#lot-claim"); check("play first" in await pg.text_content("#lot-line"), "¡Órale! before starting: Tía says to start first (in English)")
     await pg.click("#lot-play"); await pg.wait_for_timeout(700)
     s = await st(pg)
     check(s["running"] and len(s["called"]) == 1 and await pg.evaluate("!!document.querySelector('#lot-card .lcard')"), "▶ Start: Tía calls a card (shown in her bubble)")
@@ -246,7 +246,7 @@ async def webkit(p):
     await pg.click(f'.lot-cell[data-i="{ci}"]'); await pg.wait_for_timeout(300)
     check(await pg.get_attribute(f'.lot-cell[data-i="{ci}"]', "aria-pressed") == "false" and not (await st(pg))["marks"] and await pg.evaluate(f"getComputedStyle(document.querySelector('.lot-cell[data-i=\"{ci}\"] .frijol')).opacity") == "0", "tap it again: the bean comes off")
     await pg.click(f'.lot-cell[data-i="{ci}"]')
-    await pg.click("#lot-claim"); check("Not yet" in await pg.text_content("#lot-line"), "¡Buenas! without a full line: 'Not yet, sweetheart' (in English)")
+    await pg.click("#lot-claim"); check("Not yet" in await pg.text_content("#lot-line"), "¡Órale! without a full line: 'Not yet, sweetheart' (in English)")
     await pg.click(f'.lot-cell[data-i="{ci}"]')
     await pg.click("#lot-voice"); c0 = (await st(pg))["voice"]["clips"]; await pg.evaluate(G + ".callNext()")
     s = await st(pg)
@@ -260,10 +260,10 @@ async def webkit(p):
     for i in range(4): await pg.click(f'.lot-cell[data-i="{i}"]')
     await pg.click("#lot-claim"); await pg.wait_for_timeout(250)
     s = await st(pg); stored = json.loads(await pg.evaluate("localStorage.getItem('chisme-juegos')"))
-    check(s["over"] and await pg.evaluate("document.querySelector('#view-juegos .game-stage').classList.contains('won') || !!document.querySelector('.won')"), "a full row of beans + ¡Buenas!: a win")
+    check(s["over"] and await pg.evaluate("document.querySelector('#view-juegos .game-stage').classList.contains('won') || !!document.querySelector('.won')"), "a full row of beans + ¡Órale!: a win")
     brag = await pg.text_content("#lot-line")
-    check(await pg.evaluate("!!document.querySelector('.lot-confetti')") and brag.startswith("¡Buenas! I told you") and "(a row)" in brag, f"confetti + Tía brags in English ({brag[:60]!r})")
-    check(s["voice"]["last"] == "loteria", f"…and shouts '¡Buenas!' (recorded clip {s['voice']['last']!r})")
+    check(await pg.evaluate("!!document.querySelector('.lot-confetti')") and brag.startswith("¡Órale! I told you") and "(a row)" in brag, f"confetti + Tía brags in English ({brag[:60]!r})")
+    check(s["voice"]["last"] == "loteria", f"…and shouts '¡Órale!' (recorded clip {s['voice']['last']!r})")
     check(await pg.text_content("#lot-play") == "▶ Play again", "after a win: ▶ Play again")
     check(stored["wins"] == 1 and stored["streak"] == 1 and stored["best"] == 1, f"wins / streak / best streak saved on the phone ({ {k: stored[k] for k in ('wins', 'streak', 'best')} })")
     check(await pg.evaluate("document.querySelectorAll('.lot-cell.win').length") == 4, "the winning line is highlighted")

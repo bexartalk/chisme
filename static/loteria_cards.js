@@ -235,7 +235,7 @@
   ];
   // what she says out loud for a card (the verse, then the name, like a real cantor) and the other calls
   const callText = (c) => `${c.verse} ¡${c.name}!`;
-  const LINES_ES = { intro: "¡Se va y se corre con…!", loteria: "¡Buenas!", over: "¡Se acabaron las cartas!" };
+  const LINES_ES = { intro: "¡Se va y se corre con…!", loteria: "¡Órale!", over: "¡Se acabaron las cartas!" };
   const api = { CARDS, DECK, PRESETS, callText, LINES_ES, TINTS };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.ChismeLoteriaCards = api;

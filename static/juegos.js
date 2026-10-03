@@ -10,8 +10,8 @@
   // v41: the 54 traditional cards (names + folk verses) with our own original SVG art, from static/loteria_cards.js
   const LC = typeof module === "object" && module.exports ? require("./loteria_cards.js") : root.ChismeLoteriaCards;
   const CARDS = LC.CARDS, callText = LC.callText, LINES_ES = LC.LINES_ES, PRESETS = LC.PRESETS || [];
-  // the UI text is English; what Tía says out loud (the calls, ¡Buenas!) is Spanish
-  const BRAG = ["¡Buenas! I told you today was your day, honey.", "That's it! Not even the neighbor saw that coming.", "¡Buenas! I'm making you my official best friend.",
+  // the UI text is English; what Tía says out loud (the calls, ¡Órale!) is Spanish
+  const BRAG = ["¡Órale! I told you today was your day, honey.", "That's it! Not even the neighbor saw that coming.", "¡Órale! I'm making you my official best friend.",
     "You won! I'm telling the group chat right now.", "What luck! Share your secret with me, okay?"];
   const TEASE_EARLY = "Oh honey, that card hasn't been called yet. No cheating at this table.";
   const TEASE_NOPE = "Not yet, sweetheart. You're almost there, keep playing.";
@@ -119,14 +119,14 @@
     const st = load();
     let tabla, deck, called, marks, timer = null, running = false, over = false, started = false;
     // v43: laid out like a real tabla app: the tabla picker + the bean count (in the top bar while playing), the called card in a
-    // strip with ▶/⏸ and ¡Buenas!, a 4×4 tabla of big cards, then Limpiar (beans off) and Nueva tabla (a random new mix)
+    // strip with ▶/⏸ and ¡Órale!, a 4×4 tabla of big cards, then Limpiar (beans off) and Nueva tabla (a random new mix)
     el.innerHTML = `${BEAN_DEFS}
       <div class="lot-app">
         <div class="lot-head"><button type="button" id="lot-pick" class="lot-pick" aria-haspopup="dialog" aria-expanded="false" aria-controls="lot-sheet"><span id="lot-pick-t"></span><span class="lot-caret" aria-hidden="true"></span></button>
           <span id="lot-marked" class="lot-marked" role="status" aria-label="Beans on your tabla">0 / 16</span></div>
         <div class="lot-now" id="lot-bubble" aria-live="polite"><div id="lot-card" class="lot-card"></div>
           <div class="lot-say"><p id="lot-line" class="lot-line">Pull up a chair, honey! Tap <b>Start</b> and I'll start calling cards.</p><p class="lot-count" id="lot-count"></p></div>
-          <div class="lot-now-btns"><button type="button" id="lot-play" class="lot-btn lot-main">▶ Start</button><button type="button" id="lot-claim" class="lot-claim">¡Buenas!</button></div></div>
+          <div class="lot-now-btns"><button type="button" id="lot-play" class="lot-btn lot-main">▶ Start</button><button type="button" id="lot-claim" class="lot-claim">¡Órale!</button></div></div>
         <div class="lot-fit"><div id="lot-tabla" class="lot-tabla" role="grid" aria-label="Your tabla: when Tía calls one of your cards, tap it to drop a bean on it"></div></div>
         <div class="lot-actions lot-controls" role="group" aria-label="Game controls">
           <button type="button" id="lot-voice" class="lot-btn lot-icon" aria-pressed="false"></button>
@@ -139,7 +139,7 @@
           <div class="lot-sheet-row"><span>Calling speed</span><button type="button" id="lot-speed" class="lot-btn" aria-label="Calling speed"></button></div>
         </div></div>
       </div>
-      <p class="lot-rules">When Tía calls a card that's on your tabla, tap it to drop a bean on it (tap again to take it off). Win with a row, a column, a diagonal or the 4 corners, then tap <b>¡Buenas!</b> <b>Limpiar</b> takes the beans off; <b>Nueva tabla</b> deals a random new mix, or pick one of the ready-made tablas at the top. A game you don't win (the deck runs out, or you deal a new tabla mid-game) resets your streak.</p>
+      <p class="lot-rules">When Tía calls a card that's on your tabla, tap it to drop a bean on it (tap again to take it off). Win with a row, a column, a diagonal or the 4 corners, then tap <b>¡Órale!</b> <b>Limpiar</b> takes the beans off; <b>Nueva tabla</b> deals a random new mix, or pick one of the ready-made tablas at the top. A game you don't win (the deck runs out, or you deal a new tabla mid-game) resets your streak.</p>
       <p class="lot-credit">Original art made for Chisme. Chismería is a lotería-style game; not affiliated with or endorsed by any Lotería publisher.</p>
       <p class="lot-stats" id="lot-stats"></p>
       <div class="lot-hist-wrap"><p class="lot-hist-h">Already called</p><div id="lot-hist" class="lot-hist"></div></div>`;
@@ -149,7 +149,7 @@
       onExit: () => { pause(); hush(); speak(started && !over ? "Game paused. Tap Resume when you're back, honey." : "Pull up a chair, honey! Tap Start and I'll start calling cards.", null); },
       onLeave: () => { pause(); } });
     // v41: Tía's voice is recorded ahead of time with a natural neural voice (Piper es_MX, tools/make_loteria_audio.py): one short
-    // mp3 per card (the verse, then the name) plus the intro, ¡Buenas! and the end of the deck, cached offline by the service
+    // mp3 per card (the verse, then the name) plus the intro, ¡Órale! and the end of the deck, cached offline by the service
     // worker. They play on ONE reused <audio>: the first clip starts inside the Start tap, which unlocks it on iPhone for the
     // rest of the game. A clip that can't load or play falls back to the phone's own Spanish voice (speechSynthesis).
     const AUDIO = "/static/loteria/audio/", bad = new Set(), voice = { last: null, clips: 0, fallbacks: 0 };
@@ -241,7 +241,7 @@
     function stop() { running = false; clearTimeout(timer); timer = null; if (tabla) controls(); }
     function pause() { if (running) { stop(); hush(); } }
     function confetti() {
-      if (reduced()) return;   // reduce motion: the static "¡Buenas!" banner only
+      if (reduced()) return;   // reduce motion: the static "¡Órale!" banner only
       const box = document.createElement("div"); box.className = "lot-confetti"; box.setAttribute("aria-hidden", "true");
       for (let i = 0; i < 70; i++) { const p = document.createElement("i"); p.style.cssText = `left:${Math.random() * 100}%;background:${FIESTA[i % 5]};animation-delay:${(Math.random() * 0.5).toFixed(2)}s;animation-duration:${(1.6 + Math.random() * 1.4).toFixed(2)}s;transform:rotate(${Math.floor(Math.random() * 360)}deg)`; box.appendChild(p); }
       document.body.appendChild(box); setTimeout(() => box.remove(), 3600);
@@ -335,7 +335,7 @@
     };
   }
 
-  const GAMES = [{ id: "loteria", name: "Chismería", emoji: "🎴", blurb: "Tía calls the cards; fill a line and shout ¡Buenas!", mount: mountLoteria }];
+  const GAMES = [{ id: "loteria", name: "Chismería", emoji: "🎴", blurb: "Tía calls the cards; fill a line and shout ¡Órale!", mount: mountLoteria }];
 
   // ---- the Juegos tab: list the games, mount the chosen one (GAMES[0] by default: v47 The Juan That Got Away, unshifted by juan.js) ----
   function mountTab(listEl, stageEl, ctx) {

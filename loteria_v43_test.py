@@ -5,10 +5,10 @@
    (El Diablito, La Estrella, El Alacrán, El Sol, La Corona; the user asked for it), none anywhere else; #26 is El Chocolate,
    #38 El Apache is a dignified Apache man with a bow (v49.5b; was the huaraches); the service worker precaches them. The app's UI stays yellow-free.
 2. WebKit 390×844 full screen: the teal top bar holds the title badge, the "Pick your tabla" picker, the "x / 16" bean count and ✕;
-   under it a strip with the called card (picture, Spanish verse, count) + ▶/⏸ and ¡Buenas!; a 4×4 tabla of big cards filling the
+   under it a strip with the called card (picture, Spanish verse, count) + ▶/⏸ and ¡Órale!; a 4×4 tabla of big cards filling the
    width; big Limpiar + Nueva tabla buttons at the bottom; nothing scrolls. A called card tapped → a big pinto bean covers it (the
    card dimmed) and the count goes up; an uncalled card shakes; Limpiar takes every bean off; Nueva tabla deals a random new mix;
-   the picker's presets deal their 16 cards and are remembered. No yellow in the game's colors. Win + ¡Buenas! still work.
+   the picker's presets deal their 16 cards and are remembered. No yellow in the game's colors. Win + ¡Órale! still work.
 3. WebKit 320×640: the same, shrunk (no scrolling, 44 px buttons, labels not clipped).
 Screenshots (390×844): loteria-v43.png (mid-game, beans on called cards, the called card showing), loteria-v43-cards.png (the art),
 loteria-v43-picker.png, loteria-v43-320.png."""
@@ -150,7 +150,7 @@ async def big(p):
         await pg.evaluate(G + ".callNext()")
     for i in range(4): await pg.click(f'.lot-cell[data-i="{i}"]')
     await pg.click("#lot-claim"); await pg.wait_for_timeout(300); s = await st(pg)
-    check(s["over"] and s["voice"]["last"] == "loteria" and (await pg.text_content("#lot-line")).startswith("¡Buenas!"), "a full row + ¡Buenas!: a win, and she shouts '¡Buenas!' (recorded clip)")
+    check(s["over"] and s["voice"]["last"] == "loteria" and (await pg.text_content("#lot-line")).startswith("¡Órale!"), "a full row + ¡Órale!: a win, and she shouts '¡Órale!' (recorded clip)")
     check(await pg.evaluate("document.querySelectorAll('.lot-cell.win').length") == 4, "the winning line is highlighted")
     # the art sample
     await pg.evaluate("""() => { const L = ChismeLoteriaCards, d = document.createElement('div'); d.id = 'art-sheet';
