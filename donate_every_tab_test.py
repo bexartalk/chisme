@@ -162,7 +162,7 @@ async def main():
         for i, (v, im) in enumerate(zip(TABS, tiles)):
             x, y = 10 + (i % 3) * (tw + 10), 10 + (i // 3) * (th + 60)
             grid.paste(im.resize((tw, th)), (x, y + 44)); dr.rectangle([x - 1, y + 43, x + tw, y + 44 + th], outline="black", width=2)
-            dr.text((x + 6, y + 8), ["News", "Sports", "Weather", "¿Cuál dieta?", "Juegitos", "Events"][i], fill="black", font=FONT)
+            dr.text((x + 6, y + 8), ["News", "Sports", "Weather", "¿Y la dieta?", "Juegitos", "Events"][i], fill="black", font=FONT)
         grid.save(os.path.join(OUT, "donate-every-tab.png"))
 
         await ctx.close()

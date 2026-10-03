@@ -1,4 +1,4 @@
-"""¿Cuál dieta? (food) tab + in-app food player/reader. WebKit (iPhone 13) for the UI/screens, Chromium for real touch
+"""¿Y la dieta? (food) tab + in-app food player/reader. WebKit (iPhone 13) for the UI/screens, Chromium for real touch
 swipes (view swipe, swipe-down to close) and offline.
 Screens: cual-dieta-tab.png, food-desk-bottom.png, food-video-player.png, food-video-saved.png, nav-320.png, nav-order.png"""
 import asyncio, os, sys, tempfile
@@ -30,14 +30,14 @@ async def wk(p):
     await pg.goto(URL)
     await pg.wait_for_function("() => window.__chisme && window.__chisme.ready", timeout=90000)
     tabs = await pg.evaluate("[...document.querySelectorAll('#tabs .tab')].map(t => t.textContent.trim().replace(/^\\S+\\s/, ''))")
-    check(tabs == ["News", "Sports", "Weather", "¿Cuál dieta?", "Juegitos", "Events"], f"nav is News · Sports · Weather · ¿Cuál dieta? · Juegitos · Events ({tabs})")
+    check(tabs == ["News", "Sports", "Weather", "¿Y la dieta?", "Juegitos", "Events"], f"nav is News · Sports · Weather · ¿Y la dieta? · Juegitos · Events ({tabs})")
     panes = await pg.evaluate("[...document.querySelectorAll('#track > .view')].map(v => v.dataset.view)")
     check(panes == ["news", "sports", "weather", "antojos", "juegos", "events"], f"swipe panes in the same order ({panes})")
     opts = await pg.evaluate("[...document.querySelectorAll('#settings input[name=deftab]')].map(i => i.value).filter(v => v !== 'random')")
     check(opts == ["news", "sports", "weather", "antojos", "juegos", "events"], f"Settings 'Open Chisme to' in the same order ({opts})")
-    check(await pg.evaluate("document.querySelector('#antojos-title').textContent.trim()") == "🌮 ¿Cuál dieta?", "section title is 🌮 ¿Cuál dieta?")
-    check(await pg.evaluate("document.querySelector('#settings input[name=deftab][value=antojos]').parentElement.textContent.trim()") == "🌮 ¿Cuál dieta?", "Settings option reads 🌮 ¿Cuál dieta?")
-    check(await pg.evaluate("document.querySelector('#tabs [data-view=antojos] span').textContent") == "🌮", "¿Cuál dieta? keeps the 🌮 icon")
+    check(await pg.evaluate("document.querySelector('#antojos-title').textContent.trim()") == "🌮 ¿Y la dieta?", "section title is 🌮 ¿Y la dieta?")
+    check(await pg.evaluate("document.querySelector('#settings input[name=deftab][value=antojos]').parentElement.textContent.trim()") == "🌮 ¿Y la dieta?", "Settings option reads 🌮 ¿Y la dieta?")
+    check(await pg.evaluate("document.querySelector('#tabs [data-view=antojos] span').textContent") == "🌮", "¿Y la dieta? keeps the 🌮 icon")
     check(await pg.evaluate("!document.querySelector('#ev-chips [data-cat=food]') && !document.querySelector('#view-events #food-block')"), "no Food chip / food block left in Events")
     fit = await pg.evaluate("(() => { const i = document.querySelector('.tabs-inner'); return i.scrollWidth <= i.clientWidth && [...i.children].every(t => t.getBoundingClientRect().right <= innerWidth); })()")
     check(fit, "6 tabs fit at 390 px")
@@ -146,11 +146,11 @@ async def wk(p):
         except Exception: pass
         check(await pg.evaluate("!document.querySelector('#player').open && !document.querySelector('#player-media iframe')"), "closing stops the TikTok")
         await pg.wait_for_timeout(1500); framed["on"] = False   # (TikTok's player keeps logging for a moment after it's removed)
-    # Settings → Open Chisme to: ¿Cuál dieta?
+    # Settings → Open Chisme to: ¿Y la dieta?
     await pg.evaluate("window.scrollTo(0, 0)"); await pg.tap("#settings-btn")
     await pg.check('#settings input[name=deftab][value=antojos]'); await pg.tap("#settings-close")
     await pg.goto(URL); await pg.wait_for_function("() => window.__chisme && window.__chisme.ready", timeout=60000)
-    check(await pg.evaluate("window.__chisme.view") == "antojos", "Settings: Open Chisme to → ¿Cuál dieta? works")
+    check(await pg.evaluate("window.__chisme.view") == "antojos", "Settings: Open Chisme to → ¿Y la dieta? works")
     check(not errs, f"no console/page errors ({errs[:3]})")
     if third: print(f"   note: {len(third)} error(s) from framed sites' own scripts (news site / TikTok player), e.g. {third[0][:90]!r}")
     await ctx.close()
@@ -206,11 +206,11 @@ async def chrome(p):
     await pg.wait_for_function("() => window.__chisme.foodReady && document.querySelectorAll('#food-creators .fr').length", timeout=60000)
     iy = await pg.evaluate("(() => { const r = document.querySelector('#antojos .sec-head').getBoundingClientRect(); return r.top + r.height / 2; })()")
     await swipe(cdp, 60, 340, iy); await pg.wait_for_timeout(900)
-    check(await pg.evaluate("window.__chisme.view") == "weather", "swipe right from ¿Cuál dieta? goes back to Weather")
+    check(await pg.evaluate("window.__chisme.view") == "weather", "swipe right from ¿Y la dieta? goes back to Weather")
     await pg.evaluate("window.__chisme.goView('antojos', { instant: true })"); await pg.wait_for_timeout(600)
     iy = await pg.evaluate("(() => { const r = document.querySelector('#antojos .sec-head').getBoundingClientRect(); return r.top + r.height / 2; })()")
     await swipe(cdp, 330, 50, iy); await pg.wait_for_timeout(900)
-    check(await pg.evaluate("window.__chisme.view") == "juegos", "swipe left from ¿Cuál dieta? goes on to Juegitos")
+    check(await pg.evaluate("window.__chisme.view") == "juegos", "swipe left from ¿Y la dieta? goes on to Juegitos")
     await pg.evaluate("window.__chisme.goView('antojos', { instant: true })"); await pg.wait_for_timeout(500)
     await pg.evaluate("document.querySelector('#food-creators .fr h4 a').click()")
     await pg.wait_for_function("document.querySelector('#player').open", timeout=5000)

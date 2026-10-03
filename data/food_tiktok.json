@@ -1,5 +1,5 @@
 {
-  "_readme": "Curated TikTok food videos for the ¿Cuál dieta? tab. TikTok has no public RSS and no keyless listing API, so Chisme only shows videos listed here. Add a creator under 'creators' (verified handle), then paste video links under 'videos' (https://www.tiktok.com/@handle/video/ID). Chisme looks each link up with TikTok's official oEmbed (title, thumbnail, author) and plays it with TikTok's official embed player (tiktok.com/player/v1/ID). Videos whose author isn't a listed creator are ignored. Newest first is not required; Chisme sorts by the date inside the video ID.",
+  "_readme": "Curated TikTok food videos for the ¿Y la dieta? tab. TikTok has no public RSS and no keyless listing API, so Chisme only shows videos listed here. Add a creator under 'creators' (verified handle), then paste video links under 'videos' (https://www.tiktok.com/@handle/video/ID). Chisme looks each link up with TikTok's official oEmbed (title, thumbnail, author) and plays it with TikTok's official embed player (tiktok.com/player/v1/ID). Videos whose author isn't a listed creator are ignored. Newest first is not required; Chisme sorts by the date inside the video ID.",
   "creators": [
     {
       "handle": "bootlegfoodreview",

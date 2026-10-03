@@ -5,7 +5,7 @@
    wins (rows, columns, diagonals, 4 corners) that only count for cards Tía actually called. The Juan That Got Away's 6 levels
    (Hon Dipo → La Chamba → Don Pedroes → O'Reillees → Juan's Casa → Noche Caliente), same course every time, ☕ coffee + breakfast taco on each
    level, cold ones to jump for on the cantina level, hazards on every level but none right at a checkpoint.
-2. WebKit iPhone 13: the 🎲 Juegitos tab (between ¿Cuál dieta? and Events) fits; a list of games. Lotería: Tía (avatar) calls
+2. WebKit iPhone 13: the 🎲 Juegitos tab (between ¿Y la dieta? and Events) fits; a list of games. Lotería: Tía (avatar) calls
    cards in Spanish from recorded clips (the phone's es-MX voice only if a clip fails), 🔇 Sound, pause, speed, new board; a bean drops only on a
    called card (an uncalled one shakes), tap again to take it off; ¡Lotería! checks the beans,
    confetti + a brag on a win, wins/streak/best in localStorage. The Juan That Got Away (v44, replaces Ice Ice Bebé): run, jump (tap / Space),
@@ -174,7 +174,7 @@ async def webkit(p):
     await pg.wait_for_timeout(1500)
     tabs = await pg.evaluate("[...document.querySelectorAll('#tabs .tab')].map(t => t.textContent.trim())")
     fit = await pg.evaluate("(() => { const t = document.querySelector('.tabs-inner'), j = document.querySelector('.tab[data-view=juegos]').getBoundingClientRect(); return t.scrollWidth <= t.clientWidth + 1 && j.right <= innerWidth; })()")
-    check([t.split()[-1] for t in tabs] == ["News", "Sports", "Weather", "dieta?", "Juegitos", "Events"] and tabs[4] == "🎲 Juegitos", f"tab bar: News · Sports · Weather · ¿Cuál dieta? · 🎲 Juegitos · Events ({tabs})")
+    check([t.split()[-1] for t in tabs] == ["News", "Sports", "Weather", "dieta?", "Juegitos", "Events"] and tabs[4] == "🎲 Juegitos", f"tab bar: News · Sports · Weather · ¿Y la dieta? · 🎲 Juegitos · Events ({tabs})")
     check(fit, "all 6 tabs fit on an iPhone 13 (no sideways scroll)")
     check(await pg.evaluate("__chisme.view") == "juegos" and await pg.evaluate("__chisme.juegos.id") == "loteria", "#loteria opens Juegitos → Lotería Chismosa")
     games = await pg.evaluate("[...document.querySelectorAll('.game-pick b')].map(b => b.textContent)")

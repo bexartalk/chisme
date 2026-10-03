@@ -629,7 +629,7 @@ def food_answer(t: str, src: list[dict]) -> tuple[str, list[str]]:
         return f"Hungry, mija? Here's what the food crew has on “{kw}”: 🌮", [s["id"] for s in hits]
     hits = sorted((s for s in src if s["kind"] == "food"), key=lambda s: -(float(s.get("_t") or 0)))[:3]
     if not hits:
-        return "Ay, the food feeds are empty right now. Check ¿Cuál dieta? in a bit.", []
+        return "Ay, the food feeds are empty right now. Check ¿Y la dieta? in a bit.", []
     miss = f"Nothing on “{kw}” in the food feeds right now, but here's the newest from the food crew: 🌮" if kw else "Hungry, mija? Here's the newest from the food crew: 🌮"
     return miss, [s["id"] for s in hits]
 

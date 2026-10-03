@@ -1536,7 +1536,7 @@ window.CHISME_APP_BUILD = "49.12";
     if (go) player.close();
   };
   player.addEventListener("touchend", endSheetDrag); player.addEventListener("touchcancel", endSheetDrag);
-  // ---------- ¿Cuál dieta? For You: a full-screen vertical feed (one video per screen, scroll-snap), ranked on this
+  // ---------- ¿Y la dieta? For You: a full-screen vertical feed (one video per screen, scroll-snap), ranked on this
   // phone by static/foryou.js from what you watch, save and skip. Nothing is sent to the server.
   const FY = window.ChismeForYou || null;
   let fyProfile = FY ? FY.load() : null;
@@ -1613,7 +1613,7 @@ window.CHISME_APP_BUILD = "49.12";
   // Why: iPhone Safari only lets a video element play with sound after a tap, and that permission belongs to the element.
   // New players per video meant every video started muted. With these two, every real tap (the Start tap itself when
   // they're already loaded, or the first tap in the feed) sends unMute to both inside the tap, so all the videos after it
-  // keep the sound. They're created and cued (no video data yet) while ¿Cuál dieta? is on screen, so Start finds them ready.
+  // keep the sound. They're created and cued (no video data yet) while ¿Y la dieta? is on screen, so Start finds them ready.
   // TikTok: its embed can't switch videos, so each TikTok slide gets its own player; on iPhone those start muted and need
   // their own tap for sound, so on iPhone the TikToks come after the YouTube videos.
   // Nothing is ever left paused by the browser: a video that isn't playing 2.5 s after it should is retried muted, and if
@@ -1658,7 +1658,7 @@ window.CHISME_APP_BUILD = "49.12";
     });
     YT.push(p); return p;
   }
-  // while ¿Cuál dieta? is on screen, load both players (cued on the first two YouTube videos: the player pages, not the
+  // while ¿Y la dieta? is on screen, load both players (cued on the first two YouTube videos: the player pages, not the
   // video data) so the Start tap finds them ready and can start the first video with sound
   function preparePlayer() {
     clearTimeout(preparePlayer.t);
@@ -1990,7 +1990,7 @@ window.CHISME_APP_BUILD = "49.12";
   function endSlide() {
     const again = el("button", { type: "button", class: "fy-start" }, el("span", { "aria-hidden": "true", text: "↺" }), "Watch again from the top");
     again.onclick = () => { feedScroll.scrollTo({ top: 0, behavior: "instant" }); };
-    const back = el("button", { type: "button", class: "feed-btn", text: "Back to ¿Cuál dieta?" });
+    const back = el("button", { type: "button", class: "feed-btn", text: "Back to ¿Y la dieta?" });
     back.onclick = () => closeFeed();
     return el("section", { class: "vf-slide vf-end", "aria-label": "End of the feed" }, el("h3", { text: "¡Ya! You're all caught up." }),
       el("p", { text: "Keep saving and skipping — the next batch of videos lines up around what you liked." }), again, back);
@@ -2555,7 +2555,7 @@ window.CHISME_APP_BUILD = "49.12";
   });
   const loadSports = () => load("sports");
 
-  // ---------- views: News | Sports | Weather | ¿Cuál dieta? | Juegitos | Events (tap the fixed buttons, swipe sideways or ←/→ on the tabs)
+  // ---------- views: News | Sports | Weather | ¿Y la dieta? | Juegitos | Events (tap the fixed buttons, swipe sideways or ←/→ on the tabs)
   const VIEWS = ["news", "sports", "weather", "antojos", "juegos", "events"];
   // 🎲 Juegos: mounted the first time the tab opens (static/juegos.js lists the games; juan.js adds game 2, The Juan That Got Away).
   let juegos = null;
@@ -2698,7 +2698,7 @@ window.CHISME_APP_BUILD = "49.12";
   { const vw = $("#views"); if (vw) vw.addEventListener("scroll", () => { if (vw.scrollLeft) vw.scrollLeft = 0; }, { passive: true }); }
   // Deep links (manifest shortcuts): #sports, #weather, #radar-sec, #events. Otherwise the default tab (News unless changed in Settings).
   const HASH_VIEW = { "#weather": ["weather"], "#forecast-sec": ["weather", "forecast-sec"], "#radar-sec": ["weather", "radar-sec"], "#radar": ["weather", "radar-sec"],
-    "#alerts": ["weather", "alerts"], "#events": ["events"], "#antojos": ["antojos"], "#cual-dieta": ["antojos"], "#dieta": ["antojos"], "#food": ["antojos"], "#near": ["news", "near"], "#city": ["news", "city"],
+    "#alerts": ["weather", "alerts"], "#events": ["events"], "#antojos": ["antojos"], "#cual-dieta": ["antojos"], "#y-la-dieta": ["antojos"], "#dieta": ["antojos"], "#food": ["antojos"], "#near": ["news", "near"], "#city": ["news", "city"],
     "#sports": ["sports"], "#spurs": ["sports"], "#nba": ["sports"], "#cowboys": ["sports"], "#nfl": ["sports"], "#mlb": ["sports"], "#missions": ["sports"], "#news": ["news"],
     "#juegos": ["juegos"], "#juegitos": ["juegos"], "#games": ["juegos"], "#loteria": ["juegos", null, "loteria"], "#juan": ["juegos", null, "juan"], "#juans-long-day": ["juegos", null, "juan"], "#juan-that-got-away": ["juegos", null, "juan"] };
   pos(0); updateTabs();

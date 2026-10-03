@@ -59,7 +59,7 @@ async def chromium(p):
     try: await pg.wait_for_function("window.__chisme.forYou.player.players.length === window.__chisme.forYou.player.pool && window.__chisme.forYou.player.players.every(p => p.ready)", timeout=30000)
     except Exception: pass
     s = await pg.evaluate(ST)
-    check(s["pool"] == 4 and s["n"] == 4 and all(x["ready"] and x["slide"] == -1 for x in s["players"]), f"4 YouTube players made and ready on ¿Cuál dieta?, before ▶ Start ({s['n']} players, pool {s['pool']})")
+    check(s["pool"] == 4 and s["n"] == 4 and all(x["ready"] and x["slide"] == -1 for x in s["players"]), f"4 YouTube players made and ready on ¿Y la dieta?, before ▶ Start ({s['n']} players, pool {s['pool']})")
     await pg.click("#fy-start"); await pg.wait_for_function(PLAYING, arg=0, timeout=20000); await all_warm(pg)
     s = await pg.evaluate(ST); vids = [i for i, k in enumerate(s["kinds"]) if k in "ty"]
     check(s["warmReady"] == vids[1:3] and s["ahead"] == 2, f"video 1 plays; the next 2 videos are loaded, muted, held on their first frame (warm {s['warmReady']})")

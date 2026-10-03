@@ -3,7 +3,7 @@ highlights or backgrounds, text, borders, glows, focus rings, pills or toasts. T
 orange on neutral backgrounds) replaces them. Weather severity can be orange or red, not yellow; the radar legend and
 the RainViewer tiles (recolored on a canvas) go blue → orange → red → pink.
 
-Covers every tab (News, Sports, Weather, ¿Cuál dieta?, Juegitos, Events), Settings, the Tía chat sheet (her picture
+Covers every tab (News, Sports, Weather, ¿Y la dieta?, Juegitos, Events), Settings, the Tía chat sheet (her picture
 itself is excluded), the "Updated" status pill in every state, the "New chisme" pill, the offline banner, the focus
 ring, the radar legend and tiles, Lotería (a win, with its winning-row highlight) and The Juan That Got Away (v44: DOM overlays,
 the full-screen badge, and the canvas HUD panel's pixels on the title, level 1, worn out, every level and its clear, and the win;

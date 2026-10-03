@@ -1,4 +1,4 @@
-"""¿Cuál dieta? For You (v40: "Bigger the Pansa, Better the Chansa"), in WebKit (iPhone 13) + a real touch swipe in Chromium.
+"""¿Y la dieta? For You (v40: "Bigger the Pansa, Better the Chansa"), in WebKit (iPhone 13) + a real touch swipe in Chromium.
 Banner at the top with Start watching; full-screen vertical scroll-snap feed; one muted-autoplay player at a time;
 overlaid Save / Directions / Not for me / Details; signals (skip-fast, watch, save, not interested + undo) land in
 localStorage; the 'Why you're seeing this' chip learns ("Because you saved 2 … spots"); Back button and the browser's
@@ -80,14 +80,14 @@ async def wk(p):
     pg.on("console", lambda m: errs.append(m.text[:160]) if own_error(m) else None)
     await pg.goto(URL + "#cual-dieta")
     await pg.wait_for_function("() => window.__chisme && window.__chisme.foodReady && !document.querySelector('#foryou-card').hidden", timeout=90000)
-    # 1. the banner: top of ¿Cuál dieta?, above the Latest / Saved spots chips; desk still at the bottom
+    # 1. the banner: top of ¿Y la dieta?, above the Latest / Saved spots chips; desk still at the bottom
     lay = await pg.evaluate("""() => { const c = document.querySelector('#foryou-card'), chips = document.querySelector('#food-view'), card = document.querySelector('#antojos');
       const r = c.getBoundingClientRect(), b = document.querySelector('#fy-start').getBoundingClientRect();
       return { afterHead: c.previousElementSibling.classList.contains('sec-head'), aboveChips: r.bottom <= chips.getBoundingClientRect().top,
         chips: [...chips.querySelectorAll('.chip')].map(x => x.dataset.fv), deskLast: card.lastElementChild.id === 'food-desk',
         title: document.querySelector('#fy-title').textContent.trim(), btn: document.querySelector('#fy-start').textContent.trim(), btnH: Math.round(b.height), btnW: Math.round(b.width),
         meta: document.querySelector('#fy-meta').textContent } }""")
-    check(lay["afterHead"] and lay["aboveChips"], "For You banner is the first thing under the ¿Cuál dieta? heading, above the chips")
+    check(lay["afterHead"] and lay["aboveChips"], "For You banner is the first thing under the ¿Y la dieta? heading, above the chips")
     check(lay["title"] == "🌮 Bigger the Pansa, Better the Chansa" and lay["btn"] == "▶ Start watching" and lay["btnH"] >= 52 and lay["btnW"] >= 300, f"banner: '{lay['title']}', big '{lay['btn']}' button ({lay['btnW']}×{lay['btnH']})")
     check(lay["chips"] == ["latest", "saved"] and lay["deskLast"], "Latest + Saved spots chips kept; food desk still at the bottom")
     # v40: the feed is called "Bigger the Pansa, Better the Chansa" everywhere (banner title, feed top bar, aria, tip note, Settings); no "For You" / "Tu feed de antojos" left
@@ -178,7 +178,7 @@ async def wk(p):
     # 5. close: the Back button returns to the tab; so does the browser's back
     await pg.tap("#feed-close"); await pg.wait_for_timeout(600)
     st = await pg.evaluate("({ open: document.querySelector('#feed').open, view: window.__chisme.view, locked: document.documentElement.classList.contains('feed-open') })")
-    check(not st["open"] and st["view"] == "antojos" and not st["locked"], f"‹ Back closes the feed, back on ¿Cuál dieta? ({st})")
+    check(not st["open"] and st["view"] == "antojos" and not st["locked"], f"‹ Back closes the feed, back on ¿Y la dieta? ({st})")
     lead1 = await pg.evaluate("__chisme.forYou.coverCrews[0]")
     check(lead1 and lead1 != lead0, f"rotation: after closing, the banner cover leads with a different creator ({lead0} → {lead1})")
     await pg.tap("#fy-start"); await pg.wait_for_function("document.querySelector('#feed').open", timeout=5000); await pg.wait_for_timeout(700)

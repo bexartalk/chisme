@@ -1,6 +1,6 @@
 """In-app reader (v27), WebKit iPhone 13: every outside link stays inside Chisme.
 
-- Audit: across News, Sports, ¿Cuál dieta?, Weather and Events, no link opens a new tab/browser except the Cash App
+- Audit: across News, Sports, ¿Y la dieta?, Weather and Events, no link opens a new tab/browser except the Cash App
   donate button (and the small "Open original" / "Open in Maps" links at the bottom of the sheets).
 - News story → reader sheet: framed where the site allows it (checked server-side from X-Frame-Options /
   CSP frame-ancestors), else a headline card (headline, source, date, the feed's summary, image) with attribution

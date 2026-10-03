@@ -74,10 +74,10 @@ async def webkit_part(p):
     np_ = await newp.value
     check(np_.url == "https://cash.app/$Slurmkaos" and pg.url.startswith(URL), f"tapping it opens {np_.url} outside Chisme; Chisme stays put")
     await np_.close()
-    # ¿Cuál dieta?
+    # ¿Y la dieta?
     await pg.evaluate("__chisme.goView('antojos', { instant: true })"); await pg.wait_for_timeout(800)
     d = await pg.evaluate(DONATE, "donate-dieta")
-    check(d["text"] == TEXT and d["href"] == "https://cash.app/$Slurmkaos" and d["last"] and d["parent"] == "view-antojos" and d["tag"] == "$Slurmkaos", "¿Cuál dieta?: the same card, last thing on the tab")
+    check(d["text"] == TEXT and d["href"] == "https://cash.app/$Slurmkaos" and d["last"] and d["parent"] == "view-antojos" and d["tag"] == "$Slurmkaos", "¿Y la dieta?: the same card, last thing on the tab")
     # Settings row
     await pg.evaluate("__chisme.goView('news', { instant: true })")
     await pg.tap("#settings-btn"); await pg.wait_for_function("document.querySelector('#settings').open")

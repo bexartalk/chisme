@@ -1,6 +1,6 @@
 """Change location anywhere in the U.S. (WebKit, iPhone 13), with GPS allowed at a San Antonio position:
 the typed place must stick (the v22/v23 bug: the GPS watch switched straight back to San Antonio), and the
-whole app must follow: header skyline, News outlets, Weather (NWS point), Events sources, ¿Cuál dieta?, Sports.
+whole app must follow: header skyline, News outlets, Weather (NWS point), Events sources, ¿Y la dieta?, Sports.
 Screens: location-houston.png, location-miami.png, location-austin.png (+ extras in /tmp/wk)
 Usage: ./venv/bin/python location_city_test.py [url]"""
 import asyncio, json, os, re, sys
@@ -93,7 +93,7 @@ async def main():
                 deskN: document.querySelectorAll('#food-outlets .desk').length, road: document.querySelector('#food-latest-h').textContent,
                 deskFirst: !!(document.querySelector('#food-desk').compareDocumentPosition(document.querySelector('#food-latest')) & Node.DOCUMENT_POSITION_FOLLOWING),
                 outlets: [...document.querySelectorAll('#food-outlets .desk .fr-by b')].map(b => b.textContent) })""")
-            check(city in fd["intro"] and fd["desk"] == f"{city} food news" and 0 < fd["deskN"] <= 5, f"¿Cuál dieta?: '{fd['desk']}' ({fd['deskN']}: {', '.join(fd['outlets'][:3])})")
+            check(city in fd["intro"] and fd["desk"] == f"{city} food news" and 0 < fd["deskN"] <= 5, f"¿Y la dieta?: '{fd['desk']}' ({fd['deskN']}: {', '.join(fd['outlets'][:3])})")
             check("San Antonio" in fd["road"] and fd["deskFirst"], f"SA creators kept but labeled + below the city's food news ('{fd['road']}')")
             await pg.evaluate("window.scrollTo(0, document.querySelector('#antojos').getBoundingClientRect().top + scrollY - 110)"); await pg.wait_for_timeout(500)
             await pg.screenshot(path=f"/tmp/wk/food-{city.lower()}.png")

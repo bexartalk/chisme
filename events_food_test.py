@@ -1,5 +1,5 @@
 """Phone (390x844): Events category chips filter the list; swiping the chip row doesn't switch views;
-The 🌮 ¿Cuál dieta? tab (was the Food chip) shows real food reviews (local creators + food desks) with thumbnails and outbound links; works offline.
+The 🌮 ¿Y la dieta? tab (was the Food chip) shows real food reviews (local creators + food desks) with thumbnails and outbound links; works offline.
 Usage: ./venv/bin/python events_food_test.py [url]"""
 import asyncio, json, sys
 from pathlib import Path

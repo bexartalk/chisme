@@ -171,13 +171,13 @@ body{padding-top:var(--tabs-h,calc(66px + env(safe-area-inset-top,0px)))}
 .tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;min-height:52px;padding:.2em .25em;min-width:0;
   background:#000;color:#fff;border:2px solid #000;border-radius:12px;font-size:min(.85rem,18px,3.4vw);font-weight:900;line-height:1.1;white-space:nowrap}
 .tab span{font-size:1.15em;line-height:1}
-.tab .tl{font:inherit;white-space:normal;text-align:center;line-height:1.02;overflow-wrap:normal;hyphens:none}  /* '¿Cuál dieta?' may wrap to 2 lines on phones */
+.tab .tl{font:inherit;white-space:normal;text-align:center;line-height:1.02;overflow-wrap:normal;hyphens:none}  /* '¿Y la dieta?' may wrap to 2 lines on phones */
 .tab[aria-current="page"]{background:var(--turq);color:#000;border-color:var(--turq)}
 .tab.sub-current{box-shadow:inset 0 -4px 0 var(--pink)}
 .tab:hover{border-color:var(--pink)}
 @media (min-width:601px){ .tab{flex-direction:row;gap:.4em;font-size:min(.9rem,18px)} }
 /* v40: bigger tabs on phones. Labels are 15-18 px bold (they grow with the Text size setting, capped so they fit); two rows
-   of three, icon beside the label, so all 6 are always on screen, nothing scrolls away, and '¿Cuál dieta?' may wrap to 2 lines */
+   of three, icon beside the label, so all 6 are always on screen, nothing scrolls away, and '¿Y la dieta?' may wrap to 2 lines */
 @media (max-width:600px){
   .tabs-inner{grid-template-columns:repeat(3,minmax(min-content,1fr));gap:5px}
   .tab{flex-direction:row;gap:.3em;min-height:46px;padding:.15em .35em;font-size:clamp(15px,.85rem,min(18px,5vw));line-height:1.08;letter-spacing:.005em}
@@ -187,7 +187,7 @@ body{padding-top:var(--tabs-h,calc(66px + env(safe-area-inset-top,0px)))}
 @media (max-width:360px){ .tabs .tabs-inner{padding-left:5px;padding-right:5px;gap:4px}   /* narrow phones: icon above the label */
   .tab{flex-direction:column;gap:2px;min-height:52px;padding:.2em .15em} .tab span{font-size:1.2em} .tab .tl{text-align:center} }
 
-/* ---------- views: News | Sports | Weather | Events | ¿Cuál dieta? (food), side by side; swipe or tap to move */
+/* ---------- views: News | Sports | Weather | Events | ¿Y la dieta? (food), side by side; swipe or tap to move */
 .views{overflow:hidden;overflow:clip;padding-top:14px;touch-action:pan-y pinch-zoom}   /* v49.11: clip = focus/scrollIntoView can't slide the tabs sideways */
 .track{display:flex;align-items:flex-start;gap:24px;will-change:transform}
 .track.animating{transition:transform .32s cubic-bezier(.2,.8,.2,1)}
@@ -727,7 +727,7 @@ body { overscroll-behavior-y: contain; }
   .brand-bubble{top:1.54vw;width:48.21vw;height:37.44vw;margin-left:-24.1vw}
 }
 
-/* ---------- ¿Cuál dieta? feed (v25 "For You"; v40 renamed "Bigger the Pansa, Better the Chansa"): banner + full-screen vertical feed */
+/* ---------- ¿Y la dieta? feed (v25 "For You"; v40 renamed "Bigger the Pansa, Better the Chansa"): banner + full-screen vertical feed */
 .foryou-card{position:relative;margin:4px 0 16px;padding:16px 16px 14px;border:3px solid #000;border-radius:20px;color:#fff;
   background:radial-gradient(120% 90% at 100% 0,rgba(239,66,111,.95),transparent 60%),radial-gradient(90% 90% at 0 100%,rgba(0,201,205,.9),transparent 60%),#111;
   box-shadow:0 5px 0 #000;overflow:hidden}
@@ -880,7 +880,7 @@ html.feed-open,html.feed-open body{overflow:hidden}
 .fy-next{margin:0 0 12px;font-size:.88rem;font-weight:800;line-height:1.3;color:#fff}
 [data-theme="dark"] .fy-tile{border-color:var(--turq)}
 
-/* Donate: a quiet card at the very bottom of News and ¿Cuál dieta? plus a row in Settings. No popups.
+/* Donate: a quiet card at the very bottom of News and ¿Y la dieta? plus a row in Settings. No popups.
    Cash App green (#00D632) with black text (11:1 contrast); the only link that leaves the app on purpose. */
 .donate{text-align:center;border-style:dashed;padding:16px 18px 14px}
 .donate-text{margin:0 0 12px;font-weight:800;font-size:1rem;line-height:1.35;color:var(--ink)}
