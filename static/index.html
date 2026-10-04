@@ -38,6 +38,7 @@
   <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png" sizes="180x180">
   <link rel="stylesheet" href="/static/vendor/leaflet/leaflet.css">
   <link rel="stylesheet" href="/static/style.css?v=__BUILD__">
+  <link rel="stylesheet" href="/static/ownerposts.css?v=__BUILD__">   <!-- the owner's own posts ("From Chisme") -->
   <script>
     /* The server fills in the build; app.js and style.css are requested with ?v=<build>, so an
        older service worker's cached copies can never be mixed with this page. */
@@ -789,6 +790,7 @@
   <script src="/static/juegos.js?v=__BUILD__"></script>
   <script src="/static/juan.js?v=__BUILD__"></script>
   <script src="/static/app.js?v=__BUILD__"></script>
+  <script src="/static/ownerposts.js?v=__BUILD__"></script>   <!-- the owner's own posts in the feed (after app.js) -->
   <div id="boot-fail" class="boot-fail" role="alert" hidden>
     <p><b>Chisme didn't start properly.</b> <span id="boot-fail-why">This usually fixes itself with a reload.</span></p>
     <button type="button" id="boot-fail-reload">Reload Chisme</button>

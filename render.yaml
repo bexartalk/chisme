@@ -35,3 +35,11 @@ services:
       # v49.14 desktop website / domain move (README → "Desktop website & the move to chisme.co"). All optional, off by default:
       # PUBLIC_BASE_URL (above) also drives the desktop canonical/OG/sitemap/QR; DOMAIN_REDIRECT=1 (301 old host → it),
       # MOVED_BANNER=1 (tell installed users on the old origin to re-add Chisme), REDIRECT_FROM_HOSTS, APP_STORE_GOAL_RAISED.
+      # Owner posts ("Post your own chisme" on /stats → /stats/posts): Supabase keeps the posts + photos across redeploys
+      # (the free plan wipes the disk). SUPABASE_URL = https://<project>.supabase.co; SUPABASE_SERVICE_KEY = the project's
+      # SECRET key (sb_secret_…, or the legacy service_role key): server-only, never in git, never sent to phones.
+      # Without them the posts live in /tmp and vanish on every deploy (/stats says so). Table: supabase/migrations/.
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false

@@ -41,6 +41,7 @@ from limits import DailyCounter, RateLimit, SharedLimit, client_ip, ct_day
 
 import autopush
 import juanscores
+import ownerposts   # Goonie's own posts in the feed ("From Chisme"): storage, composer routes, /p/<slug> (ownerposts.py)
 import push
 import stats
 import website   # v49.14: the desktop website, store pages, SEO, sponsors, domain-move prep (website.py)
@@ -2800,7 +2801,11 @@ async def stats_page(request: Request, key: str | None = None):
         tu = await tia_usage()
     except Exception:
         tu = {"error": True}
-    return HTMLResponse(stats.page(data, st.name, info=info, info_error=err, scores=scores, refresh=rf, nonce=_nonce(request), tia=tu), headers=STATS_HEADERS)
+    try:
+        posts_card = await ownerposts.admin_card()   # "Post your own chisme" (ownerposts.py)
+    except Exception:
+        posts_card = ""
+    return HTMLResponse(stats.page(data, st.name, extra=posts_card, info=info, info_error=err, scores=scores, refresh=rf, nonce=_nonce(request), tia=tu), headers=STATS_HEADERS)
 
 
 @app.post("/stats/login", include_in_schema=False)
@@ -3273,6 +3278,9 @@ async def cache_headers(request, call_next):
         resp.headers["Cache-Control"] = "no-store"
     return resp
 
+
+# Owner posts: the composer (/stats/posts, the same owner check as Juan's god mode: _juan_admin), /api/posts, /p/<slug>
+ownerposts.install(app, owner=_juan_admin, nope=_nope, public_base=public_base, nonce=_nonce, ua=UA, signed_in=_signed_in)
 
 app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
 

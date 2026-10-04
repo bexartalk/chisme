@@ -1,0 +1,83 @@
+/* Owner posts ("From Chisme"): the feed cards, the in-app sheet, the /p/<slug> page and the composer's live preview.
+   Fiesta palette only: turquoise #00C9CD, pink #FF1A7F, orange #FF6A0B, black, white, silver, purple. No yellow.
+   News posts stay straight: black + white + silver, no emoji, no confetti, no tilted badges. */
+.op-strip{padding:12px 12px 6px;border-color:#00C9CD;border-top:6px solid #00C9CD}
+.op-list{display:grid;gap:12px}
+.op-card{position:relative;background:var(--card,#fff);color:var(--ink,#0a0a0a);border:2px solid #0a0a0a;border-left:8px solid #FF1A7F;border-radius:14px;padding:12px 14px 10px;cursor:pointer}
+.op-card.op-weather{border-left-color:#00C9CD}.op-card.op-events{border-left-color:#7b3fe4}.op-card.op-sports{border-left-color:#FF6A0B}
+.op-card.op-food{border-left-color:#FF6A0B}
+.op-card.op-news{border-left:8px solid #0a0a0a;border-radius:6px;cursor:pointer}
+.op-badges{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0 0 8px}
+.op-badge{display:inline-block;background:#00C9CD;color:#000;border:2px solid #000;border-radius:999px;padding:1px 10px;font-weight:900;font-size:max(14px,.72rem);letter-spacing:.02em;line-height:1.35}
+.op-cat{display:inline-block;font-weight:900;font-size:max(14px,.72rem);text-transform:uppercase;letter-spacing:.04em;color:var(--ink,#0a0a0a)}
+.op-pin{display:inline-block;background:#FF1A7F;color:#000;border-radius:999px;padding:1px 9px;font-weight:900;font-size:max(13px,.68rem);line-height:1.35}
+.op-spon{display:inline-block;background:#4b1f9e;color:#fff;border:2px solid #000;border-radius:4px;padding:0 8px;font-weight:900;font-size:max(13px,.68rem);text-transform:uppercase;letter-spacing:.06em;line-height:1.4}
+.op-draft{display:inline-block;background:#c4ced4;color:#000;border-radius:999px;padding:1px 9px;font-weight:900;font-size:max(13px,.68rem)}
+.op-news .op-badge,.op-sheet-news .op-badge,.op-page-news .op-badge{background:#fff;color:#000;border:2px solid #000;border-radius:4px;text-transform:uppercase;letter-spacing:.06em}
+.op-news .op-pin,.op-sheet-news .op-pin,.op-page-news .op-pin{background:#000;color:#fff;border-radius:4px;text-transform:uppercase;letter-spacing:.06em}
+.op-cimg{margin:0 0 8px}
+.op-cimg img{display:block;width:100%;aspect-ratio:16/9;height:auto;object-fit:cover;border-radius:10px;background:#c4ced4}
+.op-news .op-cimg img{border-radius:3px}
+.op-cimg figcaption,.op-fig figcaption{font-size:max(13px,.66rem);font-weight:600;color:var(--muted,#333);margin:3px 2px 0}
+.op-h{margin:0 0 4px;font-size:1.15rem;line-height:1.25;font-weight:900}
+.op-h a{color:inherit;text-decoration:none}.op-h a:hover{text-decoration:underline}
+.op-news .op-h{font-family:Georgia,"Times New Roman",serif;font-weight:700;font-size:1.2rem}
+.op-sum{margin:0 0 6px;font-size:.85rem;color:var(--ink2,#1f1f1f);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.op-meta{display:flex;flex-wrap:wrap;gap:2px 10px;margin:0 0 8px;font-size:max(14px,.7rem);font-weight:600;color:var(--muted,#333)}
+.op-meta>span:first-child{font-weight:800}
+.op-loc{flex-basis:100%}
+.op-acts{display:flex;gap:8px}
+.op-acts button{min-height:44px;font-size:max(15px,.75rem);padding:.2em .9em}
+.op-acts .op-read{background:#000;color:#fff;border-color:#000}
+.op-more-w{text-align:center;margin:8px 0 6px}
+.op-more{background:#fff;border:2px solid #000;font-weight:900}
+[data-theme="dark"] .op-card{border-color:#c4ced4;background:var(--card)}
+[data-theme="dark"] .op-card.op-news{border-left-color:#c4ced4}
+[data-theme="dark"] .op-acts .op-read{background:#00C9CD;color:#000;border-color:#00C9CD}
+[data-theme="dark"] .op-more,[data-theme="dark"] .op-acts .op-share{background:var(--card);color:var(--ink);border-color:#c4ced4}
+[data-theme="dark"] .op-news .op-badge,[data-theme="dark"] .op-sheet-news .op-badge{background:#000;color:#fff;border-color:#c4ced4}
+
+/* the sheet (in the app) */
+dialog.op-sheet{width:min(100vw,640px);max-width:100vw;max-height:100dvh;height:100dvh;margin:0 auto;padding:0;border:0;background:var(--card,#fff);color:var(--ink,#0a0a0a);overflow:auto;overscroll-behavior:contain}
+@media (min-width:700px){dialog.op-sheet{height:auto;max-height:92dvh;margin:auto;border:3px solid #000;border-radius:20px;box-shadow:0 6px 0 #000}}
+dialog.op-sheet::backdrop{background:rgba(0,0,0,.6)}
+.op-sbar{position:sticky;top:0;z-index:2;display:flex;justify-content:flex-end;padding:calc(env(safe-area-inset-top) + 6px) 8px 6px;background:var(--card,#fff);border-bottom:2px solid var(--line,#cfcac0)}
+.op-x{width:48px;height:48px;min-height:48px;padding:0;border-radius:50%;font-size:1.6rem;line-height:1;background:#000;color:#fff;border-color:#000}
+.op-sheet .op-article{padding:12px 16px 4px}
+.op-sfoot{position:sticky;bottom:0;padding:10px 16px calc(env(safe-area-inset-bottom) + 12px);background:var(--card,#fff);border-top:2px solid var(--line,#cfcac0)}
+.op-sfoot .big{width:100%;min-height:52px;background:#FF1A7F;color:#000;border-color:#000;font-weight:900}
+.op-sheet-news .op-sfoot .big{background:#000;color:#fff}
+.op-sh,.op-h1{margin:2px 0 6px;font-size:1.45rem;line-height:1.2;font-weight:900}
+.op-sheet-news .op-sh,.op-page-news .op-h1{font-family:Georgia,"Times New Roman",serif;font-weight:700}
+.op-time{margin:0 0 12px;font-size:max(14px,.72rem);font-weight:700;color:var(--muted,#333)}
+.op-fig{margin:0 0 12px}
+.op-fig img{display:block;width:100%;height:auto;max-height:min(72vh,560px);object-fit:contain;border-radius:10px;background:#0a0a0a}
+.op-sheet-news .op-fig img,.op-page-news .op-fig img{border-radius:2px}
+.op-body{font-size:.95rem;line-height:1.5}
+.op-body p{margin:0 0 .8em}.op-body ul{margin:0 0 .9em;padding-left:1.2em}.op-body li{margin:.25em 0}
+.op-where{margin:14px 0;padding:10px 12px;border:2px solid var(--line,#cfcac0);border-radius:12px}
+.op-where p{margin:0 0 6px}
+.op-gmaps{font-weight:800}
+.op-map{display:block;margin:6px 0 2px}.op-map img{display:block;width:100%;height:auto;border-radius:8px;border:2px solid #000}
+.op-mapc{font-size:max(12px,.62rem);color:var(--muted,#333);margin:2px 0 0}
+.op-src{margin:12px 0;font-size:.85rem;overflow-wrap:anywhere}
+.op-toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 24px);transform:translate(-50%,160%);background:#000;color:#fff;font-weight:800;padding:12px 18px;border-radius:14px;z-index:9999;transition:transform .2s;pointer-events:none}
+.op-toast.show{transform:translate(-50%,0)}
+[data-theme="dark"] dialog.op-sheet,[data-theme="dark"] .op-sbar,[data-theme="dark"] .op-sfoot{background:var(--card)}
+[data-theme="dark"] .op-x{background:#00C9CD;color:#000;border-color:#00C9CD}
+
+/* the /p/<slug> page (website.py's site chrome) */
+.op-page .site-main{max-width:760px}
+.op-page .op-article{font-size:1.05rem}
+.op-page .op-h1{font-size:2rem}
+.op-page .op-open{margin:18px 0 4px}
+body.site.op-page-news{background:#e9eef0}
+@media (prefers-color-scheme:dark){body.site.op-page-news{background:#0b1214}}
+.op-page-news .site-main{border-radius:6px}
+/* wide screens (the desktop layout): photo on the left, words on the right, so one post doesn't fill the whole screen */
+@media (min-width:1000px){
+  .op-card:has(>.op-cimg){display:grid;grid-template-columns:minmax(0,42%) minmax(0,1fr);column-gap:18px;align-content:start}
+  .op-card:has(>.op-cimg)>.op-cimg{grid-column:1;grid-row:1 / span 6;margin:0}
+  .op-card:has(>.op-cimg)>:not(.op-cimg){grid-column:2}
+  .op-news .op-h{font-size:1.35rem}
+}

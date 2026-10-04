@@ -16,6 +16,8 @@ const SHELL = [
   `/static/juegos.js?v=${BUILD}`,
   `/static/juan.js?v=${BUILD}`,
   `/static/app.js?v=${BUILD}`,
+  `/static/ownerposts.js?v=${BUILD}`,   // the owner's own posts ("From Chisme") in the feed
+  `/static/ownerposts.css?v=${BUILD}`,
   `/static/desktop.js?v=${BUILD}`,   // v49.14: the desktop website layer (desktop.css only applies at >= 1024 px)
   `/static/desktop.css?v=${BUILD}`,
   "/static/vendor/leaflet/leaflet.css",
@@ -172,6 +174,7 @@ self.addEventListener("fetch", (event) => {
   if (url.pathname === "/sw.js") return;
   if (url.pathname === "/stats" || url.pathname.startsWith("/stats/")) return;   // the owner's private page: always the server, never the app shell
   if (url.pathname === "/privacy" || url.pathname === "/terms") return;   // v49.12: real pages, never the app shell
+  if (url.pathname.startsWith("/p/")) return;   // a shared owner post: its own page (Open Graph), never the app shell
   if (["/about", "/support", "/contact", "/robots.txt", "/sitemap.xml", "/qr.svg"].includes(url.pathname)) return;   // v49.14: real pages too
   if (url.pathname === "/api/refresh") return;   // v49.10: the "refresh everyone" token is never cached here
   if (url.pathname.startsWith("/api/")) { event.respondWith(apiNetworkFirst(req)); return; }

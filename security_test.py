@@ -8,6 +8,8 @@
     Tía 32 KB cap; push sign-ups per IP + only real push services; high scores: the real client IP, per-minute + per-day,
     a double post isn't a second row, names lose invisible/bidi characters
   • innerHTML lint: in app.js / juan.js / juegos.js every ${…} that goes into innerHTML is escaped, a number, or our own text
+  • owner posts: visitors / forged cookies get 401 on every /stats/posts endpoint, cross-site → 403, http(s) source links,
+    ownerposts.js builds no HTML from strings
   • /api/refresh: a weak ETag (W/"r…", what Render's proxy sends back) still gets 304
   • the Dockerfile copies every module app.py imports"""
 import asyncio, json, os, re, sys, tempfile, threading, time
@@ -15,7 +17,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 tmp = tempfile.mkdtemp()
 for k in [k for k in os.environ if k.startswith(("UPSTASH_", "RENDER", "PUSH_TEST"))]: os.environ.pop(k)
-os.environ.update(ADMIN_TOKEN="sec-test-token-123", PUSH_STORE_FILE=f"{tmp}/push.json", STATS_STORE_FILE=f"{tmp}/stats.json", AUTO_PUSH_WAKE_DELAY="9999")
+os.environ.update(ADMIN_TOKEN="sec-test-token-123", PUSH_STORE_FILE=f"{tmp}/push.json", STATS_STORE_FILE=f"{tmp}/stats.json", AUTO_PUSH_WAKE_DELAY="9999", OWNER_POSTS_DIR=f"{tmp}/posts")
 fails = 0
 def check(ok, what):
     global fails
@@ -169,6 +171,26 @@ for f in ("static/app.js", "static/juan.js", "static/juegos.js"):
 check(not bad, f"every interpolation into innerHTML is escaped / a number / our own text {bad[:8]}")
 js = open(os.path.join(HERE, "static/juan.js")).read()
 check("escH(r.name)" in js and "escH(lsGet(HS_NAME" in js, "high score names go in through escH()")
+
+print("== owner posts (ownerposts.py): owner-only writes, CSRF, http(s) links, no HTML strings (owner_posts_test.py has the rest)")
+OPE = [("POST", "/stats/posts", {"category": "other", "headline": "x"}), ("PATCH", "/stats/posts/0123456789abcdef0123456789abcdef", {"headline": "x"}),
+       ("DELETE", "/stats/posts/0123456789abcdef0123456789abcdef", {"confirm": "DELETE"}), ("POST", "/stats/posts/photo", {"data": "data:image/jpeg;base64,AAAA"}),
+       ("POST", "/stats/posts/push-preview", {"category": "other", "headline": "x"}), ("POST", "/stats/posts/0123456789abcdef0123456789abcdef/push", {"confirm": True}),
+       ("GET", "/stats/posts/list", None), ("GET", "/stats/posts/map-preview?lat=29.5&lon=-98.4", None)]
+v = TestClient(A.app)
+oc = [v.request(m, u, content=json.dumps(b) if b is not None else None, headers={"content-type": "application/json"}).status_code for m, u, b in OPE]
+check(oc == [401] * len(OPE), f"visitors: every owner-post endpoint → 401 {oc}")
+v.cookies.set("chisme_stats", "made-up", path="/stats"); v.cookies.set("chisme_admin", "1")
+oc = [v.request(m, u, content=json.dumps(b) if b is not None else None, headers={"content-type": "application/json"}).status_code for m, u, b in OPE]
+check(oc == [401] * len(OPE), f"a forged session cookie: all 401 {oc}")
+bearer = {"content-type": "application/json", "authorization": "Bearer sec-test-token-123"}
+xs = [c.request(m, u, content=json.dumps(b), headers={**bearer, "origin": "https://evil.example"}).status_code for m, u, b in OPE[:6]]
+check(xs == [403] * 6, f"even the owner's key from a cross-site page → 403 (CSRF) {xs}")
+sx = c.post("/stats/posts", content=json.dumps({"category": "other", "headline": "x", "source_url": "javascript:alert(1)"}), headers=bearer)
+check(sx.status_code == 400, f"source links are http(s) only ({sx.status_code})")
+check(c.get("/stats/posts", follow_redirects=False).status_code == 303, "the composer page sends visitors to the /stats sign-in")
+opjs = re.sub(r"//[^\n]*", "", re.sub(r"/\*.*?\*/", "", open(os.path.join(HERE, "static/ownerposts.js")).read(), flags=re.S))
+check(not re.search(r"innerHTML|outerHTML|insertAdjacentHTML|document\.write", opjs), "static/ownerposts.js: textContent / attributes only (no HTML strings)")
 
 print("== /api/refresh weak ETag, Dockerfile")
 et = c.get("/api/refresh").headers["etag"]
