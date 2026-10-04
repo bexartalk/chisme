@@ -8,9 +8,13 @@ still exactly 4 player iframes and none of them more than 2 videos from the one 
 Slow connection (effectiveType 3g): 3 players, only 1 video ahead, thumbnails 2 ahead. Data saver: no autoplay, no players.
 v49.15.3: 2g / slow-2g: the next video is only cued (its player made, no video data), and the swipe to it still plays.
 WebKit (iPhone 13): 3 players (memory), all made before Start so that one tap unlocks sound in every one (v41 fix kept):
-the next 2 videos warm, 5 swipes each playing with sound."""
+the next 2 videos warm, 5 swipes each playing with sound.
+v49.16: a TikTok embed that never reports ready (served as a silent page) no longer holds up the warm-up: it's marked
+'warm-timeout' after ~5 s (poster and iframe kept, a swipe to it still lands on its picture), the video after it is warm
+well within that time (they warm side by side), a late 'ready' from it once it's on screen / unloaded changes nothing, and
+fast swipes leave no warm-up timers or iframes behind."""
 from popup_quiet import QUIET   # v49: the notifications card + Settings tip have their own tests
-import asyncio, json, os, statistics, sys, time
+import asyncio, json, os, re, statistics, sys, time
 from playwright.async_api import async_playwright
 import os as _os, sys as _sys; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__))); import pw_csp  # noqa: E401,F401  (v49.11: CSP-safe wait_for_function)
 URL = os.environ.get("URL", "http://localhost:8211/")
@@ -146,8 +150,83 @@ async def webkit(p):
     check(not errs, f"no errors from Chisme ({errs[:2]})")
     await b.close()
 
+SILENT = "<!doctype html><meta charset=utf-8><title>silent embed</title><body style='margin:0;background:#000'></body>"   # loads, never says a word
+LATE = """(i) => { const s = document.querySelectorAll('#feed-scroll .vf-slide')[i], src = s && s._oldWin;   // a late 'playing' from that TikTok player
+  if (!src) return 'no window'; dispatchEvent(new MessageEvent('message', { origin: 'https://www.tiktok.com', source: src, data: { 'x-tiktok-player': true, type: 'onStateChange', value: 1 } })); return 'sent'; }"""
+WARMS = """() => { const f = window.__chisme.forYou, sl = [...document.querySelectorAll('#feed-scroll .vf-slide')], ahead = sl.slice(f.cur + 1).filter(s => s.dataset.url).slice(0, f.player.ahead).map(s => sl.indexOf(s));
+  const vidIdx = sl.map((s, i) => s.dataset.url ? i : -1).filter(i => i >= 0), vpos = (i) => vidIdx.indexOf(i);
+  return { cur: f.cur, ahead, warm: sl.map((s, i) => s.dataset.warm ? [i, s.dataset.warm] : null).filter(Boolean), timers: sl.map((s, i) => s._warmT ? i : -1).filter(i => i >= 0),
+    tt: [...document.querySelectorAll('#feed-scroll .vf-slide iframe')].map(x => sl.indexOf(x.closest('.vf-slide'))), far: [...document.querySelectorAll('#feed-scroll .vf-slide iframe')].map(x => sl.indexOf(x.closest('.vf-slide'))).filter(i => vpos(i) - vpos(f.cur) > 2 || vpos(f.cur) - vpos(i) > 1),
+    frames: document.querySelectorAll('iframe.vf-yt').length }; }"""
+async def stall(p):
+    print("\n== v49.16: a TikTok embed that never reports ready (Chromium, 4g)")
+    b, pg, errs = await open_feed(p, "chromium")
+    silent, hits = set(), []
+    async def tt(route):
+        m = re.search(r"/player/v1/(\d+)", route.request.url)
+        if m and m.group(1) in silent: hits.append(m.group(1)); await route.fulfill(status=200, content_type="text/html", body=SILENT)
+        else: await route.continue_()
+    await pg.route("**/www.tiktok.com/player/v1/**", tt)
+    try: await pg.wait_for_function("window.__chisme.forYou.player.players.length === 4 && window.__chisme.forYou.player.players.every(p => p.ready)", timeout=30000)
+    except Exception: pass
+    await pg.click("#fy-start"); await pg.wait_for_function(PLAYING, arg=0, timeout=20000); await all_warm(pg)
+    sl = await pg.evaluate("[...document.querySelectorAll('#feed-scroll .vf-slide')].map(s => ({ kind: s.dataset.kind || '', url: s.dataset.url || '', frame: !!s.querySelector('iframe') }))")
+    vids = [i for i, x in enumerate(sl) if x["url"]]
+    # the first TikTok 3+ videos in (not loaded yet) with a YouTube video right after it: that TikTok's embed is the silent one
+    k = next((k for k in range(3, len(vids) - 1) if sl[vids[k]]["kind"] == "tt" and sl[vids[k + 1]]["kind"] == "yt" and not sl[vids[k]]["frame"]), None)
+    if k is None:
+        check(False, "a TikTok followed by a YouTube video in the feed, to make silent"); await b.close(); return
+    t, n, c = vids[k], vids[k + 1], vids[k - 1]
+    silent.add(re.search(r"/video/(\d+)", sl[t]["url"]).group(1))
+    await go(pg, c); t0 = time.time()
+    try: await pg.wait_for_function("(t) => document.querySelectorAll('#feed-scroll .vf-slide')[t].dataset.warm === '1'", arg=t, timeout=10000, polling=20)
+    except Exception: pass
+    t1 = time.time()
+    try: await pg.wait_for_function("(n) => document.querySelectorAll('#feed-scroll .vf-slide')[n].dataset.warm === 'ready'", arg=n, timeout=12000, polling=50)
+    except Exception: pass
+    tn = time.time()
+    s = await pg.evaluate(WARMS)
+    tw = dict(s["warm"]).get(t)
+    check(tw == "1" and dict(s["warm"]).get(n) == "ready", f"slide {t} (TikTok, silent embed) is warming while the video after it (slide {n}) is already warm, i.e. they warm side by side, not after it ({s['warm']}, {tn - t1:.1f} s after it started)")
+    check(tn - t1 < 4.0, f"…the next video ({n}) is warm {tn - t1:.1f} s after the silent one started warming: well within the ~5 s timeout")
+    try: await pg.wait_for_function("(t) => document.querySelectorAll('#feed-scroll .vf-slide')[t].dataset.warm === 'warm-timeout'", arg=t, timeout=10000, polling=50)
+    except Exception: pass
+    t2 = time.time()
+    d = await pg.evaluate("(t) => { const s = document.querySelectorAll('#feed-scroll .vf-slide')[t], th = s.querySelector('img.vf-thumb'), f = s.querySelector('iframe.vf-frame'); if (f) { f.dataset.mark = 'kept'; s._oldWin = f.contentWindow; } return { warm: s.dataset.warm || '', poster: !!th && th.complete && th.naturalWidth > 0, frame: !!f, timer: !!s._warmT }; }", t)
+    check(bool(hits) and d["warm"] == "warm-timeout" and 4.0 <= t2 - t1 <= 7.0 and d["poster"] and d["frame"] and not d["timer"],
+          f"the silent one is marked 'warm-timeout' {t2 - t1:.1f} s after it started warming (4-7 s), keeping its poster and its iframe ({d}, embed served silent {len(hits)}×)")
+    s = await pg.evaluate(WARMS)
+    check(set(i for i, _ in s["warm"] if i > s["cur"]) <= set(s["ahead"]) and dict(s["warm"]).get(n) == "ready" and not s["timers"], f"…only the next {len(s['ahead'])} ahead were warmed ({s['warm']}, ahead {s['ahead']}; one behind is from before the jump), no timer left ({s['timers']})")
+    # swipe onto the timed-out one: its picture is there (the same iframe kept), nothing breaks; then the one after it plays at once
+    await go(pg, t); await pg.wait_for_timeout(700)
+    o = await pg.evaluate("(t) => { const s = document.querySelectorAll('#feed-scroll .vf-slide')[t], th = s.querySelector('img.vf-thumb'), f = s.querySelector('iframe.vf-frame'); return { cur: window.__chisme.forYou.cur, warm: s.dataset.warm || '', same: !!f && f.dataset.mark === 'kept', poster: !!th && th.complete && th.naturalWidth > 0, loading: s.classList.contains('vf-loading'), timer: !!s._warmT }; }", t)
+    check(o["cur"] == t and o["same"] and o["poster"] and o["loading"] and not o["warm"] and not o["timer"], f"swiped onto it: on screen with its poster (the iframe it already had, reused), no longer marked warming ({o})")
+    tm = await swipe_time(pg, n)
+    check(tm <= 600, f"…and the swipe on to the next video plays at once: it was warm ({tm} ms)")
+    # a late 'ready' from it, now the one behind (not warming any more): nothing changes
+    r = await pg.evaluate(LATE, t); await pg.wait_for_timeout(300)
+    l = await pg.evaluate("(t) => { const s = document.querySelectorAll('#feed-scroll .vf-slide')[t]; return { warm: s.dataset.warm || '', cur: window.__chisme.forYou.cur }; }", t)
+    check(r == "sent" and not l["warm"] and l["cur"] == n and await pg.evaluate(PLAYING, n), f"a late 'ready' from it once it's behind: ignored, the video on screen keeps playing ({l})")
+    # fast swipes: 7 slides in quick succession, then a moment: nothing far away keeps an iframe or a warm-up timer
+    i = n
+    for _ in range(7):
+        i += 1; await go(pg, i); await pg.wait_for_timeout(90)
+    await pg.wait_for_timeout(900); s = await pg.evaluate(WARMS)
+    check(not s["far"] and s["frames"] == 4 and set(s["timers"]) <= set(s["ahead"]) and set(j for j, _ in s["warm"]) <= set(s["ahead"]),
+          f"7 fast swipes: TikTok iframes only near the screen {s['tt']}, 4 YouTube iframes ({s['frames']}), warm-up timers only on the next ones {s['timers']} ⊆ {s['ahead']} ({s['warm']})")
+    r = await pg.evaluate(LATE, t); await pg.wait_for_timeout(300)
+    l = await pg.evaluate("(t) => { const s = document.querySelectorAll('#feed-scroll .vf-slide')[t]; return { warm: s.dataset.warm || '', frame: !!s.querySelector('iframe') }; }", t)
+    check(not l["warm"] and not l["frame"], f"a late 'ready' from it after it was unloaded: ignored ({r}, {l})")
+    await pg.wait_for_timeout(6500); s = await pg.evaluate(WARMS)
+    check(not s["timers"] and all(w in ("ready", "warm-timeout") for _, w in s["warm"]) and len(s["warm"]) == len(s["ahead"]),
+          f"…6.5 s later every next video is warm or timed out, none stuck warming, no timers left ({s['warm']}, timers {s['timers']})")
+    check(not errs, f"no errors from Chisme ({errs[:2]})")
+    await b.close()
+
 async def main():
     async with async_playwright() as p:
-        await chromium(p); await slow(p); await webkit(p)
+        only = os.environ.get("FP_ONLY")   # e.g. FP_ONLY=stall
+        for name, fn in (("chromium", chromium), ("slow", slow), ("stall", stall), ("webkit", webkit)):
+            if not only or only == name: await fn(p)
     print("\nALL PASS" if not fails else f"\n{len(fails)} FAILED"); sys.exit(1 if fails else 0)
 asyncio.run(main())

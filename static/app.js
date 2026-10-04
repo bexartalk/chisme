@@ -1922,7 +1922,7 @@ window.CHISME_APP_BUILD = "49.15.3";
     if (p.warm) p.frame.tabIndex = -1;
   }
   if (window.ResizeObserver) new ResizeObserver(() => { for (const p of YT) if (p.slide && p.slide.isConnected) placePlayer(p, p.slide, p.warm); }).observe(feedScroll);
-  function freePlayer(p) { if (!p) return; ytSend(p, "stopVideo"); if (p.slide) { delete p.slide.dataset.warm; } placePlayer(p, null); p.pending = null; }   // v47: stop (not just pause): the far video's buffer can go
+  function freePlayer(p) { if (!p) return; ytSend(p, "stopVideo"); clearTimeout(p.reWarm); if (p.slide) { warmStop(p.slide); delete p.slide.dataset.warm; } placePlayer(p, null); p.pending = null; }   // v47: stop (not just pause): the far video's buffer can go
   function ytGo(p, s, id, mode, fresh) {   // mode "play": on screen; "warm": loaded muted, held on its first frame. fresh: load it again from scratch
     placePlayer(p, s, mode !== "play"); p.cue = mode === "cue";
     if (mode === "play") { p.frame.tabIndex = 0; p.frame.title = "YouTube video: " + (feedList.find((x) => x.item.url === s.dataset.url)?.item.title || ""); }
@@ -1943,11 +1943,12 @@ window.CHISME_APP_BUILD = "49.15.3";
     if (!p) return;
     for (const q of YT) if (q !== p && q.slide && !q.warm) ytSend(q, "pauseVideo");   // the one behind stays, paused, for a swipe back
     if (p.slide === s && p.warm && s.dataset.warm === "ready") {   // warmed: it's on its first frame already
-      placePlayer(p, s, false); p.cue = false; p.frame.tabIndex = 0; delete s.dataset.warm; if (p.st === 5) s.classList.add("vf-loading"); else s.classList.remove("vf-loading");   // (a cued one keeps its picture until it plays)
+      placePlayer(p, s, false); p.cue = false; p.frame.tabIndex = 0; warmStop(s); delete s.dataset.warm; if (p.st === 5) s.classList.add("vf-loading"); else s.classList.remove("vf-loading");   // (a cued one keeps its picture until it plays)
       applySound(s); ytSend(p, "playVideo");   // (it was rewound when it got its first frame)
       return;
     }
-    ytGo(p, s, id, "play", p.slide === s && p.warm);   // still warming (swiped quickly): load it again, clean, rather than un-pausing a half-loaded muted player (Safari can leave that buffering)
+    const fresh = p.slide === s && p.warm; warmStop(s); delete s.dataset.warm;   // (v49.16: still warming / timed out: it's on screen now, not warming)
+    ytGo(p, s, id, "play", fresh);   // still warming (swiped quickly): load it again, clean, rather than un-pausing a half-loaded muted player (Safari can leave that buffering)
   }
   // v47: the next video slides after the one on screen (the donate slides skipped), up to `n` of them
   function aheadSlides(n = aheadN()) {
@@ -1956,30 +1957,53 @@ window.CHISME_APP_BUILD = "49.15.3";
     return out;
   }
   function behindSlide() { const all = slides(); for (let k = feedCur - 1; k >= 0; k--) if (all[k].dataset.url) return all[k]; return null; }
-  function warmNext() {   // the next videos, nearest first and one at a time: each loads muted in a player of its own and is held on its first frame
+  // v49.16: the next videos warm side by side, not one after another (v47 waited for each to report its first frame, so a
+  // TikTok embed that never reported it held up every video after it). Each warm-up gets WARM_MS: one that hasn't said it has
+  // its first frame (or, cued, that it's cued) by then is marked "warm-timeout" and no longer counts as warming; it keeps its
+  // poster and the iframe/player it already has, so a swipe or a tap to it still plays it. A late "ready" is still taken,
+  // but only while that slide is one of the next ones and is still warming or timed out (never one on screen or unloaded).
+  // The starts are WARM_GAP apart (nearest first) so two players don't spin up in the same instant on a phone; none waits for another to be ready.
+  const WARM_MS = 5000, WARM_GAP = 500;
+  function warmStart(s) { s.dataset.warm = "1"; warmArm(s); }   // s starts warming, and its timeout with it
+  function warmArm(s) {   // (one timeout per slide; a newer one replaces it)
+    warmStop(s);
+    const g = s._warmGen;
+    s._warmT = setTimeout(() => {
+      s._warmT = 0;
+      if (s._warmGen !== g || s.dataset.warm !== "1" || !s.isConnected || !feed.open || !aheadSlides().includes(s)) return;
+      s.dataset.warm = "warm-timeout"; warmSoon(150);
+    }, WARM_MS);
+  }
+  function warmStop(s) { if (!s) return; clearTimeout(s._warmT); s._warmT = 0; s._warmGen = (s._warmGen || 0) + 1; }   // not warming any more (on screen, unloaded, its player taken): a pending timeout is void
+  function warmDone(s) {   // a warming player has its first frame (a TikTok / YouTube "playing" while off screen, or cued on low data)
+    const w = s.dataset.warm;
+    if ((w !== "1" && w !== "warm-timeout") || !s.isConnected || isCur(s) || !aheadSlides().includes(s)) return false;
+    warmStop(s); s.dataset.warm = "ready"; warmSoon(150);
+    return true;
+  }
+  function warmNext() {   // the next videos (up to aheadN()), each loading muted in a player of its own and held on its first frame
     const cur_ = slides()[feedCur];
     if (!feed.open || !cur_ || !canAutoplay()) return;
     const ahead = aheadSlides();
     for (const n of ahead) {
+      if (n.dataset.warm) { if (n.dataset.warm === "1" && !n._warmT) warmArm(n); continue; }   // warming (back among the next ones after a quick swipe away: a new timeout), warm, or timed out (not tried again: it keeps what it has)
       if (kindOf(n) === "tt") {   // a TikTok: its own player in its slide, muted and held (not on iPhone: Safari won't start an off-screen video)
-        if (IOS || n.querySelector(".vf-frame")) { if (n.dataset.warm === "1") return; continue; }   // (still warming: wait for it)
-        if (lowNet()) return;   // v49.15.3: low data: no TikTok warming (it would load the whole video)
+        if (IOS || lowNet() || n.querySelector(".vf-frame")) continue;   // v49.15.3: low data: no TikTok warming (it would load the whole video)
         const it = feedList.find((x) => x.item.url === n.dataset.url)?.item;
-        if (it) { n.dataset.warm = "1"; mountTikTok(n, it); }
-        return;
+        if (it) { warmStart(n); mountTikTok(n, it); warmSoon(WARM_GAP); return; }   // (the next one in WARM_GAP)
+        continue;
       }
-      const have = ytOf(n);
-      if (have) { if (have.warm && n.dataset.warm !== "ready") return; continue; }   // warming: the next one waits for it (one download at a time)
+      if (ytOf(n)) continue;   // already has a player (the one behind after a swipe back, say)
       const id = vidOf(feedList.find((x) => x.item.url === n.dataset.url)?.item || {})?.yt;
       if (!id) continue;
       const behind = behindSlide();   // a player for it: a free one, else one more than 2 away, else the one behind, else a new one (pool permitting)
       let p = YT.find((q) => !q.slide) || YT.find((q) => q.slide !== cur_ && q.slide !== behind && !ahead.includes(q.slide)) || makePlayer(id)
         || YT.find((q) => q.slide === behind && q.slide !== cur_);
-      if (!p || p.slide === cur_) return;
+      if (!p || p.slide === cur_) continue;
       if (p.slide) { const old = p.slide; freePlayer(p); if (old !== n) unmountFrame(old); }
-      n.dataset.warm = "1";
+      warmStart(n);
       ytGo(p, n, id, lowNet() ? "cue" : "warm");   // v49.15.3: low data: cued only
-      return;
+      warmSoon(WARM_GAP); return;   // (the next one in WARM_GAP)
     }
   }
   let warmTimer = null;
@@ -2109,7 +2133,7 @@ window.CHISME_APP_BUILD = "49.15.3";
     const now = Date.now();
     if (state === 1) {   // playing
       s.classList.remove("vf-loading", "vf-tap"); s.dataset.playing = "1";
-      if (!isCur(s) || !feed.open) { const f = s.querySelector(".vf-frame"); if (f) { ttCmd(f, "mute"); ttCmd(f, "pause"); } if (s.dataset.warm) { s.dataset.warm = "ready"; warmSoon(150); } return; }   // a warmed TikTok: held on its first frame (v47: then the next one)
+      if (!isCur(s) || !feed.open) { const f = s.querySelector(".vf-frame"); if (f) { ttCmd(f, "mute"); ttCmd(f, "pause"); } warmDone(s); return; }   // a warmed TikTok: held on its first frame (v49.16: only while it's still one of the next ones)
       if (!feedPlaying) { feedCommand(s, "pause"); return; }
       if (!s._counted) { s._counted = true; Stats.ev("food", kindOf(s)); }   // a food video view (once per time it comes on screen)
       if (!s._playedAt) { s._playedAt = now; warmSoon(300); }   // it's going: now warm the next one
@@ -2133,9 +2157,9 @@ window.CHISME_APP_BUILD = "49.15.3";
       if (p.warm) { ytSend(p, "pauseVideo"); clearTimeout(p.reWarm); p.reWarm = setTimeout(() => { if (p.warm && p.slide && p.slide.dataset.warm !== "ready" && feed.open) ytSend(p, "playVideo"); }, Math.max(60, 1260 - (Date.now() - p.loadAt))); }
       return;
     }
-    if (p.warm && p.cue) { if (state === 5) { s.dataset.warm = "ready"; s._st = 5; } return; }   // v49.15.3: low data: cued = ready (no video data yet)
+    if (p.warm && p.cue) { if (state === 5 && warmDone(s)) s._st = 5; return; }   // v49.15.3: low data: cued = ready (no video data yet)
     if (p.warm) {   // warming the next video: as soon as it has a picture, hold it there (muted, first frame)
-      if (state === 1) { ytSend(p, "pauseVideo"); ytSend(p, "seekTo", [0, true]); s.dataset.warm = "ready"; s._st = 2; warmSoon(150); }   // v47: then the one after it
+      if (state === 1) { ytSend(p, "pauseVideo"); ytSend(p, "seekTo", [0, true]); if (warmDone(s)) s._st = 2; }   // (v49.16: a late one, after its timeout, counts too)
       return;
     }
     onPlayerState(s, state);
@@ -2170,7 +2194,7 @@ window.CHISME_APP_BUILD = "49.15.3";
   });
   function unmountFrame(slide) {
     if (!slide) return;
-    clearTimeout(slide._wd); slide.classList.remove("vf-loading", "vf-tap", "vf-playing", "vf-paused");
+    clearTimeout(slide._wd); warmStop(slide); slide.classList.remove("vf-loading", "vf-tap", "vf-playing", "vf-paused");
     delete slide.dataset.playing; delete slide.dataset.warm; slide._st = null; slide._triedSound = 0; slide._soundBlocked = false; slide._unlocked = false; slide._loud = false; slide._playedAt = 0;
     const p = ytOf(slide); if (p) freePlayer(p);
     slide.querySelectorAll(".vf-frame, .vf-shield, .vf-state, .vf-off").forEach((n) => n.remove());
@@ -2269,7 +2293,7 @@ window.CHISME_APP_BUILD = "49.15.3";
     if (v.yt) ytPlay(s, v.yt);
     else {
       for (const q of YT) if (q.slide && !q.warm) ytSend(q, "pauseVideo");
-      const warmed = s.dataset.warm === "ready"; delete s.dataset.warm;
+      const warmed = s.dataset.warm === "ready"; warmStop(s); delete s.dataset.warm;
       if (!s.querySelector(".vf-frame")) mountTikTok(s, it);
       else { if (!warmed) feedCommand(s, "rewind"); applySound(s); feedCommand(s, "play"); }
     }
@@ -2280,6 +2304,7 @@ window.CHISME_APP_BUILD = "49.15.3";
     all.forEach((s, k) => {
       if (s.dataset.url && k >= feedCur - 1 && k <= feedCur + pf) ensureReelUi(s);   // v49.13: Like / Share / progress, near the screen only (keeps the feed light)
       if (!s.dataset.url || k === feedCur) return;
+      if (!ahead.includes(s)) warmStop(s);   // v49.16: no longer one of the next ones: its warm-up timeout goes
       if (k > feedCur && k <= feedCur + pf) s.querySelectorAll("img.vf-thumb, img.vf-bg").forEach((im) => { if (im.loading !== "eager") { im.loading = "eager"; im.decode?.().catch(() => {}); } });   // v47: decoded ahead, on screen at once
       const behind = s === back && KEEP_BEHIND > 0, next = ahead.includes(s) && ((ytOf(s) && ytOf(s).warm) || (kindOf(s) === "tt" && s.dataset.warm));
       if (next) return;
@@ -2507,7 +2532,7 @@ window.CHISME_APP_BUILD = "49.15.3";
   const crewOfUrl = (u) => { const r = feedList.find((x) => x.item.url === u); return r ? r.crew : null; };
   function closeFeed(fromHistory) {
     if (!feed.open) return;
-    finishCurrent(false); slides().forEach(unmountFrame);
+    finishCurrent(false); clearTimeout(warmTimer); slides().forEach(unmountFrame);
     slides().forEach((x) => x.remove()); feedCur = -1;   // the YouTube player layer stays (paused), sound permission and all
     feed.close(); document.documentElement.classList.remove("feed-open");
     if (feedList[0]) fyAvoid = feedList[0].crew;   // next time, someone else leads
