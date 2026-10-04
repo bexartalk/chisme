@@ -228,7 +228,7 @@ html.dk .dk-sync-slot{display:flex;align-items:center}
 html.dk .dk-sync-slot .sync{position:static;transform:none;margin:0;max-width:240px;width:auto;flex-wrap:nowrap;white-space:nowrap;
   padding:.3em .75em;font-size:.72rem;border-radius:999px;box-shadow:none;border:1.5px solid rgba(255,255,255,.3);visibility:visible}
 html.dk .dk-sync-slot .sync #sync-msg{flex:0 1 auto;overflow:hidden;text-overflow:ellipsis}
-html.dk .dk-sync-slot .sync[data-state="done"]{display:none}
+html.dk .dk-sync-slot .sync[data-state="done"],html.dk .dk-sync-slot .sync[data-state="wait"]{display:none}   /* v49.15.3: "wait" = a fetch under 3 s, not shown */
 html.dk .dk-sync-slot .sync[data-state="busy"]{background:#1a1a1a}
 @media (max-width:1180px){
   html.dk .dk-sync-slot .sync{padding:.45em}

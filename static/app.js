@@ -181,33 +181,42 @@ window.CHISME_APP_BUILD = "49.15.3";
   window.addEventListener("online", () => { updateOfflineBanner(); refreshAll(); });
 
   // ---------- sync: show the saved copy right away, refresh in the background, retry with backoff
-  // Status pill under the nav: "Updating…" → (slow) "Waking up the server…" → "✓ Updated 8:45 AM".
+  // Status pill under the nav. v49.15.3: nothing while a fetch is quick; only if one is still pending after 3 s, "Waking up
+  // the server…"; when everything has loaded, a quick "Up to date ✓" (1.5 s, then it fades), which also replaces the waking
+  // one. Errors / offline keep "Couldn't update … Retry now". (Settings still says "Updating…" / "Last updated 8:45 AM".)
   const BACKOFF = [5e3, 15e3, 30e3, 60e3, 120e3, 300e3];
-  const secs = {}, Sync = { busy: new Set(), failed: new Map(), lastOk: 0, slow: false, slowT: null, hideT: null };
+  const secs = {}, Sync = { busy: new Set(), failed: new Map(), lastOk: 0, okAt: 0, slow: false, slowT: null, hideT: null };
   const clock = (d) => d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
   function syncUI() {
     const box = $("#sync"), msg = $("#sync-msg"), retry = $("#sync-retry");
-    clearTimeout(Sync.hideT);
-    if (Sync.busy.size) {
-      box.dataset.state = "busy"; retry.hidden = true;
+    const was = box.dataset.state;
+    if (Sync.busy.size && !Sync.slow && was === "ok") {
+      // a quick fetch starting while "Up to date ✓" is up: leave the toast (and its timer) alone, no flicker
+    } else if (Sync.busy.size) {
+      clearTimeout(Sync.hideT);
+      box.dataset.state = Sync.slow ? "busy" : "wait"; retry.hidden = true;   // "wait" = the first 3 s: pending, not shown
       msg.textContent = Sync.slow ? "Waking up the server — this can take up to a minute. Your saved chisme is below." : "Updating…";
     } else if (Sync.failed.size) {
+      clearTimeout(Sync.hideT);
       const f = [...Sync.failed.values()].sort((a, b) => a.at - b.at)[0];
       const s = Math.max(1, Math.round((f.at - Date.now()) / 1000));
       box.dataset.state = "fail"; retry.hidden = false;
       msg.textContent = `Couldn't update (${f.why}). Showing the saved copy; trying again in ${s < 90 ? s + " s" : Math.round(s / 60) + " min"}.`;
-    } else if (Sync.lastOk) {
+    } else if (Sync.lastOk && (was === "busy" || was === "ok" || Date.now() - Sync.okAt > 10000)) {
+      // "Up to date ✓" for ~1.5 s: after the waking pill, or once per burst of quick fetches (not again for each one)
+      clearTimeout(Sync.hideT);
+      if (was !== "ok") Sync.okAt = Date.now();
       box.dataset.state = "ok"; retry.hidden = true;
-      msg.textContent = "Updated " + clock(new Date(Sync.lastOk));
-      Sync.hideT = setTimeout(() => { box.dataset.state = "done"; }, 4000);
-    } else { box.dataset.state = "done"; }
+      msg.textContent = "Up to date ✓";
+      Sync.hideT = setTimeout(() => { box.dataset.state = "done"; }, Math.max(300, Sync.okAt + 1500 - Date.now()));
+    } else if (was !== "ok") { clearTimeout(Sync.hideT); box.dataset.state = "done"; }
     box.hidden = false;
     const note = $("#set-refresh-note");
     if (note) note.textContent = Sync.busy.size ? "Updating…" : Sync.failed.size ? msg.textContent : Sync.lastOk ? "Last updated " + clock(new Date(Sync.lastOk)) + "." : "";
   }
   function setBusy(name, on) {
     if (on) Sync.busy.add(name); else Sync.busy.delete(name);
-    if (on && !Sync.slowT && !Sync.slow) Sync.slowT = setTimeout(() => { Sync.slowT = null; if (Sync.busy.size) { Sync.slow = true; syncUI(); } }, 8000);
+    if (on && !Sync.slowT && !Sync.slow) Sync.slowT = setTimeout(() => { Sync.slowT = null; if (Sync.busy.size) { Sync.slow = true; syncUI(); } }, 3000);   // v49.15.3: the waking pill only after 3 s still pending (cleared when the fetches finish)
     if (!Sync.busy.size) { clearTimeout(Sync.slowT); Sync.slowT = null; Sync.slow = false; }
     syncUI();
   }

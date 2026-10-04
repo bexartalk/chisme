@@ -1,4 +1,4 @@
-"""v49.12: the sync status pill ("Updating…", "Waking up the server…", "Couldn't update … Retry now", "✓ Updated 8:45 AM")
+"""v49.12: the sync status pill ("Updating…", "Waking up the server…", "Couldn't update … Retry now", "Up to date ✓")
 is a toast at the bottom, left of Tía. It must never cover the header (tab bar, Chisme bubble, tagline), Tía, or the one-time
 Terms bar (that steps aside while the pill is up), and never clip its text. Android Chromium + iPhone WebKit; 320, 375, 390 and
 430 px wide; light + dark; the Día de Muertos look on and off. Screenshots: /workspace/v49.12-review/sync/ (one per browser).
@@ -13,7 +13,7 @@ fails = []
 def check(ok, what):
     print(("  ok   " if ok else "  FAIL ") + what); (None if ok else fails.append(what))
 STATES = [("busy", "Updating…", False), ("busy", "Waking up the server — this can take up to a minute. Your saved chisme is below.", False),
-          ("fail", "Couldn't update (couldn't reach Chisme). Showing the saved copy; trying again in 30 s.", True), ("ok", "Updated 8:45 AM", False)]
+          ("fail", "Couldn't update (couldn't reach Chisme). Showing the saved copy; trying again in 30 s.", True), ("ok", "Up to date ✓", False)]   # v49.15.3: the quick ok toast
 MEASURE = """([state, text, retry]) => {
   const s = document.querySelector('#sync'); s.hidden = false; s.dataset.state = state; document.querySelector('#sync-msg').textContent = text;
   document.querySelector('#sync-retry').hidden = !retry; s.style.transition = 'none';

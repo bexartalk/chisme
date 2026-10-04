@@ -2,8 +2,10 @@
 
 Runs a small proxy in front of the local server that can (a) hold every request for ~50 s, like a
 sleeping free Render instance waking up, and (b) answer /api/news with 502 a few times. Checks:
-saved news shows instantly, "Updating…" → "Waking up the server…" → "Updated h:mm", retry with
-backoff after 502s, pull-to-refresh, and that a hanging iOS geolocation call times out.
+saved news shows instantly; v49.15.3: no pill while a fetch is pending under 3 s, then "Waking up the server…" → "Up to date ✓";
+a fast server never shows the waking pill, only a quick "Up to date ✓" (~1.5 s, then it fades; screenshots/uptodate-toast.png);
+retry with backoff after 502s, pull-to-refresh, and that a hanging iOS geolocation call times out.
+COLDSTART_PORT (default 8213) = the proxy's port.
 Usage: ./venv/bin/python coldstart_test.py [upstream=http://localhost:8211]
 """
 import asyncio, os, sys, tempfile, threading, time
@@ -15,7 +17,7 @@ from playwright.sync_api import sync_playwright
 import os as _os, sys as _sys; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__))); import pw_csp  # noqa: E401,F401  (v49.11: CSP-safe wait_for_function)
 
 UP = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8211"
-PORT = 8213
+PORT = int(os.environ.get("COLDSTART_PORT", "8213"))
 COLD_S = float(os.environ.get("COLD_S", "50"))
 state = {"cold_until": 0.0, "fail_news": 0, "hits": []}
 client = httpx.AsyncClient(timeout=120)
@@ -82,18 +84,37 @@ with sync_playwright() as p:
     t_news = time.time() - t0
     check(t_news < 4, f"saved news on screen {t_news:.1f}s after opening on a sleeping server")
     check(page.eval_on_selector("#news-updated", "e => e.textContent").startswith("Saved copy from"), "news stamp says 'Saved copy from …' while waking")
-    page.wait_for_function("document.querySelector('#sync').dataset.state === 'busy'", timeout=5000)
-    check("Updating" in msg(page), f"status pill: {msg(page)!r}")
-    page.wait_for_function("/Waking up/.test(document.querySelector('#sync-msg').textContent)", timeout=15000)
-    check(True, f"after ~8 s: {msg(page)!r}")
+    st0, t_st0 = sync_state(page), time.time() - t0
+    check(st0 == "wait" and t_st0 < 3 and page.eval_on_selector("#sync", "e => +getComputedStyle(e).opacity") < 0.05,
+          f"pending under 3 s: no pill on screen yet (state {st0!r} at {t_st0:.1f}s)")
+    page.wait_for_function("document.querySelector('#sync').dataset.state === 'busy'", timeout=15000)
+    t_busy = time.time() - t0
+    check(t_busy >= 2.9 and "Waking up" in msg(page), f"still pending after 3 s → the waking pill ({t_busy:.1f}s): {msg(page)!r}")
     check(page.eval_on_selector("#offline-banner", "e => e.hidden"), "no misleading 'You're offline' banner while the server wakes")
     page.screenshot(path=os.path.join(OUT, "fix-news-loading.png"))
     page.wait_for_function("document.querySelector('#sync').dataset.state === 'ok'", timeout=(COLD_S + 40) * 1000)
     t_ok = time.time() - t0
-    check("Updated" in msg(page), f"after {t_ok:.0f}s: {msg(page)!r}")
+    check(msg(page) == "Up to date ✓", f"after {t_ok:.0f}s the waking pill turns into {msg(page)!r}")
     check(page.evaluate("__chisme.fresh"), "fresh news + weather rendered after wake-up")
     check(page.eval_on_selector("#news-updated", "e => e.textContent").startswith("Updated"), "news stamp now 'Updated …'")
     page.screenshot(path=os.path.join(OUT, "fix-news-updated.png"))
+    page.wait_for_function("document.querySelector('#sync').dataset.state === 'done'", timeout=5000)
+    check(True, "…and then fades away")
+
+    # --- 1b. a fast server (v49.15.3): no waking pill at all, just a quick "Up to date ✓" that fades
+    t1 = time.time()
+    page.reload(wait_until="domcontentloaded")
+    page.evaluate("""() => { window.__syncSeen = []; const s = document.querySelector('#sync'); const rec = () => window.__syncSeen.push([s.dataset.state, document.querySelector('#sync-msg').textContent, Math.round(performance.now())]);
+      rec(); new MutationObserver(rec).observe(s, { attributes: true, attributeFilter: ['data-state'] }); }""")
+    page.wait_for_function("document.querySelector('#sync').dataset.state === 'ok'", timeout=15000)
+    t_fast = time.time() - t1
+    check(msg(page) == "Up to date ✓" and t_fast < 3, f"fast server: 'Up to date ✓' after {t_fast:.1f}s")
+    page.wait_for_timeout(250); page.screenshot(path=os.path.join(OUT, "uptodate-toast.png"))
+    page.wait_for_function("document.querySelector('#sync').dataset.state === 'done'", timeout=4000)
+    seen = page.evaluate("window.__syncSeen")
+    ok_at = [t for st, _, t in seen if st == "ok"]; done_at = [t for st, _, t in seen if st == "done" and ok_at and t > ok_at[0]]
+    check(not any(st == "busy" or "Waking" in m for st, m, _ in seen), f"fast server: never the waking pill {[s[:2] for s in seen]}")
+    check(ok_at and done_at and 1200 <= done_at[0] - ok_at[0] <= 2500, f"'Up to date ✓' stays ~1.5 s, then fades ({(done_at[0] - ok_at[0]) if ok_at and done_at else None} ms)")
 
     # --- 2. server errors (e.g. the 502 Render returned): retry with backoff, keep the stories
     expected_net[0] = True
