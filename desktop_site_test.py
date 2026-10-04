@@ -10,7 +10,7 @@ Covers:
     Privacy/Terms decorated (not duplicated), ?embed=1 pages, /qr.svg, /api/site, /api/sponsors (21+ and date filtering).
   • The 301 from the old host: off by default; with DOMAIN_REDIRECT=1 only page navigations move, while the service worker,
     the manifest, /api, /static, fetch()es and the installed app's start URL (?source=pwa) keep working.
-  • Chromium 1440×900 and 1024×768: the top nav (logo, 4 tabs, Settings, Get the app), the hero (title, pitch, QR code that
+  • Chromium 1440×900 and 1024×768: the top nav (logo, 3 tabs (v49.16: Chisme, ¿Y la dieta?, Juegos; Weather is a Chisme chip, Tía's phone tab is hidden), Settings, Get the app), the hero (title, pitch, QR code that
     loads, Add to Home Screen steps, "coming soon" note), the multi-column story grid, the sidebar (weather, sponsor, games,
     ¿Y la dieta?, the $99 App Store goal), the reader as a right side panel (stories and Chisme's own pages), the footer
     links, keyboard (skip link, focus), alt text, contrast, no horizontal scroll, no yellow (light, dark, Día de Muertos),
@@ -161,8 +161,8 @@ async def desktop_checks(browser, w, h, tag):
         topbar: getComputedStyle(document.querySelector('#topbar')).display }; }""")
     check(nav["top"] <= 1 and nav["h"] < 110, f"{tag}: nav at the top ({nav['top']:.0f}px, {nav['h']:.0f}px tall)")
     check(nav["logo"] and nav["set"] and "Get the app" in nav["get"], f"{tag}: nav has the logo, Settings and Get the app")
-    check(len(nav["tabs"]) == 4 and any("Chisme" in t for t in nav["tabs"]) and any("Weather" in t for t in nav["tabs"])
-          and any(("dieta" in t) or ("Ofrendas" in t) for t in nav["tabs"]) and any("Juegos" in t for t in nav["tabs"]), f"{tag}: the 4 tabs {nav['tabs']}")
+    check(len(nav["tabs"]) == 3 and any("Chisme" in t for t in nav["tabs"]) and not any("Weather" in t or "Tía" in t for t in nav["tabs"])
+          and any(("dieta" in t) or ("Ofrendas" in t) for t in nav["tabs"]) and any("Juegos" in t for t in nav["tabs"]), f"{tag}: the 3 tabs (v49.16: Weather is a Chisme chip, no Tía tab on desktop) {nav['tabs']}")
     check(not nav["over"] and nav["topbar"] == "none", f"{tag}: nav fits, the phone header is hidden")
     # the sync pill ("Updated 4:06 AM") is a chip in the nav on desktop: it never covers the page, and the nav still fits
     pill = await pg.evaluate("""async () => { const s = document.querySelector('#sync'), prev = [s.dataset.state, s.hidden];
@@ -390,7 +390,7 @@ async def phone_checks(p):
         css: [...document.styleSheets].some((s) => (s.href || '').includes('desktop.css') && s.media && s.media.mediaText.includes('1024')),
         list: getComputedStyle(document.querySelector('#mix-list')).display, title: document.title }; }""")
     check(not r["dk"] and r["inj"] == 0, f"phone: no desktop class, nothing injected ({r['inj']})")
-    check(r["topbar"] and r["set"] and r["tabs"] == 4, "phone: the app's own top bar (with the Chisme bubble / Settings) and its 4 tabs")
+    check(r["topbar"] and r["set"] and r["tabs"] == 4, "phone: the app's own top bar (with the Chisme bubble / Settings) and its 4 tabs (v49.16: Chisme · ¿Y la dieta? · Juegos · Tía)")
     check(r["list"] != "grid" and r["w"] <= r["iw"], f"phone: single-column feed, no sideways scroll ({r['list']})")
     check(r["css"], "phone: desktop.css only applies at min-width 1024px")
     await pg.screenshot(path=os.path.join(SHOTS, "phone-unchanged.png"))

@@ -1,7 +1,8 @@
 /* v49.14: Chisme as a desktop website (screens 1024 px and wider). Phones and narrow windows keep the app exactly as it
    is: this file does nothing there (except the optional "Chisme moved" note for installed users, see moved()).
    On wide screens it turns the app into a site, reusing the app's own parts (tabs, story cards, reader, settings):
-     • a top nav: the logo, the 4 tabs (the app's own buttons), ⚙️ Settings and "Get the app"
+     • a top nav: the logo, the section tabs (the app's own buttons; v49.16: Chisme, ¿Y la dieta?, Juegos; Weather is a
+       Chisme chip, Tía's phone tab is hidden here), ⚙️ Settings and "Get the app"
      • the homepage (the Chisme tab): a hero (QR code, Add to Home Screen steps, "coming soon to the stores"), the latest
        chisme as a multi-column grid, and a sidebar: weather, the local sponsor spot, Juegos, ¿Y la dieta?, the
        App Store goal card

@@ -1,12 +1,12 @@
 """v49.12: the one "Chisme" tab (News + Sports + Events), permanent. Chromium Pixel 7 + WebKit iPhone 13, light + dark, 320 px.
-  • the tab bar is Chisme · ¿Y la dieta? · Weather · Juegos (v49.15.3 order; no separate News / Sports / Events tabs), one row, fits at 320 px
+  • the tab bar is Chisme · ¿Y la dieta? · Juegos · Tía (v49.16 order; no separate News / Sports / Events / Weather tabs), one row, fits at 320 px
   • Chisme opens on ✨ All: News, Sports and Events mixed, a 📰 / 🏀 / 🎉 tag on every card, never 3 of a kind in a row,
     at least two kinds on screen; each kind keeps its own order (sports newest first, events soonest first)
   • mixFeed itself (500 random lists): no 3 in a row, each list's order kept, stops when one kind would run 3
-  • the chips All · News · Sports · Events: 44 px+, the picked one marked (aria-current), sticky under the tab bar while you scroll
+  • the chips All · News · Sports · Events · Weather (v49.16): 44 px+, the picked one marked (aria-current), sticky under the tab bar while you scroll
   • the Chisme tab goes back to the chip picked last (this session); a new launch starts on All
   • deep links: #news #sports #events #chisme ?tab=sports ?tab=events land on their chip, the Chisme tab lit
-  • Settings → Open Chisme to lists Chisme: All / News / Sports / Events
+  • Settings → Open Chisme to lists Chisme: All / News / Sports / Events / Weather
   • no page errors"""
 import asyncio, os, sys
 from playwright.async_api import async_playwright
@@ -33,8 +33,8 @@ async def phone(b, name, dev, theme, w=None):
     pg = await ctx.new_page(); errs = []
     pg.on("pageerror", lambda e: None if "access control checks" in str(e) else errs.append(str(e)[:160]))   # WebKit: a fetch cut off by the test navigating away
     s = await ready(pg)
-    tabs = await pg.evaluate("[...document.querySelectorAll('#tabs .tab')].filter(t => t.offsetParent).map(t => [t.dataset.view, t.textContent.trim(), Math.round(t.getBoundingClientRect().top)])")
-    check([t[0] for t in tabs] == ["chisme", "antojos", "weather", "juegos"] and "Chisme" in tabs[0][1], f"4 tabs: Chisme · ¿Y la dieta? · Weather · Juegos ({[t[1] for t in tabs]})")
+    tabs = await pg.evaluate("[...document.querySelectorAll('#tabs .tab')].filter(t => t.offsetParent).map(t => [t.dataset.view || t.id, t.textContent.trim(), Math.round(t.getBoundingClientRect().top)])")
+    check([t[0] for t in tabs] == ["chisme", "antojos", "juegos", "tab-tia"] and "Chisme" in tabs[0][1], f"4 tabs: Chisme · ¿Y la dieta? · Juegos · Tía (v49.16) ({[t[1] for t in tabs]})")
     check(len({t[2] for t in tabs}) == 1, f"…in one row ({[t[2] for t in tabs]})")
     fit = await pg.evaluate("(() => { const i = document.querySelector('.tabs-inner'); return i.scrollWidth <= i.clientWidth + 1; })()")
     check(fit, "…and they fit (no sideways scrolling)")
@@ -60,8 +60,8 @@ async def phone(b, name, dev, theme, w=None):
     check(len(tags) == 3 and apart and all(not (25 <= v["hue"] <= 70) and v["cr"] >= 4.5 for v in tags.values()),
           f"…the 3 tags are clearly different colours, none yellow, text ≥4.5:1 ({tags})")
     chips = await pg.evaluate("[...document.querySelectorAll('#view-chisme .mq-chip')].map(c => { const r = c.getBoundingClientRect(); return [c.dataset.go, c.textContent.trim(), Math.round(r.height), Math.round(r.width), r.right <= innerWidth + 1 && c.scrollWidth <= c.clientWidth + 1]; })")
-    check([c[0] for c in chips] == ["chisme", "news", "sports", "events"] and all(c[2] >= 44 and c[3] >= 44 and c[4] for c in chips),
-          f"chips All · News · Sports · Events, 44 px+, on screen, labels not cut off ({[(c[1], c[2], c[3]) for c in chips]})")
+    check([c[0] for c in chips] == ["chisme", "news", "sports", "events", "weather"] and all(c[2] >= 44 and c[3] >= 44 and c[4] for c in chips),
+          f"chips All · News · Sports · Events · Weather, 44 px+, on screen, labels not cut off ({[(c[1], c[2], c[3]) for c in chips]})")
     await pg.evaluate("window.scrollTo(0, 2200)"); await pg.wait_for_timeout(500)
     ST = "(() => { const r = document.querySelector('#view-chisme .mq-chips').getBoundingClientRect(), t = document.querySelector('#tabs').getBoundingClientRect(), f = document.querySelector('#fbtop'); const phone = !!f && getComputedStyle(f).display !== 'none'; return [Math.round(r.top), Math.round(phone ? f.getBoundingClientRect().bottom : t.bottom), phone, document.documentElement.classList.contains('fb-hide'), Math.round(r.bottom)]; })()"
     st = await pg.evaluate(ST)
@@ -71,26 +71,26 @@ async def phone(b, name, dev, theme, w=None):
         await pg.wait_for_timeout(400); st = await pg.evaluate(ST)
     check(abs(st[0] - st[1]) <= 2, f"…sticky: still right under the tab bar after scrolling ({st})")
     await pg.evaluate("window.scrollTo(0, 0)")
-    for cat in ("sports", "events", "news", "chisme"):
+    for cat in ("sports", "events", "weather", "news", "chisme"):
         await pg.click(f".view.active .mq-chip[data-go='{cat}']"); await pg.wait_for_timeout(700)
         s = await pg.evaluate(STATE)
         check(s == {"view": cat, "tab": "chisme", "chip": cat}, f"chip {cat}: its section, the chip marked, the Chisme tab lit ({s})")
     await pg.click(".view.active .mq-chip[data-go='sports']"); await pg.wait_for_timeout(700)
-    await pg.click("#tabs [data-view='weather']"); await pg.wait_for_timeout(700)
+    await pg.click("#tabs [data-view='juegos']"); await pg.wait_for_timeout(700)
     await pg.click("#tabs [data-view='chisme']"); await pg.wait_for_timeout(700)
     s = await pg.evaluate(STATE)
     check(s["view"] == "sports", f"the Chisme tab goes back to the chip picked last, this session (sports → {s['view']})")
     pg2 = await ctx.new_page(); s2 = await ready(pg2)   # a new launch (a new tab = a new session)
     check(s2["view"] == "chisme" and s2["chip"] == "chisme", f"…a new launch starts on All ({s2['view']})")
     await pg2.close()
-    for url, want in (("#news", "news"), ("#sports", "sports"), ("#events", "events"), ("#chisme", "chisme"), ("?tab=sports", "sports"), ("?tab=events", "events"), ("#spurs", "sports")):
+    for url, want in (("#news", "news"), ("#sports", "sports"), ("#events", "events"), ("#chisme", "chisme"), ("?tab=sports", "sports"), ("?tab=events", "events"), ("#spurs", "sports"), ("#weather", "weather"), ("?tab=weather", "weather")):
         s = await ready(pg, URL + url)
         check(s == {"view": want, "tab": "chisme", "chip": want}, f"deep link {url} → {want} chip ({s})")
     await pg.goto(URL); await pg.wait_for_function("() => window.__chisme && window.__chisme.ready")
     await pg.evaluate("document.querySelector('#settings-btn').click()"); await pg.wait_for_timeout(300)
     opts = await pg.evaluate("[...document.querySelectorAll('#settings input[name=deftab]')].map(i => i.value + ':' + i.parentElement.textContent.trim())")
-    check([o.split(":")[0] for o in opts] == ["random", "chisme", "news", "sports", "events", "antojos", "weather", "juegos"] and "Chisme: All" in opts[1],
-          f"Settings → Open Chisme to: Surprise me, Chisme: All / News / Sports / Events, ¿Y la dieta?, Weather, Juegos (the tab order)")
+    check([o.split(":")[0] for o in opts] == ["random", "chisme", "news", "sports", "events", "weather", "antojos", "juegos"] and "Chisme: All" in opts[1] and "Chisme: Weather" in opts[5],
+          f"Settings → Open Chisme to: Surprise me, Chisme: All / News / Sports / Events / Weather, ¿Y la dieta?, Juegos (the tab order)")
     check(not errs, f"no page errors ({errs[:2]})")
     await ctx.close()
 

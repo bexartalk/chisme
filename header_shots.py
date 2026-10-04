@@ -51,7 +51,7 @@ async def radar_shot(p, b):
     await pg.goto(URL)
     await pg.wait_for_function("() => window.__chisme && window.__chisme.ready", timeout=90000)
     if await pg.is_visible("#ios-hint-close"): await pg.click("#ios-hint-close")
-    await pg.click('#tabs [data-view="weather"]'); await pg.wait_for_timeout(800)
+    await pg.click('.view.active .mq-chip[data-go="weather"]'); await pg.wait_for_timeout(800)   # v49.16: Weather is a Chisme chip
     await pg.evaluate("window.scrollTo(0, document.querySelector('#radar-sec').getBoundingClientRect().top + scrollY - document.querySelector('#tabs').offsetHeight - 8)")
     await pg.wait_for_function("() => document.querySelectorAll('.radar-tiles img.leaflet-tile').length >= 4 && document.querySelector('.me-marker')", timeout=30000)
     try: await pg.wait_for_function("document.querySelector('#sync').dataset.state === 'done'", timeout=12000)

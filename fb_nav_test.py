@@ -1,12 +1,12 @@
-"""v49.15: the Facebook-style phone nav. Under 1024 px: a slim top bar (the Chisme bubble = Settings, ⚙️ Settings, Tía's
-bubble = her chat) and the section tabs as a bottom tab bar; both slide away while you scroll down and come back on any
+"""v49.15: the Facebook-style phone nav. Under 1024 px: a slim top bar (v49.16: ☰ Menu = Settings, the Chisme bubble =
+Settings too; Tía moved to the bottom tab bar) and the section tabs as a bottom tab bar; both slide away while you scroll down and come back on any
 scroll up (8 px or more), and always show near the top. The Chisme tab's sticky chip row (All · News · Sports · Events)
 slides away with the top bar and comes back with it; no other tab leaves a sticky row stuck at the top.
 Desktop (1024 px and up) must be exactly as before.
   • phone 390x844 (Android Chromium + iPhone WebKit): bars at the top, hidden after scrolling down, a 4 px nudge up keeps them
     hidden, a 20 px scroll up brings them back, back near the top always shows; content is padded (no overlap at the top,
     the last thing on the page clears the tab bar); the bars sit inside the safe areas; tabs switch (ids, aria-current,
-    the bars come back on a switch); the Tía bubble opens her chat, ⚙️ and the Chisme bubble open Settings; the floating
+    the bars come back on a switch); the Tía tab opens her chat, ☰ and the Chisme bubble open Settings; the floating
     Tía is gone on phones (one Tía); reduced motion = no transition; dark + Día de Muertos colours have no yellow on the bars
   • ChismeTV (full-screen reels): nothing covers the Like / Share column or the video's controls; the bars are tucked away
   • desktop 1440x900: html.dk, no phone top bar, the nav at the top, the floating Tía, Settings in the nav, no hiding on
@@ -22,7 +22,7 @@ Desktop (1024 px and up) must be exactly as before.
     the new-stories pill, the sync pill and the Terms bar ride on `translate` with the same timing; the status-bar strip
     (.fb-safe) stays put in the bar's colour; Reduce motion = no sliding, only a short fade
   • v49.15.3 the phone top bar has the city skyline (the old header's art) behind its buttons, no ¿Oyistes?, the same height;
-    the tab bar is Chisme · ¿Y la dieta? (Ofrendas in the Día de Muertos season) · Weather · Juegos
+    the tab bar is Chisme · ¿Y la dieta? (Ofrendas in the Día de Muertos season) · Juegos · Tía (v49.16; Weather is a Chisme chip)
   • v49.15.3 (temporary) the Muertos top bar keeps the skyline's drifting helicopter and lit (marigold-orange) window squares,
     the papel picado strip, and no ¿Oyistes? in or over it, light + dark
 Screenshots: SHOTS (default /workspace/chisme-navbar-shots/): top, scrolled, scroll-up, tia-open, dark, chismetv, muertos, weather,
@@ -86,7 +86,7 @@ SKY = """() => { const top = document.querySelector('#fbtop'), sky = top.querySe
   const R = (e) => { const r = e.getBoundingClientRect(); return { l: r.left, t: r.top, r: r.right, b: r.bottom, w: r.width, h: r.height }; };
   const shapes = sky ? [...sky.querySelectorAll('g[class^="sky-"]')].filter((g) => getComputedStyle(g).display !== 'none') : [];
   const s = sky && R(sky), cs = sky && getComputedStyle(sky), win = shapes[0] && shapes[0].querySelector('.sky-win');
-  const btns = ['#settings-btn', '#fb-set', '#fb-tia'].map((q) => top.querySelector(q)).filter(Boolean);
+  const btns = ['#settings-btn', '#fb-menu'].map((q) => top.querySelector(q)).filter(Boolean);   // v49.16: the bubble + ☰
   const hits = btns.map((x) => { const r = R(x), at = document.elementFromPoint((r.l + r.r) / 2, (r.t + r.b) / 2); return !!at && (at === x || x.contains(at)); });
   const rgb = (c) => (String(c).match(/[\\d.]+/g) || []).slice(0, 3).map(Number);
   const mix = (a, b, o) => a.map((v, i) => v * o + b[i] * (1 - o));
@@ -95,7 +95,7 @@ SKY = """() => { const top = document.querySelector('#fbtop'), sky = top.querySe
   const fill = cs ? rgb(cs.fill) : [0, 0, 0], op = cs ? +cs.opacity : 0, seen = mix(fill, base, op);
   return { sky: !!sky, which: top.dataset.skyline, shown: shapes.reduce((n, g) => n + g.querySelectorAll('path').length, 0),
     inBar: !!s && s.t >= tb.top - 0.5 && s.b <= tb.bottom + 0.5 && s.w >= tb.width - 1, barH: Math.round(tb.height),
-    oyistes: /Oyistes/i.test(top.textContent), tag: !!top.querySelector('.fb-tag'), under: hits.length === 3 && hits.every(Boolean), hits,
+    oyistes: /Oyistes/i.test(top.textContent), tag: !!top.querySelector('.fb-tag'), under: hits.length === 2 && hits.every(Boolean), hits,
     fills: [cs && cs.fill, win && getComputedStyle(win).fill].filter(Boolean), fillDiff: Math.round(Math.max(...seen.map((v, i) => Math.abs(v - base[i])))) }; }"""
 def sky_yellow(fills):
     import re
@@ -212,14 +212,14 @@ async def phone(b, bname, dev, shots):
     check(lay["padB"] >= lay["tabsH"], f"{bname}: the page has room for the tab bar at the bottom (padding {lay['padB']:.0f} ≥ bar {lay['tabsH']})")
     check(lay["header"] == "none" and lay["fab"] == "none" and lay["set"] == "top bar" and lay["ids"],
           f"{bname}: the skyline header and the floating Tía are off on phones; #settings-btn sits in the top bar; every id is still there {lay}")
-    tabs = await pg.evaluate("[...document.querySelectorAll('#tabs .tab')].map((t) => { const r = t.getBoundingClientRect(); return { v: t.dataset.view, w: r.width, h: r.height, b: r.bottom, l: t.textContent.trim() }; })")
+    tabs = await pg.evaluate("[...document.querySelectorAll('#tabs .tab')].map((t) => { const r = t.getBoundingClientRect(); return { v: t.dataset.view || t.id, w: r.width, h: r.height, b: r.bottom, l: t.textContent.trim() }; })")
     check(len(tabs) == 4 and all(t["w"] >= 44 and t["h"] >= 44 for t in tabs), f"{bname}: 4 tabs on the bottom bar, each a 44 px+ target {[(t['v'], round(t['w']), round(t['h'])) for t in tabs]}")
-    check([t["v"] for t in tabs] == ["chisme", "antojos", "weather", "juegos"] and "¿Y la dieta?" in tabs[1]["l"] and len({round(t["b"]) for t in tabs}) == 1,
-          f"{bname}: the tab bar reads Chisme · ¿Y la dieta? · Weather · Juegos {[t['l'] for t in tabs]}")
+    check([t["v"] for t in tabs] == ["chisme", "antojos", "juegos", "tab-tia"] and "¿Y la dieta?" in tabs[1]["l"] and "Tía" in tabs[3]["l"] and len({round(t["b"]) for t in tabs}) == 1,
+          f"{bname}: the tab bar reads Chisme · ¿Y la dieta? · Juegos · Tía (v49.16) {[t['l'] for t in tabs]}")
     sky = await pg.evaluate(SKY)
     check(sky["sky"] and sky["shown"] > 0 and sky["inBar"] and not sky["oyistes"] and not sky["tag"] and sky["barH"] <= 60,
           f"{bname}: the top bar has the city skyline behind its buttons ({sky['which']} skyline, {sky['shown']} shapes, inside the {sky['barH']} px bar), no ¿Oyistes? {sky}")
-    check(sky["under"], f"{bname}: the skyline sits behind the bubble, ⚙️ and Tía (they're still what you tap) {sky['hits']}")
+    check(sky["under"], f"{bname}: the skyline sits behind the bubble and ☰ (they're still what you tap) {sky['hits']}")
     if shots: await pg.screenshot(path=f"{OUT}/top.png"); await pg.screenshot(path=f"{OUT}/top-skyline.png", clip={"x": 0, "y": 0, "width": 390, "height": 140})
     if shots: await pg.screenshot(path=f"{OUT}/tabbar-offseason.png", clip={"x": 0, "y": 844 - 110, "width": 390, "height": 110})
     CHIPS = "(() => { const c = document.querySelector('#view-chisme .mq-chips'), r = c.getBoundingClientRect(), t = document.querySelector('#fbtop').getBoundingClientRect(); return { t: r.top, b: r.bottom, vis: getComputedStyle(c).visibility, under: t.bottom, hit: document.elementFromPoint(innerWidth / 2, (r.top + r.bottom) / 2)?.closest('.mq-chips') === c }; })()"
@@ -251,14 +251,15 @@ async def phone(b, bname, dev, shots):
     check(end["vb"] <= end["tt"] + 1, f"{bname}: at the end of the page the last of the content clears the tab bar ({end['vb']:.0f} ≤ {end['tt']:.0f})")
     # tabs switch
     back = []
-    for v in ("weather", "antojos", "juegos", "chisme"):
+    for v in ("weather", "antojos", "juegos", "chisme"):   # v49.16: Weather is the Chisme tab's Weather chip (the Chisme tab stays lit)
         y0 = min(900, await pg.evaluate("document.documentElement.scrollHeight - innerHeight"))
         await scroll_to(pg, y0, 100); await scroll_to(pg, max(0, y0 - 30), 6)   # a little scroll up shows the bar, then tap
-        await pg.click(f'#tabs .tab[data-view="{v}"]')
+        await pg.click('.view.active .mq-chip[data-go="weather"]' if v == "weather" else f'#tabs .tab[data-view="{v}"]')
         await pg.wait_for_timeout(700)
         st = await pg.evaluate(f"""() => ({{ cur: document.querySelector('#tabs .tab[aria-current="page"]')?.dataset.view, active: document.querySelector('#view-{v}').classList.contains('active'),
             hide: document.documentElement.classList.contains('fb-hide') }})""")
-        check(st["cur"] == v and st["active"], f"{bname}: the {v} tab opens #view-{v} and lights up {st}")
+        lit = "chisme" if v == "weather" else v
+        check(st["cur"] == lit and st["active"], f"{bname}: the {v} {'chip' if v == 'weather' else 'tab'} opens #view-{v} and the {lit} tab lights up {st}")
         back.append(not st["hide"])
         if v == "weather" and shots: await pg.evaluate("scrollTo(0,0)"); await pg.wait_for_timeout(500); await pg.screenshot(path=f"{OUT}/weather.png")
         # any sticky sub-filter row on this tab must go away with the bars too (nothing stays stuck at the top)
@@ -269,16 +270,16 @@ async def phone(b, bname, dev, shots):
                 const r = e.getBoundingClientRect(); return r.height > 0 && r.bottom > 1 && r.top < 90; }}).map((e) => (e.className || e.tagName) + '@' + Math.round(e.getBoundingClientRect().top))""")
             check(r["hide"] and not stuck, f"{bname}: {v}: scrolled down with the bars away, no sticky row is left stuck at the top {stuck[:3]}")
     check(all(back), f"{bname}: switching tabs brings the bars back {back}")
-    # Tía bubble → chat; ⚙️ and the Chisme bubble → Settings
+    # v49.16: the Tía tab → chat; ☰ and the Chisme bubble → Settings
     await scroll_to(pg, 0)
-    await pg.click("#fb-tia"); await pg.wait_for_timeout(600)
+    await pg.click("#tab-tia"); await pg.wait_for_timeout(600)
     t = await pg.evaluate("({ tia: document.querySelector('#tia').open, menu: document.querySelector('#tia-menu').open })")
-    check(t["tia"] and not t["menu"], f"{bname}: the Tía bubble opens Tía's chat {t}")
+    check(t["tia"] and not t["menu"], f"{bname}: the Tía tab opens Tía's chat {t}")
     if shots: await pg.screenshot(path=f"{OUT}/tia-open.png")
     await pg.click("#tia-close"); await pg.wait_for_timeout(400)
     foc = await pg.evaluate("document.activeElement && document.activeElement.id")
-    check(foc == "fb-tia", f"{bname}: closing her chat puts focus back on her bubble ({foc})")
-    for sel in ("#fb-set", "#settings-btn"):
+    check(foc == "tab-tia", f"{bname}: closing her chat puts focus back on her tab ({foc})")
+    for sel in ("#fb-menu", "#settings-btn"):
         await pg.click(sel); await pg.wait_for_timeout(500)
         o = await pg.evaluate("document.querySelector('#settings').open")
         check(o, f"{bname}: {sel} opens Settings")
@@ -307,9 +308,9 @@ async def phone(b, bname, dev, shots):
         tag = f"{theme}{' + Día de Muertos' if season == 'muertos' else ''}"
         check(sky["sky"] and sky["shown"] > 0 and not sky["oyistes"] and not sky_yellow(sky["fills"]) and sky["fillDiff"] >= 40,
               f"{bname}: {tag}: the skyline shows in the top bar, stands out from it (colour difference {sky['fillDiff']}) and isn't yellow {sky['fills']}")
-        tl = await pg.evaluate("[...document.querySelectorAll('#tabs .tab')].map((t) => t.dataset.view + ':' + t.textContent.trim())")
+        tl = await pg.evaluate("[...document.querySelectorAll('#tabs .tab')].map((t) => (t.dataset.view || t.id) + ':' + t.textContent.trim())")
         want2 = "Ofrendas" if season == "muertos" else "¿Y la dieta?"
-        check([x.split(":")[0] for x in tl] == ["chisme", "antojos", "weather", "juegos"] and want2 in tl[1], f"{bname}: {tag}: tab order Chisme · {want2} · Weather · Juegos {tl}")
+        check([x.split(":")[0] for x in tl] == ["chisme", "antojos", "juegos", "tab-tia"] and want2 in tl[1], f"{bname}: {tag}: tab order Chisme · {want2} · Juegos · Tía {tl}")
         if shots and name: await pg.screenshot(path=f"{OUT}/{name}.png")
         if shots and name == "dark": await pg.screenshot(path=f"{OUT}/top-skyline-dark.png", clip={"x": 0, "y": 0, "width": 390, "height": 140})
         if shots and name == "muertos": await pg.screenshot(path=f"{OUT}/tabbar-season.png", clip={"x": 0, "y": 844 - 110, "width": 390, "height": 110})
@@ -382,7 +383,7 @@ DECO = """() => { const R = (e) => { if (!e || !e.getClientRects().length) retur
       hidden: [v, k].every((e) => e && e.getAttribute('aria-hidden') === 'true'), loaded: imgs.length === 2 && imgs.every((i) => i.complete && i.naturalWidth > 0) }; };
   const top = document.querySelector('#fbtop'), hero = document.querySelector('#dk-hero-t');
   return { season: document.documentElement.dataset.season || '', phone: one(top), bar: R(top), bubble: R(top.querySelector('#settings-btn')), tag: R(top.querySelector('.fb-tag')),
-    right: R(top.querySelector('.fb-right')), tia: R(top.querySelector('#fb-tia')),
+    right: R(top.querySelector('.fb-right')), tia: R(top.querySelector('#fb-menu')),   // v49.16: ☰ (Tía left the top bar)
     hero: hero ? one(hero) : null, heroBox: R(hero), heroQ: R(hero && hero.querySelector('.dk-hero-q')), heroLogo: R(hero && hero.querySelector('.dk-hero-logo')) }; }"""
 SVG_YELLOW = """async () => { const out = {}; const yellow = (r, g, b) => r > 180 && g > 150 && b < 110 && Math.abs(r - g) < 90;
   for (const n of ['vela', 'calavera']) { const t = await (await fetch('/static/season/' + n + '.svg')).text();
@@ -482,8 +483,8 @@ async def muertos_logo(b, bname, dev, shots):
                   f"{bname} {w}: small: candle {p['vela']['w']:.0f}x{p['vela']['h']:.0f}, calavera {p['skull']['w']:.0f}x{p['skull']['h']:.0f} (bubble {d['bubble']['w']:.0f}x{d['bubble']['h']:.0f})")
             check(p["vela"]["r"] <= d["bubble"]["l"] + 3 and p["skull"]["l"] >= d["bubble"]["r"] - 3 and not d["tag"],
                   f"{bname} {w}: one on each side of the bubble, not over it (v49.15.3: no ¿Oyistes? tag in the bar)")
-            check(p["skull"]["r"] < d["right"]["l"] - 8 and not hit(p["flame"], d["tia"]),
-                  f"{bname} {w}: clear of ⚙️ and the Tía bubble ({d['right']['l'] - p['skull']['r']:.0f} px to spare)")
+            check(p["skull"]["r"] < d["right"]["l"] - 8 and not hit(p["flame"], d["tia"]) and not hit(p["vela"], d["tia"]),
+                  f"{bname} {w}: clear of ☰ and the bar's right side ({d['right']['l'] - p['skull']['r']:.0f} px to spare)")
             check(all(x["t"] >= d["bar"]["t"] - 0.5 and x["b"] <= d["bar"]["b"] for x in (p["vela"], p["skull"], p["flame"])), f"{bname} {w}: inside the top bar (flame top {p['flame']['t']:.0f})")
         check(p["anim"] == "mq-flame-flicker", f"{bname} {w}: the flame flickers ({p['anim']} {p['dur']})")
         y = await pg.evaluate(YELLOWISH, [".mq-deco", ".mq-deco *"])

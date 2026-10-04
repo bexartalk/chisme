@@ -103,13 +103,13 @@ async def main():
         await page.wait_for_timeout(500)
         await page.screenshot(path=str(OUT / "update-story-links.png"))
 
-        # 4. swipe news -> sports (finger on a story); then the Weather tab
+        # 4. swipe news -> sports (finger on a story); then the Weather chip (v49.16)
         y_before = await page.evaluate("scrollY")
         await swipe(cdp, 330, 60, 500)
         await page.wait_for_timeout(700)
         rep["4_swipe_to_sports"] = await page.evaluate("""() => ({ view: window.__chisme.view,
             ariaCurrent: document.querySelector('.tab[aria-current=page]').textContent.trim() })""")
-        await tab_click(page, ".tab[data-view=weather]")
+        await tab_click(page, ".view.active .mq-chip[data-go=weather]")   # v49.16: Weather is the Chisme tab's 5th chip
         await page.wait_for_timeout(700)
         rep["4b_weather_tab"] = await page.evaluate("""() => ({ view: window.__chisme.view, scrollY: Math.round(scrollY),
             weatherTop: Math.round(document.querySelector('#view-weather').getBoundingClientRect().top),
@@ -132,7 +132,7 @@ async def main():
         c1 = await page.evaluate("(() => { const c = window.__chisme.map.getCenter(); return [c.lat, c.lng]; })()")
         rep["6_map_pan"] = {"view": await page.evaluate("window.__chisme.view"), "map_center_moved_deg": round(abs(c1[1] - c0[1]), 4)}
         await page.evaluate("window.__chisme.map.setView([window.__chisme.loc.lat, window.__chisme.loc.lon], 8)")
-        # swipe back (weather -> ¿Y la dieta?, the tab before Weather since v49.15.3)
+        # swipe back (weather -> Events, the chip before Weather since v49.16)
         await page.evaluate("window.scrollTo({top: document.querySelector('#weather').getBoundingClientRect().top + scrollY - 90, behavior: 'instant'})")
         await swipe(cdp, 60, 330, 420)
         await page.wait_for_timeout(700)

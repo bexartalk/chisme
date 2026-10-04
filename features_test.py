@@ -41,8 +41,9 @@ with sync_playwright() as p:
     if page.is_visible("#loc-close"): page.click("#loc-close")
 
     # ---- nav: News, Sports, Weather, Events (no Radar tab); A−/A+ not on the home screen
-    tabs = page.eval_on_selector_all(".tab", "ts => ts.map(t => t.textContent.trim())")
-    check([t.split()[-1] for t in tabs] == ["Chisme", "dieta?", "Weather", "Juegos"], f"nav tabs {tabs}")   # v49.12: News, Sports, Events live inside Chisme; v49.15.3: ¿Y la dieta? before Weather
+    tabs = page.eval_on_selector_all(".tab", "ts => ts.filter(t => t.getClientRects().length).map(t => t.textContent.trim())")
+    want = ["Chisme", "dieta?", "Juegos", "Tía"] if len(tabs) == 4 else ["Chisme", "dieta?", "Juegos"]   # v49.16: phones end on Tía; the desktop nav has no Tía tab
+    check([t.split()[-1] for t in tabs] == want, f"nav tabs {tabs}")   # v49.12: News, Sports, Events live inside Chisme; v49.16: Weather too (a chip)
     check(not page.is_visible("#font-up"), "A−/A+ are no longer on the home screen")
     check(page.eval_on_selector("#tabs", "e => getComputedStyle(e).position") == "fixed", "nav is position:fixed")
 

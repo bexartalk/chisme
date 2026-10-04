@@ -107,7 +107,7 @@ async def phone(b, name, dev, theme, tag, w=None, tabs=False):
     await pg.wait_for_timeout(1500)
     s = await pg.evaluate(SEASON)
     labels = await pg.evaluate("[...document.querySelectorAll('#tabs .tab')].map(t => t.textContent.trim())")
-    check(s[0] == "muertos" and labels[0].endswith("Chisme") and labels[1].endswith("Ofrendas") and labels[2].endswith("Weather") and len(labels) == 4, f"themed: tabs {labels} (v49.15.3: Chisme · Ofrendas · Weather · Juegos)")
+    check(s[0] == "muertos" and labels[0].endswith("Chisme") and labels[1].endswith("Ofrendas") and labels[2].endswith("Juegos") and labels[3].endswith("Tía") and len(labels) == 4, f"themed: tabs {labels} (v49.16: Chisme · Ofrendas · Juegos · Tía)")
     shown = await pg.evaluate("Object.fromEntries(['.mq-picado', '#muertos-banner', '#mq-gallery', '.tia-flores'].map(s => [s, !!document.querySelector(s).offsetParent || getComputedStyle(document.querySelector(s)).display !== 'none']))")
     check(all(shown.values()), f"papel picado, greeting, gallery, Tía's marigolds on show ({shown})")
     await pg.screenshot(path=f"{SHOTS}/{tag}-home.png")

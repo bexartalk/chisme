@@ -1,8 +1,8 @@
 """v49.12 random launch tab (static/app.js launchTab). NO_AUTO_QUIET: this test is about the launch tab, so the test shim's
 News pin (popup_quiet.QUIET) is left out. Chromium, Android-size phone.
   • the very first launch opens Chisme (All) with the location card (and counts as the last pick)
-  • every later launch opens a random main tab, only the 4 on show (Chisme · Weather · ¿Y la dieta? · Juegos; News,
-    Sports and Events live inside Chisme since v49.12), never the same one twice in a row; the tab bar marks it, it's on screen
+  • every later launch opens a random main tab, only the 3 section tabs on show (Chisme · ¿Y la dieta? · Juegos; News,
+    Sports and Events live inside Chisme since v49.12, Weather since v49.16; Tía's tab opens her chat, it's not a launch tab), never the same one twice in a row; the tab bar marks it, it's on screen
   • deep links win: #weather, #juan, ?tab=events, ?story=… (News + the reader)
   • Settings → Open Chisme to: 🔀 Surprise me is the default; a fixed pick (Sports) opens Sports every time
   • a reload Chisme does itself (update, 'Refresh everyone') stays on the tab you were on
@@ -11,11 +11,11 @@ import asyncio, os, sys
 from playwright.async_api import async_playwright
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); import pw_csp  # noqa: E401,F401
 URL = os.environ.get("URL", "http://localhost:8211/")
-VIEWS = ["chisme", "weather", "antojos", "juegos"]   # the tabs on show
-TAB = lambda v: "chisme" if v in ("chisme", "news", "sports", "events") else v   # News/Sports/Events light the Chisme tab
+VIEWS = ["chisme", "antojos", "juegos"]   # the section tabs on show (v49.16: Weather is a Chisme chip)
+TAB = lambda v: "chisme" if v in ("chisme", "news", "sports", "events", "weather") else v   # News/Sports/Events/Weather light the Chisme tab
 QUIET_NOTIF = "try { localStorage.setItem('chisme-notif', JSON.stringify({ n: 1, shows: 1 })); localStorage.setItem('chisme-settings-tip', 'test:0'); localStorage.setItem('chisme-a2hs', JSON.stringify({done:true})); localStorage.setItem('chisme-ios-hint-dismissed','1'); localStorage.setItem('chisme-season-pin','off'); } catch (e) {}"
 FRAMES = """window.__frames = []; (function f() { const a = document.querySelector('.view.active'), t = document.querySelector('.track'), c = null;
-  if (a && t) { const tabLit = [...document.querySelectorAll('.tab')].filter(x => !x.dataset.scroll && getComputedStyle(x).backgroundColor !== 'rgb(0, 0, 0)').map(x => x.dataset.view);
+  if (a && t) { const tabLit = [...document.querySelectorAll('.tab[data-view]')].filter(x => !x.dataset.scroll && getComputedStyle(x).backgroundColor !== 'rgb(0, 0, 0)').map(x => x.dataset.view);
     window.__frames.push({ shown: getComputedStyle(t).opacity !== '0' ? a.dataset.view : null, lit: tabLit }); }
   if (!window.__chisme || !window.__chisme.ready) requestAnimationFrame(f); })();"""
 fails = []

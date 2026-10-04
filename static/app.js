@@ -358,7 +358,7 @@ window.CHISME_APP_BUILD = "49.17";
   // ---------- location panel (friendly pre-prompt, denied fallback, change location)
   const PANEL = {
     ask: ["Welcome, metiche! Want news & weather for where you are?",
-      "Chisme uses your location for your forecast, alerts, radar, nearby stories, sports and Tía. It's saved on this device and sent to Chisme's server, rounded to about 1 km, to look things up; it's never sold. With notifications on, your area (about 1 km) stays on the server until you turn them off. You'll only be asked once: to change it later, tap the Chisme bubble at the top for Settings. Until then we're showing San Antonio, TX."],
+      "Chisme uses your location for your forecast, alerts, radar, nearby stories, sports and Tía. It's saved on this device and sent to Chisme's server, rounded to about 1 km, to look things up; it's never sold. With notifications on, your area (about 1 km) stays on the server until you turn them off. You'll only be asked once: to change it later, open Settings at the top (☰ on phones). Until then we're showing San Antonio, TX."],
     denied: ["Location is turned off for Chisme",
       "No problem — type a city or ZIP code below. (To use your location later, allow it for this site in your browser or phone settings, then tap “Use my location.”)"],
     unavailable: ["Couldn't find your location",
@@ -3064,13 +3064,14 @@ window.CHISME_APP_BUILD = "49.17";
   // ---------- views: Chisme (All | News | Sports | Events) | Weather | ¿Y la dieta? | Juegos (tap the fixed buttons, swipe sideways or ←/→ on the tabs)
   // v49.12: News, Sports and Events are one "Chisme" tab (fewer tabs for new users). It opens on "All", a mix of the three
   // (mixFeed below); the sticky chips at the top (✨ All · 📰 News · 🏀 Sports · 🎉 Events) drill into one, and the views are
-  // laid out in that order so swiping walks All → News → Sports → Events → ¿Y la dieta? → Weather → Juegos (v49.15.3 order). The Chisme tab
-  // goes back to the chip you last picked (this session; a new launch starts on All). #news, #sports, #events, ?tab=sports …
-  // still land on their chip.
-  // v49.15.3: the tab order is Chisme · ¿Y la dieta? (Ofrendas in the Día de Muertos season) · Weather · Juegos, and the
-  // swipe order follows it.
-  const VIEWS = ["chisme", "news", "sports", "events", "antojos", "weather", "juegos"];
-  const CHISME_GROUP = ["chisme", "news", "sports", "events"], TABS_SHOWN = ["chisme", "antojos", "weather", "juegos"];
+  // laid out in that order so swiping walks All → News → Sports → Events → Weather → ¿Y la dieta? → Juegos (v49.16 order). The Chisme tab
+  // goes back to the chip you last picked (this session; a new launch starts on All). #news, #sports, #events, #weather,
+  // ?tab=sports … still land on their chip.
+  // v49.16 (nav-rearrange): Weather is the Chisme tab's 5th chip (All · News · Sports · Events · Weather), not a tab of its
+  // own. The bottom tabs are Chisme · ¿Y la dieta? (Ofrendas in the Día de Muertos season) · Juegos · Tía (#tab-tia: her
+  // chat, not a view), and the swipe order follows them.
+  const VIEWS = ["chisme", "news", "sports", "events", "weather", "antojos", "juegos"];
+  const CHISME_GROUP = ["chisme", "news", "sports", "events", "weather"], TABS_SHOWN = ["chisme", "antojos", "juegos"];
   const CHIP_KEY = "chisme-chip";   // sessionStorage: the Chisme chip picked last, this session only
   const chipLast = () => { try { const c = sessionStorage.getItem(CHIP_KEY); return CHISME_GROUP.includes(c) ? c : "chisme"; } catch (e) { return "chisme"; } };
   const seasonOn = () => !!(window.__chismeSeason && window.__chismeSeason.on);
@@ -3214,8 +3215,8 @@ window.CHISME_APP_BUILD = "49.17";
     animOff = () => track.removeEventListener("transitionend", onEnd);
     animT = setTimeout(done, 450);
   }
-  for (const t of document.querySelectorAll(".tab")) t.onclick = () => goView(t.dataset.view === "chisme" ? chipLast() : t.dataset.view, { scrollTo: t.dataset.scroll });
-  for (const c of document.querySelectorAll(".mq-chip, #mix-end [data-go]")) c.onclick = () => goView(c.dataset.go);   // v49.12: Chisme's All / News / Sports / Events chips
+  for (const t of document.querySelectorAll(".tab[data-view]")) t.onclick = () => goView(t.dataset.view === "chisme" ? chipLast() : t.dataset.view, { scrollTo: t.dataset.scroll });   // (v49.16: not #tab-tia, it opens her chat)
+  for (const c of document.querySelectorAll(".mq-chip, #mix-end [data-go]")) c.onclick = () => goView(c.dataset.go);   // v49.12: Chisme's All / News / Sports / Events chips (v49.16: + Weather)
 
   // Swipe: only horizontal touch drags that start outside the radar map, the hourly strip and
   // form controls. touch-action: pan-y (CSS) leaves vertical scrolling to the browser.
@@ -3561,7 +3562,7 @@ window.CHISME_APP_BUILD = "49.17";
     const fixed = defaultTab();
     if (fixed !== "random") return fixed;
     if (firstRun()) return "chisme";
-    let last = localStorage.getItem(LAUNCH_LAST); if (CHISME_GROUP.includes(last)) last = "chisme";   // only the 4 tabs on show
+    let last = localStorage.getItem(LAUNCH_LAST); if (CHISME_GROUP.includes(last)) last = "chisme";   // only the 3 section tabs on show (v49.16: Weather is in Chisme)
     const pool = TABS_SHOWN.filter((v) => v !== last);
     return pool[Math.floor(Math.random() * pool.length)];
   }
@@ -4158,11 +4159,33 @@ window.CHISME_APP_BUILD = "49.17";
   $("#tia-menu-settings").onclick = () => { tiaMenu.close(); $("#settings-btn").click(); };
   $("#tia-menu-chat").onclick = () => { tiaMenu.close(); openTia(); tiaOpener = $("#tia-btn"); };
   tiaMenu.addEventListener("close", () => { if (!document.querySelector("dialog[open]")) $("#tia-btn").focus({ preventScroll: true }); });
-  // v49.15 phones: the top bar's Tía bubble opens her chat (Settings has its own ⚙️ there, and the Chisme bubble still
-  // opens Settings too); the floating Tía and her two-choice menu stay for desktop. Same openTia() the menu's 💬 uses.
-  { const fbTia = $("#fb-tia"), fbSet = $("#fb-set");
-    if (fbTia) fbTia.onclick = () => { if (document.querySelector("dialog[open]")) return; tipEnd("tia"); openTia(); tiaOpener = fbTia; };
-    if (fbSet) fbSet.onclick = () => { if (document.querySelector("dialog[open]")) return; $("#settings-btn").click(); }; }
+  // v49.15 phones: Tía's bubble opens her chat; the floating Tía and her two-choice menu stay for desktop. Same openTia()
+  // the menu's 💬 uses. v49.16: her bubble is the bottom tab bar's last tab (#tab-tia), not in the top bar any more.
+  { const tabTia = $("#tab-tia");
+    if (tabTia) {
+      tabTia.onclick = () => { if (document.querySelector("dialog[open]")) return; tipEnd("tia"); openTia(); tiaOpener = tabTia; tabTia.classList.add("tia-on"); };
+      tiaDlg.addEventListener("close", () => tabTia.classList.remove("tia-on"));   // lit like the current tab while her chat is open
+    } }
+  // v49.16: the top bar's ☰ Menu (was ⚙️). Its sheet (#menu) lists Settings first; while Settings is its only item, ☰ opens
+  // Settings straight away (one tap, as ⚙️ did). Add an item to #menu-items (e.g. account management) and ☰ shows the sheet.
+  {
+    const menuBtn = $("#fb-menu"), menuDlg = $("#menu"), items = () => (menuDlg ? menuDlg.querySelectorAll("[data-menu-item]") : []);
+    const openSettings = () => $("#settings-btn").click();
+    const sheet = () => !!menuDlg && items().length > 1;
+    function openMenu() {
+      if (document.querySelector("dialog[open]")) return;
+      if (!sheet()) { openSettings(); return; }
+      menuDlg.showModal(); $("#menu-title").focus({ preventScroll: true });
+    }
+    if (menuBtn) { menuBtn.onclick = openMenu; menuBtn.setAttribute("aria-controls", sheet() ? "menu" : "settings"); }
+    if (menuDlg) {
+      $("#menu-x").onclick = () => menuDlg.close();
+      menuDlg.addEventListener("click", (e) => { if (e.target === menuDlg) menuDlg.close(); });   // a tap outside it
+      $("#menu-settings").onclick = () => { menuDlg.close(); openSettings(); };
+      menuDlg.addEventListener("close", () => { if (!document.querySelector("dialog[open]") && menuBtn) menuBtn.focus({ preventScroll: true }); });
+    }
+    window.__chismeMenu = { open: openMenu, get sheet() { return sheet(); } };
+  }
   $("#tia-close").onclick = () => tiaDlg.close();
   $("#tia-settings").onclick = () => { tiaOpener = null; tiaDlg.close(); $("#settings-btn").click(); };   // v49.3: Settings from her chat
 

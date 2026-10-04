@@ -55,7 +55,7 @@ async def main():
         rep["news_far_down"] = await page.evaluate(NAV_JS)
         await page.screenshot(path=str(OUT / "fixed-nav-news.png"))
         # Weather: tap the nav while deep in News, then scroll to the bottom of Weather
-        await page.tap(".tab[data-view=weather]:not([data-scroll])")
+        await page.tap(".view.active .mq-chip[data-go=weather]")   # v49.16: Weather is a Chisme chip
         await page.wait_for_timeout(700)
         await vscroll(cdp, 8)
         await page.wait_for_timeout(800)
@@ -71,7 +71,7 @@ async def main():
         await page.screenshot(path=str(OUT / "fixed-nav-events.png"))
 
         # Forecast strip
-        await page.tap(".tab[data-view=weather]:not([data-scroll])")
+        await page.tap(".view.active .mq-chip[data-go=weather]")   # v49.16: Weather is a Chisme chip
         await page.wait_for_timeout(700)
         await page.evaluate("document.querySelector('#forecast-sec').scrollIntoView({block: 'center', behavior: 'instant'})")
         await page.wait_for_timeout(400)

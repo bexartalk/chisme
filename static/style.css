@@ -195,7 +195,7 @@ body{padding-top:var(--tabs-h,calc(66px + env(safe-area-inset-top,0px)))}
 html[data-launch] .track{opacity:0}
 html[data-launch] .tab[aria-current="page"]{background:#000;color:#fff;border-color:#000}
 html[data-launch="news"] .tab[data-view="chisme"],html[data-launch="sports"] .tab[data-view="chisme"],html[data-launch="events"] .tab[data-view="chisme"],
-html[data-launch="weather"] .tab[data-view="weather"],html[data-launch="antojos"] .tab[data-view="antojos"],html[data-launch="juegos"] .tab[data-view="juegos"]{background:var(--turq);color:#000;border-color:var(--turq)}
+html[data-launch="weather"] .tab[data-view="chisme"],html[data-launch="antojos"] .tab[data-view="antojos"],html[data-launch="juegos"] .tab[data-view="juegos"]{background:var(--turq);color:#000;border-color:var(--turq)}
 .view:not(.active):not(.peek){height:0;overflow:hidden;visibility:hidden}
 .view.peek{visibility:visible}
 main{padding-top:0}
@@ -1637,7 +1637,7 @@ html[data-season="muertos"][data-theme="light"]{--bg:#f6f1f8;--line:#d6c3e6;--ne
 [data-season="muertos"] .tab[aria-current="page"]{background:var(--marigold);color:#1a0b30;border-color:var(--marigold)}
 [data-season="muertos"] .tab:hover{border-color:var(--mq-pink)}
 html[data-season="muertos"][data-launch] .tab[aria-current="page"]{background:#0e0520;color:#fff;border-color:#0e0520}
-html[data-season="muertos"][data-launch="weather"] .tab[data-view="weather"],html[data-season="muertos"][data-launch="antojos"] .tab[data-view="antojos"],
+html[data-season="muertos"][data-launch="weather"] .tab[data-view="chisme"],html[data-season="muertos"][data-launch="antojos"] .tab[data-view="antojos"],
 html[data-season="muertos"][data-launch="juegos"] .tab[data-view="juegos"],html[data-season="muertos"][data-launch="sports"] .tab[data-view="chisme"],
 html[data-season="muertos"][data-launch="events"] .tab[data-view="chisme"],html[data-season="muertos"][data-launch="news"] .tab[data-view="chisme"]{background:var(--marigold);color:#1a0b30;border-color:var(--marigold)}
 /* v49.12: Chisme's 📰 News · 🏀 Sports · 🎉 Events chips, at the top of each of the three (permanent, not part of the theme) */
@@ -1645,7 +1645,9 @@ html[data-season="muertos"][data-launch="events"] .tab[data-view="chisme"],html[
 .mq-chips{position:sticky;top:var(--tabs-h,66px);z-index:30;display:flex;gap:6px;margin:-14px -4px 12px;padding:10px 4px 8px;background:var(--bg);
   box-shadow:0 6px 8px -8px rgba(0,0,0,.35)}
 .mq-chip{flex:1 1 auto;min-width:0;min-height:46px;padding:.25em .45em;border-radius:999px;border:2px solid var(--line);background:var(--card);color:var(--ink);font-weight:900;font-size:min(.85rem,19px,4.2vw);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-@media (max-width:388px){ .mq-chip span{display:none} }   /* 320–388 px phones (v49.12: incl. 375 px iPhones, where "🏀 Spor…" got cut): words only, so the 4 always fit */
+@media (max-width:599px){ .mq-chip span{display:none} }   /* phones (v49.12: incl. 375 px iPhones, where "🏀 Spor…" got cut; v49.16: up to 599 px, 5 chips with Weather): words only, so they always fit */
+@media (max-width:479px){ .mq-chips{gap:5px} .mq-chip{padding:.25em .4em;font-size:min(.85rem,19px,3.9vw)} }   /* v49.16: 5 chips fit untruncated from 320 px */
+@media (max-width:349px){ .mq-chips{gap:4px} .mq-chip{padding:.25em .3em} }
 /* Chisme → All: the mixed list. Each card keeps its own look (story / sports story / event) with a small tag on top */
 .mix-hi{margin:0 0 12px;font-weight:700;color:var(--ink2);line-height:1.35}
 .mix-list{display:flex;flex-direction:column;gap:14px}
@@ -1804,8 +1806,9 @@ dialog.reel-share[open]{animation:rs-up .22s ease-out}
 .rs-note:empty{display:none}
 
 /* ================= v49.15 phone nav (screens under 1024 px; desktop.css owns 1024 px and up, untouched).
-   Facebook-style: a slim top bar (the Chisme bubble = Settings, as it always was; ⚙️ Settings; Tía's bubble = her chat)
-   and the section tabs as a bottom tab bar. Both slide away while you scroll down and come back on any scroll up
+   Facebook-style: a slim top bar and the section tabs as a bottom tab bar. v49.16 (nav-rearrange): the top bar is ☰ Menu
+   (left; Settings for now), the Chisme bubble centred (still Settings + the owner's long press), the season's candle and
+   calavera either side of it and its confetti behind; the tab bar is Chisme · ¿Y la dieta?/Ofrendas · Juegos · Tía. Both slide away while you scroll down and come back on any scroll up
    (app.js fbNav toggles html.fb-hide). Content is padded for both bars, so nothing jumps when they hide.
    v49.15.3: they slide AND fade (transform + opacity only, 280 ms ease-out, the same timing for the top bar, the chip row,
    the tab bar, the new-stories pill, the sync pill and the Terms bar), so they glide back in instead of snapping. The top
@@ -1815,7 +1818,8 @@ dialog.reel-share[open]{animation:rs-up .22s ease-out}
 .fbtop,.fb-safe{display:none}
 @media (max-width:1023.98px){
   html{--fb-turq:#00C9CD;--fb-pink:#FF1A7F;--fb-orange:#FF6A0B;--fb-silver:#C9CCCE;--fb-dur:.28s;--fb-curve:cubic-bezier(.22,.61,.36,1);--fb-ease:var(--fb-dur) var(--fb-curve);
-    --fb-up:calc(var(--tabs-h,57px) + var(--fb-chips-h,0px) + 8px);   /* how far the top bar + chip row slide up (app.js sets --fb-chips-h) */
+    --fb-up:calc(var(--tabs-h,57px) + var(--fb-chips-h,0px) + 8px + var(--fb-overhang));   /* how far the top bar + chip row slide up (app.js sets --fb-chips-h; v49.16: + the logo's overhang) */
+    --fb-overhang:13px;   /* v49.16: how far the Chisme badge hangs below the bar */
     --fbbot-h:calc(66px + env(safe-area-inset-bottom,0px))}   /* pre-JS fallback; app.js measures the real height */
   .topbar{display:none}            /* the skyline header: its Chisme bubble lives in the top bar now */
   body > .tagline{display:none}    /* phones: the top bar is the Chisme bubble over the city skyline (v49.15.3: no ¿Oyistes? on phones) */
@@ -1828,30 +1832,51 @@ dialog.reel-share[open]{animation:rs-up .22s ease-out}
     box-shadow:0 2px 10px rgba(0,0,0,.22);transform:translateY(0);opacity:1;
     transition:transform var(--fb-ease),opacity var(--fb-ease),box-shadow var(--fb-ease);will-change:transform,opacity}
   .fb-safe{display:block;position:fixed;top:0;left:0;right:0;height:env(safe-area-inset-top,0px);z-index:2003;background:var(--fb-turq);pointer-events:none}
-  .fbtop-in{display:flex;align-items:center;gap:6px;height:52px;max-width:1200px;margin:0 auto;padding:0 10px 0 8px}
-  .fbtop .brand-bubble{position:relative;left:auto;top:auto;flex:none;width:60px;height:47px;margin:0;border-radius:45%;transform-origin:30% 90%}
+  /* v49.16: three columns, the outer two always the same width, so the bubble sits dead centre whatever is on the sides
+     (☰ left; the Install pill, when there is one, right) and can never run into ☰, down to 320 px */
+  .fbtop-in{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;column-gap:6px;height:52px;max-width:1200px;margin:0 auto;padding:0 9px}
+  .fb-left{justify-self:start;display:flex;align-items:center;min-width:0}
+  .fb-center{display:flex;align-items:center;justify-content:center;min-width:0}
+  .fb-right{justify-self:end;display:flex;align-items:center;gap:10px;min-width:0}
+  .fbtop .brand-bubble{position:relative;left:auto;top:auto;flex:none;width:60px;height:47px;margin:0;border-radius:45%;transform-origin:50% 90%}
+  /* v49.16: the bubble is a badge that breaks the bar's bottom edge: drawn bigger than its button (88×68, ~12 px past the
+     papel picado stripe) with a soft shadow. Only the button (60×47, inside the bar) takes taps; the drawing ignores them,
+     so a tap on the overhang lands on the chips (or whatever is) under it. It's inside the bar, so it hides and shows with it. */
+  .fbtop .brand-bubble .bubble{inset:auto;left:50%;top:-1px;width:88px;height:68px;margin-left:-44px;pointer-events:none;
+    filter:drop-shadow(0 3px 4px rgba(0,0,0,.38)) drop-shadow(0 1px 1px rgba(0,0,0,.25))}
   .fbtop .bubble-edge{fill:var(--fb-turq);stroke:var(--fb-turq)}
-  .fb-right{margin-left:auto;display:flex;align-items:center;gap:10px;flex:none}
-  .fbtop .install{min-height:40px;padding:0 .7em;font-size:15px;border-radius:999px}
-  .fbtop .fb-ico{display:grid;place-items:center;width:42px;height:42px;min-height:0;padding:0;border-radius:50%;border:0;background:#000;color:#fff;
-    font-size:20px;line-height:1;box-shadow:none}
-  .fbtop .fb-ico:active,.fbtop .fb-tia:active{transform:scale(.92)}
-  /* Tía's bubble: her avatar in a circle with a pink ring and a little speech-bubble tail */
-  .fbtop .fb-tia{position:relative;width:44px;height:44px;min-height:0;padding:0;border-radius:50%;border:2px solid #000;background:#0b0b2a;
-    box-shadow:0 0 0 3px var(--fb-pink);overflow:visible}
-  .fbtop .fb-tia img{display:block;width:100%;height:100%;border-radius:50%;object-fit:cover}
-  .fbtop .fb-tia::after{content:"";position:absolute;left:-7px;bottom:-5px;width:0;height:0;border-style:solid;border-width:9px 0 0 12px;
-    border-color:transparent transparent transparent var(--fb-pink);transform:rotate(18deg);pointer-events:none}
-  .fbtop .fb-ico:focus-visible,.fbtop .fb-tia:focus-visible,.fbtop .brand-bubble:focus-visible{outline:4px solid var(--focus);outline-offset:3px}
+  .fbtop .install{min-height:40px;padding:0 .7em;font-size:15px;border-radius:999px;white-space:nowrap}
+  /* ☰ Menu: three white bars on a see-through dark disc with a light ring (on the turquoise bar: black bars, white disc) */
+  .fbtop .fb-menu{display:grid;place-items:center;width:44px;height:44px;min-height:0;padding:0;border-radius:50%;border:0;cursor:pointer;
+    background:rgba(255,255,255,.4);color:#000;box-shadow:inset 0 0 0 1.5px rgba(0,0,0,.28);transition:background .15s,transform .1s}
+  .fb-burger{display:flex;flex-direction:column;justify-content:space-between;width:20px;height:14px}
+  .fb-burger i{display:block;height:2.5px;border-radius:2px;background:currentColor}
+  .fbtop .fb-menu:active{transform:scale(.92)}
+  .fbtop .fb-menu:focus-visible,.fbtop .brand-bubble:focus-visible{outline:4px solid var(--focus);outline-offset:3px}
   .fb-picado{height:5px;background:repeating-linear-gradient(90deg,var(--fb-pink) 0 26px,var(--fb-orange) 26px 52px,#000 52px 78px)}
-  @media (max-width:359px){ .fb-right{gap:8px} .fbtop .brand-bubble{width:54px;height:42px} }
+  @media (max-width:359px){ .fb-right{gap:8px} .fbtop .brand-bubble{width:54px;height:42px} .fbtop .brand-bubble .bubble{top:0;width:80px;height:62px;margin-left:-40px}
+    .fbtop .fb-menu{width:42px;height:42px} .fbtop-in{padding:0 7px} }
+  /* v49.16 Día de Muertos confetti behind the bar's buttons: one 240×64 tile (static/season/fb-confetti.svg) on two layers
+     that drift down at different speeds by exactly one tile (seamless). Only transform animates (compositor, no repaint);
+     paused while the bar is tucked away; still under Reduce motion (the system's or Chisme's own). */
+  .fb-confetti{display:none}
+  html[data-season="muertos"] .fb-confetti{display:block;position:absolute;left:0;right:0;top:0;bottom:5px;z-index:0;overflow:hidden;pointer-events:none;contain:strict}
+  .fb-confetti::before,.fb-confetti::after{content:"";position:absolute;left:0;right:0;top:-64px;height:calc(100% + 64px);
+    background:url("/static/season/fb-confetti.svg") 0 0/240px 64px repeat;will-change:transform;animation:fb-confetti 16s linear infinite}
+  .fb-confetti::before{opacity:.8}
+  .fb-confetti::after{background-position:117px 29px;opacity:.5;transform:scale(-1,1);animation:fb-confetti-b 23s linear infinite}
+  @keyframes fb-confetti{from{transform:translate3d(0,0,0)}to{transform:translate3d(0,64px,0)}}
+  @keyframes fb-confetti-b{from{transform:scale(-1,1) translate3d(0,0,0)}to{transform:scale(-1,1) translate3d(-14px,64px,0)}}
+  html.fb-hide .fb-confetti::before,html.fb-hide .fb-confetti::after,html.feed-open .fb-confetti::before,html.feed-open .fb-confetti::after{animation-play-state:paused}
+  .reduce-motion .fb-confetti::before,.reduce-motion .fb-confetti::after{animation:none}
   /* v49.15.3: the old header's city skyline (app.js copies #topbar .skyline in as .fb-sky) as a band behind the bar's
-     buttons: same art and the same metro pick (#fbtop[data-skyline]), toned down so ⚙️, Tía and the bubble stay clear.
+     buttons: same art and the same metro pick (#fbtop[data-skyline]), toned down so ☰ and the bubble stay clear.
      It's inside the bar, so it slides and fades with it, and it doesn't change the bar's height. */
   .fbtop-in{position:relative;z-index:1}
   .fbtop .fb-sky{position:absolute;left:0;right:0;top:auto;bottom:5px;width:100%;height:calc(100% - 5px - env(safe-area-inset-top,0px));max-height:52px;
     z-index:0;fill:#000;opacity:.34;pointer-events:none}
   .fbtop .fb-sky .confetti{display:none}
+  .fbtop .fb-sky .heli{transform:translate(150px,-2px)}   /* v49.16: the helicopter moves off the centred bubble, over the right-hand side */
   #fbtop[data-skyline="sa"] .sky-sa,#fbtop[data-skyline="city"] .sky-city,#fbtop[data-skyline="houston"] .sky-houston,#fbtop[data-skyline="austin"] .sky-austin,
   #fbtop[data-skyline="dallas"] .sky-dallas,#fbtop[data-skyline="miami"] .sky-miami{display:inline}
   [data-theme="dark"] .fbtop .fb-sky{fill:#0a8f93;opacity:.6}
@@ -1877,6 +1902,12 @@ dialog.reel-share[open]{animation:rs-up .22s ease-out}
   html[data-launch] .tabs .tab[aria-current="page"]::before{content:none}
   html[data-launch] .tabs .tab[aria-current="page"] > span[aria-hidden]:first-child{background:transparent}
   @media (max-width:359px){ .tabs .tab > span[aria-hidden]:first-child{width:46px;height:28px;font-size:18px} .tabs .tab{font-size:11px} }
+  /* v49.16: Tía's tab (far right): her avatar in a small ring where the other tabs have an emoji; it opens her chat, so it's
+     never the current tab, but it lights up like one while her chat is open */
+  .tabs .tab-tia .tab-tia-ico img{display:block;width:28px;height:28px;border-radius:50%;object-fit:cover;box-shadow:0 0 0 2px var(--fb-pink);background:#0b0b2a}
+  .tabs .tab-tia.tia-on{color:var(--fb-turq)}
+  .tabs .tab-tia.tia-on > span[aria-hidden]:first-child{background:var(--fb-turq)}
+  @media (max-width:359px){ .tabs .tab-tia .tab-tia-ico img{width:24px;height:24px} }
 
   /* --- hidden (scrolling down): both bars slide off and fade out; the status-bar strip (.fb-safe) stays at the top */
   html.fb-hide .fbtop,html.feed-open .fbtop{transform:translateY(calc(-1 * var(--fb-up)));opacity:0;box-shadow:none}
@@ -1887,6 +1918,7 @@ dialog.reel-share[open]{animation:rs-up .22s ease-out}
   /* the Chisme tab's sticky chip row (All · News · Sports · Events; the only sticky sub-filter row) rides with the top
      bar: stuck right under it, and slid up out of sight with it while you scroll down (Facebook-style), back with it */
   .mq-chips{opacity:1;transition:transform var(--fb-ease),opacity var(--fb-ease),visibility 0s;will-change:transform,opacity}
+  .mq-chips{padding-top:calc(var(--fb-overhang) + 4px)}   /* v49.16: the chips start below the logo's overhang (stuck or not) */
   html.fb-hide .mq-chips,html.feed-open .mq-chips{transform:translateY(calc(-1 * var(--fb-up)));opacity:0;
     visibility:hidden;transition:transform var(--fb-ease),opacity var(--fb-ease),visibility 0s var(--fb-dur)}
   /* the floating pills ride with the bars on the `translate` property (their own transform is for their pop-in / press) */
@@ -1903,8 +1935,7 @@ dialog.reel-share[open]{animation:rs-up .22s ease-out}
   [data-theme="dark"] .fb-safe{background:#000}
   [data-theme="dark"] .fbtop{background:#000;color:#fff;box-shadow:0 2px 10px rgba(0,0,0,.6),inset 0 -1px 0 #1d1d1d}
   [data-theme="dark"] .fbtop .bubble-edge{fill:#000;stroke:var(--fb-turq);stroke-width:16}
-  [data-theme="dark"] .fbtop .fb-ico{background:#1e2224;color:#fff;box-shadow:inset 0 0 0 2px #3a4144}
-  [data-theme="dark"] .fbtop .fb-tia{border-color:#000}
+  [data-theme="dark"] .fbtop .fb-menu{background:rgba(255,255,255,.14);color:#fff;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.34)}
   [data-theme="dark"] .fb-picado{background:repeating-linear-gradient(90deg,var(--fb-pink) 0 26px,var(--fb-orange) 26px 52px,var(--fb-turq) 52px 78px)}
   [data-theme="dark"] .tabs{background:#000;border-top-color:#1d1d1d}
 
@@ -1914,9 +1945,10 @@ dialog.reel-share[open]{animation:rs-up .22s ease-out}
     background:radial-gradient(90px 46px at 0 100%,rgba(255,106,11,.38),transparent 70%),radial-gradient(90px 46px at 100% 100%,rgba(255,26,127,.32),transparent 70%),linear-gradient(180deg,#0e0520,#2a1250)}
   [data-season="muertos"] .fbtop .bubble-edge,[data-season="muertos"][data-theme="dark"] .fbtop .bubble-edge{fill:#2a1250;stroke:var(--fb-pink);stroke-width:16}
   [data-season="muertos"] .fbtop .ip{fill:#ff3d8b} [data-season="muertos"] .fbtop .il{fill:#8eebeb}
-  [data-season="muertos"] .fbtop .fb-ico{background:#2a1250;color:#fff;box-shadow:inset 0 0 0 2px #563b84}
-  [data-season="muertos"] .fbtop .fb-tia{box-shadow:0 0 0 3px var(--fb-orange),0 0 12px 2px rgba(255,106,11,.45)}
-  [data-season="muertos"] .fbtop .fb-tia::after{border-left-color:var(--fb-orange)}
+  [data-season="muertos"] .fbtop .fb-menu,[data-season="muertos"][data-theme="dark"] .fbtop .fb-menu{background:rgba(42,18,80,.55);color:#fff;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.42)}
+  [data-season="muertos"] .tabs .tab-tia .tab-tia-ico img{box-shadow:0 0 0 2px var(--fb-orange)}
+  [data-season="muertos"] .tabs .tab-tia.tia-on{color:var(--fb-pink)}
+  [data-season="muertos"] .tabs .tab-tia.tia-on > span[aria-hidden]:first-child{background:var(--fb-pink)}
   [data-season="muertos"] .fb-picado,[data-season="muertos"][data-theme="dark"] .fb-picado{background:repeating-linear-gradient(90deg,var(--fb-pink) 0 22px,var(--fb-orange) 22px 44px,var(--fb-turq) 44px 66px,#0e0520 66px 88px)}
   [data-season="muertos"] .tabs,[data-season="muertos"][data-theme="dark"] .tabs{background:#0e0520;border-top-color:#2a1250;box-shadow:0 -2px 12px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,106,11,.55)}
   [data-season="muertos"] .tabs .tab{color:#e6dcf7}
@@ -1927,7 +1959,7 @@ dialog.reel-share[open]{animation:rs-up .22s ease-out}
 }
 /* reduced motion (the phone's setting or Settings → Reduce motion): no sliding; the bars just cross-fade quickly (120 ms)
    in place, and the pills jump straight to their spot */
-@media (max-width:1023.98px) and (prefers-reduced-motion:reduce){ .fbtop,.tabs,.mq-chips{transition:opacity .12s linear!important} .news-pill,.sync,.terms-bar,.fb-sky{transition:none!important} }
+@media (max-width:1023.98px) and (prefers-reduced-motion:reduce){ .fbtop,.tabs,.mq-chips{transition:opacity .12s linear!important} .news-pill,.sync,.terms-bar,.fb-sky{transition:none!important} .fb-confetti::before,.fb-confetti::after{animation:none!important} }
 @media (max-width:1023.98px){ .reduce-motion .fbtop,.reduce-motion .tabs,.reduce-motion .mq-chips{transition:opacity .12s linear!important} .reduce-motion .news-pill,.reduce-motion .sync,.reduce-motion .terms-bar,.reduce-motion .fb-sky{transition:none!important} }
 
 /* ---------- v49.15 Día de Muertos logo decorations: a candle + a calavera beside the Chisme bubble (phone top bar; the
@@ -1951,9 +1983,9 @@ dialog.reel-share[open]{animation:rs-up .22s ease-out}
 @media (prefers-reduced-motion:reduce){ .mq-flame{animation:none} }
 @media (max-width:1023.98px){
   html[data-season="muertos"] .fbtop .mq-deco{display:block;flex:none;pointer-events:none}
-  html[data-season="muertos"] .fbtop .mq-vela{width:12px;margin:12px -1px 0 0;align-self:center}      /* 12×27 + the flame above */
-  html[data-season="muertos"] .fbtop .mq-skull{width:22px;margin:0 2px 0 -1px}                          /* 22×24 */
-  @media (max-width:359px){ html[data-season="muertos"] .fbtop .mq-vela{width:10px} html[data-season="muertos"] .fbtop .mq-skull{width:19px} }
+  html[data-season="muertos"] .fbtop .mq-vela{width:12px;margin:12px 18px 0 10px;align-self:center}   /* 12×27 + the flame above; v49.16: clear of the 88 px badge, 40 px a side so the badge stays centred */
+  html[data-season="muertos"] .fbtop .mq-skull{width:22px;margin:0 0 0 18px}                             /* 22×24; v49.16: even gaps around the centred badge */
+  @media (max-width:359px){ html[data-season="muertos"] .fbtop .mq-vela{width:10px;margin-left:9px} html[data-season="muertos"] .fbtop .mq-skull{width:19px} }
 }
 
 /* ---------- v49.15 weather close buttons: the disclaimer and each alert bubble on the Weather tab get a round 44 px × in

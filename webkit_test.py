@@ -51,7 +51,7 @@ async def settle(pg):
     await pg.wait_for_timeout(400)
 
 async def view_ok(pg, v):
-    if v in ("news", "sports", "events"):   # v49.12: one Chisme tab, then its chip
+    if v in ("news", "sports", "events", "weather"):   # v49.12: one Chisme tab, then its chip (v49.16: Weather too)
         await pg.click('#tabs [data-view="chisme"]'); await pg.wait_for_timeout(600)
         await pg.click(f'.view.active .mq-chip[data-go="{v}"]')
     else: await pg.click(f'#tabs [data-view="{v}"]')
@@ -136,7 +136,7 @@ async def main():
         await pg.goto(URL); await ready(pg); await pg.wait_for_timeout(800)
         check(await pg.evaluate("() => window.__chisme.view") == "weather", "default tab 'Weather' opens on Weather")
         wide = await pg.evaluate("() => ({ doc: document.documentElement.scrollWidth, tabs: [...document.querySelectorAll('#tabs .tab')].map(t => Math.round(t.getBoundingClientRect().right)) })")
-        check(wide["doc"] <= 320 and max(wide["tabs"]) <= 320, f"320 px: no sideways overflow, all 4 tabs fit ({wide})")
+        check(wide["doc"] <= 320 and max(wide["tabs"]) <= 320, f"320 px: no sideways overflow, all 4 tabs fit (v49.16: Chisme · ¿Y la dieta? · Juegos · Tía) ({wide})")
         for v in ("sports", "weather"):
             r = await view_ok(pg, v)
             check(r["view"] == v and r["onScreen"] and r["chars"] > 300, f"320 px: {v} renders ({r})")

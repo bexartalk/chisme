@@ -17,6 +17,7 @@ html.dk .dk-logo img{border-radius:10px;display:block}
 html.dk .dk-logo:hover .dk-word{text-decoration:underline;text-decoration-color:var(--pink);text-decoration-thickness:3px;text-underline-offset:4px}
 html.dk .tab{flex:0 0 auto;flex-direction:row;gap:.4em;min-height:46px;padding:0 16px;font-size:1rem;border-radius:12px}
 html.dk .tab .tl{white-space:nowrap}
+html.dk #tabs .tab-tia{display:none}   /* v49.16: Tía's tab is for phones; the desktop keeps the floating Tía and her menu */
 html.dk .dk-navend{margin-left:auto;display:flex;align-items:center;gap:10px}
 html.dk #settings-btn{position:static;transform:none;width:auto;height:auto;min-height:46px;padding:0 14px;margin:0;border-radius:12px;background:transparent;color:#fff;border:2px solid #4b5357;font-weight:800;font-size:.95rem;display:inline-flex;align-items:center;gap:.35em;box-shadow:none;filter:none;animation:none}
 html.dk #settings-btn svg{display:none}
