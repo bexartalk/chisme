@@ -2062,15 +2062,16 @@
       level(n) { n = Math.max(1, Math.min(LEVELS.length, n | 0)); paused = false; ckScore = 0; startLevel(n); run.god = true; ctrl(); },   // a level jump is never a real run
       pause, resume, el, wrap,
     };
+    function godNative() { return !!root.ChismeNative || /ChismeNative/i.test((root.navigator && root.navigator.userAgent) || ""); }   // the store app: window flag or its user agent
     function loadGod() {
-      if (root.ChismeNative || godUi || !el.isConnected) return;
+      if (godNative() || godUi || !el.isConnected) return;
       const attach = () => { if (godUi || !el.isConnected || !root.ChismeJuanGod) return; try { godUi = root.ChismeJuanGod.attach(godHooks) || null; } catch (e) { godUi = null; } };
       if (godLoaded) { attach(); return; }
       const s = document.createElement("script"); s.src = "/stats/juan/god.js"; s.async = true;
       s.onload = () => { godLoaded = true; attach(); }; s.onerror = () => s.remove();   // 401/404: not the owner, nothing happens
       document.head.appendChild(s);
     }
-    if (!root.ChismeNative && /(?:^|;\s*)chisme_admin=1(?:;|$)/.test(document.cookie)) loadGod();
+    if (!godNative() && /(?:^|;\s*)chisme_admin=1(?:;|$)/.test(document.cookie)) loadGod();
 
     // ---- input: tap / click the game, the Jump button, Space / ↑ / W
     cv.addEventListener("pointerdown", (e) => { e.preventDefault(); jump(); });

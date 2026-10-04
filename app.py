@@ -2988,6 +2988,8 @@ async def juan_god_js(request: Request):
     select). Guarded like GET /stats/juan/scores (the /stats sign-in: HttpOnly cookie, path=/stats), so only the signed-in
     owner ever gets the code; everyone else gets the usual 401 (404 with no ADMIN_TOKEN). Not in /static, not precached by
     the service worker (it never touches /stats/), never cached anywhere (no-store)."""
+    if "chismenative" in (request.headers.get("user-agent") or "").lower():
+        return JSONResponse({"ok": False, "error": "not allowed"}, status_code=404, headers=STATS_HEADERS)   # never in the native app, even for the owner
     if not await _juan_admin(request, json_only=False):
         return _nope()
     return Response((BASE / "private" / "juan_god.js").read_text(encoding="utf-8"), media_type="text/javascript; charset=utf-8",

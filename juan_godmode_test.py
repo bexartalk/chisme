@@ -8,7 +8,8 @@
   • the owner (signed in on /stats): ⚡ God → Immortal (bumps cost no health, agents never catch him), Fly, Noclip, Speed,
     Jump to a level; the GOD MODE badge; a god-mode run never saves a best score, never opens the Top 10 sheet and never
     POSTs a score (leaving full screen, a level clear, the win); turned off + Start over = a real run again
-  • the native app (window.ChismeNative): no request for the panel, no button, even for the signed-in owner
+  • the native app (window.ChismeNative, or a ChismeNative user agent): no request for the panel, no button, even for the
+    signed-in owner; GET /stats/juan/god.js with a ChismeNative user agent is 404 even with the owner's key
 Screenshots: screenshots/godmode-panel.png, screenshots/godmode-play.png.
 CHISME_URL (default :8211) = a server with no ADMIN_TOKEN; OWNER_URL (default :8212) = a local server started with
 ADMIN_TOKEN=$OWNER_TOKEN. JUAN_GOD_ENGINE=webkit|chromium (default webkit: the owner plays on an iPhone)."""
@@ -36,8 +37,9 @@ def http(url, method="GET", headers=None, body=None):
         with urllib.request.urlopen(req, timeout=30) as r: return r.status, dict(r.headers), r.read().decode("utf-8", "replace")
     except urllib.error.HTTPError as e: return e.code, dict(e.headers), e.read().decode("utf-8", "replace")
 
-async def page(b, p, base, init="", url="/#juan", cookies=None):
+async def page(b, p, base, init="", url="/#juan", cookies=None, ua=None):
     dev = dict(p.devices["iPhone 13"]); dev.pop("default_browser_type", None); dev["viewport"] = {"width": 390, "height": 844}
+    if ua: dev["user_agent"] = dev["user_agent"] + " " + ua
     if ENGINE != "webkit": dev.pop("is_mobile", None)
     ctx = await b.new_context(**dev); await ctx.add_init_script(SETUP + init); await ctx.add_init_script(QUIET)
     if cookies: await ctx.add_cookies(cookies)
@@ -66,6 +68,8 @@ async def main():
         st, h, body = http(OWNER_URL + "/stats/juan/god.js", headers={"Authorization": "Bearer " + TOKEN})
         hl = {k.lower(): v for k, v in h.items()}
         check(st == 200 and "ChismeJuanGod" in body and "javascript" in hl.get("content-type", "") and "no-store" in hl.get("cache-control", ""), f"the owner's key (Bearer, like the other /api/juan admin calls) → {st} {hl.get('content-type')} {hl.get('cache-control')}")
+        st, h, body = http(OWNER_URL + "/stats/juan/god.js", headers={"Authorization": "Bearer " + TOKEN, "User-Agent": "Mozilla/5.0 (iPhone) ChismeNative/1.0"})
+        check(st == 404 and "ChismeJuanGod" not in body, f"the owner's key from the native app (ChismeNative user agent) → {st}")
     for u in ("/static/juan_god.js", "/static/../private/juan_god.js", "/private/juan_god.js"):
         st, h, body = http(BASE + u); check("ChismeJuanGod" not in body, f"{u} → {st}, no panel code")
     js = http(BASE + "/static/juan.js")[2]; sw = http(BASE + "/sw.js")[2]
@@ -155,6 +159,10 @@ async def main():
             ctx, pg, errs, god_req, _ = await page(b, p, OWNER_URL, init="window.ChismeNative = { platform: 'ios' };", url=None, cookies=signed_in)
             await pg.goto(OWNER_URL + "/#juan"); await pg.wait_for_function(f"window.__chisme && __chisme.ready && {G} && {G}.skins", timeout=120000); await pg.wait_for_timeout(2500)
             await no_god(pg, "window.ChismeNative, signed in as the owner"); check(not god_req, f"…and the panel is never even asked for ({len(god_req)})")
+            await ctx.close()
+            ctx, pg, errs, god_req, _ = await page(b, p, OWNER_URL, url=None, cookies=signed_in, ua="ChismeNative/1.0")
+            await pg.goto(OWNER_URL + "/#juan"); await pg.wait_for_function(f"window.__chisme && __chisme.ready && {G} && {G}.skins", timeout=120000); await pg.wait_for_timeout(2500)
+            await no_god(pg, "a ChismeNative user agent (no window flag), signed in as the owner"); check(not god_req, f"…and the panel is never even asked for ({len(god_req)})")
             await ctx.close()
             print("== signed out")
             ctx, pg, errs, god_req, _ = await page(b, p, OWNER_URL, url=None, cookies=signed_in)
