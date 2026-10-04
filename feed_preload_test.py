@@ -6,6 +6,7 @@ fetched and decoded; each swipe plays the next video within 400 ms (median) with
 break it (the 2 videos after it are warm while you look at it, and the swipe past it plays at once); 13 swipes in there are
 still exactly 4 player iframes and none of them more than 2 videos from the one on screen; swipe back: the one behind plays.
 Slow connection (effectiveType 3g): 3 players, only 1 video ahead, thumbnails 2 ahead. Data saver: no autoplay, no players.
+v49.15.3: 2g / slow-2g: the next video is only cued (its player made, no video data), and the swipe to it still plays.
 WebKit (iPhone 13): 3 players (memory), all made before Start so that one tap unlocks sound in every one (v41 fix kept):
 the next 2 videos warm, 5 swipes each playing with sound."""
 from popup_quiet import QUIET   # v49: the notifications card + Settings tip have their own tests
@@ -21,7 +22,7 @@ def check(ok, what):
     print(("  ok   " if ok else "  FAIL ") + what); (None if ok else fails.append(what))
 ST = """() => { const f = window.__chisme.forYou, P = f.player, sl = [...document.querySelectorAll('#feed-scroll .vf-slide')];
   const vidIdx = sl.map((s, i) => s.dataset.url ? i : -1).filter(i => i >= 0), vpos = (i) => vidIdx.indexOf(i);
-  return { cur: f.cur, pool: P.pool, ahead: P.ahead, slow: P.slow, ios: P.ios, n: P.players.length, frames: document.querySelectorAll('iframe.vf-yt').length,
+  return { cur: f.cur, pool: P.pool, ahead: P.ahead, slow: P.slow, low: P.low, ios: P.ios, n: P.players.length, frames: document.querySelectorAll('iframe.vf-yt').length,
     players: P.players.map(p => ({ slide: p.slide, warm: p.warm, st: p.st, ready: p.ready, unlocked: p.unlocked, muted: p.muted })),
     warmReady: sl.map((s, i) => s.dataset.warm === 'ready' ? i : -1).filter(i => i >= 0), warms: P.warms,
     far: P.players.filter(p => p.slide >= 0 && Math.abs(vpos(p.slide) - vpos(f.cur)) > 2).map(p => p.slide),
@@ -104,6 +105,18 @@ async def slow(p):
     check(not [k for k in th if k > 3], f"…and thumbnails only 2 ahead ({s['thumbs']})")
     t = await swipe_time(pg, vids[1])
     check(t <= 600, f"…the swipe to it still plays at once ({t} ms)")
+    await b.close()
+    b, pg, errs = await open_feed(p, "chromium", NET % ("2g", "false"))   # v49.15.3: low data: cue the next one, no video bytes
+    try: await pg.wait_for_function("window.__chisme.forYou.player.players.length === 3 && window.__chisme.forYou.player.players.every(p => p.ready)", timeout=30000)
+    except Exception: pass
+    await pg.click("#fy-start"); await pg.wait_for_function(PLAYING, arg=0, timeout=20000); await all_warm(pg); await pg.wait_for_timeout(2500)
+    s = await pg.evaluate(ST); vids = [i for i, k in enumerate(s["kinds"]) if k in "ty"]
+    nxt = [pl for pl in s["players"] if pl["slide"] == vids[1]]
+    check(s.get("low") and s["ahead"] == 1 and s["warmReady"] == vids[1:2] and len(nxt) == 1 and nxt[0]["st"] == 5 and not [pl for pl in s["players"] if pl["warm"] and pl["slide"] != vids[1]],
+          f"2g: only the next video is warmed, and only cued (state 5, no video data) {nxt} warm {s['warmReady']}")
+    t = await swipe_time(pg, vids[1])
+    check(t <= 3000, f"…the swipe to it still plays ({t} ms)")
+    check(not errs, f"no page errors {errs[:2]}")
     await b.close()
     b, pg, errs = await open_feed(p, "chromium", NET % ("4g", "true"))
     await pg.wait_for_timeout(2500); await pg.click("#fy-start"); await pg.wait_for_timeout(2500)
