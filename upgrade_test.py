@@ -39,7 +39,9 @@ async def nav_click(pg, sel):
     """The phone bars (v49.15 fb-nav: the bottom tab bar, the top bar and the Chisme tab's chip row) slide away on a scroll
     down, so a tab or chip click can land off screen. Same approach as update_test's tab_click: if they're hidden, scroll
     up 120 px like a person would (a scroll up of 8 px+ brings them back), wait, then go to the very top if they're still
-    hidden (at the top they always show), then click."""
+    hidden (at the top they always show), then click. v49.15.3: a chip below the fold is scrolled into view first (that
+    scroll down is what hides the bars), so Playwright's own scroll-into-view doesn't hide the row under the click."""
+    await pg.evaluate("(s) => { const e = document.querySelector(s), r = e && e.getBoundingClientRect(); if (r && (r.top < 0 || r.bottom > innerHeight)) { e.scrollIntoView({block: 'center'}); return true; } return false; }", sel) and await pg.wait_for_timeout(500)
     hidden = "() => document.documentElement.classList.contains('fb-hide') || document.querySelector('#tabs').getBoundingClientRect().top >= innerHeight"
     if await pg.evaluate(hidden):
         await pg.evaluate("window.scrollBy(0, -120)")
