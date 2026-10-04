@@ -44,8 +44,8 @@ LOGO = "/static/site/chisme-bubble-logo.svg"   # the 'Chisme' bubble cut from th
 DESC = (f"{TAGLINE} San Antonio news, sports, events, weather, food and games in one "
         "free app. Made for the waiting room.")
 OG_IMAGE = "/static/site/og-banner.png"   # v49.15.3: the 1200×630 link-preview banner (same as index.html's og block)
-OG_ALT = ("The Chisme logo over the San Antonio skyline with papel picado and marigolds: San Antonio news, sports, games "
-          "and chisme, all in one free app")   # v49.15.3: what the banner shows (no ¿Oyistes? on it any more); same as index.html
+OG_ALT = ("The Chisme logo and its pitch (San Antonio news, sports, games and chisme, all in one free app), a Día de los Muertos "
+          "ofrenda with a framed sugar skull, candles, fruit and pan dulce, two phones showing Chisme, and the San Antonio skyline")   # v49.15.3: what the banner shows (no ¿Oyistes? on it any more); same as index.html
 
 _HOST_RX = re.compile(r"^[A-Za-z0-9.-]{1,253}(:\d{1,5})?$")
 _BASE_RX = re.compile(r"^https?://[A-Za-z0-9.-]{1,253}(:\d{1,5})?$")
