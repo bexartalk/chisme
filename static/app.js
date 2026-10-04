@@ -977,6 +977,13 @@ window.CHISME_APP_BUILD = "49.15.3";
   const fcNative = () => !!window.ChismeNative;
   let fcWhere = { chisme: [], news: [], sports: [], events: [] };
   const isPromo = (n) => !!n && n.matches("aside.donate, .donate-every, .from-chisme, #donate-mid");
+  // v49.15.3: the first-donor shout-out next to the buttons, on every From Chisme card (the store app's Share-only card too).
+  // La Jefa only, never a real name (not in the alt either); a 160 px webp (no metadata) shown ~48 px, lazy, sized so nothing shifts.
+  const FC_JEFA = { src: `/static/site/la-jefa.webp?v=${window.CHISME_APP_BUILD}`, alt: "La Jefa, Chisme's first donor",
+    text: "First Donor: La Jefa, gracias for believing in Chisme" };
+  const fcJefa = () => el("div", { class: "fc-jefa" },
+    el("img", { class: "fc-jefa-img", src: FC_JEFA.src, alt: FC_JEFA.alt, width: "46", height: "46", loading: "lazy", decoding: "async" }),
+    el("p", { class: "fc-jefa-t" }, el("span", { "aria-hidden": "true", text: "👑 " }), FC_JEFA.text));
   function fcCard(k, ask) {
     ask = ask && !fcNative();
     const c = el("aside", { class: "card from-chisme" + (ask ? "" : " fc-share-only"), "aria-label": "From Chisme", "data-fc": String(k) });
@@ -985,6 +992,7 @@ window.CHISME_APP_BUILD = "49.15.3";
     c.append(el("p", { class: "fc-label", text: "From Chisme" }), logo,
       el("h3", { class: "fc-t", text: ask ? `${FC_GOAL.title}, $${FC_GOAL.amount}` : "Love the chisme? Pass it on." }),
       el("p", { class: "fc-p", text: ask ? FC_GOAL.line : "Send Chisme to your people: news, weather, sports and events in one free app." }),
+      fcJefa(),
       el("div", { class: "fc-btns" },
         ask ? el("a", { class: "fc-bmc", href: FC_GOAL.url, "aria-haspopup": "dialog" }, el("span", {}, el("span", { "aria-hidden": "true", text: "☕ " }), "Buy Me a Coffee")) : null,
         el("button", { type: "button", class: "fc-share" }, el("span", {}, el("span", { "aria-hidden": "true", text: "📣 " }), "Share Chisme"))));

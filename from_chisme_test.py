@@ -8,6 +8,9 @@
   • a refresh puts the cards back in the same slots (no doubles, none back to back); the "N new stories" pill counts
     new stories only, not the cards
   • square at phone size (390 and 320 px), no yellow (light, dark, Día de Muertos)
+  • v49.15.3 first-donor shout-out on every card (store app too): a round La Jefa photo (static/site/la-jefa.webp, ≤ 30 KB,
+    no EXIF/XMP, lazy, width/height set) + exactly "👑 First Donor: La Jefa, gracias for believing in Chisme", alt
+    "La Jefa, Chisme's first donor", no real name. Screenshots (SHOTS): la-jefa-card.png, -dark, -muertos, -desktop
 Screenshot: SHOTS/donate-card.png (390x844 phone), donate-card-native.png.
     URL=http://127.0.0.1:8321/ SHOTS=/workspace/chisme-smoothnav-shots ./venv/bin/python from_chisme_test.py"""
 import ast, asyncio, json, os, sys
@@ -44,6 +47,18 @@ SCAN = "(sel) => { " + YELLOW_JS + r""" const rgb = (s) => [...String(s).matchAl
     for (const v of [cs.backgroundColor, cs.backgroundImage, cs.color, cs.boxShadow, cs.borderTopColor, cs.fill]) if (rgb(v).some(yellow)) bad.push((e.className.baseVal ?? e.className) + ' ' + String(v).slice(0, 40)); }
   for (const e of document.querySelectorAll(sel.split(',')[0].trim())) { const cs = getComputedStyle(e, '::before'); if (rgb(cs.backgroundImage).some(yellow)) bad.push('::before ' + cs.backgroundImage.slice(0, 40)); }
   return { n, bad }; }"""
+
+JEFA_TEXT = "👑 First Donor: La Jefa, gracias for believing in Chisme"; JEFA_ALT = "La Jefa, Chisme's first donor"
+JEFA_JS = """() => [...document.querySelectorAll('.from-chisme')].map((c) => { const j = c.querySelector('.fc-jefa'), i = j && j.querySelector('img.fc-jefa-img'), t = j && j.querySelector('.fc-jefa-t');
+  const r = i && i.getBoundingClientRect(), cs = i && getComputedStyle(i);
+  return { ok: !!(j && i && t), text: t ? t.textContent : '', alt: i ? i.getAttribute('alt') : '', lazy: i ? i.getAttribute('loading') : '', w: i ? i.getAttribute('width') : '', h: i ? i.getAttribute('height') : '',
+    src: i ? i.getAttribute('src') : '', round: cs ? cs.borderRadius : '', size: r ? Math.round(r.width) : 0, nextIsBtns: !!(j && j.nextElementSibling && j.nextElementSibling.matches('.fc-btns')) }; })"""
+def jefa_ok(cards, where):
+    good = [c for c in cards if c["ok"] and c["text"] == JEFA_TEXT and c["alt"] == JEFA_ALT and c["lazy"] == "lazy" and c["w"] and c["h"]
+            and "/static/site/la-jefa.webp" in c["src"] and c["round"] == "50%" and c["nextIsBtns"]]
+    check(cards and len(good) == len(cards), f"{where}: every From Chisme card has the La Jefa shout-out by the buttons (exact text + alt, lazy, sized) ({len(good)}/{len(cards)}) {cards[:1]}")
+    seen = [c for c in cards if c["size"]]
+    check(all(40 <= c["size"] <= 58 for c in seen), f"{where}: the photo is a small round one (44-56 px) {[c['size'] for c in seen][:3]}")
 
 async def new_page(b, w=390, h=844, theme="light", season="off", native=False, tab="chisme", sw="allow"):
     ctx = await b.new_context(viewport={"width": w, "height": h}, color_scheme=theme, is_mobile=True, has_touch=True, device_scale_factor=3, service_workers=sw)
@@ -88,6 +103,15 @@ async def main():
               f"390 px: the card is square ({box['w']:.0f}x{box['h']:.0f}), the label is small ({box['labelH']:.0f} px), the bubble logo shows, buttons are 44 px+ and inside the card")
         y = await pg.evaluate(SCAN, ".from-chisme, .from-chisme *")
         check(y["n"] > 8 and not y["bad"], f"light: no yellow in the card ({y['n']} elements) {y['bad'][:3]}")
+        jefa_ok(await pg.evaluate(JEFA_JS), "390 px light")
+        with open(os.path.join(HERE, "static", "site", "la-jefa.webp"), "rb") as f: wb = f.read()
+        check(wb[:4] == b"RIFF" and wb[8:12] == b"WEBP" and len(wb) <= 30 * 1024 and b"EXIF" not in wb and b"XMP " not in wb,
+              f"la-jefa.webp: a webp of {len(wb) // 1024} KB (≤ 30 KB), no EXIF / XMP metadata")
+        body = await pg.evaluate("() => [...document.querySelectorAll('.from-chisme .fc-jefa')].map((j) => j.textContent + ' ' + j.querySelector('img').alt).join(' | ')")
+        names = {w for part in body.split(" | ") for w in part.replace(",", " ").replace(":", " ").replace("'s", " ").split() if w[:1].isupper()}
+        check(names <= {"First", "Donor", "La", "Jefa", "Chisme", "👑"}, f"no real name in the shout-out or its alt, only 'La Jefa' {sorted(names)}")
+        c = pg.locator("#view-chisme .from-chisme").first; await c.scroll_into_view_if_needed(); await pg.wait_for_timeout(400)
+        await c.screenshot(path=f"{OUT}/la-jefa-card.png")
         # screenshot: the card in the feed, at phone size
         await pg.evaluate("() => { const c = document.querySelector('#view-chisme .from-chisme'); scrollTo({ top: c.getBoundingClientRect().top + scrollY - (innerHeight - c.offsetHeight) / 2, behavior: 'instant' }); }")
         await pg.wait_for_timeout(200); await pg.evaluate("window.__chismeNav.show()"); await pg.wait_for_timeout(500)
@@ -141,6 +165,7 @@ async def main():
             money: c.filter((x) => /\\$\\d|coffee|donat/i.test(x.textContent)).length, share: c.every((x) => x.querySelector('button.fc-share')), native: window.__chisme.fromChisme.native }; }""")
         check(nat["native"] and nat["n"] >= 4 and nat["bmc"] == 0 and nat["money"] == 0 and nat["share"], f"ChismeNative set: the cards keep only 📣 Share Chisme (no Buy Me a Coffee, no $99 goal) {nat}")
         await slots(pg, "store app")
+        jefa_ok(await pg.evaluate(JEFA_JS), "store app (no donate button, the shout-out stays)")
         c = pg.locator("#view-chisme .from-chisme").first
         await c.scroll_into_view_if_needed(); await pg.wait_for_timeout(300)
         await c.screenshot(path=f"{OUT}/donate-card-native.png")
@@ -154,10 +179,23 @@ async def main():
             tag = f"{w} px {theme}{' + Día de Muertos' if season == 'muertos' else ''}"
             check(box["h"] <= box["w"] * 1.2 and not box["over"] and box["w"] <= w - 20, f"{tag}: the card stays (about) square and nothing spills sideways ({box['w']:.0f}x{box['h']:.0f})")
             check(y["n"] > 8 and not y["bad"], f"{tag}: no yellow in the card {y['bad'][:3]}")
+            jefa_ok(await pg.evaluate(JEFA_JS), tag)
+            shot = {("dark", "off"): "dark", ("light", "muertos"): "muertos"}.get((theme, season)) if w == 390 else None
+            if shot:
+                c = pg.locator("#view-chisme .from-chisme").first; await c.scroll_into_view_if_needed(); await pg.wait_for_timeout(400)
+                await c.screenshot(path=f"{OUT}/la-jefa-card-{shot}.png")
             if theme == "dark" and season == "off":
                 c = pg.locator("#view-chisme .from-chisme").first; await c.scroll_into_view_if_needed(); await pg.wait_for_timeout(300)
                 await c.screenshot(path=f"{OUT}/donate-card-dark.png")
             await ctx.close()
+        print("\n== desktop 1280 px")
+        ctx, pg, errs = await new_page(b, w=1280, h=900)
+        jefa_ok(await pg.evaluate(JEFA_JS), "desktop 1280 px")
+        y = await pg.evaluate(SCAN, ".from-chisme, .from-chisme *")
+        check(not y["bad"], f"desktop: no yellow in the card {y['bad'][:3]}")
+        c = pg.locator("#view-chisme .from-chisme").first; await c.scroll_into_view_if_needed(); await pg.wait_for_timeout(400)
+        await c.screenshot(path=f"{OUT}/la-jefa-card-desktop.png")
+        await ctx.close()
         await b.close()
     print("\n" + ("ALL OK" if not fails else f"{len(fails)} FAILED:\n  - " + "\n  - ".join(fails)))
     sys.exit(1 if fails else 0)

@@ -40,6 +40,7 @@ ART.push(...["papel-picado", "marigold", "sugar-skull", "candle", "calavera", "v
 // v49.3: the 3 KB display face for "Tía Chismosa" in her chat header
 ART.push("/static/fonts/chewy-tia.woff2");
 // v49.14: the desktop website's art (~40 KB): the icon's "Chisme" bubble logo, the confetti page tiles, the Chewy display face
+ART.push(`/static/site/la-jefa.webp?v=${BUILD}`);   // v49.15.3: the From Chisme card's first-donor photo (~6 KB), so it shows offline too
 ART.push(`/static/site/chisme-bubble-logo.svg?v=${BUILD}`, "/static/site/confetti.svg", "/static/site/confetti-dark.svg", "/static/fonts/chewy-site.woff");
 // v41: Chismería's (was Lotería Chismosa) recorded Spanish calls (57 short mp3s, ~1.3 MB; tools/make_loteria_audio.py), best-effort too.
 ART.push(...[...Array.from({ length: 54 }, (_, i) => String(i + 1).padStart(2, "0")), "intro", "loteria", "over"].map((k) => `/static/loteria/audio/${k}.mp3`));

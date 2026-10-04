@@ -1999,6 +1999,19 @@ dialog.reel-share[open]{animation:rs-up .22s ease-out}
 .from-chisme .fc-bmc:active,.from-chisme .fc-share:active{transform:translateY(3px);box-shadow:0 1px 0 #000}
 .from-chisme .fc-bmc:focus-visible,.from-chisme .fc-share:focus-visible{outline:4px solid #000;outline-offset:3px}
 .from-chisme.fc-share-only .fc-share{flex:0 1 260px;background:#FF1A7F}
+/* v49.15.3: the first-donor shout-out (La Jefa) by the buttons: a small round photo with a thin fiesta ring + one line
+   (the card makes room so it stays square: a little less gap, a smaller bubble logo, the goal line on 2 lines) */
+.from-chisme{gap:6px;padding:16px 14px 14px}
+.from-chisme .fc-logo{width:60px;height:47px}
+.from-chisme .fc-p{max-width:40ch;font-size:.84rem;line-height:1.25}
+.from-chisme .fc-jefa{display:flex;align-items:center;justify-content:center;gap:10px;max-width:36ch;margin:0}
+.from-chisme .fc-jefa-img{flex:none;display:block;width:46px;height:46px;border-radius:50%;object-fit:cover;
+  border:2.5px solid #FF1A7F;box-shadow:0 0 0 1.5px #000;background:#fff}
+.from-chisme .fc-jefa-t{margin:0;font-size:.8rem;font-weight:800;line-height:1.25;color:#000;text-align:left;text-wrap:balance}
+[data-theme="dark"] .from-chisme .fc-jefa-img{border-color:#00C9CD;box-shadow:none;background:#000}
+[data-theme="dark"] .from-chisme .fc-jefa-t{color:#fff}
+[data-season="muertos"] .from-chisme .fc-jefa-img,[data-season="muertos"][data-theme="dark"] .from-chisme .fc-jefa-img{border-color:#FF1A7F;box-shadow:none;background:#2a1250}
+[data-season="muertos"] .from-chisme .fc-jefa-t{color:#fff}
 [data-theme="dark"] .from-chisme .fc-share{border-color:#fff;box-shadow:0 4px 0 #00C9CD}
 [data-theme="dark"] .from-chisme .fc-bmc{box-shadow:0 4px 0 #fff}
 .reduce-motion .from-chisme .fc-bmc:active,.reduce-motion .from-chisme .fc-share:active{transform:none}
@@ -2011,4 +2024,5 @@ dialog.reel-share[open]{animation:rs-up .22s ease-out}
 [data-season="muertos"] .from-chisme .fc-label{background:#FF1A7F;color:#000}
 [data-season="muertos"] .from-chisme .bubble-edge{fill:#2a1250;stroke:#FF1A7F;stroke-width:16}
 @media (max-width:359px){ .from-chisme{padding:18px 12px 14px;gap:6px} .from-chisme .fc-logo{width:60px;height:47px} .from-chisme .fc-t{font-size:1.08rem}
-  .from-chisme .fc-p{display:none} }   /* 320 px: the headline carries it, so the card stays square */
+  .from-chisme .fc-p{display:none} .from-chisme .fc-jefa{gap:8px} .from-chisme .fc-jefa-img{width:44px;height:44px} .from-chisme .fc-jefa-t{font-size:.72rem;line-height:1.2}
+  .from-chisme .fc-bmc,.from-chisme .fc-share{flex-basis:100px;font-size:.88rem} }   /* 320 px: the headline carries it, so the card stays square */
