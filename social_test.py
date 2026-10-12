@@ -305,10 +305,14 @@ _hdr = _css[_css.index("/* v49.19 the profile header"):]
 _sky = open(f"{HERE}/static/site/sa-skyline.svg").read()
 check("📷 Change header" in _js and "✖ Remove" in _js and "/static/site/chisme-bubble-logo.svg" in _js and "/static/site/sa-skyline.svg" in _js
       and 'relation === "me"' in _js, "the owner gets Change header + Remove; the default is the Chisme bubble + the SA skyline")
-check(set(re.findall(r'fill="([^"]+)"', _sky)) == {"#000", "#C0C0C0"} and "sky-win" not in _sky, "the skyline SVG: black buildings, silver windows (from the app's header art)")
+_app_css = open(f"{HERE}/static/style.css").read()
+check(set(re.findall(r'fill="([^"]+)"', _sky)) == {"#0a8f93", "#0d2f31"} and "sky-win" not in _sky and '[data-theme="dark"] .skyline{fill:#0a8f93}' in _app_css
+      and '[data-theme="dark"] .sky-win{fill:#0d2f31' in _app_css, "the skyline SVG: the app's own turquoise skyline art (its colors as-is)")
 _cols = {c.upper() for c in re.findall(r"#[0-9A-Fa-f]{3,6}\b", re.sub(r"/\*.*?\*/", "", _hdr, flags=re.S))}
 check(_cols <= {"#00C9CD", "#FF1A7F", "#FF6A0B", "#000", "#FFF", "#C0C0C0"} and not re.search(r"yellow|gold\b", re.sub(r"/\*.*?\*/", "", _hdr, flags=re.S), re.I),
       f"the header uses only the icon's Fiesta colors (no yellow): {_cols}")
+_skh = int(re.search(r"\.sx \.p-hdr-sky \{[^}]*height: (\d+)px", _hdr).group(1)); _hh = int(re.search(r"\.sx \.p-hdr \{ height: (\d+)px", _hdr).group(1))
+check(_skh >= 88 and _hh >= 200 and _hh - _skh >= 100, f"the skyline is big (≈2× v49.19's 46 px: {_skh} px) and the header grew to keep room ({_hh} px)")
 _ff = re.search(r'@font-face \{ font-family: "Chisme Profile Display"; src: url\("([^"]+)"\)', _hdr)
 check(_ff and _ff.group(1) == "/static/fonts/chewy-site.woff" and os.path.exists(f"{HERE}{_ff.group(1)}") and "http" not in _ff.group(0)
       and '.sx .p-name { font-family: "Chisme Profile Display"' in _hdr, "the profile name uses the self-hosted Chewy display font (no CDN)")
