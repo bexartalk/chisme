@@ -66,6 +66,7 @@ main { max-width: 640px; margin: 0 auto; outline: none; }
 .fld { display: flex; flex-direction: column; gap: 4px; font-weight: 600; font-size: .9rem; }
 .fld input, .fld textarea, .fld select, .form textarea, .form input[type=url], .form input:not([type]) { font: inherit; padding: 11px 12px; border-radius: 12px;
   border: 1.5px solid var(--line); background: #fff; color: var(--ink); width: 100%; }
+:focus-visible { outline: 3px solid var(--tq); outline-offset: 2px; }
 input:focus, textarea:focus, select:focus { outline: 3px solid color-mix(in srgb, var(--accent) 45%, transparent); border-color: var(--accent); }
 .chk { display: flex; gap: 10px; align-items: flex-start; font-size: .92rem; }
 .chk input { width: 22px; height: 22px; flex: none; accent-color: var(--pk); }
@@ -114,8 +115,8 @@ input:focus, textarea:focus, select:focus { outline: 3px solid color-mix(in srgb
   display: flex; align-items: center; justify-content: center; }
 .clip iframe { width: 100%; aspect-ratio: 9 / 16; max-height: 70vh; border: 0; display: block; }
 .clip-t { margin: 0; padding: 8px 10px; font-size: .9rem; }
-.react { display: flex; gap: 2px; margin-top: 6px; border-top: 1px solid var(--line); padding-top: 6px; flex-wrap: wrap; }
-.rx { display: inline-flex; align-items: center; gap: 4px; background: none; border: 0; border-radius: 999px; padding: 6px 9px; font: 600 .9rem/1 system-ui, sans-serif;
+.react { display: flex; gap: 0; margin-top: 6px; border-top: 1px solid var(--line); padding-top: 6px; }
+.rx { display: inline-flex; align-items: center; gap: 4px; background: none; border: 0; border-radius: 999px; padding: 6px 7px; font: 600 .9rem/1 system-ui, sans-serif;
   color: var(--muted); cursor: pointer; min-height: 40px; text-decoration: none; }
 .rx span:first-child { font-size: 1.15rem; }
 .rx.on { background: #FFE6F1; color: #C4005A; }
@@ -137,7 +138,7 @@ main > .form { padding: 10px 8px; }
 .profile { background: #fff; border-bottom: 1px solid var(--line); padding: 0 14px 0; --acc: var(--accent); }
 .banner { height: 150px; margin: 0 -14px; position: relative; }
 .banner.edit { display: flex; align-items: flex-end; justify-content: flex-end; padding: 10px; }
-.p-top { display: flex; align-items: flex-end; justify-content: space-between; margin-top: -48px; }
+.p-top { position: relative; z-index: 1; display: flex; align-items: flex-end; justify-content: space-between; margin-top: -48px; }
 .p-top .av { border-width: 4px; border-color: var(--acc); box-shadow: 0 0 0 3px #fff; }
 .p-btns { display: flex; gap: 8px; padding-bottom: 4px; }
 .p-name { margin: 8px 0 0; }
@@ -150,7 +151,7 @@ main > .form { padding: 10px 8px; }
   border-bottom: 3px solid transparent; }
 .ptabs a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--acc); }
 .profile + .list { margin-top: 10px; }
-.av-edit { display: flex; align-items: flex-end; gap: 10px; margin-top: -48px; padding-bottom: 12px; }
+.av-edit { position: relative; z-index: 1; display: flex; align-items: flex-end; gap: 10px; margin-top: -48px; padding-bottom: 12px; }
 .chip-btn { background: rgba(17, 17, 17, .78); color: #fff; border: 0; border-radius: 999px; padding: 8px 12px; font-weight: 700; min-height: 40px; cursor: pointer; }
 .editing + .card { margin: 10px 8px; }
 .swatches { display: flex; gap: 10px; flex-wrap: wrap; padding: 4px 0; }
@@ -187,7 +188,7 @@ main > .form { padding: 10px 8px; }
 .thumb { position: relative; margin: 0; border-radius: 12px; overflow: hidden; background: var(--bg); }
 .thumb img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
 .thumb.vid, .thumb.clipthumb { grid-column: 1 / -1; }
-.thumb video { width: 100%; max-height: 360px; display: block; background: #000; }
+.thumb video { width: 100%; max-height: 300px; display: block; background: #000; }
 .thumb figcaption { font-size: .8rem; padding: 4px 8px; color: var(--muted); }
 .rm { position: absolute; top: 6px; right: 6px; width: 34px; height: 34px; border-radius: 50%; border: 0; background: rgba(17, 17, 17, .75); color: #fff; cursor: pointer; z-index: 3; }
 .tools { display: flex; gap: 6px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 6px 0; }

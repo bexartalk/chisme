@@ -323,7 +323,10 @@
     memes: "No memes yet?! Post one with #memes and get the 😂 rolling.",
   };
   async function feed(tab) {
-    document.querySelectorAll("#feedtabs a").forEach((a) => a.setAttribute("aria-current", a.dataset.tab === tab ? "page" : "false"));
+    document.querySelectorAll("#feedtabs a").forEach((a) => {
+      a.setAttribute("aria-current", a.dataset.tab === tab ? "page" : "false");
+      if (a.dataset.tab === tab) a.scrollIntoView({ inline: "nearest", block: "nearest" });
+    });
     const list = el("div", { class: "list" }, el("p", { class: "loading", text: "Getting the chisme..." }));
     const head = {
       homies: ["🤝 Homies", "Chismes from your confirmed Homies."], sananto: ["🌶️ San Anto", "Public chisme from around San Antonio."],

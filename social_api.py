@@ -782,9 +782,11 @@ def install_profiles(app: FastAPI, is_owner) -> None:
         mine, nah, blocked = await v.homies(), await v.nahs(), await v.blocked()
         rows = await S.db().select("social_profiles", [("verified", "eq", True), ("status", "eq", "active"), ("id", "neq", v.id)],
                                    order=[("created_at", True)], limit=300)
+        pending = {r["to_id"] for r in await S.db().select("social_homie_requests", [("from_id", "eq", v.id)], cols=["to_id"], limit=5000)} | \
+            {r["from_id"] for r in await S.db().select("social_homie_requests", [("to_id", "eq", v.id)], cols=["from_id"], limit=5000)}
         scored = []
         for p in rows:
-            if p["id"] in mine or p["id"] in blocked or not X.privacy_of(p)["suggest"]:
+            if p["id"] in mine or p["id"] in blocked or p["id"] in pending or not X.privacy_of(p)["suggest"]:
                 continue
             mut = len(await X.homie_ids(p["id"]) & mine)
             s = mut * 3 + (1 if v.me.get("area") and p.get("area") == v.me.get("area") else 0) + (0.5 if X.age_hours(p) < X.FRESH_DAYS * 24 else 0)
