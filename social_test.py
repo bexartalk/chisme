@@ -18,7 +18,7 @@ for k in [k for k in os.environ if k.startswith(("UPSTASH_", "RENDER", "SUPABASE
     os.environ.pop(k)
 TOKEN = "social-test-admin-token-77"
 os.environ.update(ADMIN_TOKEN=TOKEN, SOCIAL_FAKE_AUTH="1", SOCIAL_DIR=f"{tmp}/social", PUSH_STORE_FILE=f"{tmp}/push.json",
-                  STATS_STORE_FILE=f"{tmp}/stats.json", AUTO_PUSH_WAKE_DELAY="9999", OWNER_POSTS_DIR=f"{tmp}/posts", OWNER_POSTS_STATIC_MAP="0", SIGNUPS_PUBLIC="1")
+                  STATS_STORE_FILE=f"{tmp}/stats.json", AUTO_PUSH_WAKE_DELAY="9999", OWNER_POSTS_DIR=f"{tmp}/posts", OWNER_POSTS_STATIC_MAP="0", SIGNUPS_PUBLIC="1", NEW_USER_REVIEW="0", SOCIAL_OWNER_EMAIL="boss.goonie@example.com")
 fails = 0
 
 

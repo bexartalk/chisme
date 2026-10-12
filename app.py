@@ -2768,7 +2768,13 @@ def _gate(request: Request, error: str = "") -> str:
 
 
 async def _signed_in(request: Request) -> bool:
-    return await stats.session_ok(request.cookies.get(stats.COOKIE))
+    # the /stats sign-in, or Goonie's own Chisme account (SOCIAL_OWNER_EMAIL, the in-app ☰ → Admin tools reuse /stats/*)
+    if await stats.session_ok(request.cookies.get(stats.COOKIE)):
+        return True
+    try:
+        return await social.admin_session(request)
+    except Exception:
+        return False
 
 
 @app.get("/stats", include_in_schema=False)

@@ -27,6 +27,7 @@ import httpx
 TABLES: dict[str, dict] = {   # columns, primary key, json columns, bool columns
     "social_profiles": {"pk": ["id"], "json": ["privacy"], "bool": ["verified", "flagged"],
                         "cols": ["id", "username", "display_name", "bio", "area", "photo", "banner", "accent", "pinned_id", "privacy", "status", "verified", "flagged",
+                                 "role", "badge", "badge_at", "review",
                                  "report_count", "created_at", "updated_at"]},
     "social_private": {"pk": ["user_id"], "bool": ["adult"], "cols": ["user_id", "email_hash", "email_hint", "phone", "adult", "age_checked_at", "tos_at", "tos_version", "privacy_at", "privacy_version",
                                                    "signup_ip", "device", "created_at"], "unique": [["email_hash"]]},

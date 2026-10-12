@@ -411,6 +411,7 @@ class Viewer:
     def __init__(self, me: dict | None):
         self.me = me
         self.id = me["id"] if me else None
+        self.admin = is_admin_profile(me)
         self._homies: set | None = None
         self._blocked: set | None = None
         self._nah: set | None = None
@@ -480,9 +481,61 @@ def photo_url(name: str | None) -> str | None:
     return S.media().url(name) if name and S.NAME_RX.match(name) else None
 
 
+BADGES = {"gold": "Gold badge: someone Chisme knows", "blue": "Blue badge: an active member"}
+
+
+def badge_of(p: dict) -> str | None:
+    """The admin is always gold; everyone else has what the admin gave them (or nothing)."""
+    if p.get("role") == "admin":
+        return "gold"
+    return p.get("badge") if p.get("badge") in BADGES else None
+
+
 def mini(p: dict) -> dict:
     return {"username": p["username"], "name": p["display_name"], "photo": photo_url(p.get("photo")),
-            "accent": p.get("accent") if p.get("accent") in ACCENTS else "turquoise", "fresh": age_hours(p) < FRESH_DAYS * 24}
+            "accent": p.get("accent") if p.get("accent") in ACCENTS else "turquoise", "fresh": age_hours(p) < FRESH_DAYS * 24,
+            "badge": badge_of(p)}
+
+
+# ---------------------------------------------------------------- the admin (the owner's own account) + new-user review
+def owner_email() -> str:
+    """SOCIAL_OWNER_EMAIL: Goonie's sign-in email. That account is Chisme's admin (gold badge, all the owner tools)."""
+    return normalize_email(_env("SOCIAL_OWNER_EMAIL"))
+
+
+def is_admin_profile(p: dict | None) -> bool:
+    return bool(p and live(p) and p.get("role") == "admin")
+
+
+async def promote_owner(uid: str, email: str) -> None:
+    """At sign-up / code / sign-in: the SOCIAL_OWNER_EMAIL account becomes the admin (and only that one)."""
+    oe = owner_email()
+    if oe and normalize_email(email) == oe:
+        await S.db().update("social_profiles", [("id", "eq", uid)], {"role": "admin", "badge": "gold", "review": "approved"})
+
+
+async def admin_session(request: Request) -> bool:
+    """app.py's owner check also accepts a signed-in admin account, so the in-app Admin tools reuse the /stats endpoints."""
+    uid = await session_uid(request)
+    return is_admin_profile(await profile_by(uid=uid)) if uid else False
+
+
+def new_user_review() -> bool:
+    return _env("NEW_USER_REVIEW") != "0"   # on unless turned off
+
+
+def needs_review(p: dict) -> bool:
+    """A new account's Chismes wait for the admin until they're approved or get a blue (or gold) badge."""
+    return new_user_review() and p.get("review") == "pending" and not badge_of(p)
+
+
+async def admin_ids() -> list[str]:
+    return [p["id"] for p in await S.db().select("social_profiles", [("role", "eq", "admin"), ("status", "eq", "active")], cols=["id"], limit=10)]
+
+
+async def notify_admins(actor_id: str, kind: str, chisme_id: str | None = None) -> None:
+    for a in await admin_ids():
+        await notify(a, actor_id, kind, chisme_id, once=True)
 
 
 def allowed(level: str, rel: str) -> bool:
@@ -505,7 +558,7 @@ async def profile_view(v: Viewer, p: dict) -> dict:
 
 
 def can_see(v: Viewer, c: dict, homies: set, blocked: set) -> bool:
-    if c["author_id"] == v.id:
+    if c["author_id"] == v.id or v.admin:
         return c["status"] != "removed"
     if c["status"] != "visible" or c["author_id"] in blocked:
         return False
@@ -555,7 +608,7 @@ async def shape_chismes(v: Viewer, rows: list[dict], check: bool = True) -> list
             "audience": c["audience"], "hashtags": c.get("hashtags") or [], "created_at": c["created_at"],
             "tags": [mini(tagged[t]) for t in c.get("tags") or [] if t in tagged and live(tagged[t]) and t not in blocked],
             "counts": {**counts, "comments": ncom}, "mine": {**mine, "saved": c["id"] in saved},
-            "own": c["author_id"] == v.id, "hidden": c["status"] != "visible",
+            "own": c["author_id"] == v.id, "hidden": c["status"] not in ("visible", "held"), "held": c["status"] == "held",
             "share_url": "/c/" + c["id"] if c["audience"] == "everyone" and c["status"] == "visible" else None,
         })
     return out

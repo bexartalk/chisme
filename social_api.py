@@ -353,6 +353,16 @@ def signup_allowed(email: str) -> bool:
     return bool(email) and email in allow
 
 
+_IS_OWNER = None
+
+
+async def admin_ok(request: Request, write: bool = False) -> bool:
+    """The owner's /stats sign-in, or the signed-in admin account (SOCIAL_OWNER_EMAIL). Checked on every admin call."""
+    if _IS_OWNER and await _IS_OWNER(request, write):
+        return True
+    return (await X.viewer(request)).admin
+
+
 def install(app: FastAPI, *, owner: Callable[..., Awaitable[bool]], public_base: Callable[[Request], str],
             reel_lookup: Callable[[str], dict | None] | None = None, reel_id: Callable[[str], str | None] | None = None) -> None:
 
@@ -362,6 +372,9 @@ def install(app: FastAPI, *, owner: Callable[..., Awaitable[bool]], public_base:
         except Exception:
             return False
 
+    global _IS_OWNER
+    _IS_OWNER = is_owner
+
     # ------------------------------------------------ pages
     @app.get("/social", include_in_schema=False)
     async def social_page(request: Request):
@@ -370,7 +383,7 @@ def install(app: FastAPI, *, owner: Callable[..., Awaitable[bool]], public_base:
 
     @app.get("/stats/social", include_in_schema=False)
     async def mod_page(request: Request):
-        if not await is_owner(request):
+        if not await admin_ok(request):
             return RedirectResponse("/stats", 303)
         body = (BASE / "static" / "social.html").read_text().replace("{{TS_SCRIPT}}", "").replace('data-mode="app"', 'data-mode="mod"')
         return HTMLResponse(body, headers={"Cache-Control": "no-store", "X-Robots-Tag": "noindex"})
@@ -489,12 +502,14 @@ def install(app: FastAPI, *, owner: Callable[..., Awaitable[bool]], public_base:
         uid, t = res["id"], S.now_iso()
         await S.db().insert("social_profiles", {"id": uid, "username": u, "display_name": name, "bio": "", "area": None, "photo": None,
                                                 "banner": None, "accent": "turquoise", "pinned_id": None, "privacy": {}, "status": "active",
-                                                "verified": False, "flagged": False, "report_count": 0, "created_at": t, "updated_at": t})
+                                                "verified": False, "flagged": False, "report_count": 0, "created_at": t, "updated_at": t,
+                                                "role": None, "badge": None, "badge_at": None, "review": "pending" if X.new_user_review() else None})
         await S.db().insert("social_private", {"user_id": uid, "email_hash": eh, "email_hint": X.mask_email(email_raw), "phone": phone,
                                                # the birthday itself is never stored: only "18+, checked on this date"
                                                "adult": True, "age_checked_at": t, "tos_at": t, "tos_version": X.TERMS_VERSION,
                                                "privacy_at": t, "privacy_version": X.PRIVACY_VERSION, "signup_ip": X.hm("ip", ip),
                                                "device": X.hm("dev", dev), "created_at": t})
+        await X.promote_owner(uid, email_raw)
         for kind, ver in (("terms", X.TERMS_VERSION), ("privacy", X.PRIVACY_VERSION), ("community_rules", X.RULES_VERSION), ("age_18", "birthdate-checked")):
             await S.db().insert("social_consents", {"id": X.new_id(), "user_id": uid, "kind": kind, "version": ver, "agreed_at": t})
         r = ok(generic)
@@ -518,6 +533,9 @@ def install(app: FastAPI, *, owner: Callable[..., Awaitable[bool]], public_base:
         if prof.get("status") == "banned":
             raise X.Bad("This account is closed.", 403)
         await S.db().update("social_profiles", [("id", "eq", prof["id"])], {"verified": True})
+        await X.promote_owner(prof["id"], email)
+        if not prof.get("verified") and prof.get("role") != "admin" and X.normalize_email(email) != X.owner_email():
+            await X.notify_admins(prof["id"], "new_user")   # the admin's alerts: a new metiche to look at
         r = ok({"username": prof["username"]})
         await X.start_session(r, request, prof["id"])
         return r
@@ -560,6 +578,7 @@ def install(app: FastAPI, *, owner: Callable[..., Awaitable[bool]], public_base:
         if not prof.get("verified"):
             await S.db().update("social_profiles", [("id", "eq", prof["id"])], {"verified": True})
         r = ok({"username": prof["username"]})
+        await X.promote_owner(prof["id"], email)
         await X.start_session(r, request, prof["id"])
         return r
 
@@ -645,7 +664,7 @@ def install(app: FastAPI, *, owner: Callable[..., Awaitable[bool]], public_base:
         priv = (await S.db().select("social_private", [("user_id", "eq", v.id)], limit=1) or [{}])[0]
         prof = await X.profile_view(v, v.me)
         return ok({"me": {**prof, "email_hint": priv.get("email_hint", ""), "area_choice": v.me.get("area")},
-                   "unread": unread, "requests": reqs, "can_upload": can_upload(v.me), "owner": await is_owner(request)})
+                   "unread": unread, "requests": reqs, "can_upload": can_upload(v.me), "owner": await is_owner(request), "admin": v.admin})
 
     @app.post("/api/social/account/delete")
     @wrap
@@ -861,7 +880,9 @@ def install_profiles(app: FastAPI, is_owner) -> None:
             nm = a["display_name"]
             text = {"homie_request": f"{nm} says you're Homies. 🤝", "homie_yes": f"You and {nm} are Homies now. 🤝",
                     "react": f"{nm} reacted to your Chisme.", "comment": f"{nm} commented on your Chisme. 💬",
-                    "mention": f"{nm} mentioned you in a Chisme."}.get(n["kind"], f"{nm} did something.")
+                    "mention": f"{nm} mentioned you in a Chisme.",
+                    "new_user": f"New metiche: {nm} just joined. Take a look. 👀", "report": f"Something from {nm} was reported. 🚩",
+                    "held": f"{nm}'s first Chisme is waiting for your OK. ⏳"}.get(n["kind"], f"{nm} did something.")
             out.append({"id": n["id"], "kind": n["kind"], "text": text, "actor": X.mini(a), "chisme_id": n.get("chisme_id"),
                         "read": n["read"], "created_at": n["created_at"]})
         await S.db().update("social_notifications", [("user_id", "eq", v.id), ("read", "eq", False)], {"read": True})
@@ -1058,9 +1079,12 @@ def install_chismes(app: FastAPI, is_owner, reel_lookup, reel_id) -> None:
                 mentions.append(pr["id"])
         t = S.now_iso()
         row = {"id": X.new_id(), "author_id": v.id, "text": text, "photos": photos, "videos": videos, "clip": clip, "meme": meme,
-               "audience": aud, "hashtags": tags, "mentions": mentions, "tags": [], "status": "visible", "report_count": 0,
+               "audience": aud, "hashtags": tags, "mentions": mentions, "tags": [], "report_count": 0,
+               "status": "held" if X.needs_review(v.me) and not v.admin else "visible",   # a new metiche's Chismes wait for the admin
                "created_at": t, "updated_at": t}
         await db.insert("social_chismes", row)
+        if row["status"] == "held":
+            await X.notify_admins(v.id, "held", row["id"])
         for nm in [x["name"] for x in photos + videos] + [x["poster"] for x in videos if x.get("poster")]:
             await db.update("social_media", [("name", "eq", nm)], {"status": "attached"})
         if aud != "me":
@@ -1229,6 +1253,7 @@ def install_chismes(app: FastAPI, is_owner, reel_lookup, reel_id) -> None:
                                                "reason": reason, "details": X.clean_text(b.get("details"), 500), "status": "open", "created_at": S.now_iso()})
         except S.Conflict:
             return ok({"message": "You already reported this. Our team will look at it.", "hidden": False})
+        await X.notify_admins(target_user, "report", tid if kind == "chisme" else None)   # who reported stays private
         n = await db.count("social_reports", [("target_kind", "eq", kind), ("target_id", "eq", tid), ("status", "eq", "open")])
         fields: dict = {"report_count": n}
         hidden = n >= X.AUTO_HIDE or reason == "minor"
@@ -1244,7 +1269,7 @@ def install_chismes(app: FastAPI, is_owner, reel_lookup, reel_id) -> None:
     @app.get("/stats/social/queue")
     @wrap
     async def mod_queue(request: Request):
-        if not await is_owner(request):
+        if not await admin_ok(request):
             raise X.Bad("Not here.", 404)
         db = S.db()
         reps = await db.select("social_reports", [("status", "eq", "open")], order=[("created_at", True)], limit=500)
@@ -1282,14 +1307,74 @@ def install_chismes(app: FastAPI, is_owner, reel_lookup, reel_id) -> None:
         out.sort(key=lambda g: (-g["count"], g["first"]))
         dmca = await db.select("social_dmca", [("status", "eq", "open")], order=[("created_at", True)], limit=100)
         holds = await db.count("social_csam_holds", [("reported_at", "isnull", None)])
+        news = await db.select("social_profiles", [("review", "eq", "pending"), ("status", "eq", "active")], order=[("created_at", True)], limit=200)
+        held = await db.select("social_chismes", [("status", "eq", "held")], order=[("created_at", False)], limit=300)
+        v = await X.viewer(request)
+        held_view = {c["id"]: c for c in await X.shape_chismes(X.Viewer(None), held, check=False)}
+        new_users = []
+        for p in news:
+            if X.badge_of(p):
+                continue
+            mine = [held_view[c["id"]] for c in held if c["author_id"] == p["id"] and c["id"] in held_view]
+            new_users.append({**X.mini(p), "bio": p.get("bio") or "", "joined": p["created_at"], "verified": bool(p.get("verified")),
+                              "held": mine, "reports": p.get("report_count") or 0})
         return ok({"items": out, "dmca": [{k: d[k] for k in ("id", "claimant_name", "work", "urls", "created_at")} for d in dmca],
-                   "csam_unreported": holds})
+                   "csam_unreported": holds, "new_users": new_users, "held_count": len(held), "review_on": X.new_user_review(),
+                   "badges": [{**X.mini(p)} for p in await db.select("social_profiles", [("badge", "in", ["gold", "blue"]), ("status", "eq", "active")], limit=500)]})
+
+    @app.post("/api/social/admin/badge")
+    @wrap
+    async def admin_badge(request: Request):
+        """Gold (people Goonie knows) or blue (active members), or none. Admin only; a blue badge also clears the review."""
+        guard(request)
+        if not await admin_ok(request, write=True):
+            raise X.Bad("Not here.", 404)
+        b = await body_of(request)
+        badge = b.get("badge")
+        if badge not in ("gold", "blue", None, "none"):
+            raise X.Bad("Pick gold, blue or none.")
+        p = await X.profile_by(username=X.clean_username(b.get("username")))
+        if not p:
+            raise X.Bad("No one by that @username.", 404)
+        if p.get("role") == "admin":
+            raise X.Bad("The admin's gold badge stays.")
+        badge = None if badge in (None, "none") else badge
+        fields = {"badge": badge, "badge_at": S.now_iso() if badge else None}
+        if badge:
+            fields["review"] = "approved"
+            await S.db().update("social_chismes", [("author_id", "eq", p["id"]), ("status", "eq", "held")], {"status": "visible"})
+        await S.db().update("social_profiles", [("id", "eq", p["id"])], fields)
+        return ok({"profile": X.mini({**p, **fields})})
+
+    @app.post("/api/social/admin/review")
+    @wrap
+    async def admin_review(request: Request):
+        """New metiches: approve (their held Chismes go live) or keep holding. A held Chisme: approve or remove."""
+        guard(request)
+        if not await admin_ok(request, write=True):
+            raise X.Bad("Not here.", 404)
+        b = await body_of(request)
+        db, act = S.db(), b.get("action")
+        if b.get("chisme"):
+            cid = str(b["chisme"])[:60]
+            if act not in ("approve", "remove"):
+                raise X.Bad("Pick approve or remove.")
+            n = await db.update("social_chismes", [("id", "eq", cid), ("status", "eq", "held")], {"status": "visible" if act == "approve" else "removed"})
+            return ok({"done": True})
+        p = await X.profile_by(username=X.clean_username(b.get("username")))
+        if not p:
+            raise X.Bad("No one by that @username.", 404)
+        if act != "approve":
+            raise X.Bad("Pick approve.")
+        await db.update("social_profiles", [("id", "eq", p["id"])], {"review": "approved"})
+        await db.update("social_chismes", [("author_id", "eq", p["id"]), ("status", "eq", "held")], {"status": "visible"})
+        return ok({"done": True})
 
     @app.post("/stats/social/action")
     @wrap
     async def mod_action(request: Request):
         guard(request)
-        if not await is_owner(request, write=True):
+        if not await admin_ok(request, write=True):
             raise X.Bad("Not here.", 404)
         b = await body_of(request)
         kind, tid, act = b.get("kind"), str(b.get("id") or "")[:60], b.get("action")
