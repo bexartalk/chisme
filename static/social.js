@@ -110,9 +110,9 @@
       if (d.next === "verify") { verifyView(email.value); return; }
       if (d.need_bot || d.bot) { await freshChallenge(); bot = botBox(); clear(botSlot).append(bot); }
       return d.error;
-    }, fe, fp, botSlot, el("button", { class: "btn pink wide", type: "submit", text: "Sign in" }));
+    }, fe, fp, botSlot, el("button", { class: "btn pink sx-wide", type: "submit", text: "Sign in" }));
     if (CFG && CFG.turnstile) { bot = botBox(); botSlot.append(bot); }
-    const prov = (CFG && CFG.providers || []).map((p) => el("a", { class: "btn ghost wide", href: "/api/social/oauth/" + p, text: p === "apple" ? " Sign in with Apple" : "Sign in with Google" }));
+    const prov = (CFG && CFG.providers || []).map((p) => el("a", { class: "btn ghost sx-wide", href: "/api/social/oauth/" + p, text: p === "apple" ? " Sign in with Apple" : "Sign in with Google" }));
     page("Sign in", el("section", { class: "card auth" },
       el("h1", { text: "Welcome back 👋" }), el("p", { class: "sub", text: "Sign in to see the chisme from your Homies." }), f, ...prov,
       el("p", { class: "links" }, el("a", { href: "#s/forgot", text: "Forgot password?" }), " · ", el("a", { href: "#s/signup", text: "New here? Join Chisme" }))));
@@ -137,7 +137,7 @@
     }, fn, fu, fe, fb, fp, fp2,
       el("label", { class: "chk" }, tos, el("span", {}, "I agree to the ", el("a", { href: "/terms", target: "_blank", text: "Terms" }), " and the ",
         el("a", { href: "/privacy", target: "_blank", text: "Privacy Policy" }), ".")),
-      bot, el("button", { class: "btn pink wide", type: "submit", text: "Join Chisme 🌶️" }));
+      bot, el("button", { class: "btn pink sx-wide", type: "submit", text: "Join Chisme 🌶️" }));
     page("Join", el("section", { class: "card auth" }, el("h1", { text: "Join Chisme" }),
       el("p", { class: "sub", text: "Your Homies, your city, your chisme. Your email stays private; we only use it to send your 6-digit code." }), f,
       el("p", { class: "links" }, el("a", { href: "#s/signin", text: "Already in? Sign in" }))));
@@ -149,10 +149,10 @@
       const d = await api("/api/social/verify", { method: "POST", body: { email: emailAddr, code: code.value } });
       if (d.ok) { await loadMe(); location.hash = "#s/edit"; toast("You're in! 🎉 Make your profile yours."); return; }
       return d.error;
-    }, fc, el("button", { class: "btn pink wide", type: "submit", text: "Confirm" }));
-    const again = el("button", { type: "button", class: "linkish", text: "Send a new code", onclick: async () => {
+    }, fc, el("button", { class: "btn pink sx-wide", type: "submit", text: "Confirm" }));
+    const again = el("button", { type: "button", class: "sx-link", text: "Send a new code", onclick: async () => {
       const d = await api("/api/social/resend", { method: "POST", body: { email: emailAddr } }); toast(d.message || d.error); } });
-    const dev = CFG && CFG.dev_outbox ? el("button", { type: "button", class: "linkish", text: "(dev) fill the code", onclick: async () => {
+    const dev = CFG && CFG.dev_outbox ? el("button", { type: "button", class: "sx-link", text: "(dev) fill the code", onclick: async () => {
       const d = await api("/api/social/dev/outbox?email=" + encodeURIComponent(emailAddr)); code.value = d.code || ""; } }) : null;
     page("Check your email", el("section", { class: "card auth" }, el("h1", { text: "Check your email 📬" }),
       el("p", { class: "sub", text: msg || "We sent a 6-digit code to your email." }), el("p", { class: "small", text: emailAddr }), f, el("p", { class: "links" }, again, dev)));
@@ -172,8 +172,8 @@
           const r = await api("/api/social/reset", { method: "POST", body: { email: email.value, code: code.value, password: pw.value, password2: pw2.value } });
           if (r.ok) { await loadMe(); location.hash = "#s/feed/sananto"; toast(r.message); return; }
           return r.error;
-        }, fc, fp, fp2, el("button", { class: "btn pink wide", type: "submit", text: "Save password" }))));
-    }, fe, bot, el("button", { class: "btn pink wide", type: "submit", text: "Send me a code" }));
+        }, fc, fp, fp2, el("button", { class: "btn pink sx-wide", type: "submit", text: "Save password" }))));
+    }, fe, bot, el("button", { class: "btn pink sx-wide", type: "submit", text: "Send me a code" }));
     page("Forgot password", el("section", { class: "card auth" }, el("h1", { text: "Forgot your password?" }),
       el("p", { class: "sub", text: "No stress. We'll email you a 6-digit code." }), f));
   }
@@ -221,9 +221,9 @@
     return a;
   }
   function richText(t) {
-    const p = el("p", { class: "txt" });
+    const p = el("p", { class: "sx-txt" });
     String(t || "").split(/([#@][\w]{1,40})/u).forEach((part) => {
-      if (/^#\w/u.test(part)) p.append(el("a", { href: "#s/tag/" + encodeURIComponent(part.slice(1).toLowerCase()), class: "tag", text: part }));
+      if (/^#\w/u.test(part)) p.append(el("a", { href: "#s/tag/" + encodeURIComponent(part.slice(1).toLowerCase()), class: "sx-tag", text: part }));
       else if (/^@[A-Za-z0-9_]{3,20}$/.test(part)) p.append(el("a", { href: "#s/u/" + part.slice(1).toLowerCase(), class: "mention", text: part }));
       else p.append(part);
     });
@@ -236,7 +236,7 @@
     art.append(el("header", { class: "by" },
       el("a", { href: "#s/u/" + a.username, class: "who" }, avatar(a), el("span", {}, el("b", { text: a.name }), el("small", {}, "@" + a.username + " · " + ago(c.created_at),
         a.fresh ? el("em", { class: "new", text: "new here" }) : null))),
-      opts.pinned ? el("span", { class: "pin", text: "📌 Pinned" }) : null,
+      opts.pinned ? el("span", { class: "sx-pin", text: "📌 Pinned" }) : null,
       c.audience !== "everyone" ? el("span", { class: "aud", text: AUD[c.audience] }) : null,
       el("button", { type: "button", class: "more", "aria-label": "More options", text: "⋯", onclick: () => moreMenu(c) })));
     if (c.hidden) art.append(el("p", { class: "note", text: "Hidden while our team checks some reports. Only you can see it." }));
@@ -276,7 +276,7 @@
   function clipCard(clip) {
     const box = el("div", { class: "clip" });
     const play = el("button", { type: "button", class: "clip-play", "aria-label": "Play " + (clip.title || "this ChismeTV clip") },
-      clip.thumb ? el("img", { src: clip.thumb, alt: "", loading: "lazy" }) : el("span", { class: "clip-tt", text: "🎬" }), el("span", { class: "play", text: "▶" }));
+      clip.thumb ? el("img", { src: clip.thumb, alt: "", loading: "lazy" }) : el("span", { class: "clip-tt", text: "🎬" }), el("span", { class: "sx-play", text: "▶" }));
     play.addEventListener("click", () => {
       const f = el("iframe", { src: clip.embed, title: clip.title || "ChismeTV clip", allow: "autoplay; encrypted-media; picture-in-picture", allowfullscreen: true, loading: "lazy" });
       play.replaceWith(f);
@@ -330,14 +330,14 @@
       if (!d.ok) return d.error;
       closeSheet(); toast(d.message, 4500);
       if (d.hidden) document.querySelectorAll(`[data-id="${id}"]`).forEach((n) => n.remove());
-    }, list, dm, details, el("button", { type: "submit", class: "btn pink wide", text: "Send report" }));
+    }, list, dm, details, el("button", { type: "submit", class: "btn pink sx-wide", text: "Send report" }));
     sheet(preset === "copyright" ? "Report copyright" : "What's wrong?", el("div", {}, el("p", { class: "small", text: "Reports are private. They never see who sent one." }), f));
   }
   function blockSheet(username) {
     if (!needMe()) return;
     sheet("Block @" + username + "?", el("div", {},
       el("p", { text: "They won't see your profile or Chismes, can't send you Homie requests, and won't be told. If you're Homies, that ends too." }),
-      el("button", { type: "button", class: "btn pink wide", text: "Block", onclick: async () => {
+      el("button", { type: "button", class: "btn pink sx-wide", text: "Block", onclick: async () => {
         const d = await api("/api/social/block/" + username, { method: "POST", body: { on: true } });
         closeSheet(); toast(d.message || d.error, 4000); if (d.ok) location.hash = "#s/feed/sananto";
       } })));
@@ -397,9 +397,9 @@
     const row = el("div", { class: "comment", "data-id": x.id }, avatar(x.author, 32),
       el("div", {}, el("b", { text: x.author.name }), el("small", { text: " @" + x.author.username + " · " + ago(x.created_at) }), richText(x.text)));
     const actions = el("div", { class: "c-act" });
-    if (x.can_delete) actions.append(el("button", { type: "button", class: "linkish", text: "Delete", onclick: async () => {
+    if (x.can_delete) actions.append(el("button", { type: "button", class: "sx-link", text: "Delete", onclick: async () => {
       const d = await api("/api/social/comments/" + x.id, { method: "DELETE" }); if (d.ok) row.remove(); } }));
-    if (!x.own) actions.append(el("button", { type: "button", class: "linkish", text: "Report", onclick: () => reportSheet("comment", x.id) }));
+    if (!x.own) actions.append(el("button", { type: "button", class: "sx-link", text: "Report", onclick: () => reportSheet("comment", x.id) }));
     row.append(actions);
     return row;
   }
@@ -452,8 +452,8 @@
       p.bio ? el("p", { text: p.bio }) : null,
       el("a", { href: "#s/u/" + p.username, class: "small", text: "See their Chismes, photos and videos", onclick: closeSheet }),
       el("div", { class: "hon-btns" },
-        el("button", { type: "button", class: "btn acc big", text: "🤝 HOMIE", onclick: () => go("homie") }),
-        el("button", { type: "button", class: "btn ghost big", text: "✋ NAH", onclick: () => go("nah") })),
+        el("button", { type: "button", class: "btn acc sx-big", text: "🤝 HOMIE", onclick: () => go("homie") }),
+        el("button", { type: "button", class: "btn ghost sx-big", text: "✋ NAH", onclick: () => go("nah") })),
       el("p", { class: "small", text: "NAH is private. They'll never know." })));
   }
 
@@ -554,7 +554,7 @@
     }, fn, fu, fb, count, el("label", { class: "fld" }, el("span", { text: "📍 Part of town (optional)" }), area),
       el("div", { class: "fld" }, el("span", { text: "Theme accent (the Fiesta palette)" }), sw),
       el("p", { class: "small", text: "Pin a Chisme from its ⋯ menu to keep it at the top of your profile." }),
-      el("button", { type: "submit", class: "btn pink wide", text: "Save profile" }));
+      el("button", { type: "submit", class: "btn pink sx-wide", text: "Save profile" }));
     page("Edit profile", el("section", { class: "profile editing" }, prevBanner, prevAv), el("section", { class: "card" }, el("h1", { text: "Make it yours ✨" }), f));
   }
 
@@ -563,7 +563,7 @@
   const gated = (fn) => () => { if (!ME.can_upload) { toast(SOON, 3500); return; } fn(); };
   function plusMenu() {
     if (!needMe()) return;
-    const opt = (emo, label, fn) => el("button", { type: "button", class: "item big", onclick: () => { closeSheet(); fn(); } }, el("span", { "aria-hidden": "true", text: emo }), " " + label);
+    const opt = (emo, label, fn) => el("button", { type: "button", class: "item sx-big", onclick: () => { closeSheet(); fn(); } }, el("span", { "aria-hidden": "true", text: emo }), " " + label);
     sheet("➕ CHISME", el("div", { class: "menu grid" },
       opt("📸", "Take Photo", gated(() => composer({ pick: "#cam-photo" }))), opt("🖼️", "Upload Photo", gated(() => composer({ pick: "#pick-photo" }))),
       opt("🎥", "Record Video", gated(() => composer({ pick: "#cam-video" }))), opt("📁", "Upload Video", gated(() => composer({ pick: "#pick-video" }))),
@@ -630,7 +630,7 @@
       if (!d.ok) return d.error;
       toast("Chisme posted 🌶️"); location.hash = st.meme ? "#s/feed/memes" : "#s/c/" + d.chisme.id;
     }, text, media, status, tools, el("label", { class: "chk" }, memeT, el("span", { text: "😂 It's a meme (shows in Memes)" })),
-      el("p", { class: "lbl", text: "WHO CAN SEE THIS?" }), aud, el("button", { type: "submit", class: "btn pink wide big", text: "POST CHISME 🌶️" }));
+      el("p", { class: "sx-label", text: "WHO CAN SEE THIS?" }), aud, el("button", { type: "submit", class: "btn pink sx-wide sx-big", text: "POST CHISME 🌶️" }));
     page("New Chisme", el("section", { class: "card composer" }, el("div", { class: "c-who" }, avatar(ME, 40), el("b", { text: ME.name })), f));
     if (o.pick) setTimeout(() => $(o.pick).click(), 50);
     if (o.clip) clipPicker((c) => { st.clip = c; drawMedia(); });
@@ -670,7 +670,7 @@
     const row = (p, incoming) => el("div", { class: "card person" }, el("a", { href: "#s/u/" + p.username, class: "who" }, avatar(p, 52),
       el("span", {}, el("b", { text: p.name }), el("small", { text: "@" + p.username + (p.mutual_homies ? ` · ${p.mutual_homies} Mutual Homies` : "") }))),
       el("button", { type: "button", class: "btn acc", text: incoming ? "Review" : "Homie or Nah?", onclick: () => homieOrNah(p) }));
-    (r.requests || []).forEach((p) => reqs.append(el("div", {}, el("p", { class: "small notif", text: `${p.name} says you're Homies. 🤝` }), row(p, true))));
+    (r.requests || []).forEach((p) => reqs.append(el("div", {}, el("p", { class: "small sx-notif", text: `${p.name} says you're Homies. 🤝` }), row(p, true))));
     if (!(r.requests || []).length) reqs.append(el("p", { class: "empty small", text: "No requests right now." }));
     (s.people || []).forEach((p) => sugg.append(row(p, false)));
     if (!(s.people || []).length) sugg.append(el("p", { class: "empty small", text: "No suggestions yet. Invite your people to Chisme." }));
@@ -680,7 +680,7 @@
     const d = await api("/api/social/notifications");
     if (ME) ME.unread = 0;
     page("Alerts", el("section", { class: "feed-head" }, el("h1", { text: "🔔 Alerts" })), el("div", { class: "list" },
-      (d.notifications || []).length ? d.notifications.map((n) => el("a", { class: "card notif-row" + (n.read ? "" : " unread"),
+      (d.notifications || []).length ? d.notifications.map((n) => el("a", { class: "card sx-notif-row" + (n.read ? "" : " unread"),
         href: n.kind === "homie_request" ? "#s/homies" : n.chisme_id ? "#s/c/" + n.chisme_id : "#s/u/" + n.actor.username },
         avatar(n.actor, 40), el("span", {}, n.text, el("small", { text: " · " + ago(n.created_at) })))) : el("p", { class: "empty", text: "All quiet. For now. 👀" })));
   }
@@ -700,17 +700,17 @@
       sel("requests", "Who can send Homie requests", [["everyone", "Everyone"], ["mutuals", "People with mutual Homies"]]),
       el("h2", { class: "h2", text: "Blocked" }), blocked,
       el("h2", { class: "h2", text: "Safety" }), el("p", {}, el("a", { href: "/dmca", text: "©️ Report copyright (DMCA)" })),
-      el("button", { type: "button", class: "btn ghost wide", text: "Sign out", onclick: async () => { await api("/api/social/logout", { method: "POST", body: {} }); ME = null; location.hash = "#s/signin"; } }),
+      el("button", { type: "button", class: "btn ghost sx-wide", text: "Sign out", onclick: async () => { await api("/api/social/logout", { method: "POST", body: {} }); ME = null; location.hash = "#s/signin"; } }),
       el("h2", { class: "h2 danger", text: "Delete my account" }),
       el("p", { class: "small", text: "This deletes your profile, every Chisme, photo, video, comment and reaction, right now. It can't be undone." }),
       form(async () => {
         const d = await api("/api/social/account/delete", { method: "POST", body: { confirm: del.value.trim() } });
         if (!d.ok) return d.error;
         ME = null; page("Bye", el("section", { class: "card auth" }, el("h1", { text: "Account deleted" }), el("p", { text: d.message })));
-      }, del, el("button", { type: "submit", class: "btn danger wide", text: "Delete my account for good" }))));
+      }, del, el("button", { type: "submit", class: "btn danger sx-wide", text: "Delete my account for good" }))));
     const b = await api("/api/social/blocked");
-    (b.people || []).forEach((p) => blocked.append(el("div", { class: "person slim" }, el("span", { text: p.name + " @" + p.username }),
-      el("button", { type: "button", class: "linkish", text: "Unblock", onclick: async () => { await api("/api/social/block/" + p.username, { method: "POST", body: { on: false } }); settingsView(); } }))));
+    (b.people || []).forEach((p) => blocked.append(el("div", { class: "person sx-slim" }, el("span", { text: p.name + " @" + p.username }),
+      el("button", { type: "button", class: "sx-link", text: "Unblock", onclick: async () => { await api("/api/social/block/" + p.username, { method: "POST", body: { on: false } }); settingsView(); } }))));
     if (!(b.people || []).length) blocked.append(el("p", { class: "small", text: "Nobody. Peace and love. ✌️" }));
   }
 
@@ -766,14 +766,14 @@
   }
   // ------------------------------------------------ in the app: the chips, the ➕ bar, the ☰ menu, and the All mix
   function menu() {
-    const it = (emo, label, href, dot) => el("a", { class: "item big", href, onclick: closeSheet }, el("span", { "aria-hidden": "true", text: emo }), " " + label, dot ? el("b", { class: "pill pink", text: " " + dot }) : null);
+    const it = (emo, label, href, dot) => el("a", { class: "item sx-big", href, onclick: closeSheet }, el("span", { "aria-hidden": "true", text: emo }), " " + label, dot ? el("b", { class: "pill pink", text: " " + dot }) : null);
     const body = ME ? el("div", { class: "menu" },
-      el("a", { class: "item big who-row", href: "#s/me", onclick: closeSheet }, avatar(ME, 44), el("span", {}, el("b", { text: ME.name }), el("small", { text: " @" + ME.username }))),
+      el("a", { class: "item sx-big who-row", href: "#s/me", onclick: closeSheet }, avatar(ME, 44), el("span", {}, el("b", { text: ME.name }), el("small", { text: " @" + ME.username }))),
       it("✏️", "Customize my profile", "#s/edit"), it("🤝", "Homies", "#s/homies", ME.requests || 0), it("🔔", "Alerts", "#s/alerts", ME.unread || 0),
       it("😂", "Memes", "#s/feed/memes"), it("⚙️", "Account and privacy", "#s/settings"), it("©️", "Report copyright (DMCA)", "/dmca"))
       : el("div", { class: "menu" }, el("p", { class: "small", text: "Join to post Chismes, find your Homies and make a profile that's yours." }),
         it("🌶️", "Join Chisme", "#s/signup"), it("👋", "Sign in", "#s/signin"), it("😂", "Memes", "#s/feed/memes"), it("©️", "Report copyright (DMCA)", "/dmca"));
-    sheet("☰ Chisme", body);
+    sheet("☰ Menu", body);
   }
   const mixed = new WeakSet();
   async function mixIn() {   // a few public user Chismes go into the All list, every 3rd card, tagged like the app's own

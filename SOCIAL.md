@@ -5,11 +5,18 @@ shares, ChismeTV reposts, and the safety tools. No LIVE (on hold until Chisme ma
 no check-ins or map yet (part 3).
 
 Files: `social.py` (rules + shapes), `social_api.py` (routes), `social_store.py` (Supabase / SQLite, R2 / Supabase
-Storage / local), `social_auth.py` (Supabase Auth), `static/social.{html,js,css}` (the app at `/social`),
+Storage / local), `social_auth.py` (Supabase Auth), `static/social.{js,css}` (inside the main app, `index.html`; `social.html` is only the moderation page),
 `supabase/migrations/20261004150000_social_p1.sql` (tables + RLS). Test: `social_test.py` (no network, no browser).
 
 ## Pages
-* `/social`: the app. Feeds 🤝 Homies · 🌶️ San Anto · 🔥 Trending · 😂 Memes; ➕ CHISME (Take Photo, Upload Photo,
+* It all lives inside the main app's **Chisme** tab, with the app's own header, background, cards, chips and bottom
+  tabs (social.css is scoped under `.sx` and only adds what the app doesn't have). User Chismes are mixed into
+  **All** (tagged 🌶️ San Anto, like the News / Sports / Events tags), and a second chip row opens the 🤝 Homies ·
+  🌶️ San Anto · 🔥 Trending · 😂 Memes feeds in place of the mix. The "What's the chisme? ➕ CHISME" bar opens the
+  composer. Profiles, Homies, Alerts and Settings open from the feed (names, @mentions) and from the ☰ menu in the
+  top bar. Routes are `#s/...` (e.g. `/#s/u/lupe`, `/#s/feed/memes`), so they never clash with the app's own
+  `#news`, `#juegos`. The old `/social` link redirects to `/#s/feed/sananto`.
+* Feeds 🤝 Homies · 🌶️ San Anto · 🔥 Trending · 😂 Memes; ➕ CHISME (Take Photo, Upload Photo,
   Record Video, Upload Video, Repost a ChismeTV clip, Post a Meme, Text Chisme); profiles; Homies (requests, Homie or
   Nah); Alerts; Settings (privacy, blocked people, sign out, delete account).
 * `/c/<id>`: the share page for an Everyone Chisme (Open Graph tags).
