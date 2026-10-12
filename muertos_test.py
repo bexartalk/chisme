@@ -147,7 +147,7 @@ async def phone(b, name, dev, theme, tag, w=None, tabs=False):
             await pg.evaluate("window.scrollTo(0, 0)"); await pg.wait_for_timeout(300)
             await pg.screenshot(path=f"{SHOTS}/{tag}-chisme-{view}.png")
         for view, nm in (("weather", "weather"), ("antojos", "ofrendas"), ("juegos", "juegos")):
-            await pg.click(f"#tabs [data-view='{view}']"); await pg.wait_for_timeout(3000)
+            await pg.click(".view.active .mq-chip[data-go='weather']" if view == "weather" else f"#tabs [data-view='{view}']"); await pg.wait_for_timeout(3000)   # v49.16: Weather is a Chisme chip
             await pg.evaluate("window.scrollTo(0, 0)"); await pg.wait_for_timeout(300)
             await pg.screenshot(path=f"{SHOTS}/{tag}-{nm}.png")
             low = []

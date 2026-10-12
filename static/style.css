@@ -1646,7 +1646,7 @@ html[data-season="muertos"][data-launch="events"] .tab[data-view="chisme"],html[
   box-shadow:0 6px 8px -8px rgba(0,0,0,.35)}
 .mq-chip{flex:1 1 auto;min-width:0;min-height:46px;padding:.25em .45em;border-radius:999px;border:2px solid var(--line);background:var(--card);color:var(--ink);font-weight:900;font-size:min(.85rem,19px,4.2vw);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 @media (max-width:599px){ .mq-chip span{display:none} }   /* phones (v49.12: incl. 375 px iPhones, where "🏀 Spor…" got cut; v49.16: up to 599 px, 5 chips with Weather): words only, so they always fit */
-@media (max-width:479px){ .mq-chips{gap:5px} .mq-chip{padding:.25em .4em;font-size:min(.85rem,19px,3.9vw)} }   /* v49.16: 5 chips fit untruncated from 320 px */
+@media (max-width:479px){ .mq-chips{gap:5px} .mq-chip{min-width:44px;padding:.25em .4em;font-size:min(.85rem,19px,3.9vw)} }   /* 44 px+ tap targets ("All") */   /* v49.16: 5 chips fit untruncated from 320 px */
 @media (max-width:349px){ .mq-chips{gap:4px} .mq-chip{padding:.25em .3em} }
 /* Chisme → All: the mixed list. Each card keeps its own look (story / sports story / event) with a small tag on top */
 .mix-hi{margin:0 0 12px;font-weight:700;color:var(--ink2);line-height:1.35}
@@ -2076,3 +2076,20 @@ dialog.reel-share[open]{animation:rs-up .22s ease-out}
 .tia-gate-small { margin: 12px 0 0; font-size: .85rem; color: var(--muted); }
 html[data-season="muertos"] .tia-gate { border-color: var(--marigold); box-shadow: 0 5px 0 var(--mq-pink, #FF1A7F); }
 .tia-sheet.gated #tia-log,.tia-sheet.gated #tia-quick,.tia-sheet.gated #tia-form{display:none!important}
+/* v49.16 ☰ Menu sheet: rows other features add (__chismeMenu.setSection, e.g. Chisme social), the dot on ☰ */
+.fb-menu{position:relative}
+.fb-menu .sx-dot{position:absolute;top:4px;right:4px;width:11px;height:11px;border-radius:50%;background:#FF1A7F;box-shadow:0 0 0 2px #fff}
+.fb-menu .sx-dot[hidden]{display:none}
+.menu-sec{display:grid;gap:8px;padding-bottom:10px;margin-bottom:10px;border-bottom:1px solid rgba(127,127,127,.3)}
+.menu-sec-t{margin:0;font-size:.85rem;font-weight:700;opacity:.75}
+a.menu-row{text-decoration:none;color:inherit}
+.menu-badge{display:inline-block;min-width:1.4em;padding:0 .35em;border-radius:999px;background:#FF1A7F;color:#fff;font-size:.8em;text-align:center}
+/* v49.16: the ☰ sheet drops from ☰ (top left, tail up at it), compact rows, scrolls when long; Settings stays reachable */
+dialog.tia-menu.menu-sheet{left:max(8px,env(safe-area-inset-left));right:auto;top:calc(58px + env(safe-area-inset-top));bottom:auto;max-height:calc(100dvh - 140px)}
+dialog.tia-menu.menu-sheet::before{bottom:auto;right:auto;top:-21px;left:14px;border-width:0 15px 19px;border-color:transparent transparent #000}
+dialog.tia-menu.menu-sheet::after{bottom:auto;right:auto;top:-15px;left:18px;border-width:0 11px 15px;border-color:transparent transparent #fff}
+dialog.tia-menu.menu-sheet .tia-menu-in{max-height:calc(100dvh - 146px)}
+.tia-menu .menu-sec .tia-menu-btn{min-height:48px;margin:0;padding:8px 12px;border-width:2px;border-radius:12px;font-size:.95rem}
+.tia-menu .menu-sec .tia-menu-btn .tm-big{font-size:1.05rem}
+.menu-sec{margin-top:10px}
+

@@ -121,15 +121,24 @@ async def phone(b):
     await pg.click("#settings-close"); await pg.wait_for_timeout(400)
     sheet = await pg.evaluate("() => ({ first: document.querySelector('#menu [data-menu-item]')?.dataset.menuItem, label: document.querySelector('#menu-title')?.textContent, n: document.querySelectorAll('#menu [data-menu-item]').length, sheet: __chismeMenu.sheet })")
     check(sheet["first"] == "settings" and sheet["label"] == "Menu" and sheet["n"] == 1 and not sheet["sheet"], f"the Menu sheet has Settings first (one item, so ☰ goes straight to Settings) {sheet}")
-    # a 2nd item turns the sheet on
-    await pg.evaluate("""() => { const b = document.createElement('button'); b.type = 'button'; b.dataset.menuItem = 'account'; b.className = 'tia-menu-btn'; b.textContent = 'Account'; document.querySelector('#menu-items').append(b); }""")
+    # other features plug rows in (Chisme social's items from social-p1, via __chismeMenu.setSection)
+    await pg.evaluate("""() => { window.__picked = null; __chismeMenu.setSection('social', [
+      { emoji: '🙋', label: 'My profile', href: '#s/me' }, { emoji: '✏️', label: 'Customize my profile', href: '#s/edit' },
+      { emoji: '🤝', label: 'Homies', href: '#s/homies', badge: 2 }, { emoji: '🔔', label: 'Alerts', href: '#s/alerts', badge: 5 },
+      { emoji: '😂', label: 'Memes', onSelect: () => { window.__picked = 'memes'; } }, { emoji: '⚙️', label: 'Account and privacy', href: '#s/settings' },
+      { emoji: '©️', label: 'Report copyright (DMCA)', href: '/dmca' }]); __chismeMenu.setDot(true); }""")
+    await pg.click("#fb-menu"); await pg.wait_for_timeout(500)
+    m = await pg.evaluate("() => ({ open: document.querySelector('#menu').open, keys: [...document.querySelectorAll('#menu [data-menu-item]')].map(n => n.dataset.menuItem), dot: !document.querySelector('#fb-menu #sx-dot').hidden, ctl: document.querySelector('#fb-menu').getAttribute('aria-controls') })")
+    check(m["open"] and len(m["keys"]) == 8 and m["keys"][0] == "social:0" and m["keys"][-1] == "settings" and m["dot"] and m["ctl"] == "menu", f"with the social rows, ☰ shows the Menu sheet: social first, Settings last, the dot on ☰ {m}")
+    await pg.screenshot(path=os.path.join(OUT, "menu-social.png"))
+    await pg.click("#menu [data-menu-item='social:4']"); await pg.wait_for_timeout(300)
+    check(await pg.evaluate("window.__picked === 'memes' && !document.querySelector('#menu').open"), "a row's onSelect runs and the sheet closes")
     await pg.click("#fb-menu"); await pg.wait_for_timeout(400)
-    m = await pg.evaluate("() => [document.querySelector('#menu').open, document.querySelector('#menu [data-menu-item]').dataset.menuItem]")
-    check(m == [True, "settings"], f"with a 2nd item, ☰ shows the Menu sheet, Settings first {m}")
     await pg.click("#menu-settings"); await pg.wait_for_timeout(400)
     check(await pg.evaluate("document.querySelector('#settings').open && !document.querySelector('#menu').open"), "the sheet's Settings opens Settings")
     await pg.click("#settings-close"); await pg.wait_for_timeout(400)
-    await pg.evaluate("document.querySelector('#menu [data-menu-item=account]').remove()")
+    await pg.evaluate("() => { __chismeMenu.setSection('social', null); __chismeMenu.setDot(false); }")
+    check(await pg.evaluate("!__chismeMenu.sheet && document.querySelector('#fb-menu').getAttribute('aria-controls') === 'settings'"), "removing the section puts ☰ back to one-tap Settings")
     # the bubble still opens Settings too
     await pg.click("#settings-btn"); await pg.wait_for_timeout(400)
     check(await pg.evaluate("document.querySelector('#settings').open"), "the Chisme bubble still opens Settings")

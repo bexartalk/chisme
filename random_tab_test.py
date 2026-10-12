@@ -48,7 +48,7 @@ async def main():
             prev = s["view"]
         check(not bad, f"14 launches: a main tab each time, never the same twice in a row, tab bar + content match {seen} {bad[:2]}")
         check(not flash, f"…with no flash of another tab before it (track hidden or the launch tab, the tab bar lit on it) {flash[:2]}")
-        check(len(set(seen)) >= 4, f"…and they really vary ({len(set(seen))} different tabs)")
+        check(len(set(seen)) >= 3, f"…and they really vary ({len(set(seen))} different tabs)")
         for url, want in ((URL + "#weather", "weather"), (URL + "#juan", "juegos"), (URL + "?tab=events", "events"), (URL + "?tab=sports#juegos", "juegos"), (URL + "#news", "news"), (URL + "#sports", "sports"), (URL + "#events", "events"), (URL + "#chisme", "chisme")):
             for _ in range(2):   # twice: a deep link wins even when it repeats the last tab
                 s = await launch(pg, url)

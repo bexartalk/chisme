@@ -4166,25 +4166,62 @@ window.CHISME_APP_BUILD = "49.17";
       tabTia.onclick = () => { if (document.querySelector("dialog[open]")) return; tipEnd("tia"); openTia(); tiaOpener = tabTia; tabTia.classList.add("tia-on"); };
       tiaDlg.addEventListener("close", () => tabTia.classList.remove("tia-on"));   // lit like the current tab while her chat is open
     } }
-  // v49.16: the top bar's ☰ Menu (was ⚙️). Its sheet (#menu) lists Settings first; while Settings is its only item, ☰ opens
-  // Settings straight away (one tap, as ⚙️ did). Add an item to #menu-items (e.g. account management) and ☰ shows the sheet.
+  // v49.16: the top bar's ☰ Menu (was ⚙️). Its sheet (#menu) ends with ⚙️ Settings; while Settings is its only item, ☰
+  // opens Settings straight away (one tap, as ⚙️ did). Other features add their own rows with __chismeMenu.setSection():
+  //   __chismeMenu.setSection("social", [{ emoji, label, sub?, href? | onSelect?, badge?, node? }, …], { before? })
+  //   __chismeMenu.setSection("social", null)            // removes them again
+  //   __chismeMenu.onBeforeOpen(async () => { … })      // e.g. refresh who's signed in first
+  //   __chismeMenu.setDot(true)                         // the pink dot on ☰ (#sx-dot; social.js sets it directly too)
+  // Sections are listed in the order they're added, above Settings. Chisme social (profile, Homies, alerts, memes, account,
+  // report copyright) is meant to plug in here instead of opening its own sheet from ☰.
   {
-    const menuBtn = $("#fb-menu"), menuDlg = $("#menu"), items = () => (menuDlg ? menuDlg.querySelectorAll("[data-menu-item]") : []);
+    const menuBtn = $("#fb-menu"), menuDlg = $("#menu"), box = $("#menu-items");
+    const items = () => (menuDlg ? menuDlg.querySelectorAll("[data-menu-item]") : []);
     const openSettings = () => $("#settings-btn").click();
     const sheet = () => !!menuDlg && items().length > 1;
-    function openMenu() {
+    const hooks = [];
+    const sync = () => { if (menuBtn) { menuBtn.setAttribute("aria-controls", sheet() ? "menu" : "settings");
+      menuBtn.setAttribute("aria-label", sheet() ? "Menu: " + [...items()].map((n) => n.dataset.menuLabel || "").filter(Boolean).slice(0, 3).join(", ") : "Menu"); } };
+    function row(key, it, i) {
+      const r = it.href ? document.createElement("a") : document.createElement("button");
+      if (it.href) r.href = it.href; else r.type = "button";
+      r.className = "tia-menu-btn menu-row"; r.dataset.menuItem = key + ":" + (it.key || i); r.dataset.menuLabel = it.label || "";
+      if (it.node) r.append(it.node);
+      else {
+        const big = document.createElement("span"); big.className = "tm-big";
+        big.textContent = (it.emoji ? it.emoji + " " : "") + (it.label || "");
+        if (it.badge) { const p = document.createElement("b"); p.className = "menu-badge"; p.textContent = String(it.badge); big.append(" ", p); }
+        r.append(big);
+        if (it.sub) { const sm = document.createElement("span"); sm.className = "tm-sub"; sm.textContent = it.sub; r.append(sm); }
+      }
+      r.addEventListener("click", (e) => { menuDlg.close(); if (it.onSelect) { e.preventDefault(); it.onSelect(e); } });
+      return r;
+    }
+    function setSection(key, list, opt = {}) {
+      if (!box) return;
+      const old = box.querySelector(`.menu-sec[data-sec="${CSS.escape(key)}"]`);
+      if (!list || !list.length) { if (old) old.remove(); sync(); return; }
+      const sec = document.createElement("div"); sec.className = "menu-sec"; sec.dataset.sec = key;
+      if (opt.title) { const h = document.createElement("p"); h.className = "menu-sec-t"; h.textContent = opt.title; sec.append(h); }
+      list.forEach((it, i) => sec.append(row(key, it, i)));
+      if (old) old.replaceWith(sec); else box.insertBefore(sec, (opt.before && box.querySelector(`.menu-sec[data-sec="${CSS.escape(opt.before)}"]`)) || $("#menu-settings"));
+      sync();
+    }
+    async function openMenu() {
       if (document.querySelector("dialog[open]")) return;
+      for (const h of hooks) { try { await h(); } catch (e) { /* a hook failing never blocks the menu */ } }
       if (!sheet()) { openSettings(); return; }
       menuDlg.showModal(); $("#menu-title").focus({ preventScroll: true });
     }
-    if (menuBtn) { menuBtn.onclick = openMenu; menuBtn.setAttribute("aria-controls", sheet() ? "menu" : "settings"); }
+    if (menuBtn) { menuBtn.onclick = openMenu; sync(); }
     if (menuDlg) {
       $("#menu-x").onclick = () => menuDlg.close();
       menuDlg.addEventListener("click", (e) => { if (e.target === menuDlg) menuDlg.close(); });   // a tap outside it
       $("#menu-settings").onclick = () => { menuDlg.close(); openSettings(); };
       menuDlg.addEventListener("close", () => { if (!document.querySelector("dialog[open]") && menuBtn) menuBtn.focus({ preventScroll: true }); });
     }
-    window.__chismeMenu = { open: openMenu, get sheet() { return sheet(); } };
+    window.__chismeMenu = { open: openMenu, setSection, onBeforeOpen: (f) => hooks.push(f),
+      setDot: (on) => { const d = $("#sx-dot"); if (d) d.hidden = !on; }, get sheet() { return sheet(); } };
   }
   $("#tia-close").onclick = () => tiaDlg.close();
   $("#tia-settings").onclick = () => { tiaOpener = null; tiaDlg.close(); $("#settings-btn").click(); };   // v49.3: Settings from her chat

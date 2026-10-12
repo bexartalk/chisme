@@ -173,9 +173,9 @@ async def motion(b, bname, dev, shots):
         fr = await pg.evaluate(SAMPLE, 26)
         tops = [x["top"][0] for x in fr]; ops = [x["top"][2] for x in fr]; tb = [x["tabs"][0] for x in fr]
         mono = all(b2 >= a2 - 0.5 for a2, b2 in zip(tops, tops[1:])) and all(b2 >= a2 - 0.01 for a2, b2 in zip(ops, ops[1:])) and all(b2 <= a2 + 0.5 for a2, b2 in zip(tb, tb[1:]))
-        jump = max(abs(b2 - a2) for a2, b2 in zip(tops, tops[1:]))
+        jump = max(abs(b2 - a2) for a2, b2 in zip(tops, tops[1:]))   # v49.16: < 54 (was 45): the bar travels 13 px further (the logo's overhang) in the same time
         glued = all(abs(x["chips"][0] - x["top"][1]) <= 1.5 for x in fr)
-        check(mono and jump < 45 and glued and tops[-1] == 0 and ops[-1] == 1,
+        check(mono and jump < 54 and glued and tops[-1] == 0 and ops[-1] == 1,
               f"{bname}: hide then show again after {flip} ms: they turn around smoothly (only towards shown, biggest step {jump:.0f} px, the chip row stays glued, ends fully in)")
     # fast flicking: down/up/down/up a few px at a time must not leave them half-way or blinking
     await pg.evaluate("window.__chismeNav.show()"); await pg.wait_for_timeout(SETTLE)
@@ -256,10 +256,10 @@ async def phone(b, bname, dev, shots):
         await scroll_to(pg, y0, 100); await scroll_to(pg, max(0, y0 - 30), 6)   # a little scroll up shows the bar, then tap
         await pg.click('.view.active .mq-chip[data-go="weather"]' if v == "weather" else f'#tabs .tab[data-view="{v}"]')
         await pg.wait_for_timeout(700)
-        st = await pg.evaluate(f"""() => ({{ cur: document.querySelector('#tabs .tab[aria-current="page"]')?.dataset.view, active: document.querySelector('#view-{v}').classList.contains('active'),
+        st = await pg.evaluate(f"""() => ({{ cur: document.querySelector('#tabs .tab[aria-current="page"]')?.dataset.view, active: document.querySelector('#view-{v if v != "chisme" else "weather"}').classList.contains('active'),
             hide: document.documentElement.classList.contains('fb-hide') }})""")
         lit = "chisme" if v == "weather" else v
-        check(st["cur"] == lit and st["active"], f"{bname}: the {v} {'chip' if v == 'weather' else 'tab'} opens #view-{v} and the {lit} tab lights up {st}")
+        check(st["cur"] == lit and st["active"], f"{bname}: the {v} {'chip' if v == 'weather' else 'tab'} opens #view-{v if v != 'chisme' else 'weather (the Chisme tab goes back to its last chip)'} and the {lit} tab lights up {st}")
         back.append(not st["hide"])
         if v == "weather" and shots: await pg.evaluate("scrollTo(0,0)"); await pg.wait_for_timeout(500); await pg.screenshot(path=f"{OUT}/weather.png")
         # any sticky sub-filter row on this tab must go away with the bars too (nothing stays stuck at the top)
