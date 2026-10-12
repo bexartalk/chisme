@@ -39,6 +39,24 @@ Storage / local), `social_auth.py` (Supabase Auth), `static/social.{js,css}` (in
 * **Videos:** 60 s max. The phone re-records big or over-720p videos at 720p when it can; the server always re-encodes
   to H.264/AAC at 720p max with all metadata, chapters and data tracks dropped, and makes a poster frame. 40 MB max
   upload.
+* **Sign-ups are testers only for now:** `SIGNUPS_PUBLIC` is off (0) by default until chisme.co has a verified email
+  sending domain (around Oct 29), so the 6-digit codes reliably arrive. While it's off, only the emails in
+  `SOCIAL_SIGNUP_TESTERS` (comma list; Gmail dots / +tags don't matter) can make an account; everyone else sees
+  "Accounts are opening soon. Keep browsing the chisme! 👀". Testers use `/#s/signup/invite`. Browsing and signing in
+  to existing accounts stay open. Set `SIGNUPS_PUBLIC=1` to open them.
+* **Sign-up checks (Plato, legal):** a birthdate (18+, checked in the browser AND on the server, Chicago time). The
+  birthdate itself is never stored: `social_private` keeps only `adult = true` and `age_checked_at` (safer: nothing
+  to leak). An UNTICKED "I agree to the Terms and Privacy Policy" box (links /terms, /privacy) that they tick
+  themselves; the server refuses without it. Saved: `tos_at` + `tos_version`, `privacy_at` + `privacy_version`, and
+  one row each in `social_consents` (terms, privacy, community_rules, age_18) with the time. RLS: forced, anon
+  revoked, a person reads only their own rows; rows go with the account. Schema: the NEW migration
+  `supabase/migrations/20261012190000_social_signup_consent.sql`, applied AFTER `20261004150000_social_p1.sql`.
+* **Legal pages:** `/terms`, `/privacy`, `/community-rules` are Plato's final text (`legal/terms.md`, `privacy.md`,
+  `rules-and-copyright.md`, copied word for word from /workspace/chisme_legal), built in the app's look by
+  `./venv/bin/python tools/make_legal_pages.py`. The consent versions (`TERMS_VERSION` / `PRIVACY_VERSION` /
+  `RULES_VERSION` in social.py) are each page's "Effective date" (2026-10-12); a test fails if they drift, so bump
+  them with new text. The contact (name, address, phone, email, DMCA number) lives in ONE file, `legal_contact.py`:
+  `SHOW_STREET_ADDRESS = False` hides the street line on every page and on /dmca, then rebuild the pages.
 * **Uploads are owner + testers only for now:** `UPLOADS_PUBLIC` is off (0) by default, because Cloudflare's CSAM
   Scanning Tool needs a domain that runs through Cloudflare and chisme.onrender.com doesn't. Until a scanner is live,
   only the @usernames in `SOCIAL_UPLOAD_TESTERS` (comma list; Goonie's first) can upload photos, videos, avatars or
@@ -75,6 +93,8 @@ Storage / local), `social_auth.py` (Supabase Auth), `static/social.{js,css}` (in
 4. **Supabase:** review and apply the migration (not applied to production by this branch); set the Auth email
    template to send the 6-digit code (`{{ .Token }}`) through a custom SMTP sender; `SUPABASE_URL`,
    `SUPABASE_SERVICE_KEY`, `SUPABASE_PUBLISHABLE_KEY`; a `SOCIAL_SECRET`.
+5. **Sign-ups:** `SOCIAL_SIGNUP_TESTERS=<your email>,<testers' emails>` now; `SIGNUPS_PUBLIC=1` once chisme.co
+   sends the codes from a verified domain. Have a Texas attorney look over Plato's pages before launch (their own note).
 5. **Uploads:** `SOCIAL_UPLOAD_TESTERS=<your @username>,<testers>` now; `UPLOADS_PUBLIC=1` only after chisme.co runs
    through Cloudflare with the CSAM Scanning Tool on (or `CSAM_SCAN_URL` points at a live scanner).
 6. Optional: `CSAM_SCAN_URL` / `CSAM_SCAN_TOKEN` (PhotoDNA, Thorn Safer…), `SOCIAL_APPLE=1` / `SOCIAL_GOOGLE=1`.

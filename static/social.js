@@ -118,7 +118,15 @@
       el("p", { class: "links" }, el("a", { href: "#s/forgot", text: "Forgot password?" }), " · ", el("a", { href: "#s/signup", text: "New here? Join Chisme" }))));
   }
 
-  function signUp() {
+  function soonView() {   // SIGNUPS_PUBLIC=0: accounts aren't open yet; browsing is
+    page("Opening soon", el("section", { class: "card auth sx-soon" }, el("h1", { text: "Opening soon 🌶️" }),
+      el("p", { class: "sub", text: (CFG && CFG.signups_soon) || "Accounts are opening soon. Keep browsing the chisme! 👀" }),
+      el("a", { class: "btn pink sx-wide", href: "#s/feed/sananto", text: "Keep browsing" }),
+      el("p", { class: "links" }, el("a", { href: "#s/signin", text: "Already have an account? Sign in" }), " · ",
+        el("a", { href: "#s/signup/invite", text: "Testing for us? Sign up here" }))));
+  }
+  function signUp(invite) {
+    if (CFG && CFG.signups_public === false && !invite) { soonView(); return; }
     const [fn, name] = field("Display name", { maxlength: "40", autocomplete: "name", required: true });
     const [fu, user] = field("@username", { maxlength: "20", autocapitalize: "none", autocomplete: "username", pattern: "[a-z0-9_]{3,20}", required: true });
     const [fe, email] = field("Email (never shown to anyone)", { type: "email", autocomplete: "email", required: true });
@@ -136,6 +144,7 @@
       const d = await api("/api/social/signup", { method: "POST", body: { display_name: name.value, username: user.value, email: email.value,
         birthday: bday.value, password: pw.value, password2: pw2.value, tos: tos.checked, ...bot.value() } });
       if (d.ok) { verifyView(email.value, d.message); return; }
+      if (d.signups_soon) { soonView(); return; }
       if (d.under_age) { page("Not yet", el("section", { class: "card auth" }, el("h1", { text: "Chisme is 18+ 🤙" }), el("p", { text: d.error }))); return; }
       if (d.bot) { await freshChallenge(); signUp(); toast(d.error, 4000); return; }
       return d.error;
@@ -765,7 +774,7 @@
     if (a === "homies") return homiesView();
     if (a === "alerts") return alertsView();
     if (a === "settings") return settingsView();
-    if (a === "signup") return signUp();
+    if (a === "signup") return signUp(b === "invite");
     if (a === "forgot") return forgot();
     if (a === "signin") return signIn();
     return feed("sananto");

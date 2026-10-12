@@ -337,6 +337,22 @@ def gotrue() -> SA.GoTrue:
     return a
 
 
+SIGNUPS_SOON = "Accounts are opening soon. Keep browsing the chisme! 👀"
+
+
+def signups_public() -> bool:
+    return X._env("SIGNUPS_PUBLIC") == "1"
+
+
+def signup_allowed(email: str) -> bool:
+    """SIGNUPS_PUBLIC=0 (the default, until chisme.co has a verified sending domain): only the emails in
+    SOCIAL_SIGNUP_TESTERS (comma list, compared normalized) can make an account. Browsing and signing in stay open."""
+    if signups_public():
+        return True
+    allow = {X.normalize_email(e.strip()) for e in X._env("SOCIAL_SIGNUP_TESTERS").split(",") if e.strip()}
+    return bool(email) and email in allow
+
+
 def install(app: FastAPI, *, owner: Callable[..., Awaitable[bool]], public_base: Callable[[Request], str],
             reel_lookup: Callable[[str], dict | None] | None = None, reel_id: Callable[[str], str | None] | None = None) -> None:
 
@@ -407,7 +423,7 @@ def install(app: FastAPI, *, owner: Callable[..., Awaitable[bool]], public_base:
                    "providers": X.providers(), "accounts": bool(SA.auth()), "reactions": X.REACTIONS, "accents": X.ACCENTS,
                    "reasons": X.REASONS, "areas": X.AREAS, "min_age": X.MIN_AGE, "max_video_s": X.MAX_VIDEO_S,
                    "max_photos": X.MAX_PHOTOS, "uploads": X._env("SOCIAL_UPLOADS") != "0", "media_store": S.media().name,
-                   "dev_outbox": SA.fake_enabled()})
+                   "dev_outbox": SA.fake_enabled(), "signups_public": signups_public(), "signups_soon": SIGNUPS_SOON})
 
     @app.get("/api/social/dev/outbox")
     async def dev_outbox(email: str = ""):
@@ -430,6 +446,8 @@ def install(app: FastAPI, *, owner: Callable[..., Awaitable[bool]], public_base:
         email = X.normalize_email(email_raw)
         if not email:
             raise X.Bad("That email doesn't look right.")
+        if not signup_allowed(email):
+            return bad(SIGNUPS_SOON, 403, signups_soon=True)
         try:
             bday = X.parse_birthday(b.get("birthday"))
         except ValueError as ex:

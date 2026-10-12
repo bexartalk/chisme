@@ -18,7 +18,7 @@ for k in [k for k in os.environ if k.startswith(("UPSTASH_", "RENDER", "SUPABASE
     os.environ.pop(k)
 TOKEN = "social-test-admin-token-77"
 os.environ.update(ADMIN_TOKEN=TOKEN, SOCIAL_FAKE_AUTH="1", SOCIAL_DIR=f"{tmp}/social", PUSH_STORE_FILE=f"{tmp}/push.json",
-                  STATS_STORE_FILE=f"{tmp}/stats.json", AUTO_PUSH_WAKE_DELAY="9999", OWNER_POSTS_DIR=f"{tmp}/posts", OWNER_POSTS_STATIC_MAP="0")
+                  STATS_STORE_FILE=f"{tmp}/stats.json", AUTO_PUSH_WAKE_DELAY="9999", OWNER_POSTS_DIR=f"{tmp}/posts", OWNER_POSTS_STATIC_MAP="0", SIGNUPS_PUBLIC="1")
 fails = 0
 
 
@@ -61,7 +61,7 @@ def bot(c):
 
 def join(username, name=None, bday="1990-05-05", fresh=False, **extra):
     c = client()
-    email = f"{username}@example.com"
+    email = extra.pop("email", None) or f"{username}@example.com"
     body = {"email": email, "password": "Tamales&Tea42", "password2": "Tamales&Tea42", "display_name": name or username.title(),
             "username": username, "birthday": bday, "tos": True, **bot(c), **extra}
     r = c.post("/api/social/signup", json=body, headers=H)
@@ -129,6 +129,21 @@ b = bot(c0); b["website"] = "http://spam"
 r = c0.post("/api/social/signup", json={"email": "y@example.com", "password": "Tamales&Tea42", "password2": "Tamales&Tea42", "display_name": "Y",
                                         "username": "ybot", "birthday": "1990-01-01", "tos": True, **b}, headers=H)
 check(r.status_code == 400, "the honeypot field refuses bots")
+
+# SIGNUPS_PUBLIC=0 (the default): only SOCIAL_SIGNUP_TESTERS can make accounts; browsing stays open
+os.environ.pop("SIGNUPS_PUBLIC")
+os.environ["SOCIAL_SIGNUP_TESTERS"] = "Tester.One@Example.com, other@example.com"
+_cfg = client().get("/api/social/config").json()
+check(_cfg["signups_public"] is False and "Accounts are opening soon" in _cfg["signups_soon"], "sign-ups are closed by default (SIGNUPS_PUBLIC unset)")
+_sc, r = join("stranger")
+check(r.status_code == 403 and r.json().get("signups_soon") and "Keep browsing the chisme" in r.json()["error"], "not on the list → 'Accounts are opening soon'")
+check(not asyncio.run(S.db().select("social_profiles", [("username", "eq", "stranger")])), "…and no account was made")
+_tc, r = join("testerone", email="tester.one@example.com")
+check(r.status_code == 200 and _tc.cookies.get(X.COOKIE), "an email on SOCIAL_SIGNUP_TESTERS can still sign up")
+check(_sc.get("/api/social/feed?tab=sananto").status_code == 200 and _sc.get("/").status_code == 200, "browsing stays open while sign-ups are closed")
+_js = open(f"{HERE}/static/social.js").read()
+check("signups_public === false" in _js and "#s/signup/invite" in _js, "the sign-up screen shows 'opening soon' (testers use the invite link)")
+os.environ["SIGNUPS_PUBLIC"] = "1"; os.environ.pop("SOCIAL_SIGNUP_TESTERS")
 
 ck, r = join("kiddo", bday=f"{time.localtime().tm_year - 16}-01-01")
 check(r.status_code == 403 and r.json().get("under_age") and ck.cookies.get(X.U18), "under 18 → refused and remembered on that phone")
