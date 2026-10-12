@@ -18,7 +18,7 @@ for k in ("UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN", "OPENAI_API_KEY"
 import socket
 with socket.socket() as _so:   # a free port for the mock Gemini
     _so.bind(("127.0.0.1", 0)); MOCK = _so.getsockname()[1]
-os.environ.update(ADMIN_TOKEN="unit-test-admin-token", GEMINI_API_KEY="AQ.test-key-not-real", GEMINI_API_BASE=f"http://127.0.0.1:{MOCK}",
+os.environ.update(TIA_AGE_GATE="0", ADMIN_TOKEN="unit-test-admin-token", GEMINI_API_KEY="AQ.test-key-not-real", GEMINI_API_BASE=f"http://127.0.0.1:{MOCK}",
                   TIA_DEVICE_DAILY_CAP="20", TIA_DAILY_GLOBAL_CAP="30", MASCOT_PER_HOUR="1000")
 fails = []
 def check(ok, what):

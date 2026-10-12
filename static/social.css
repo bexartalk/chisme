@@ -278,3 +278,4 @@ html[data-season="muertos"] .sx .adm-tabs a[aria-current="page"] { background: #
 .sx .menu .adm-h { margin: 10px 2px 2px; font-size: .78rem; font-weight: 900; letter-spacing: .05em; text-transform: uppercase; color: var(--ink2); }
 .sx .nu-row { display: flex; gap: 10px; align-items: center; }
 .sx .nu-row .nu-who { flex: 1; min-width: 0; }
+

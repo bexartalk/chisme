@@ -2595,6 +2595,10 @@ async def tia_knowledge(body: dict) -> dict:
 TIA_MAX_BODY = 32_000   # v49.11 (was 96 KB): the app sends ≈10–25 KB (12 messages + clipped story/event/food lines)
 
 
+TIA_GATE_TEXT = {"signin": "Tía's chat is for grown-ups (18+). Sign in to your Chisme account to chat with her.",
+                 "adult": "Tía's chat is for grown-ups (18+). Your account hasn't confirmed you're 18 or older, so she can't chat with you."}
+
+
 @app.post("/api/mascot/chat")
 async def api_mascot_chat(request: Request):
     """Tía Chismosa. Grounded only in the app's current feeds (server-side) + what the phone shows; nothing is stored. See mascot.py."""
@@ -2607,6 +2611,15 @@ async def api_mascot_chat(request: Request):
             raise ValueError
     except ValueError:
         return JSONResponse({"error": "bad request"}, status_code=400)
+    # Tía is 18+ (Terms §2): only a signed-in Chisme account that confirmed 18+ at sign-up gets her. Crisis replies
+    # (988 etc.) never call the AI, so they still answer everyone.
+    if not tia.safety(tia.last_user_text(body)):
+        try:
+            access = await social.tia_access(request)
+        except Exception:
+            access = "signin"
+        if access != "ok":
+            return JSONResponse({"reply": TIA_GATE_TEXT[access], "gate": access, "cites": [], "mode": "gate", "sources": []}, status_code=403)
     # v49.12: safety replies (the 988 crisis line, refusals) never call the AI and are never limited
     ok, wait = (True, 0) if tia.safety(tia.last_user_text(body)) else await MASCOT_LIMIT.hit(client_ip(request))
     if not ok:

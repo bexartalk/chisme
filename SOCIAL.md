@@ -94,6 +94,12 @@ The admin's ☰ menu has an Admin section. Each page reuses the existing tools, 
 ### Theme
 Every social screen takes its colors from the app's theme variables (`--card`, `--ink`, `--line`, `--near`, `--turq`, and the app's pink and orange). In Día de los Muertos (`html[data-season="muertos"]`) it also uses `--mq-plum` and `--marigold`, so when the season switches off (or with `THEME_OVERRIDE=off`) the social screens switch back with the rest of the app. The tests check that social.css has no hard-coded light backgrounds.
 
+### Tía chat is 18+
+Tía Chismosa's chat (`POST /api/mascot/chat`) answers only a signed-in Chisme account that confirmed 18+ at sign-up (the same `social_private.adult` flag; no birthdate is kept). Signed-out people, and accounts without the flag, get a friendly gate screen inside her sheet (sign in / join), and the server answers them with a 403 and `gate: "signin"` or `"adult"`. Crisis replies (988 etc.) never call the AI and still answer everyone. Turn the gate off with `TIA_AGE_GATE=0`. `/api/social/me` now includes `adult`.
+
+### Where Chisme is offered
+Chisme isn't offered in the European Economic Area, the UK or Switzerland. Tía runs on Google Gemini's free tier, which isn't available for users there, and the main app's Privacy Policy says so ("Outside the U.S."). There's no geoblocking code: the legal files only state it and don't require blocking.
+
 ## Goonie sets these up himself
 1. **Cloudflare R2** (needs a payment method on the free tier): bucket `chisme-media` with a public custom domain, plus
    a private bucket for quarantine. Then on Render: `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`,

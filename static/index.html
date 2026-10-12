@@ -617,6 +617,17 @@
       <!-- v49.4: just a small round ✕, tight in the top-right corner, off her face -->
       <button type="button" id="tia-close" class="tia-x" aria-label="Close chat"><span aria-hidden="true">✕</span></button>
     </div>
+    <!-- Tía is 18+ (Terms): signed-out or not-confirmed-18+ people get this instead of the chat (the server checks too) -->
+    <section id="tia-gate" class="tia-gate" hidden aria-labelledby="tia-gate-t">
+      <p class="tia-gate-badge" aria-hidden="true">18+</p>
+      <h3 id="tia-gate-t" class="tia-gate-t">Tía's chat is for grown-ups</h3>
+      <p id="tia-gate-p" class="tia-gate-p">Sign in to your Chisme account to chat with Tía. You need to be 18 or older.</p>
+      <div class="tia-gate-btns">
+        <a id="tia-gate-in" class="tia-gate-btn tg-in" href="#s/signin">👋 Sign in</a>
+        <a id="tia-gate-up" class="tia-gate-btn tg-up" href="#s/signup">🌶️ Join Chisme</a>
+      </div>
+      <p class="tia-gate-small">Everything else in Chisme (news, weather, events, food, games) stays open to everyone. If you're going through something hard, call or text <b>988</b>, any time.</p>
+    </section>
     <ol id="tia-log" class="tia-log" aria-live="polite" aria-label="Chat with Tía Chismosa"></ol>
     <div id="tia-quick" class="tia-quick" role="group" aria-label="Ask about">
       <button type="button" data-q="What's the chisme today?">📰 Chisme</button>

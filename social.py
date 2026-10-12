@@ -445,6 +445,22 @@ async def viewer(request: Request) -> Viewer:
     return Viewer(me if live(me) else None)
 
 
+def tia_age_gate_on() -> bool:
+    """TIA_AGE_GATE=0 turns the Tía 18+ gate off (default on: the Terms say you must be 18+ to chat with her)."""
+    return os.environ.get("TIA_AGE_GATE", "1").strip() != "0"
+
+
+async def tia_access(request: Request) -> str:
+    """Tía chat: "ok" for a signed-in account that confirmed 18+ at sign-up (social_private.adult), else "signin" / "adult"."""
+    if not tia_age_gate_on():
+        return "ok"
+    v = await viewer(request)
+    if not v.id:
+        return "signin"
+    priv = await S.db().select("social_private", [("user_id", "eq", v.id)], cols=["adult"], limit=1)
+    return "ok" if priv and priv[0].get("adult") is True else "adult"
+
+
 async def homie_ids(uid: str) -> set:
     a = await S.db().select("social_homies", [("a", "eq", uid)], cols=["b"], limit=5000)
     b = await S.db().select("social_homies", [("b", "eq", uid)], cols=["a"], limit=5000)

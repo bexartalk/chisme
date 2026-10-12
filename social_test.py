@@ -524,6 +524,22 @@ for _i, _how in enumerate(("person", "post", "badge")):
     else: boss.post("/api/social/admin/badge", json={"username": f"reprel{_i}", "badge": "blue"}, headers=H)
     check(_st(_bad["id"]) == "hidden" and anon.get(f"/api/social/chismes/{_bad['id']}").status_code == 404 and _st(_ok["id"]) == "visible",
           f"release by {_how}: a held Chisme with {X.AUTO_HIDE}+ reports stays hidden, the rest go live")
+# Tía chat is 18+: a signed-in account that confirmed 18+ at sign-up, nobody else (server side)
+_tb = {"messages": [{"role": "user", "text": "What's the chisme today?"}], "hour": 12}
+r = anon.post("/api/mascot/chat", json=_tb, headers=H)
+check(r.status_code == 403 and r.json()["gate"] == "signin" and "18+" in r.json()["reply"], "Tía: signed out → the 18+ gate (sign in)")
+r = lupe.post("/api/mascot/chat", json=_tb, headers=H)
+check(r.status_code != 403 and r.json().get("gate") is None, "Tía: a signed-in 18+ account gets her")
+check(lupe.get("/api/social/me").json()["me"]["adult"] is True, "/me says the account confirmed 18+")
+_gid = asyncio.run(X.profile_by(username="lupe"))["id"]
+asyncio.run(S.db().update("social_private", [("user_id", "eq", _gid)], {"adult": False}))
+r = lupe.post("/api/mascot/chat", json=_tb, headers=H)
+check(r.status_code == 403 and r.json()["gate"] == "adult", "Tía: an account without the 18+ flag is gated")
+asyncio.run(S.db().update("social_private", [("user_id", "eq", _gid)], {"adult": True}))
+r = anon.post("/api/mascot/chat", json={"messages": [{"role": "user", "text": "I want to kill myself"}]}, headers=H)
+check(r.status_code != 403 and "988" in r.json().get("reply", ""), "Tía: crisis replies (988) still answer everyone, gate or not")
+_aj = open(f"{HERE}/static/app.js").read(); _ix = open(f"{HERE}/static/index.html").read()
+check('id="tia-gate"' in _ix and "tiaGate(" in _aj and "/api/social/me" in _aj, "the app shows the Tía 18+ gate screen before the chat")
 os.environ["NEW_USER_REVIEW"] = "0"
 check(X.new_user_review() is False and (os.environ.pop("NEW_USER_REVIEW") and X.new_user_review() is True), "NEW_USER_REVIEW is on unless set to 0")
 _as = boss.get("/api/social/admin/stats").json()

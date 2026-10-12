@@ -670,7 +670,7 @@ def install(app: FastAPI, *, owner: Callable[..., Awaitable[bool]], public_base:
         reqs = await S.db().count("social_homie_requests", [("to_id", "eq", v.id), ("status", "eq", "pending")])
         priv = (await S.db().select("social_private", [("user_id", "eq", v.id)], limit=1) or [{}])[0]
         prof = await X.profile_view(v, v.me)
-        return ok({"me": {**prof, "email_hint": priv.get("email_hint", ""), "area_choice": v.me.get("area")},
+        return ok({"me": {**prof, "email_hint": priv.get("email_hint", ""), "adult": priv.get("adult") is True, "area_choice": v.me.get("area")},
                    "unread": unread, "requests": reqs, "can_upload": can_upload(v.me), "owner": await is_owner(request), "admin": v.admin})
 
     @app.post("/api/social/account/delete")

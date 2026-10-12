@@ -2027,3 +2027,20 @@ dialog.reel-share[open]{animation:rs-up .22s ease-out}
 @media (max-width:359px){ .from-chisme{padding:18px 12px 14px;gap:6px} .from-chisme .fc-logo{width:60px;height:47px} .from-chisme .fc-t{font-size:1.08rem}
   .from-chisme .fc-p{display:none} .from-chisme .fc-jefa{gap:8px} .from-chisme .fc-jefa-img{width:44px;height:44px} .from-chisme .fc-jefa-t{font-size:.72rem;line-height:1.2}
   .from-chisme .fc-bmc,.from-chisme .fc-share{flex-basis:100px;font-size:.88rem} }   /* 320 px: the headline carries it, so the card stays square */
+
+/* Tía's 18+ gate (inside her chat sheet, index.html #tia-gate). App theme vars; no yellow. */
+.tia-gate { margin: 10px 14px 16px; padding: 18px 16px; border-radius: 18px; background: var(--card); color: var(--ink); text-align: center;
+  border: 2px solid var(--fb-turq, #00C9CD); box-shadow: 0 5px 0 var(--fb-pink, #FF1A7F); }
+.tia-gate[hidden] { display: none; }
+.tia-gate-badge { display: inline-grid; place-items: center; width: 64px; height: 64px; margin: 0 auto 6px; border-radius: 50%; font: 900 1.3rem/1 system-ui, sans-serif;
+  color: #fff; background: linear-gradient(135deg, var(--fb-pink, #FF1A7F), var(--fb-orange, #FF6A0B)); box-shadow: 0 0 0 4px var(--card), 0 0 0 6px #C0C0C0; }
+.tia-gate-t { margin: 4px 0 6px; font-size: 1.25rem; }
+.tia-gate-p { margin: 0 0 12px; font-weight: 600; }
+.tia-gate-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.tia-gate-btn { display: flex; align-items: center; justify-content: center; min-height: 48px; border-radius: 14px; font-weight: 900; text-decoration: none; }
+.tia-gate-btn[hidden] { display: none; }
+.tia-gate-btn.tg-in { background: var(--fb-turq, #00C9CD); color: #000; }
+.tia-gate-btn.tg-up { background: var(--fb-pink, #FF1A7F); color: #fff; }
+.tia-gate-small { margin: 12px 0 0; font-size: .85rem; color: var(--muted); }
+html[data-season="muertos"] .tia-gate { border-color: var(--marigold); box-shadow: 0 5px 0 var(--mq-pink, #FF1A7F); }
+.tia-sheet.gated #tia-log,.tia-sheet.gated #tia-quick,.tia-sheet.gated #tia-form{display:none!important}
