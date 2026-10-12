@@ -460,6 +460,64 @@ check(not any(asyncio.run(S.db().select(t, [(col, "eq", _nid)])) for t, col in (
       "…private row, consents, Chismes, comments, reactions, Homies, sessions and media rows all gone (Privacy Policy §6/§7)")
 check(nena.get("/api/social/me").json()["me"] is None, "…and the deleted account is signed out")
 
+# ---------------------------------------------------------------- the admin account, badges, new-user review
+boss, r = join("boss_goonie", "Goonie", email="boss.goonie@example.com")
+bme = boss.get("/api/social/me").json()
+check(r.status_code == 200 and bme["admin"] is True and bme["me"]["badge"] == "gold", "SOCIAL_OWNER_EMAIL's account is the admin, with the gold badge")
+check(goonie.get("/api/social/me").json()["admin"] is False, "everyone else isn't")
+JH = {**H, "content-type": "application/json"}
+r = goonie.post("/api/social/admin/badge", json={"username": "lupe", "badge": "gold"}, headers=H)
+check(r.status_code == 404 and X.badge_of(asyncio.run(X.profile_by(username="lupe"))) is None, "a non-admin can't give badges (server side)")
+r = boss.post("/api/social/admin/badge", json={"username": "lupe", "badge": "blue"}, headers=H)
+check(r.status_code == 200 and r.json()["profile"]["badge"] == "blue", "the admin gives a blue badge")
+_feed = anon.get("/api/social/feed?tab=memes").json()["chismes"]
+check(any(c["author"]["username"] == "lupe" and c["author"]["badge"] == "blue" for c in _feed), "badges show next to names in the feeds")
+check(anon.get("/api/social/u/lupe").json()["profile"]["badge"] == "blue", "…and on the profile")
+r = boss.post("/api/social/admin/badge", json={"username": "lupe", "badge": "gold"}, headers=H); check(r.json()["profile"]["badge"] == "gold", "…switches it to gold")
+r = boss.post("/api/social/admin/badge", json={"username": "lupe", "badge": "none"}, headers=H)
+check(r.json()["profile"]["badge"] is None, "…and removes it")
+r = boss.post("/api/social/admin/badge", json={"username": "boss_goonie", "badge": "none"}, headers=H)
+check(r.status_code == 400, "the admin's own gold badge can't be removed")
+# the owner tools (/stats/*) take the admin account too: analytics, push, sponsor posts
+check(boss.get("/stats/api/summary").status_code == 200 and goonie.get("/stats/api/summary").status_code in (401, 404), "analytics: admin yes, others no")
+check(boss.get("/stats/posts/list").status_code == 200 and goonie.get("/stats/posts/list").status_code in (401, 404), "sponsor posts list: admin yes, others no")
+check(goonie.post("/stats/push/send", json={"title": "x", "message": "y"}, headers=JH).status_code in (401, 404), "push to everyone: others can't")
+r = boss.post("/stats/push/send", json={"title": "Chisme", "message": "Test"}, headers=JH)
+check(r.status_code in (200, 400) and "not allowed" not in r.text, "push to everyone: the admin reaches the existing sender")
+# new metiches: held for review
+os.environ["NEW_USER_REVIEW"] = "1"
+newb, r = join("fresh_face", "Fresh Face")
+fc = post(newb, text="Hi San Anto! First Chisme 👋", audience="everyone")
+check(fc.get("held") is True, "a new account's first Chisme is held")
+check(anon.get(f"/api/social/chismes/{fc['id']}").status_code == 404, "…nobody else sees it yet")
+check(fc["id"] in {c["id"] for c in newb.get("/api/social/u/fresh_face").json()["chismes"]}, "…but they see their own")
+q = boss.get("/stats/social/queue").json()
+check(any(u["username"] == "fresh_face" and any(h["id"] == fc["id"] for h in u["held"]) for u in q["new_users"]), "the 'New metiches' list has them + their held Chisme")
+_al = boss.get("/api/social/notifications").json()["notifications"]
+check({"new_user", "held"} <= {n["kind"] for n in _al}, "the admin's alerts include new sign-ups and held Chismes")
+check(goonie.get("/stats/social/queue").status_code == 404, "the review list is admin only")
+r = boss.post("/api/social/admin/review", json={"username": "fresh_face", "action": "approve"}, headers=H)
+check(r.status_code == 200 and anon.get(f"/api/social/chismes/{fc['id']}").status_code == 200, "approve → their Chismes go live")
+fc2 = post(newb, text="Second one, no wait")
+check(not fc2.get("held"), "…and later ones aren't held")
+newc, r = join("blue_soon", "Blue Soon")
+h1 = post(newc, text="held till the badge")
+boss.post("/api/social/admin/badge", json={"username": "blue_soon", "badge": "blue"}, headers=H)
+check(h1.get("held") and anon.get(f"/api/social/chismes/{h1['id']}").status_code == 200 and not post(newc, text="free now").get("held"),
+      "a blue badge ends the review (held Chismes go live)")
+newd, r = join("held_out", "Held Out")
+h2 = post(newd, text="spammy first post")
+r = boss.post("/api/social/admin/review", json={"chisme": h2["id"], "action": "remove"}, headers=H)
+check(r.status_code == 200 and newd.get(f"/api/social/chismes/{h2['id']}").status_code == 404, "the admin can remove a held Chisme")
+r = goonie.post("/api/social/report", json={"kind": "chisme", "id": fc2["id"], "reason": "spam"}, headers=H)
+check("report" in {n["kind"] for n in boss.get("/api/social/notifications").json()["notifications"]}, "the admin's alerts include reports")
+os.environ["NEW_USER_REVIEW"] = "0"
+check(X.new_user_review() is False and (os.environ.pop("NEW_USER_REVIEW") and X.new_user_review() is True), "NEW_USER_REVIEW is on unless set to 0")
+os.environ["NEW_USER_REVIEW"] = "0"
+_m3 = open(f"{HERE}/supabase/migrations/20261012200000_social_admin_badges.sql").read()
+check("check (badge is null or badge in ('gold', 'blue'))" in _m3 and "social_badges_admin_only" in _m3 and "'held'" in _m3 and "force row level security" in _m3,
+      "the badge migration: gold/blue only, server-only trigger, held status, RLS forced")
+
 # ---------------------------------------------------------------- migration: RLS on every table, no yellow
 sql = open(f"{HERE}/supabase/migrations/20261004150000_social_p1.sql").read()
 sql2 = open(f"{HERE}/supabase/migrations/20261012190000_social_signup_consent.sql").read()
