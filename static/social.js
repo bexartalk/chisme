@@ -197,6 +197,7 @@
     const d = await api("/api/social/me");
     ME = d.ok ? d.me : null;
     if (ME) Object.assign(ME, { admin: !!d.admin, can_upload: !!d.can_upload, unread: d.unread || 0, requests: d.requests || 0 });
+    if (typeof menuRows === "function") menuRows();   // v49.16: keep the ☰ rows in step with who's signed in
     const dot = $("#sx-dot"); if (dot) dot.hidden = !(d.unread > 0 || d.requests > 0);
     if (ME) document.documentElement.style.setProperty("--sx-acc", ME.accent_hex || "#00C9CD");
     const face = $("#sx-face"); if (face) { clear(face); if (ME) face.replaceWith(Object.assign(avatar(ME, 40), { id: "sx-face" })); }
@@ -871,7 +872,7 @@
     return feed("sananto");
   }
   // ------------------------------------------------ in the app: the chips, the ➕ bar, the ☰ menu, and the All mix
-  function menu() {
+  function menu() {   // the old own sheet: only used if the app's ☰ Menu (app.js __chismeMenu) isn't there
     const it = (emo, label, href, dot) => el("a", { class: "item sx-big", href, onclick: closeSheet }, el("span", { "aria-hidden": "true", text: emo }), " " + label, dot ? el("b", { class: "pill pink", text: " " + dot }) : null);
     const body = ME ? el("div", { class: "menu" },
       el("a", { class: "item sx-big who-row", href: "#s/me", onclick: closeSheet }, avatar(ME, 44), el("span", {}, nameEl(ME), el("small", { text: " @" + ME.username }))),
@@ -882,6 +883,20 @@
       : el("div", { class: "menu" }, el("p", { class: "small", text: "Join to post Chismes, find your Homies and make a profile that's yours." }),
         it("🌶️", "Join Chisme", "#s/signup"), it("👋", "Sign in", "#s/signin"), it("😂", "Memes", "#s/feed/memes"), it("©️", "Report copyright (DMCA)", "/dmca"));
     sheet("☰ Menu", body);
+  }
+  // v49.16 nav-on-social: the app's ☰ Menu (app.js window.__chismeMenu) owns the button; social puts its rows in it,
+  // above ⚙️ Settings, and refreshes who's signed in just before it opens. One tap, one menu.
+  function menuRows() {
+    const M = window.__chismeMenu; if (!M) return;
+    const r = (emoji, label, href, badge) => ({ emoji, label, href, badge: badge || 0 });
+    M.setSection("social", ME ? [
+      { label: ME.name, href: "#s/me", node: el("span", { class: "tm-big who-row" }, avatar(ME, 36), " ", nameEl(ME), el("small", { text: " @" + ME.username })) },
+      r("✏️", "Customize my profile", "#s/edit"), r("🤝", "Homies", "#s/homies", ME.requests), r("🔔", "Alerts", "#s/alerts", ME.unread),
+      r("😂", "Memes", "#s/feed/memes"), r("⚙️", "Account and privacy", "#s/settings"), r("©️", "Report copyright (DMCA)", "/dmca")]
+      : [{ emoji: "🌶️", label: "Join Chisme", href: "#s/signup", sub: "Post Chismes, find your Homies, make a profile that's yours" },
+        r("👋", "Sign in", "#s/signin"), r("😂", "Memes", "#s/feed/memes"), r("©️", "Report copyright (DMCA)", "/dmca")]);
+    M.setSection("social-admin", ME && ME.admin ? [r("📊", "Analytics", "#s/admin/analytics"), r("📣", "Sponsor posts", "#s/admin/posts"),
+      r("🔔", "Notifications", "#s/admin/push"), r("🛡️", "Moderation", "#s/admin/mod", ME.mod)] : null, { title: "🔐 Admin" });
   }
   const mixed = new WeakSet();
   async function mixIn() {   // a few public user Chismes go into the All list, every 3rd card, tagged like the app's own
@@ -904,11 +919,12 @@
       location.hash = t;
     }));
     $("#sx-compose").addEventListener("click", plusMenu);
-    $("#fb-menu").addEventListener("click", async () => { if (ME) await loadMe(); menu(); });
+    if (window.__chismeMenu) { window.__chismeMenu.onBeforeOpen(async () => { try { if (ME) await loadMe(); } finally { menuRows(); } }); menuRows(); }
+    else $("#fb-menu").addEventListener("click", async () => { if (ME) await loadMe(); menu(); });
     document.addEventListener("click", (e) => {   // the app's own chips and tabs take you back to its feeds
       if (leaving) return;
-      if (e.target.closest(".mq-chip, #tabs .tab") && location.hash.startsWith("#s/")) leaveSocial();
-      else if (e.target.closest(".mq-chip, #tabs .tab") && CH.classList.contains("sx-on")) leaveSocial();
+      if (e.target.closest(".mq-chip:not(.sx-chip), #tabs .tab") && location.hash.startsWith("#s/")) leaveSocial();
+      else if (e.target.closest(".mq-chip:not(.sx-chip), #tabs .tab") && CH.classList.contains("sx-on")) leaveSocial();
     }, true);
     const ml = $("#mix-list"); if (ml) new MutationObserver(() => mixIn()).observe(ml, { childList: true });
   }

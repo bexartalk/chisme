@@ -173,9 +173,9 @@ async def motion(b, bname, dev, shots):
         fr = await pg.evaluate(SAMPLE, 26)
         tops = [x["top"][0] for x in fr]; ops = [x["top"][2] for x in fr]; tb = [x["tabs"][0] for x in fr]
         mono = all(b2 >= a2 - 0.5 for a2, b2 in zip(tops, tops[1:])) and all(b2 >= a2 - 0.01 for a2, b2 in zip(ops, ops[1:])) and all(b2 <= a2 + 0.5 for a2, b2 in zip(tb, tb[1:]))
-        jump = max(abs(b2 - a2) for a2, b2 in zip(tops, tops[1:]))   # v49.16: < 54 (was 45): the bar travels 13 px further (the logo's overhang) in the same time
+        jump = max(abs(b2 - a2) for a2, b2 in zip(tops, tops[1:]))
         glued = all(abs(x["chips"][0] - x["top"][1]) <= 1.5 for x in fr)
-        check(mono and jump < 54 and glued and tops[-1] == 0 and ops[-1] == 1,
+        check(mono and jump < 45 and glued and tops[-1] == 0 and ops[-1] == 1,
               f"{bname}: hide then show again after {flip} ms: they turn around smoothly (only towards shown, biggest step {jump:.0f} px, the chip row stays glued, ends fully in)")
     # fast flicking: down/up/down/up a few px at a time must not leave them half-way or blinking
     await pg.evaluate("window.__chismeNav.show()"); await pg.wait_for_timeout(SETTLE)
@@ -279,11 +279,16 @@ async def phone(b, bname, dev, shots):
     await pg.click("#tia-close"); await pg.wait_for_timeout(400)
     foc = await pg.evaluate("document.activeElement && document.activeElement.id")
     check(foc == "tab-tia", f"{bname}: closing her chat puts focus back on her tab ({foc})")
-    for sel in ("#fb-menu", "#settings-btn"):
-        await pg.click(sel); await pg.wait_for_timeout(500)
-        o = await pg.evaluate("document.querySelector('#settings').open")
-        check(o, f"{bname}: {sel} opens Settings")
-        await pg.keyboard.press("Escape"); await pg.wait_for_timeout(400)
+    # v49.16 nav-on-social: ☰ opens the one Menu sheet (social's rows + Settings); its Settings row and the bubble open Settings
+    await pg.click("#fb-menu"); await pg.wait_for_timeout(700)
+    m = await pg.evaluate("() => ({ menu: document.querySelector('#menu').open, settings: document.querySelector('#settings').open, own: !!document.querySelector('#sheet:not([hidden])'), rows: document.querySelectorAll('#menu [data-menu-item]').length })")
+    check(m["menu"] and not m["settings"] and not m["own"] and m["rows"] >= 2, f"{bname}: #fb-menu opens exactly one menu, the Menu sheet with Settings in it {m}")
+    await pg.click("#menu-settings"); await pg.wait_for_timeout(500)
+    check(await pg.evaluate("document.querySelector('#settings').open"), f"{bname}: the Menu's Settings opens Settings")
+    await pg.keyboard.press("Escape"); await pg.wait_for_timeout(400)
+    await pg.click("#settings-btn"); await pg.wait_for_timeout(500)
+    check(await pg.evaluate("document.querySelector('#settings').open"), f"{bname}: #settings-btn opens Settings")
+    await pg.keyboard.press("Escape"); await pg.wait_for_timeout(400)
     # what the bars are made of: no yellow
     y = await pg.evaluate(YELLOWISH, ["#fbtop", "#fbtop *", "#tabs", "#tabs *"])
     check(not y, f"{bname}: no yellow on the bars (light) {y[:3]}")

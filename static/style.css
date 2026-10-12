@@ -1817,8 +1817,9 @@ dialog.reel-share[open]{animation:rs-up .22s ease-out}
    --tabs-h = the top bar's height on phones (app.js measures it); --fbbot-h = the bottom bar's. Fiesta colours, no yellow. */
 .fbtop,.fb-safe{display:none}
 @media (max-width:1023.98px){
-  html{--fb-turq:#00C9CD;--fb-pink:#FF1A7F;--fb-orange:#FF6A0B;--fb-silver:#C9CCCE;--fb-dur:.28s;--fb-curve:cubic-bezier(.22,.61,.36,1);--fb-ease:var(--fb-dur) var(--fb-curve);
-    --fb-up:calc(var(--tabs-h,57px) + var(--fb-chips-h,0px) + 8px + var(--fb-overhang));   /* how far the top bar + chip row slide up (app.js sets --fb-chips-h; v49.16: + the logo's overhang) */
+  html{--fb-turq:#00C9CD;--fb-pink:#FF1A7F;--fb-orange:#FF6A0B;--fb-silver:#C9CCCE;--fb-dur:.3s;--fb-curve:cubic-bezier(.33,.33,.67,1);   /* v49.16 nav-on-social: an even pace that eases out at the end (max slope 1.33, was 2.77), so no frame of the bar's slide jumps more than ~40 px even with the logo overhang and the two-line chip row */
+    --fb-ease:var(--fb-dur) var(--fb-curve);
+    --fb-up:calc(var(--tabs-h,57px) + max(var(--fb-chips-h,0px), var(--fb-overhang)) + 8px);   /* how far the top bar + chip row slide up (app.js sets --fb-chips-h, which already includes the logo overhang padding; without chips, the overhang itself) */
     --fb-overhang:13px;   /* v49.16: how far the Chisme badge hangs below the bar */
     --fbbot-h:calc(66px + env(safe-area-inset-bottom,0px))}   /* pre-JS fallback; app.js measures the real height */
   .topbar{display:none}            /* the skyline header: its Chisme bubble lives in the top bar now */
@@ -2093,3 +2094,14 @@ dialog.tia-menu.menu-sheet .tia-menu-in{max-height:calc(100dvh - 146px)}
 .tia-menu .menu-sec .tia-menu-btn .tm-big{font-size:1.05rem}
 .menu-sec{margin-top:10px}
 
+/* v49.16 nav-on-social: one chip row on Chisme: All · News · Sports · Events · Weather, then social's Homies · San Anto ·
+   Trending · Memes (data-sx, social.js). Nine chips don't fit one line on a phone, so the row wraps to two (no sideways
+   scroll, nothing cut off); every chip stays 44 px+ wide. A thin gap sets the people chips apart from the app's. */
+#sx-chips.mq-chips{flex-wrap:wrap;row-gap:4px}
+#sx-chips .mq-chip{flex:1 1 auto;min-width:44px;min-height:44px;overflow:visible;text-overflow:clip}
+#sx-chips .sx-chip{min-width:44px;min-height:44px;padding:.25em .45em;font-size:min(.85rem,19px,4.2vw)}
+#sx-chips .mq-chip[data-go="weather"]{margin-right:4px}
+#sx-chips .sx-chip[aria-current="true"]{background:var(--turq);color:#000;border-color:var(--turq)}
+@media (max-width:599px){ #sx-chips .sx-chip span{display:none} }
+@media (max-width:479px){ #sx-chips .mq-chip,#sx-chips .sx-chip{padding:.25em .4em;font-size:min(.85rem,19px,3.9vw)} }
+[data-season="muertos"] #sx-chips .sx-chip[aria-current="true"]{background:#c4135f;color:#fff;border-color:#c4135f}

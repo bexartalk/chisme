@@ -3216,7 +3216,8 @@ window.CHISME_APP_BUILD = "49.17";
     animT = setTimeout(done, 450);
   }
   for (const t of document.querySelectorAll(".tab[data-view]")) t.onclick = () => goView(t.dataset.view === "chisme" ? chipLast() : t.dataset.view, { scrollTo: t.dataset.scroll });   // (v49.16: not #tab-tia, it opens her chat)
-  for (const c of document.querySelectorAll(".mq-chip, #mix-end [data-go]")) c.onclick = () => goView(c.dataset.go);   // v49.12: Chisme's All / News / Sports / Events chips (v49.16: + Weather)
+  for (const c of document.querySelectorAll(".mq-chip[data-go], #mix-end [data-go]"))   /* v49.16: social's chips (data-sx) share the row; social.js handles them */
+    c.onclick = () => goView(c.dataset.go);   // v49.12: Chisme's All / News / Sports / Events chips (v49.16: + Weather)
 
   // Swipe: only horizontal touch drags that start outside the radar map, the hourly strip and
   // form controls. touch-action: pan-y (CSS) leaves vertical scrolling to the browser.
