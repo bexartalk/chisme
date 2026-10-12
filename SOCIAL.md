@@ -95,7 +95,7 @@ Storage / local), `social_auth.py` (Supabase Auth), `static/social.{js,css}` (in
    `SUPABASE_SERVICE_KEY`, `SUPABASE_PUBLISHABLE_KEY`; a `SOCIAL_SECRET`.
 5. **Sign-ups:** `SOCIAL_SIGNUP_TESTERS=<your email>,<testers' emails>` now; `SIGNUPS_PUBLIC=1` once chisme.co
    sends the codes from a verified domain. Have a Texas attorney look over Plato's pages before launch (their own note).
-5. **Uploads:** `SOCIAL_UPLOAD_TESTERS=<your @username>,<testers>` now; `UPLOADS_PUBLIC=1` only after chisme.co runs
+6. **Uploads:** `SOCIAL_UPLOAD_TESTERS=<your @username>,<testers>` now; `UPLOADS_PUBLIC=1` only after chisme.co runs
    through Cloudflare with the CSAM Scanning Tool on (or `CSAM_SCAN_URL` points at a live scanner).
-6. Optional: `CSAM_SCAN_URL` / `CSAM_SCAN_TOKEN` (PhotoDNA, Thorn Safer…), `SOCIAL_APPLE=1` / `SOCIAL_GOOGLE=1`.
+7. Optional: `CSAM_SCAN_URL` / `CSAM_SCAN_TOKEN` (PhotoDNA, Thorn Safer…), `SOCIAL_APPLE=1` / `SOCIAL_GOOGLE=1`.
    `SOCIAL_UPLOADS=0` pauses all uploads.

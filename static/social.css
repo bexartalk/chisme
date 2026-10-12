@@ -238,3 +238,6 @@ body.sx-plain main { max-width: 680px; }
 .sx .sx-legal-body th, .sx .sx-legal-body td { border: 1px solid var(--line); padding: 6px 8px; vertical-align: top; text-align: left; }
 .sx .sx-legal-body a { color: var(--link); }
 .sx .sx-legal-foot { font-size: .8rem; margin: 6px 0 24px; }
+/* the plain pages' bar: the app hides .topbar on phones (its fbtop replaces it), so this one draws itself */
+.sx .sx-modbar, .sx.sx-plain > .sx-modbar { display: block !important; height: auto; background: var(--turq); color: #000; position: relative; }
+[data-season="muertos"] .sx .sx-modbar { background: var(--turq); color: #000; }
