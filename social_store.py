@@ -28,8 +28,9 @@ TABLES: dict[str, dict] = {   # columns, primary key, json columns, bool columns
     "social_profiles": {"pk": ["id"], "json": ["privacy"], "bool": ["verified", "flagged"],
                         "cols": ["id", "username", "display_name", "bio", "area", "photo", "banner", "accent", "pinned_id", "privacy", "status", "verified", "flagged",
                                  "report_count", "created_at", "updated_at"]},
-    "social_private": {"pk": ["user_id"], "cols": ["user_id", "email_hash", "email_hint", "phone", "birthday", "tos_at", "privacy_at",
+    "social_private": {"pk": ["user_id"], "bool": ["adult"], "cols": ["user_id", "email_hash", "email_hint", "phone", "adult", "age_checked_at", "tos_at", "tos_version", "privacy_at", "privacy_version",
                                                    "signup_ip", "device", "created_at"], "unique": [["email_hash"]]},
+    "social_consents": {"pk": ["id"], "cols": ["id", "user_id", "kind", "version", "agreed_at"]},   # append-only record of what they agreed to
     "social_sessions": {"pk": ["id_hash"], "cols": ["id_hash", "user_id", "created_at", "expires_at", "ua"]},
     "social_homies": {"pk": ["a", "b"], "cols": ["a", "b", "created_at"]},
     "social_homie_requests": {"pk": ["id"], "cols": ["id", "from_id", "to_id", "status", "created_at"], "unique": [["from_id", "to_id"]]},

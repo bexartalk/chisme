@@ -122,12 +122,17 @@
     const [fn, name] = field("Display name", { maxlength: "40", autocomplete: "name", required: true });
     const [fu, user] = field("@username", { maxlength: "20", autocapitalize: "none", autocomplete: "username", pattern: "[a-z0-9_]{3,20}", required: true });
     const [fe, email] = field("Email (never shown to anyone)", { type: "email", autocomplete: "email", required: true });
-    const [fb, bday] = field("Birthday (you must be 18 or older)", { type: "date", required: true, max: new Date().toISOString().slice(0, 10) });
+    const [fb, bday] = field("Birthdate (you must be 18 or older; we only keep that you're 18+, not the date)", { type: "date", required: true, max: new Date().toISOString().slice(0, 10) });
     const [fp, pw] = field("Password (8+ characters)", { type: "password", autocomplete: "new-password", minlength: "8", required: true });
     const [fp2, pw2] = field("Confirm password", { type: "password", autocomplete: "new-password", required: true });
-    const tos = el("input", { type: "checkbox", required: true });
+    const tos = el("input", { type: "checkbox", required: true, id: "sx-tos" });   // never pre-ticked: they tick it themselves
     const bot = botBox();
     const f = form(async () => {
+      const b = bday.value ? new Date(bday.value + "T12:00:00") : null, now = new Date();
+      if (!b || isNaN(b)) return "Add your birthdate.";
+      const age = now.getFullYear() - b.getFullYear() - ((now.getMonth() < b.getMonth() || (now.getMonth() === b.getMonth() && now.getDate() < b.getDate())) ? 1 : 0);
+      if (age < 18) { page("Not yet", el("section", { class: "card auth" }, el("h1", { text: "Chisme is 18+ 🤙" }), el("p", { text: "You have to be 18 or older to join Chisme." }))); return; }
+      if (!tos.checked) return "Tick the box to agree to the Terms and Privacy Policy.";
       const d = await api("/api/social/signup", { method: "POST", body: { display_name: name.value, username: user.value, email: email.value,
         birthday: bday.value, password: pw.value, password2: pw2.value, tos: tos.checked, ...bot.value() } });
       if (d.ok) { verifyView(email.value, d.message); return; }
@@ -135,8 +140,9 @@
       if (d.bot) { await freshChallenge(); signUp(); toast(d.error, 4000); return; }
       return d.error;
     }, fn, fu, fe, fb, fp, fp2,
-      el("label", { class: "chk" }, tos, el("span", {}, "I agree to the ", el("a", { href: "/terms", target: "_blank", text: "Terms" }), " and the ",
-        el("a", { href: "/privacy", target: "_blank", text: "Privacy Policy" }), ".")),
+      el("label", { class: "chk" }, tos, el("span", {}, "I agree to the ", el("a", { href: "/terms", target: "_blank", text: "Terms" }), " and ",
+        el("a", { href: "/privacy", target: "_blank", text: "Privacy Policy" }))),
+      el("p", { class: "small" }, "Also read the ", el("a", { href: "/community-rules", target: "_blank", text: "Community Rules" }), ". They're part of the Terms."),
       bot, el("button", { class: "btn pink sx-wide", type: "submit", text: "Join Chisme 🌶️" }));
     page("Join", el("section", { class: "card auth" }, el("h1", { text: "Join Chisme" }),
       el("p", { class: "sub", text: "Your Homies, your city, your chisme. Your email stays private; we only use it to send your 6-digit code." }), f,

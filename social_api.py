@@ -3,7 +3,7 @@ social.py, storage in social_store.py, Supabase Auth in social_auth.py.
 
 Pages: /social (the app: feeds, ➕ CHISME, profiles, Homies, settings, the moderation queue for the owner), /c/<id> (a
 public Chisme's share page), /dmca (the copyright takedown form). APIs: /api/social/*. Every write is same-origin + JSON
-(uploads: the raw file body) and rate limited; nothing ever answers with an email, phone or birthday."""
+(uploads: the raw file body) and rate limited; nothing ever answers with an email or phone, and a birthday is checked (18+) but never stored."""
 from __future__ import annotations
 
 import asyncio
@@ -225,11 +225,12 @@ def page(title: str, body: str) -> str:
 
 
 # Chisme's designated DMCA agent (U.S. Copyright Office registration DMCA-1082743). DMCA_AGENT_INFO overrides it.
-DMCA_EMAIL = "Arnulfoled@outlook.com"
-DMCA_REG = "DMCA-1082743"
-DMCA_NAME = "Arnulfo Ledezma (Chisme)"
-DMCA_ADDRESS = "912 FM 2537 Lot #5, San Antonio, TX 78221"
-DMCA_PHONE = "(210) 837-2281"
+import legal_contact as LC   # the one place the agent's name / address / phone / email live
+DMCA_EMAIL = LC.EMAIL
+DMCA_REG = LC.DMCA_REG
+DMCA_NAME = LC.AGENT_NAME
+DMCA_ADDRESS = LC.ADDRESS
+DMCA_PHONE = LC.PHONE
 DMCA_AGENT_DEFAULT = (f"Chisme's designated agent for copyright complaints is registered with the U.S. Copyright Office "
                       f"(registration {DMCA_REG}). Email copyright complaints to {DMCA_EMAIL}, or send a notice with this form.")
 
@@ -472,8 +473,12 @@ def install(app: FastAPI, *, owner: Callable[..., Awaitable[bool]], public_base:
                                                 "banner": None, "accent": "turquoise", "pinned_id": None, "privacy": {}, "status": "active",
                                                 "verified": False, "flagged": False, "report_count": 0, "created_at": t, "updated_at": t})
         await S.db().insert("social_private", {"user_id": uid, "email_hash": eh, "email_hint": X.mask_email(email_raw), "phone": phone,
-                                               "birthday": bday.isoformat(), "tos_at": t, "privacy_at": t, "signup_ip": X.hm("ip", ip),
+                                               # the birthday itself is never stored: only "18+, checked on this date"
+                                               "adult": True, "age_checked_at": t, "tos_at": t, "tos_version": X.TERMS_VERSION,
+                                               "privacy_at": t, "privacy_version": X.PRIVACY_VERSION, "signup_ip": X.hm("ip", ip),
                                                "device": X.hm("dev", dev), "created_at": t})
+        for kind, ver in (("terms", X.TERMS_VERSION), ("privacy", X.PRIVACY_VERSION), ("community_rules", X.RULES_VERSION), ("age_18", "birthdate-checked")):
+            await S.db().insert("social_consents", {"id": X.new_id(), "user_id": uid, "kind": kind, "version": ver, "agreed_at": t})
         r = ok(generic)
         r.set_cookie(X.DEVICE, dev, max_age=86400 * 365, path="/", httponly=True, samesite="lax")
         return r
@@ -652,7 +657,7 @@ def install(app: FastAPI, *, owner: Callable[..., Awaitable[bool]], public_base:
         for t, col in (("social_reactions", "user_id"), ("social_saves", "user_id"), ("social_comments", "author_id"), ("social_chismes", "author_id"),
                        ("social_notifications", "user_id"), ("social_notifications", "actor_id"), ("social_homies", "a"), ("social_homies", "b"),
                        ("social_homie_requests", "from_id"), ("social_homie_requests", "to_id"), ("social_nahs", "user_id"), ("social_nahs", "target_id"),
-                       ("social_blocks", "blocker_id"), ("social_blocks", "blocked_id"), ("social_sessions", "user_id"), ("social_private", "user_id")):
+                       ("social_blocks", "blocker_id"), ("social_blocks", "blocked_id"), ("social_sessions", "user_id"), ("social_consents", "user_id"), ("social_private", "user_id")):
             await db.delete(t, [(col, "eq", uid)])
         await db.update("social_reports", [("reporter_id", "eq", uid)], {"reporter_id": None})
         await db.delete("social_media", [("owner_id", "eq", uid), ("status", "neq", "blocked")])

@@ -3108,7 +3108,7 @@ def app_build() -> str:
     return m.group(1) if m else "0"
 
 
-# v49.12: Privacy Policy and Terms of Use (built from legal/*.md by tools/make_legal_pages.py)
+# Terms, Privacy Policy and Community Rules (Plato's legal/*.md, built by tools/make_legal_pages.py)
 @app.get("/privacy", include_in_schema=False)
 async def privacy_page():
     return FileResponse(BASE / "static" / "legal" / "privacy.html", media_type="text/html; charset=utf-8", headers={"Cache-Control": "no-cache"})
@@ -3117,6 +3117,11 @@ async def privacy_page():
 @app.get("/terms", include_in_schema=False)
 async def terms_page():
     return FileResponse(BASE / "static" / "legal" / "terms.html", media_type="text/html; charset=utf-8", headers={"Cache-Control": "no-cache"})
+
+
+@app.get("/community-rules", include_in_schema=False)
+async def community_rules_page():
+    return FileResponse(BASE / "static" / "legal" / "community-rules.html", media_type="text/html; charset=utf-8", headers={"Cache-Control": "no-cache"})
 
 
 # v49.12: the seasonal theme (Día de los Muertos). The page turns it on and off by itself (Chicago time, see the season

@@ -11,7 +11,7 @@ TestClient, the local backend (SQLite + files in a temp folder) and the in-memor
     Memes), reactions incl. 🌶️ + 😂, comments, saves, share pages, ChismeTV clip reposts
   • safety: report → auto-hide at 3, moderation queue (owner only) + restore / remove / ban, block, delete account, the
     DMCA page + form + "Report copyright", CSRF (cross-site refused), RLS on every table in the migration, no yellow"""
-import asyncio, io, json, os, re, subprocess, sys, tempfile, time
+import asyncio, html, io, json, os, re, subprocess, sys, tempfile, time
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 tmp = tempfile.mkdtemp()
 for k in [k for k in os.environ if k.startswith(("UPSTASH_", "RENDER", "SUPABASE_", "R2_", "TURNSTILE_", "CSAM_", "SOCIAL_", "UPLOADS_"))]:
@@ -138,6 +138,19 @@ check(r.status_code == 403, "…and a retry with an older birthday is refused to
 goonie, r = join("goonie_tx", "Goonie") if False else join("goonie210", "Goonie")
 check(r.status_code == 200 and goonie.cookies.get(X.COOKIE), "sign-up → 6-digit email code → signed in")
 me = goonie.get("/api/social/me").json()
+_uid = asyncio.run(S.db().select("social_profiles", [("username", "eq", "goonie210")]))[0]["id"]
+_priv = asyncio.run(S.db().select("social_private", [("user_id", "eq", _uid)]))[0]
+check("birthday" not in _priv and _priv["adult"] in (True, 1) and _priv["age_checked_at"], "the birthdate is checked but never stored: only 18+ and when it was checked")
+sys.path.insert(0, f"{HERE}/tools"); import make_legal_pages as LP
+check(_priv["tos_version"] == X.TERMS_VERSION == LP.effective("terms.md") and _priv["privacy_version"] == X.PRIVACY_VERSION == LP.effective("privacy.md")
+      and X.RULES_VERSION == LP.effective("rules-and-copyright.md") and _priv["tos_at"], "the agreed time + versions are saved and match the pages' effective dates")
+_cons = asyncio.run(S.db().select("social_consents", [("user_id", "eq", _uid)]))
+check(sorted(c["kind"] for c in _cons) == ["age_18", "community_rules", "privacy", "terms"] and all(c["agreed_at"] for c in _cons), "the consent record has terms, privacy, rules and 18+")
+_c, r = join("notick", tos=False)
+check(r.status_code == 400 and "Terms" in r.json()["error"], "no ticked Terms box → no account (server side)")
+_js = open(f"{HERE}/static/social.js").read()
+_tl = [l for l in _js.split("\n") if "sx-tos" in l][0]
+check("checked" not in _tl and "I agree to the " in _js and 'href: "/terms"' in _js and 'href: "/privacy"' in _js, "the Terms box starts unticked and links /terms + /privacy")
 check(me["me"]["username"] == "goonie210" and "goonie210@example.com" not in json.dumps(me, ensure_ascii=False) and me["me"]["email_hint"] == "g•••@example.com", "/me never shows the full email")
 lupe, _ = join("lupe", "Lupe")
 tia, _ = join("tia_rosa", "Tía Rosa")
@@ -421,16 +434,40 @@ check(anon.get(f"/api/social/chismes/{c_pub['id']}").status_code == 200, "reject
 # delete account
 r = nena.post("/api/social/account/delete", json={"confirm": "nah"}, headers=H)
 check(r.status_code == 400, "delete needs DELETE typed")
+_nid = asyncio.run(S.db().select("social_profiles", [("username", "eq", "nena")]))[0]["id"]
+check(asyncio.run(S.db().select("social_consents", [("user_id", "eq", _nid)])), "nena has consent rows before deleting")
 r = nena.post("/api/social/account/delete", json={"confirm": "DELETE"}, headers=H)
 check(r.status_code == 200 and anon.get("/api/social/u/nena").status_code == 404 and anon.get(f"/api/social/chismes/{clip['id']}").status_code == 404,
       "delete account → profile + Chismes gone")
-check(not asyncio.run(S.db().select("social_private", [("user_id", "eq", nena.cookies.get("x") or "")])), "…private row gone")
+check(not any(asyncio.run(S.db().select(t, [(col, "eq", _nid)])) for t, col in (("social_private", "user_id"), ("social_consents", "user_id"),
+      ("social_profiles", "id"), ("social_chismes", "author_id"), ("social_comments", "author_id"), ("social_reactions", "user_id"),
+      ("social_homies", "a"), ("social_homies", "b"), ("social_sessions", "user_id"), ("social_media", "owner_id"))),
+      "…private row, consents, Chismes, comments, reactions, Homies, sessions and media rows all gone (Privacy Policy §6/§7)")
+check(nena.get("/api/social/me").json()["me"] is None, "…and the deleted account is signed out")
 
 # ---------------------------------------------------------------- migration: RLS on every table, no yellow
 sql = open(f"{HERE}/supabase/migrations/20261004150000_social_p1.sql").read()
+sql2 = open(f"{HERE}/supabase/migrations/20261012190000_social_signup_consent.sql").read()
 tables = set(re.findall(r"create table if not exists public\.(\w+)", sql))
+tables2 = set(re.findall(r"create table if not exists public\.(\w+)", sql2))
 rls = re.search(r"foreach t in array array\[(.*?)\] loop", sql, re.S).group(1)
-check(tables == set(S.TABLES) and all(f"'{t}'" in rls for t in tables), "every table is in the migration with RLS on + forced")
+check(tables | tables2 == set(S.TABLES) and all(f"'{t}'" in rls for t in tables)
+      and all(f"alter table public.{t} force row level security" in sql2 and f"revoke all on table public.{t} from anon" in sql2 for t in tables2),
+      "every table is in a migration with RLS on + forced (social_consents in the new one)")
+check("drop column if exists birthday" in sql2 and "check (adult = true)" in sql2 and "tos_version" in sql2 and "Apply AFTER 20261004150000_social_p1.sql" in sql2,
+      "the new migration drops stored birthdates, keeps 18+ and the consent versions, and runs after part 1")
+_cols = set(S.TABLES["social_private"]["cols"])
+check({"adult", "age_checked_at", "tos_version", "privacy_version"} <= _cols and "birthday" not in _cols, "the store matches the new migration")
+# the legal pages: Plato's text word for word, in the app's look, cross-links working
+for _path, _src in (("/terms", "terms.md"), ("/privacy", "privacy.md"), ("/community-rules", "rules-and-copyright.md")):
+    _h = anon.get(_path); _md = open(f"{HERE}/legal/{_src}").read()
+    _heads = re.findall(r"^#{1,3} (.+)$", _md, re.M)
+    check(_h.status_code == 200 and "/static/style.css" in _h.text and 'class="topbar' in _h.text and all(html.escape(x, quote=False) in _h.text for x in _heads)
+          and 'href="terms.md"' not in _h.text and 'href="privacy.md"' not in _h.text and "TODO" not in _h.text, f"{_path}: Plato's text in the app's look")
+    check(_md == open(f"/workspace/chisme_legal/{_src}").read() if os.path.exists(f"/workspace/chisme_legal/{_src}") else True, f"{_src}: wording untouched")
+_pp = anon.get("/privacy").text
+check("strip GPS and other EXIF location metadata" in _pp and "in-app account deletion" in _pp, "the Privacy Policy's EXIF + in-app delete promises are on the page (and tested above)")
+check("912 FM 2537 Lot #5" in anon.get("/community-rules").text, "the agent's mailing address is on the rules page (legal_contact.py can hide it)")
 check("enable row level security" in sql and "force row level security" in sql and "revoke all on table public.%I from anon" in sql, "RLS on, anon revoked")
 css = open(f"{HERE}/static/social.css").read().lower()
 check(not re.search(r"yellow|gold|#ff(?:d|e|f)[0-9a-f]00\b|#ff[cdef]\d0[0-9a-f]\b", css.replace("no yellow", "")), "no yellow in social.css")
