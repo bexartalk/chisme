@@ -313,6 +313,15 @@ check(_cols <= {"#00C9CD", "#FF1A7F", "#FF6A0B", "#000", "#FFF", "#C0C0C0"} and 
       f"the header uses only the icon's Fiesta colors (no yellow): {_cols}")
 _skh = int(re.search(r"\.sx \.p-hdr-sky \{[^}]*height: (\d+)px", _hdr).group(1)); _hh = int(re.search(r"\.sx \.p-hdr \{ height: (\d+)px", _hdr).group(1))
 check(_skh >= 88 and _hh >= 200 and _hh - _skh >= 100, f"the skyline is big (≈2× v49.19's 46 px: {_skh} px) and the header grew to keep room ({_hh} px)")
+_bgc = re.search(r"\.sx \.p-hdr \{[^}]*background: (#[0-9A-Fa-f]+) ", _hdr).group(1)
+check(_bgc == "#000" and '[data-theme="dark"] .fbtop{background:#000;' in _app_css, f"the header background is the home header's exact black ({_bgc})")
+_air = open(f"{HERE}/static/site/profile-sky.svg").read()
+_airc = {c.upper() for c in re.findall(r'fill="(#[0-9A-Fa-f]+)"', _air)}
+check(_airc and _airc <= {"#00C9CD", "#FF1A7F", "#FF6A0B", "#C0C0C0"} and _air.count("<g class=\"air-") >= 3 and "p-hdr-air" in _js,
+      f"a few small planes + helicopters in the sky, app colors only (no yellow): {_airc}")
+check(re.search(r"prefers-reduced-motion: reduce\) \{ \.sx \.p-hdr-air \{ animation: none", _hdr) and "html.reduce-motion .sx .p-hdr-air { animation: none; }" in _hdr,
+      "the sky's gentle drift stops for reduced motion (system setting + the app's own switch)")
+check("drop-shadow(1.5px 0 0 #00C9CD)" in _hdr and "confetti.svg" in _hdr, "the black Chisme bubble gets a turquoise edge on black; the Fiesta confetti stays")
 _ff = re.search(r'@font-face \{ font-family: "Chisme Profile Display"; src: url\("([^"]+)"\)', _hdr)
 check(_ff and _ff.group(1) == "/static/fonts/chewy-site.woff" and os.path.exists(f"{HERE}{_ff.group(1)}") and "http" not in _ff.group(0)
       and '.sx .p-name { font-family: "Chisme Profile Display"' in _hdr, "the profile name uses the self-hosted Chewy display font (no CDN)")

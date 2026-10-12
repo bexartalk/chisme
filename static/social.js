@@ -466,7 +466,8 @@
     const h = el("div", { class: "banner p-hdr" + (p.banner ? " has-photo" : ""), role: "img",
       "aria-label": p.banner ? `${p.name}'s header photo` : "Chisme header: the Chisme bubble and the San Antonio skyline" });
     if (p.banner) h.append(el("img", { class: "p-hdr-photo", src: p.banner, alt: "", decoding: "async" }));
-    else h.append(el("img", { class: "p-hdr-logo", src: "/static/site/chisme-bubble-logo.svg", alt: "", width: "569", height: "440" }));
+    else h.append(el("img", { class: "p-hdr-air", src: "/static/site/profile-sky.svg", alt: "", "aria-hidden": "true" }),
+      el("img", { class: "p-hdr-logo", src: "/static/site/chisme-bubble-logo.svg", alt: "", width: "569", height: "440" }));
     h.append(el("img", { class: "p-hdr-sky", src: "/static/site/sa-skyline.svg", alt: "", "aria-hidden": "true" }), el("span", { class: "p-hdr-picado", "aria-hidden": "true" }));
     if (mine && ME) {
       const tools = el("div", { class: "p-hdr-tools" },
