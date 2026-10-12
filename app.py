@@ -451,9 +451,10 @@ def norm_title(t: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", t.lower()).strip()
 
 
-async def _fetch_feed(feed: dict) -> list[dict]:
-    r = await client().get(feed["url"])
-    r.raise_for_status()
+async def _fetch_feed(feed: dict, r=None) -> list[dict]:
+    if r is None:
+        r = await client().get(feed["url"])
+        r.raise_for_status()
     parsed = feedparser.parse(r.content)
     is_g = feed["kind"].startswith("gnews")
     items = []
@@ -2055,8 +2056,47 @@ async def espn_news(path: str, team: str | None = None, limit: int = 12) -> list
     return espn_articles(await sjson(f"{ESPN}/{path}/news{q}", 15 * 60), limit)
 
 
+# Reddit answers 429 to busy server IPs: cache 30 min, back off on 429 (Retry-After, else 5m→60m), serve stale meanwhile.
+REDDIT_UA = os.environ.get("REDDIT_USER_AGENT", "server:com.chisme.app:v49 (Chisme local news PWA; +https://github.com/bexartalk/chisme)")
+REDDIT_TTL, REDDIT_MIN_BACKOFF, REDDIT_MAX_BACKOFF = 30 * 60, 5 * 60, 60 * 60
+_reddit = {"until": 0.0, "strikes": 0}
+
+
+def _retry_after(v: str | None) -> float | None:
+    if not v:
+        return None
+    try:
+        return max(0.0, float(v))
+    except ValueError:
+        try:
+            from email.utils import parsedate_to_datetime
+            return max(0.0, parsedate_to_datetime(v).timestamp() - time.time())
+        except Exception:
+            return None
+
+
+async def _fetch_reddit(feed: dict) -> list[dict]:
+    now = time.time()
+    if now < _reddit["until"]:
+        raise RuntimeError(f"Reddit cooling down for {int(_reddit['until'] - now)}s after a 429")
+    r = await client().get(feed["url"], headers={"User-Agent": REDDIT_UA})
+    if r.status_code == 429:
+        _reddit["strikes"] += 1
+        wait = _retry_after(r.headers.get("Retry-After"))
+        if wait is None:
+            wait = REDDIT_MIN_BACKOFF * 2 ** (_reddit["strikes"] - 1)
+        _reddit["until"] = time.time() + min(max(wait, 1.0), REDDIT_MAX_BACKOFF)
+        raise RuntimeError("Reddit rate limit (HTTP 429)")
+    r.raise_for_status()
+    _reddit["strikes"], _reddit["until"] = 0, 0.0
+    return await _fetch_feed(feed, r)
+
+
 async def feed_items(feed: dict) -> list[dict]:
-    items = await cached("feed:" + feed["url"], 20 * 60, lambda: _fetch_feed(feed), stale=6 * 3600)
+    if feed["kind"] == "reddit":
+        items = await cached("feed:" + feed["url"], REDDIT_TTL, lambda: _fetch_reddit(feed), stale=24 * 3600)
+    else:
+        items = await cached("feed:" + feed["url"], 20 * 60, lambda: _fetch_feed(feed), stale=6 * 3600)
     out = []
     for i in items:
         it = dict(i, id=i["link"], kind=feed["kind"], video="youtube.com" in (i["link"] or ""))
