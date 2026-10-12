@@ -12,8 +12,8 @@
 
 These rules are part of our [Terms of Service](terms.md). Break them and your post can get taken down, or your account can get the boot.
 
-### 1. 18+ only, no exceptions
-Chisme is for grown folks. If you're not 18 yet, come back later, mijo.
+### 1. Accounts, posting and Tía are 18+
+Anybody 13+ can browse, but accounts, posting, comments and chatting with Tía are for grown folks only. Not 18 yet? Keep scrolling, mijo, and come post later.
 
 ### 2. Kids are off-limits. Period.
 Any content that sexualizes minors gets deleted, the account gets banned for good, and we report it to NCMEC and the cops. No warnings, no second chances.

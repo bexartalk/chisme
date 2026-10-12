@@ -157,8 +157,10 @@ _uid = asyncio.run(S.db().select("social_profiles", [("username", "eq", "goonie2
 _priv = asyncio.run(S.db().select("social_private", [("user_id", "eq", _uid)]))[0]
 check("birthday" not in _priv and _priv["adult"] in (True, 1) and _priv["age_checked_at"], "the birthdate is checked but never stored: only 18+ and when it was checked")
 sys.path.insert(0, f"{HERE}/tools"); import make_legal_pages as LP
-check(_priv["tos_version"] == X.TERMS_VERSION == LP.effective("terms.md") and _priv["privacy_version"] == X.PRIVACY_VERSION == LP.effective("privacy.md")
-      and X.RULES_VERSION == LP.effective("rules-and-copyright.md") and _priv["tos_at"], "the agreed time + versions are saved and match the pages' effective dates")
+check(_priv["tos_version"] == X.TERMS_VERSION and X.TERMS_VERSION.startswith(LP.effective("terms.md")) and _priv["privacy_version"] == X.PRIVACY_VERSION
+      and X.PRIVACY_VERSION.startswith(LP.effective("privacy.md")) and X.RULES_VERSION.startswith(LP.effective("rules-and-copyright.md")) and _priv["tos_at"],
+      "the agreed time + versions are saved and start with the pages' effective dates (.2 = same-day revision)")
+check(X.TERMS_VERSION == X.PRIVACY_VERSION == X.RULES_VERSION == "2026-10-12.2", "consent version bumped for Plato's merged docs")
 _cons = asyncio.run(S.db().select("social_consents", [("user_id", "eq", _uid)]))
 check(sorted(c["kind"] for c in _cons) == ["age_18", "community_rules", "privacy", "terms"] and all(c["agreed_at"] for c in _cons), "the consent record has terms, privacy, rules and 18+")
 _c, r = join("notick", tos=False)

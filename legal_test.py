@@ -25,6 +25,11 @@ async def main():
         left = re.findall(r"\[[A-Z][A-Z /$]{3,}\]", body)
         check(st == 200 and {"privacy": "Privacy", "terms": "Terms", "community-rules": "Community Rules"}[name] in title and "Arnulfoled@outlook.com" in body and not left and 'id="track"' not in body,
               f"/{name}: a real page ({st}, '{title}', contact email, no placeholders left {left[:3]}, {body.count('class=\"todo\"')} TODO marks)")
+    # the age rules (Plato's merged docs): browsing 13+, accounts / posting / Tía chat 18+
+    with urllib.request.urlopen(URL + "terms", timeout=30) as r:
+        tb_ = re.sub(r"<[^>]+>", "", r.read().decode())
+    check("Browsing is open to a general audience 13 and older" in tb_ and "Accounts and social features are 18+" in tb_ and "Tía Chismosa chat is 18+" in tb_
+          and "There are no accounts" not in tb_, "/terms: browsing 13+, accounts/posting 18+, Tía chat 18+ (and no 'no accounts' line)")
     async with async_playwright() as p:
         for bname, bt, dev in (("chromium", p.chromium, dict(is_mobile=True, has_touch=True, device_scale_factor=2.625)), ("webkit", p.webkit, dict(is_mobile=True, has_touch=True, device_scale_factor=3))):
             b = await bt.launch()

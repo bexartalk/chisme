@@ -159,9 +159,9 @@ def age_on(bday: date, today: date) -> int:
 # The Terms / Privacy Policy versions a new account agrees to (saved with the time in social_private + social_consents).
 # Each version is the "Effective date" of that page's text in legal/*.md (social_test checks they match); bump it with
 # the text. Env TERMS_VERSION / PRIVACY_VERSION / RULES_VERSION override.
-TERMS_VERSION = os.environ.get("TERMS_VERSION", "").strip() or "2026-10-12"
-PRIVACY_VERSION = os.environ.get("PRIVACY_VERSION", "").strip() or "2026-10-12"
-RULES_VERSION = os.environ.get("RULES_VERSION", "").strip() or "2026-10-12"
+TERMS_VERSION = os.environ.get("TERMS_VERSION", "").strip() or "2026-10-12.2"   # rev 2: Plato's merged docs (browsing 13+, accounts/posting/Tía 18+)
+PRIVACY_VERSION = os.environ.get("PRIVACY_VERSION", "").strip() or "2026-10-12.2"   # rev 2: Plato's merged docs (browsing 13+, accounts/posting/Tía 18+)
+RULES_VERSION = os.environ.get("RULES_VERSION", "").strip() or "2026-10-12.2"   # rev 2: Plato's merged docs (browsing 13+, accounts/posting/Tía 18+)
 
 
 def parse_birthday(v) -> date:
