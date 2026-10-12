@@ -282,7 +282,7 @@ html[data-season="muertos"] .sx .adm-tabs a[aria-current="page"] { background: #
 /* v49.19 the profile header: the app icon's Fiesta look (turquoise #00C9CD, pink #FF1A7F + orange #FF6A0B confetti, the black
    Chisme bubble), a cartoon San Antonio skyline (Tower of the Americas…, the app's own turquoise skyline art as-is: tools/make_profile_skyline.py), and a picado strip. Fixed Fiesta colors (they're the icon's), so no theme vars here. NO yellow. */
 @font-face { font-family: "Chisme Profile Display"; src: url("/static/fonts/chewy-site.woff") format("woff"); font-display: swap; }   /* Chewy (Apache-2.0), self-hosted */
-.sx .p-hdr { height: 210px; overflow: hidden; background: #000 url("/static/site/confetti.svg") center / 220px repeat; isolation: isolate; }   /* #000 = the home header's black (style.css [data-theme="dark"] .fbtop) */
+.sx .p-hdr { height: 210px; overflow: hidden; background: #00C9CD url("/static/site/confetti.svg") center / 220px repeat; isolation: isolate; }   /* the turquoise sky (the app icon's #00C9CD) */
 .sx .p-hdr-air { position: absolute; z-index: 1; inset: 0; width: 100%; height: 100%; pointer-events: none; animation: sx-air-drift 18s ease-in-out infinite alternate; }
 @keyframes sx-air-drift { from { transform: translateX(-6px); } to { transform: translateX(10px); } }
 @media (prefers-reduced-motion: reduce) { .sx .p-hdr-air { animation: none; } }
@@ -290,9 +290,9 @@ html.reduce-motion .sx .p-hdr-air { animation: none; }
 .sx .p-hdr::after { content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none;
   background: linear-gradient(180deg, rgba(0, 0, 0, 0) 55%, rgba(0, 0, 0, .18)); }
 .sx .p-hdr:not(.has-photo)::after { display: none; }
-.sx .p-hdr-logo { position: absolute; z-index: 1; right: 5%; top: 10px; width: min(40%, 190px); height: auto; filter: drop-shadow(1.5px 0 0 #00C9CD) drop-shadow(-1.5px 0 0 #00C9CD) drop-shadow(0 1.5px 0 #00C9CD) drop-shadow(0 -1.5px 0 #00C9CD) drop-shadow(0 4px 0 #FF1A7F); transform: rotate(-4deg); }   /* a turquoise edge so the black bubble reads on black */
+.sx .p-hdr-logo { position: absolute; z-index: 1; right: 5%; top: 10px; width: min(40%, 190px); height: auto; filter: drop-shadow(0 4px 0 #FF1A7F); transform: rotate(-4deg); }   /* the black bubble reads on turquoise (like the icon); a pink drop for pop */
 .sx .p-hdr-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; }
-.sx .p-hdr-sky { position: absolute; z-index: 3; left: 0; right: 0; bottom: 8px; width: 100%; height: 92px; object-fit: cover; filter: drop-shadow(0 -1.5px 0 rgba(0, 201, 205, .35)); object-position: bottom; pointer-events: none; }
+.sx .p-hdr-sky { position: absolute; z-index: 3; left: 0; right: 0; bottom: 8px; width: 100%; height: 92px; object-fit: cover;  object-position: bottom; pointer-events: none; }
 .sx .p-hdr.has-photo .p-hdr-sky { height: 72px; opacity: .95; }
 .sx .p-hdr-picado { position: absolute; z-index: 3; left: 0; right: 0; bottom: 0; height: 8px;
   background: repeating-linear-gradient(90deg, #FF1A7F 0 22px, #FF6A0B 22px 44px, #00C9CD 44px 66px, #000 66px 88px, #C0C0C0 88px 110px); }
