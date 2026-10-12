@@ -38,7 +38,8 @@
   <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png" sizes="180x180">
   <link rel="stylesheet" href="/static/vendor/leaflet/leaflet.css">
   <link rel="stylesheet" href="/static/style.css?v=__BUILD__">
-  <link rel="stylesheet" href="/static/ownerposts.css?v=__BUILD__">   <!-- the owner's own posts ("From Chisme") -->
+  <link rel="stylesheet" href="/static/ownerposts.css?v=__BUILD__">
+  <link rel="stylesheet" href="/static/social.css?v=__BUILD__">   <!-- Chisme social: user Chismes, profiles, Homies (social.js; scoped under .sx) -->   <!-- the owner's own posts ("From Chisme") -->
   <script>
     /* The server fills in the build; app.js and style.css are requested with ?v=<build>, so an
        older service worker's cached copies can never be mixed with this page. */
@@ -170,6 +171,7 @@
       <span class="mq-deco mq-skull muertos-only" aria-hidden="true"><img src="/static/season/calavera.svg" alt="" width="40" height="44"></span>
       <div class="fb-right">
         <button type="button" id="install-btn" class="install" hidden>📲 Install</button>
+        <button type="button" id="fb-menu" class="fb-ico fb-menu" aria-label="Menu: your profile, Homies and alerts" aria-haspopup="dialog"><span aria-hidden="true">☰</span><b class="sx-dot" id="sx-dot" hidden></b></button>
         <button type="button" id="fb-set" class="fb-ico" aria-label="Settings" aria-haspopup="dialog" aria-controls="settings"><span aria-hidden="true">⚙️</span></button>
         <button type="button" id="fb-tia" class="fb-tia" aria-label="Chat with Tía Chismosa" aria-haspopup="dialog" aria-controls="tia">
           <img src="/static/mascot/avatar-64.webp?art=3" srcset="/static/mascot/avatar-64.webp?art=3 1x, /static/mascot/avatar-128.webp?art=3 2x, /static/mascot/avatar-192.webp?art=3 3x" width="44" height="44" alt="">
@@ -302,6 +304,13 @@
            (All · News · Sports · Events, also at the top of the other three) drill into one. #news, #sports, #events land there. -->
       <section id="view-chisme" class="view active" aria-label="Chisme: All" data-view="chisme">
         <nav class="mq-chips" aria-label="Chisme: show"><button type="button" class="mq-chip" data-go="chisme" aria-current="true"><span aria-hidden="true">✨</span> All</button><button type="button" class="mq-chip" data-go="news"><span aria-hidden="true">📰</span> News</button><button type="button" class="mq-chip" data-go="sports"><span aria-hidden="true">🏀</span> Sports</button><button type="button" class="mq-chip" data-go="events"><span aria-hidden="true">🎉</span> Events</button></nav>
+        <!-- Chisme social (social.js): user Chismes live right here in the Chisme feed. The chips open Homies / San Anto /
+             Trending / Memes in place of the mix; the bar opens ➕ CHISME; profiles, Homies and alerts open in #sx-view too. -->
+        <div class="sx sx-top" id="sx-top">
+          <nav class="sx-chips" id="sx-chips" aria-label="Chisme from people"><button type="button" class="sx-chip" data-sx="homies"><span aria-hidden="true">🤝</span> Homies</button><button type="button" class="sx-chip" data-sx="sananto"><span aria-hidden="true">🌶️</span> San Anto</button><button type="button" class="sx-chip" data-sx="trending"><span aria-hidden="true">🔥</span> Trending</button><button type="button" class="sx-chip" data-sx="memes"><span aria-hidden="true">😂</span> Memes</button></nav>
+          <button type="button" class="card sx-compose" id="sx-compose" aria-haspopup="dialog"><span class="sx-face" id="sx-face" aria-hidden="true">👀</span><span class="sx-q">What's the chisme?</span><span class="sx-plus">➕ CHISME</span></button>
+        </div>
+        <div class="sx sx-view" id="sx-view" tabindex="-1" hidden></div>
         <p class="mix-hi" id="mix-hi">News, sports and events, all mixed together. Tap <b>News</b>, <b>Sports</b> or <b>Events</b> up top to see just one.</p>
         <!-- v49.12 Día de Muertos (in season only): past celebrations in San Antonio and México. Freely licensed Wikimedia
              Commons photos (static/season/gallery.json, built by tools/make_season_gallery.py), each with its credit line -->
@@ -817,5 +826,18 @@
       };
     })();
   </script>
+  <!-- Chisme social: its sheet, toast and file pickers (outside the swiping views) -->
+  <div class="sx sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" hidden>
+    <div class="sheet-card"><div class="grab" aria-hidden="true"></div><h2 id="sheet-title"></h2><div id="sheet-body"></div>
+      <button type="button" class="x" id="sheet-x" aria-label="Close">✕</button></div>
+  </div>
+  <div class="sx toast" id="sx-toast" role="status" hidden></div>
+  <input type="file" id="pick-photo" accept="image/jpeg,image/png,image/webp,image/heic,image/*" multiple hidden>
+  <input type="file" id="cam-photo" accept="image/*" capture="environment" hidden>
+  <input type="file" id="pick-video" accept="video/mp4,video/quicktime,video/webm,video/*" hidden>
+  <input type="file" id="cam-video" accept="video/*" capture="environment" hidden>
+  <input type="file" id="pick-avatar" accept="image/*" hidden>
+  <input type="file" id="pick-banner" accept="image/*" hidden>
+  <script src="/static/social.js?v=__BUILD__"></script>
 </body>
 </html>

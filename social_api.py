@@ -220,8 +220,8 @@ def page(title: str, body: str) -> str:
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#00C9CD"><title>{html.escape(title)}</title>
-<link rel="icon" href="/static/icons/icon-192.png"><link rel="stylesheet" href="/static/social.css">
-</head><body class="plain">{body}</body></html>"""
+<link rel="icon" href="/static/icons/icon-192.png"><link rel="stylesheet" href="/static/style.css"><link rel="stylesheet" href="/static/social.css">
+</head><body class="sx sx-plain"><header class="topbar sx-modbar"><div class="wrap"><a href="/" class="sx-modlink">‹ Chisme</a></div><div class="picado" aria-hidden="true"></div></header>{body}</body></html>"""
 
 
 def dmca_page(done: str = "", err: str = "", f: dict | None = None) -> str:
@@ -230,7 +230,7 @@ def dmca_page(done: str = "", err: str = "", f: dict | None = None) -> str:
     agent = html.escape(X._env("DMCA_AGENT_INFO") or "Chisme's designated DMCA agent registration with the U.S. Copyright Office is in progress. "
                         "Until it's listed, send notices with this form.")
     if done:
-        inner = f'<div class="card ok-card"><h2>Got it ✅</h2><p>{html.escape(done)}</p><p><a href="/social">Back to Chisme</a></p></div>'
+        inner = f'<div class="card ok-card"><h2>Got it ✅</h2><p>{html.escape(done)}</p><p><a href="/">Back to Chisme</a></p></div>'
     else:
         inner = f"""
 <form class="card form" method="post" action="/dmca">
@@ -248,7 +248,7 @@ def dmca_page(done: str = "", err: str = "", f: dict | None = None) -> str:
   <button class="btn pink" type="submit">Send takedown notice</button>
 </form>"""
     return page("Report copyright (DMCA) · Chisme", f"""
-<main class="legal"><a class="back" href="/social">‹ Chisme</a><h1>Report copyright (DMCA)</h1>
+<main class="legal"><h1>Report copyright (DMCA)</h1>
 <p>If someone shared your photo, video or other work on Chisme without permission, tell us here and we'll take it down.
 We follow the Digital Millennium Copyright Act. Only send a notice for work you own or are allowed to act for; fake notices can get you in legal trouble.</p>
 <p class="small">{agent}</p>
@@ -267,12 +267,12 @@ def chisme_page(c: dict, base: str) -> str:
     media = "".join(f'<img src="{e(p["url"])}" alt="" width="{p["w"] or 600}" height="{p["h"] or 600}">' for p in c["photos"])
     media += "".join(f'<video src="{e(vd["url"])}" poster="{e(vd["poster"])}" controls playsinline preload="metadata"></video>' for vd in c["videos"])
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{e(who['name'])} on Chisme</title><link rel="stylesheet" href="/static/social.css">
+<title>{e(who['name'])} on Chisme</title><link rel="stylesheet" href="/static/style.css"><link rel="stylesheet" href="/static/social.css">
 <meta property="og:title" content="{e(who['name'])} (@{e(who['username'])}) on Chisme"><meta property="og:description" content="{e(txt[:200])}">
 <meta property="og:image" content="{e(img)}"><meta name="twitter:card" content="summary_large_image"></head>
-<body class="plain"><main class="share"><article class="chisme card"><header class="by"><b>{e(who['name'])}</b> <span>@{e(who['username'])}</span></header>
+<body class="sx sx-plain"><header class="topbar sx-modbar"><div class="wrap"><a href="/" class="sx-modlink">‹ Chisme</a></div><div class="picado" aria-hidden="true"></div></header><main class="share"><article class="chisme card"><header class="by"><b>{e(who['name'])}</b> <span>@{e(who['username'])}</span></header>
 <p class="txt">{e(c['text'])}</p><div class="media">{media}</div></article>
-<a class="btn pink" href="/social#c/{e(c['id'])}">Open in Chisme 🌶️</a></main></body></html>"""
+<a class="btn pink" href="/#s/c/{e(c['id'])}">Open in Chisme 🌶️</a></main></body></html>"""
 
 
 AUTH_MSG = {"rate_limited": "Too many tries. Give it a few minutes.", "bad_code": "That code didn't work. Check it or get a new one.",
@@ -329,10 +329,8 @@ def install(app: FastAPI, *, owner: Callable[..., Awaitable[bool]], public_base:
     # ------------------------------------------------ pages
     @app.get("/social", include_in_schema=False)
     async def social_page(request: Request):
-        site, _ = X.turnstile()
-        ts = '<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>' if site else ""
-        body = (BASE / "static" / "social.html").read_text().replace("{{TS_SCRIPT}}", ts)
-        return HTMLResponse(body, headers={"Cache-Control": "no-cache"})
+        # the social app lives inside the main app now (index.html → Chisme feed); old links land there
+        return RedirectResponse("/#s/feed/sananto", 302)
 
     @app.get("/stats/social", include_in_schema=False)
     async def mod_page(request: Request):
@@ -377,7 +375,7 @@ def install(app: FastAPI, *, owner: Callable[..., Awaitable[bool]], public_base:
         c = await X.chisme_for(v, cid)
         shaped = await X.shape_chismes(v, [c]) if c else []
         if not shaped:
-            return HTMLResponse(page("Not here · Chisme", '<main class="share"><h1>That Chisme isn\'t here 👀</h1><a class="btn" href="/social">Open Chisme</a></main>'), status_code=404)
+            return HTMLResponse(page("Not here · Chisme", '<main class="share"><h1>That Chisme isn\'t here 👀</h1><a class="btn" href="/">Open Chisme</a></main>'), status_code=404)
         return HTMLResponse(chisme_page(shaped[0], public_base(request)))
 
     # ------------------------------------------------ config + accounts
@@ -585,12 +583,12 @@ def install(app: FastAPI, *, owner: Callable[..., Awaitable[bool]], public_base:
     async def oauth_done(request: Request, code: str = ""):
         ver = request.cookies.get("chisme_pkce") or ""
         if not code or not ver or not X.providers():
-            return RedirectResponse("/social#signin", 302)
+            return RedirectResponse("/#s/signin", 302)
         d = await gotrue().pkce_exchange(code, ver)
         prof = await X.profile_by(uid=d.get("id"))
         if not prof or prof.get("status") != "active":   # a new Apple / Google account still needs the 18+ sign-up form
-            return RedirectResponse("/social#signup", 302)
-        r = RedirectResponse("/social", 302)
+            return RedirectResponse("/#s/signup", 302)
+        r = RedirectResponse("/#s/feed/sananto", 302)
         await X.start_session(r, request, prof["id"])
         return r
 

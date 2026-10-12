@@ -3259,7 +3259,7 @@ def _security_headers(request: Request, resp: Response) -> None:
     if _https(request):
         h.setdefault("Strict-Transport-Security", "max-age=31536000")
     if (h.get("content-type") or "").startswith("text/html"):
-        h["Content-Security-Policy"] = csp(_nonce(request), social.csp_script_extra() if request.url.path == "/social" else "")
+        h["Content-Security-Policy"] = csp(_nonce(request), social.csp_script_extra() if request.url.path == "/" else "")
 
 
 @app.middleware("http")

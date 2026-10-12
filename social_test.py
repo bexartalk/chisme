@@ -105,8 +105,18 @@ cfg = c0.get("/api/social/config").json()
 check(cfg["bot_copy"] == "Prove you ain't a bot, cuh 🤖", "bot-check copy")
 check(cfg["providers"] == [], "Apple / Google sign-in off unless flagged (and Supabase is set up)")
 check(not any(k for k in cfg if "live" in k.lower()) and "go live" not in json.dumps(cfg).lower(), "no LIVE in the config")
-page = c0.get("/social").text
-check("➕ CHISME" in page and "LIVE" not in page and "Go Live" not in page, "/social has ➕ CHISME and no LIVE / Go Live")
+r = c0.get("/social", follow_redirects=False)
+check(r.status_code == 302 and r.headers["location"] == "/#s/feed/sananto", "/social now lands in the main app's Chisme feed")
+page = c0.get("/").text
+check("➕ CHISME" in page and 'id="sx-chips"' in page and 'id="fb-menu"' in page and "/static/social.js" in page,
+      "the main app's Chisme feed carries the social chips, the ➕ CHISME bar and the ☰ menu")
+check(page.count('<header id="fbtop"') == 1 and page.count('data-view="chisme"') >= 1 and "LIVE" not in page and "Go Live" not in page,
+      "one header (the app's own), no second Chisme section, no LIVE / Go Live")
+css = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "social.css")).read()
+import re as _re
+_rules = [x.strip() for x in _re.findall(r"(?:^|})\s*([^{}@]+?)\s*\{", _re.sub(r"/\*.*?\*/", "", css, flags=_re.S))]
+_loose = [x for x in _rules for sel in x.split(",") if not _re.match(r"^\s*(\.sx|html|body\.sx|#view-chisme|\.mix-people|\[data-theme=\"dark\"\] \.(sx|mix-people)|\.fb-menu|from|to|\d+%)", sel)]
+check(not _loose, "social.css only styles its own .sx bits (the app's look stays the app's) " + repr(_loose[:3]))
 js = open(f"{HERE}/static/social.js").read()
 check("LIVE" not in js and "Go Live" not in js and "WHO CAN SEE THIS?" in js and "WHAT'S THE CHISME? 👀" in js and "POST CHISME 🌶️" in js,
       "composer copy (no LIVE tab / Go Live in part 1)")

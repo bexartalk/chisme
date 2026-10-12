@@ -1,10 +1,15 @@
-/* Chisme social, part 1 (the /social app + the owner's /stats/social moderation queue). Plain DOM, no framework.
+/* Chisme social, part 1. Runs inside the main app (index.html, after app.js): user Chismes sit in the Chisme feed
+   (mixed into All, plus the Homies / San Anto / Trending / Memes chips), ➕ CHISME opens from the bar there, and
+   profiles, Homies, alerts and settings open in place of the feed (#sx-view) from the feed and from the ☰ menu.
+   Its routes are #s/... so they never collide with the app's own #news, #juegos... The owner's /stats/social
+   moderation queue uses the same file (social.html, data-mode="mod"). Plain DOM, no framework.
    Every bit of user text goes in with textContent (never innerHTML). Words: a "Chisme" (never a post), "Homies". */
 (() => {
   "use strict";
   const $ = (s, r = document) => r.querySelector(s);
   const MODE = document.body.dataset.mode || "app";
-  const view = $("#view");
+  const view = $("#sx-view") || $("#view");
+  const IN_APP = !!$("#sx-view"), CH = $("#view-chisme");
   let CFG = null, ME = null, BUSY = false;
 
   function el(tag, attrs = {}, ...kids) {
@@ -36,7 +41,7 @@
     return d;
   }
   function toast(msg, ms = 2600) {
-    const t = $("#toast"); t.textContent = msg; t.hidden = false;
+    const t = $("#sx-toast") || $("#toast"); t.textContent = msg; t.hidden = false;
     clearTimeout(toast.t); toast.t = setTimeout(() => { t.hidden = true; }, ms);
   }
   const ago = (iso) => {
@@ -51,11 +56,11 @@
   function sheet(title, body, onClose) {
     $("#sheet-title").textContent = title;
     clear($("#sheet-body")).append(body);
-    $("#sheet").hidden = false; document.body.classList.add("locked");
+    $("#sheet").hidden = false; document.body.classList.add("sx-locked");
     sheetBack = onClose || null;
     setTimeout(() => { const f = $("#sheet-body").querySelector("input,textarea,button,select"); f && f.focus({ preventScroll: true }); }, 30);
   }
-  function closeSheet() { $("#sheet").hidden = true; document.body.classList.remove("locked"); const f = sheetBack; sheetBack = null; f && f(); }
+  function closeSheet() { $("#sheet").hidden = true; document.body.classList.remove("sx-locked"); const f = sheetBack; sheetBack = null; f && f(); }
   $("#sheet-x").addEventListener("click", closeSheet);
   $("#sheet").addEventListener("click", (e) => { if (e.target.id === "sheet") closeSheet(); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("#sheet").hidden) closeSheet(); });
@@ -101,7 +106,7 @@
     const botSlot = el("div");
     const f = form(async () => {
       const d = await api("/api/social/login", { method: "POST", body: { email: email.value, password: pw.value, ...(bot ? bot.value() : {}) } });
-      if (d.ok) { await loadMe(); location.hash = "#feed/sananto"; toast("Welcome back, metiche 👋"); return; }
+      if (d.ok) { await loadMe(); location.hash = "#s/feed/sananto"; toast("Welcome back, metiche 👋"); return; }
       if (d.next === "verify") { verifyView(email.value); return; }
       if (d.need_bot || d.bot) { await freshChallenge(); bot = botBox(); clear(botSlot).append(bot); }
       return d.error;
@@ -110,7 +115,7 @@
     const prov = (CFG && CFG.providers || []).map((p) => el("a", { class: "btn ghost wide", href: "/api/social/oauth/" + p, text: p === "apple" ? " Sign in with Apple" : "Sign in with Google" }));
     page("Sign in", el("section", { class: "card auth" },
       el("h1", { text: "Welcome back 👋" }), el("p", { class: "sub", text: "Sign in to see the chisme from your Homies." }), f, ...prov,
-      el("p", { class: "links" }, el("a", { href: "#forgot", text: "Forgot password?" }), " · ", el("a", { href: "#signup", text: "New here? Join Chisme" }))));
+      el("p", { class: "links" }, el("a", { href: "#s/forgot", text: "Forgot password?" }), " · ", el("a", { href: "#s/signup", text: "New here? Join Chisme" }))));
   }
 
   function signUp() {
@@ -135,14 +140,14 @@
       bot, el("button", { class: "btn pink wide", type: "submit", text: "Join Chisme 🌶️" }));
     page("Join", el("section", { class: "card auth" }, el("h1", { text: "Join Chisme" }),
       el("p", { class: "sub", text: "Your Homies, your city, your chisme. Your email stays private; we only use it to send your 6-digit code." }), f,
-      el("p", { class: "links" }, el("a", { href: "#signin", text: "Already in? Sign in" }))));
+      el("p", { class: "links" }, el("a", { href: "#s/signin", text: "Already in? Sign in" }))));
   }
 
   function verifyView(emailAddr, msg) {
     const [fc, code] = field("6-digit code", { inputmode: "numeric", autocomplete: "one-time-code", maxlength: "6", pattern: "[0-9]{6}", required: true });
     const f = form(async () => {
       const d = await api("/api/social/verify", { method: "POST", body: { email: emailAddr, code: code.value } });
-      if (d.ok) { await loadMe(); location.hash = "#edit"; toast("You're in! 🎉 Make your profile yours."); return; }
+      if (d.ok) { await loadMe(); location.hash = "#s/edit"; toast("You're in! 🎉 Make your profile yours."); return; }
       return d.error;
     }, fc, el("button", { class: "btn pink wide", type: "submit", text: "Confirm" }));
     const again = el("button", { type: "button", class: "linkish", text: "Send a new code", onclick: async () => {
@@ -165,7 +170,7 @@
       page("New password", el("section", { class: "card auth" }, el("h1", { text: "Pick a new password" }), el("p", { class: "sub", text: d.message }),
         form(async () => {
           const r = await api("/api/social/reset", { method: "POST", body: { email: email.value, code: code.value, password: pw.value, password2: pw2.value } });
-          if (r.ok) { await loadMe(); location.hash = "#feed/sananto"; toast(r.message); return; }
+          if (r.ok) { await loadMe(); location.hash = "#s/feed/sananto"; toast(r.message); return; }
           return r.error;
         }, fc, fp, fp2, el("button", { class: "btn pink wide", type: "submit", text: "Save password" }))));
     }, fe, bot, el("button", { class: "btn pink wide", type: "submit", text: "Send me a code" }));
@@ -176,14 +181,36 @@
   async function loadMe() {
     const d = await api("/api/social/me");
     ME = d.ok ? d.me : null;
-    if (ME) ME.can_upload = !!d.can_upload;
-    $("#dot-alerts").hidden = !(d.unread > 0);
-    $("#dot-req").hidden = !(d.requests > 0);
-    if (ME) document.documentElement.style.setProperty("--accent", ME.accent_hex || "#00C9CD");
+    if (ME) Object.assign(ME, { can_upload: !!d.can_upload, unread: d.unread || 0, requests: d.requests || 0 });
+    const dot = $("#sx-dot"); if (dot) dot.hidden = !(d.unread > 0 || d.requests > 0);
+    if (ME) document.documentElement.style.setProperty("--sx-acc", ME.accent_hex || "#00C9CD");
+    const face = $("#sx-face"); if (face) { clear(face); if (ME) face.replaceWith(Object.assign(avatar(ME, 40), { id: "sx-face" })); }
     return ME;
   }
-  function needMe() { if (ME) return true; location.hash = "#signin"; return false; }
-  function page(title, ...kids) { document.title = title + " · Chisme"; clear(view).append(...kids); view.focus({ preventScroll: true }); window.scrollTo(0, 0); }
+  function needMe() { if (ME) return true; location.hash = "#s/signin"; return false; }
+  // A social page: in the app it replaces the Chisme feed (same header, tabs and background); the chips stay on top
+  function page(title, ...kids) {
+    if (IN_APP) {
+      showChisme();
+      const feedPage = /^#s\/feed\//.test(location.hash) || !location.hash.startsWith("#s/");
+      CH.classList.add("sx-on"); CH.classList.toggle("sx-sub", !feedPage); view.hidden = false;
+      clear(view).append(feedPage ? "" : el("a", { class: "sx-back", href: "#", onclick: (e) => { e.preventDefault(); leaveSocial(); } }, "‹ Back to the chisme"), ...kids);
+      const top = CH.getBoundingClientRect().top + window.scrollY - 80;
+      if (window.scrollY > top) window.scrollTo(0, Math.max(0, top));
+    } else { clear(view).append(...kids); window.scrollTo(0, 0); }
+    view.focus({ preventScroll: true });
+  }
+  // the Chisme tab's "All" view must be the one on screen (a ☰ link can come from Weather or Juegos)
+  function showChisme() {
+    if (CH && !CH.classList.contains("active")) { const b = document.querySelector('.mq-chip[data-go="chisme"]'); if (b) { leaving = true; b.click(); leaving = false; } }
+  }
+  let leaving = false;
+  function leaveSocial() {
+    if (!IN_APP) return;
+    CH.classList.remove("sx-on", "sx-sub"); view.hidden = true; clear(view); chips(null);
+    if (location.hash.startsWith("#s/")) history.replaceState(history.state, "", location.pathname + location.search);
+  }
+  function chips(tab) { document.querySelectorAll("#sx-chips .sx-chip").forEach((b) => b.setAttribute("aria-current", b.dataset.sx === tab ? "true" : "false")); }
 
   // ------------------------------------------------ a Chisme card
   const AUD = { everyone: "🌎 Everyone", homies: "🤝 Homies Only", me: "🔒 Only Me" };
@@ -196,8 +223,8 @@
   function richText(t) {
     const p = el("p", { class: "txt" });
     String(t || "").split(/([#@][\w]{1,40})/u).forEach((part) => {
-      if (/^#\w/u.test(part)) p.append(el("a", { href: "#tag/" + encodeURIComponent(part.slice(1).toLowerCase()), class: "tag", text: part }));
-      else if (/^@[A-Za-z0-9_]{3,20}$/.test(part)) p.append(el("a", { href: "#u/" + part.slice(1).toLowerCase(), class: "mention", text: part }));
+      if (/^#\w/u.test(part)) p.append(el("a", { href: "#s/tag/" + encodeURIComponent(part.slice(1).toLowerCase()), class: "tag", text: part }));
+      else if (/^@[A-Za-z0-9_]{3,20}$/.test(part)) p.append(el("a", { href: "#s/u/" + part.slice(1).toLowerCase(), class: "mention", text: part }));
       else p.append(part);
     });
     return p;
@@ -207,7 +234,7 @@
     const art = el("article", { class: "chisme card" + (c.meme ? " meme" : "") + (c.hidden ? " is-hidden" : ""), "data-id": c.id,
       style: { "--acc": (CFG && CFG.accents[a.accent]) || "#00C9CD" } });
     art.append(el("header", { class: "by" },
-      el("a", { href: "#u/" + a.username, class: "who" }, avatar(a), el("span", {}, el("b", { text: a.name }), el("small", {}, "@" + a.username + " · " + ago(c.created_at),
+      el("a", { href: "#s/u/" + a.username, class: "who" }, avatar(a), el("span", {}, el("b", { text: a.name }), el("small", {}, "@" + a.username + " · " + ago(c.created_at),
         a.fresh ? el("em", { class: "new", text: "new here" }) : null))),
       opts.pinned ? el("span", { class: "pin", text: "📌 Pinned" }) : null,
       c.audience !== "everyone" ? el("span", { class: "aud", text: AUD[c.audience] }) : null,
@@ -236,7 +263,7 @@
       });
       bar.append(b);
     });
-    bar.append(el("a", { class: "rx", href: "#c/" + c.id, "aria-label": "Comments, " + c.counts.comments }, el("span", { "aria-hidden": "true", text: "💬" }), el("span", { text: c.counts.comments || "" })));
+    bar.append(el("a", { class: "rx", href: "#s/c/" + c.id, "aria-label": "Comments, " + c.counts.comments }, el("span", { "aria-hidden": "true", text: "💬" }), el("span", { text: c.counts.comments || "" })));
     bar.append(el("button", { type: "button", class: "rx", "aria-label": "Share", onclick: () => share(c) }, el("span", { "aria-hidden": "true", text: "↗" }), el("span", { text: "Share" })));
     bar.append(el("button", { type: "button", class: "rx save" + (c.mine.saved ? " on" : ""), "aria-label": c.mine.saved ? "Saved" : "Save", onclick: async () => {
       if (!needMe()) return;
@@ -312,7 +339,7 @@
       el("p", { text: "They won't see your profile or Chismes, can't send you Homie requests, and won't be told. If you're Homies, that ends too." }),
       el("button", { type: "button", class: "btn pink wide", text: "Block", onclick: async () => {
         const d = await api("/api/social/block/" + username, { method: "POST", body: { on: true } });
-        closeSheet(); toast(d.message || d.error, 4000); if (d.ok) location.hash = "#feed/sananto";
+        closeSheet(); toast(d.message || d.error, 4000); if (d.ok) location.hash = "#s/feed/sananto";
       } })));
   }
 
@@ -324,17 +351,14 @@
     memes: "No memes yet?! Post one with #memes and get the 😂 rolling.",
   };
   async function feed(tab) {
-    document.querySelectorAll("#feedtabs a").forEach((a) => {
-      a.setAttribute("aria-current", a.dataset.tab === tab ? "page" : "false");
-      if (a.dataset.tab === tab) a.scrollIntoView({ inline: "nearest", block: "nearest" });
-    });
-    const list = el("div", { class: "list" }, el("p", { class: "loading", text: "Getting the chisme..." }));
+    chips(tab);
+    const list = el("div", { class: "list mix-list" }, el("p", { class: "loading", text: "Getting the chisme..." }));
     const head = {
       homies: ["🤝 Homies", "Chismes from your confirmed Homies."], sananto: ["🌶️ San Anto", "Public chisme from around San Antonio."],
       trending: ["🔥 Trending", "What everybody's reacting to right now. New faces get a fair shot."],
       memes: ["😂 Memes", "The funniest stuff on Chisme. Tag yours #memes."],
     }[tab];
-    page(head[0], el("section", { class: "feed-head" }, el("h1", { text: head[0] }), el("p", { class: "sub", text: head[1] })), list);
+    page(head[0], el("section", { class: "card mix sx-feed" }, el("div", { class: "sec-head" }, el("h2", { text: head[0] })), el("p", { class: "hint", text: head[1] }), list));
     if (tab === "homies" && !ME) { clear(list).append(guestCard()); return; }
     const d = await api("/api/social/feed?tab=" + tab);
     clear(list);
@@ -345,7 +369,7 @@
   }
   function guestCard() {
     return el("div", { class: "card guest" }, el("b", { text: "Get in on the chisme 👀" }), el("p", { text: "Join to react, comment and post your own Chismes." }),
-      el("a", { class: "btn pink", href: "#signup", text: "Join Chisme" }), " ", el("a", { class: "btn ghost", href: "#signin", text: "Sign in" }));
+      el("a", { class: "btn pink", href: "#s/signup", text: "Join Chisme" }), " ", el("a", { class: "btn ghost", href: "#s/signin", text: "Sign in" }));
   }
   async function tagView(tag) {
     const d = await api("/api/social/feed?tab=sananto");
@@ -388,7 +412,7 @@
     const banner = el("div", { class: "banner", style: { background: p.banner ? `center/cover no-repeat url("${p.banner}")` : `linear-gradient(135deg, ${acc}, #FF1A7F 55%, #FF6A0B)` } });
     const btns = el("div", { class: "p-btns" });
     if (p.relation === "me") {
-      btns.append(el("a", { class: "btn acc", href: "#edit", text: "✏️ Edit profile" }), el("a", { class: "btn ghost", href: "#settings", text: "⚙️" , "aria-label": "Settings" }));
+      btns.append(el("a", { class: "btn acc", href: "#s/edit", text: "✏️ Edit profile" }), el("a", { class: "btn ghost", href: "#s/settings", text: "⚙️" , "aria-label": "Settings" }));
     } else if (ME) {
       const label = { homies: "🤝 HOMIES", requested: "⏳ Asked", incoming: "🤝 YEAH, HOMIE", none: "🤝 HOMIE" }[p.relation];
       btns.append(el("button", { type: "button", class: "btn acc", text: label, disabled: p.relation === "requested", onclick: () => homieOrNah(p) }));
@@ -397,9 +421,9 @@
         el("button", { type: "button", class: "item danger", text: "🚫 Block @" + p.username, onclick: () => blockSheet(p.username) }),
         p.relation === "homies" ? el("button", { type: "button", class: "item", text: "Stop being Homies", onclick: async () => {
           await api("/api/social/homies/" + p.username, { method: "POST", body: { action: "unhomie" } }); closeSheet(); route(); } }) : null)) }));
-    } else btns.append(el("a", { class: "btn acc", href: "#signup", text: "🤝 HOMIE" }));
+    } else btns.append(el("a", { class: "btn acc", href: "#s/signup", text: "🤝 HOMIE" }));
     const tabs = el("nav", { class: "ptabs", "aria-label": "Profile" }, ...["chismes", "photos", "videos"].map((t) =>
-      el("a", { href: `#u/${p.username}/${t}`, "aria-current": t === tab ? "page" : "false", text: t.toUpperCase() })));
+      el("a", { href: `#s/u/${p.username}/${t}`, "aria-current": t === tab ? "page" : "false", text: t.toUpperCase() })));
     const list = el("div", { class: "list" });
     if (d.pinned) list.append(card(d.pinned, { pinned: true }));
     d.chismes.forEach((c) => list.append(card(c)));
@@ -426,7 +450,7 @@
       el("div", { class: "hon-who" }, avatar(p, 72), el("div", {}, el("b", { text: p.name }), el("p", { class: "small", text: "@" + p.username + (p.area ? " · 📍 " + p.area : "") }),
         el("p", { class: "small", text: `${p.homies} Homies · ${p.mutual_homies} Mutual Homies` }))),
       p.bio ? el("p", { text: p.bio }) : null,
-      el("a", { href: "#u/" + p.username, class: "small", text: "See their Chismes, photos and videos", onclick: closeSheet }),
+      el("a", { href: "#s/u/" + p.username, class: "small", text: "See their Chismes, photos and videos", onclick: closeSheet }),
       el("div", { class: "hon-btns" },
         el("button", { type: "button", class: "btn acc big", text: "🤝 HOMIE", onclick: () => go("homie") }),
         el("button", { type: "button", class: "btn ghost big", text: "✋ NAH", onclick: () => go("nah") })),
@@ -526,7 +550,7 @@
       if (st.banner !== undefined) body.banner = st.banner;
       const d = await api("/api/social/profile", { method: "PATCH", body });
       if (!d.ok) return d.error;
-      await loadMe(); toast("Saved ✅"); location.hash = "#u/" + d.profile.username;
+      await loadMe(); toast("Saved ✅"); location.hash = "#s/u/" + d.profile.username;
     }, fn, fu, fb, count, el("label", { class: "fld" }, el("span", { text: "📍 Part of town (optional)" }), area),
       el("div", { class: "fld" }, el("span", { text: "Theme accent (the Fiesta palette)" }), sw),
       el("p", { class: "small", text: "Pin a Chisme from its ⋯ menu to keep it at the top of your profile." }),
@@ -604,7 +628,7 @@
       const d = await api("/api/social/chismes", { method: "POST", body: { text: text.value, photos: st.photos.map((p) => p.name),
         video: st.video && st.video.name, clip: st.clip && { id: st.clip.id, title: st.clip.title, creator: st.clip.creator }, meme: st.meme, audience: st.audience } });
       if (!d.ok) return d.error;
-      toast("Chisme posted 🌶️"); location.hash = st.meme ? "#feed/memes" : "#c/" + d.chisme.id;
+      toast("Chisme posted 🌶️"); location.hash = st.meme ? "#s/feed/memes" : "#s/c/" + d.chisme.id;
     }, text, media, status, tools, el("label", { class: "chk" }, memeT, el("span", { text: "😂 It's a meme (shows in Memes)" })),
       el("p", { class: "lbl", text: "WHO CAN SEE THIS?" }), aud, el("button", { type: "submit", class: "btn pink wide big", text: "POST CHISME 🌶️" }));
     page("New Chisme", el("section", { class: "card composer" }, el("div", { class: "c-who" }, avatar(ME, 40), el("b", { text: ME.name })), f));
@@ -643,7 +667,7 @@
     page("Homies", el("section", { class: "feed-head" }, el("h1", { text: "🤝 Homies" }), el("p", { class: "sub", text: "Mutual only. Both of y'all have to say yeah." })),
       el("h2", { class: "h2", text: "Homie requests" }), reqs, el("h2", { class: "h2", text: "People you might know" }), sugg);
     const [r, s] = await Promise.all([api("/api/social/requests"), api("/api/social/suggestions")]);
-    const row = (p, incoming) => el("div", { class: "card person" }, el("a", { href: "#u/" + p.username, class: "who" }, avatar(p, 52),
+    const row = (p, incoming) => el("div", { class: "card person" }, el("a", { href: "#s/u/" + p.username, class: "who" }, avatar(p, 52),
       el("span", {}, el("b", { text: p.name }), el("small", { text: "@" + p.username + (p.mutual_homies ? ` · ${p.mutual_homies} Mutual Homies` : "") }))),
       el("button", { type: "button", class: "btn acc", text: incoming ? "Review" : "Homie or Nah?", onclick: () => homieOrNah(p) }));
     (r.requests || []).forEach((p) => reqs.append(el("div", {}, el("p", { class: "small notif", text: `${p.name} says you're Homies. 🤝` }), row(p, true))));
@@ -654,10 +678,10 @@
   async function alertsView() {
     if (!needMe()) return;
     const d = await api("/api/social/notifications");
-    $("#dot-alerts").hidden = true;
+    if (ME) ME.unread = 0;
     page("Alerts", el("section", { class: "feed-head" }, el("h1", { text: "🔔 Alerts" })), el("div", { class: "list" },
       (d.notifications || []).length ? d.notifications.map((n) => el("a", { class: "card notif-row" + (n.read ? "" : " unread"),
-        href: n.kind === "homie_request" ? "#homies" : n.chisme_id ? "#c/" + n.chisme_id : "#u/" + n.actor.username },
+        href: n.kind === "homie_request" ? "#s/homies" : n.chisme_id ? "#s/c/" + n.chisme_id : "#s/u/" + n.actor.username },
         avatar(n.actor, 40), el("span", {}, n.text, el("small", { text: " · " + ago(n.created_at) })))) : el("p", { class: "empty", text: "All quiet. For now. 👀" })));
   }
   async function settingsView() {
@@ -676,7 +700,7 @@
       sel("requests", "Who can send Homie requests", [["everyone", "Everyone"], ["mutuals", "People with mutual Homies"]]),
       el("h2", { class: "h2", text: "Blocked" }), blocked,
       el("h2", { class: "h2", text: "Safety" }), el("p", {}, el("a", { href: "/dmca", text: "©️ Report copyright (DMCA)" })),
-      el("button", { type: "button", class: "btn ghost wide", text: "Sign out", onclick: async () => { await api("/api/social/logout", { method: "POST", body: {} }); ME = null; location.hash = "#signin"; } }),
+      el("button", { type: "button", class: "btn ghost wide", text: "Sign out", onclick: async () => { await api("/api/social/logout", { method: "POST", body: {} }); ME = null; location.hash = "#s/signin"; } }),
       el("h2", { class: "h2 danger", text: "Delete my account" }),
       el("p", { class: "small", text: "This deletes your profile, every Chisme, photo, video, comment and reaction, right now. It can't be undone." }),
       form(async () => {
@@ -723,9 +747,8 @@
   async function route() {
     if (!$("#sheet").hidden) closeSheet();
     if (MODE === "mod") { document.body.classList.add("mod-mode"); return modView(); }
-    const h = decodeURIComponent(location.hash.slice(1) || "feed/sananto"), [a, b, c] = h.split("/");
-    document.querySelectorAll("#bottom [data-nav]").forEach((n) => n.setAttribute("aria-current", n.dataset.nav === (a === "u" && ME && b === ME.username ? "me" : a) ? "page" : "false"));
-    document.body.classList.toggle("on-feed", a === "feed");
+    if (IN_APP && !location.hash.startsWith("#s/")) { if (CH.classList.contains("sx-on")) leaveSocial(); return; }
+    const h = decodeURIComponent(location.hash.slice(IN_APP ? 3 : 1) || "feed/sananto"), [a, b, c] = h.split("/");
     if (a === "feed") return feed(["homies", "sananto", "trending", "memes"].includes(b) ? b : "sananto");
     if (a === "u" && b) return profileView(b, ["photos", "videos"].includes(c) ? c : "chismes");
     if (a === "me") return ME ? profileView(ME.username) : signIn();
@@ -741,13 +764,53 @@
     if (a === "signin") return signIn();
     return feed("sananto");
   }
-  $("#plus").addEventListener("click", plusMenu);
+  // ------------------------------------------------ in the app: the chips, the ➕ bar, the ☰ menu, and the All mix
+  function menu() {
+    const it = (emo, label, href, dot) => el("a", { class: "item big", href, onclick: closeSheet }, el("span", { "aria-hidden": "true", text: emo }), " " + label, dot ? el("b", { class: "pill pink", text: " " + dot }) : null);
+    const body = ME ? el("div", { class: "menu" },
+      el("a", { class: "item big who-row", href: "#s/me", onclick: closeSheet }, avatar(ME, 44), el("span", {}, el("b", { text: ME.name }), el("small", { text: " @" + ME.username }))),
+      it("✏️", "Customize my profile", "#s/edit"), it("🤝", "Homies", "#s/homies", ME.requests || 0), it("🔔", "Alerts", "#s/alerts", ME.unread || 0),
+      it("😂", "Memes", "#s/feed/memes"), it("⚙️", "Account and privacy", "#s/settings"), it("©️", "Report copyright (DMCA)", "/dmca"))
+      : el("div", { class: "menu" }, el("p", { class: "small", text: "Join to post Chismes, find your Homies and make a profile that's yours." }),
+        it("🌶️", "Join Chisme", "#s/signup"), it("👋", "Sign in", "#s/signin"), it("😂", "Memes", "#s/feed/memes"), it("©️", "Report copyright (DMCA)", "/dmca"));
+    sheet("☰ Chisme", body);
+  }
+  const mixed = new WeakSet();
+  async function mixIn() {   // a few public user Chismes go into the All list, every 3rd card, tagged like the app's own
+    const list = $("#mix-list");
+    if (!list || mixIn.busy || list.querySelector(".sx-mix") || !list.querySelector(".mix-item")) return;
+    mixIn.busy = true;
+    try {
+      const d = mixIn.cache || (mixIn.cache = await api("/api/social/feed?tab=sananto"));
+      const items = [...list.children].filter((n) => n.classList.contains("mix-item"));
+      (d.chismes || []).slice(0, 6).forEach((c, i) => {
+        const w = el("div", { class: "mix-item mix-people sx sx-mix" }, el("span", { class: "mix-tag" }, el("span", { "aria-hidden": "true", text: "🌶️ " }), "San Anto"), card(c));
+        const at = items[2 + i * 3]; at ? at.after(w) : list.append(w);
+      });
+    } finally { mixIn.busy = false; }
+  }
+  if (IN_APP) {
+    document.querySelectorAll("#sx-chips .sx-chip").forEach((b) => b.addEventListener("click", () => {
+      const t = "#s/feed/" + b.dataset.sx;
+      if (location.hash === t) { leaveSocial(); return; }   // a second tap goes back to All
+      location.hash = t;
+    }));
+    $("#sx-compose").addEventListener("click", plusMenu);
+    $("#fb-menu").addEventListener("click", async () => { if (ME) await loadMe(); menu(); });
+    document.addEventListener("click", (e) => {   // the app's own chips and tabs take you back to its feeds
+      if (leaving) return;
+      if (e.target.closest(".mq-chip, #tabs .tab") && location.hash.startsWith("#s/")) leaveSocial();
+      else if (e.target.closest(".mq-chip, #tabs .tab") && CH.classList.contains("sx-on")) leaveSocial();
+    }, true);
+    const ml = $("#mix-list"); if (ml) new MutationObserver(() => mixIn()).observe(ml, { childList: true });
+  }
   window.addEventListener("hashchange", route);
   (async () => {
     const c = await api("/api/social/config");
     CFG = c.ok ? c : { reactions: { like: "❤️", laugh: "😂", wow: "😮", chile: "🌶️" }, accents: {}, reasons: {}, areas: [], max_photos: 4, max_video_s: 60 };
+    if (CFG.turnstile && IN_APP && !window.turnstile) document.head.append(el("script", { src: "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit", async: true }));
     await loadMe();
-    route();
+    route(); mixIn();
   })();
-  window.__social = { route, composer, api };
+  window.__social = { route, composer, api, menu };
 })();
