@@ -142,7 +142,7 @@ create table if not exists public.social_reports (    -- kept (reporter set to n
   target_kind   text not null check (target_kind in ('chisme', 'comment', 'user')),
   target_id     uuid not null,
   target_user   uuid,
-  reason        text not null check (reason in ('spam', 'harassment', 'hate', 'nudity', 'violence', 'minor', 'scam', 'other')),
+  reason        text not null check (reason in ('copyright', 'spam', 'harassment', 'hate', 'nudity', 'violence', 'minor', 'scam', 'other')),
   details       text not null default '' check (char_length(details) <= 500),
   status        text not null default 'open' check (status in ('open', 'dismissed', 'actioned')),
   created_at    timestamptz not null default now(),

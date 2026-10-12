@@ -46,8 +46,10 @@ FRESH_DAYS = 14             # trending boost
 AUTO_HIDE = int(os.environ.get("SOCIAL_AUTO_HIDE_REPORTS", "3") or 3)
 COOKIE, DEVICE, U18 = "chisme_s", "chisme_d", "chisme_u18"
 REACTIONS = {"like": "❤️", "laugh": "😂", "wow": "😮", "chile": "🌶️"}
+ACCENTS = {"turquoise": "#00C9CD", "pink": "#FF1A7F", "orange": "#FF6A0B", "purple": "#8A3FFC", "silver": "#A7A9AC", "black": "#111111"}
+MAX_VIDEO_S, MAX_VIDEO_EDGE = 60, 720
 AUDIENCES = ("everyone", "homies", "me")
-REASONS = {"spam": "Spam", "harassment": "Harassment or bullying", "hate": "Hate", "nudity": "Nudity or sexual content",
+REASONS = {"copyright": "Copyright (it's my work)", "spam": "Spam", "harassment": "Harassment or bullying", "hate": "Hate", "nudity": "Nudity or sexual content",
            "violence": "Violence or threats", "minor": "Someone under 18", "scam": "Scam or fake account", "other": "Something else"}
 AREAS = ["Downtown", "Southside", "Westside", "Eastside", "Northside", "Northwest Side", "Northeast Side", "Medical Center",
          "Alamo Heights", "Stone Oak", "Pearl / Tobin Hill", "Southtown / King William", "Leon Valley", "Helotes", "Converse",
@@ -472,7 +474,7 @@ def photo_url(name: str | None) -> str | None:
 
 def mini(p: dict) -> dict:
     return {"username": p["username"], "name": p["display_name"], "photo": photo_url(p.get("photo")),
-            "fresh": age_hours(p) < FRESH_DAYS * 24}
+            "accent": p.get("accent") if p.get("accent") in ACCENTS else "turquoise", "fresh": age_hours(p) < FRESH_DAYS * 24}
 
 
 def allowed(level: str, rel: str) -> bool:
@@ -487,7 +489,8 @@ async def profile_view(v: Viewer, p: dict) -> dict:
     out = {**mini(p), "bio": p.get("bio") or "", "relation": rel, "homies": len(their), "mutual_homies": mutual,
            "area": p.get("area") if p.get("area") and allowed({"nobody": "me"}.get(pv["area"], pv["area"]), rel) else None,
            "homies_list_visible": allowed(pv["homies_list"], rel), "joined": (p.get("created_at") or "")[:7],
-           "under_review": bool(p.get("flagged")) and rel == "me"}
+           "under_review": bool(p.get("flagged")) and rel == "me", "banner": photo_url(p.get("banner")),
+           "accent_hex": ACCENTS.get(p.get("accent") or "", ACCENTS["turquoise"]), "pinned_id": p.get("pinned_id")}
     if rel == "me":
         out["privacy"] = pv
     return out
@@ -538,6 +541,9 @@ async def shape_chismes(v: Viewer, rows: list[dict], check: bool = True) -> list
             "id": c["id"], "author": mini(a), "text": c.get("text") or "",
             "photos": [{"url": photo_url(ph.get("name")), "w": ph.get("w"), "h": ph.get("h")} for ph in c.get("photos") or []
                        if isinstance(ph, dict) and photo_url(ph.get("name"))],
+            "videos": [{"url": photo_url(vd.get("name")), "poster": photo_url(vd.get("poster")), "w": vd.get("w"), "h": vd.get("h"),
+                        "seconds": vd.get("seconds")} for vd in c.get("videos") or [] if isinstance(vd, dict) and photo_url(vd.get("name"))],
+            "clip": clip_view(c.get("clip")), "meme": bool(c.get("meme")),
             "audience": c["audience"], "hashtags": c.get("hashtags") or [], "created_at": c["created_at"],
             "tags": [mini(tagged[t]) for t in c.get("tags") or [] if t in tagged and live(tagged[t]) and t not in blocked],
             "counts": {**counts, "comments": ncom}, "mine": {**mine, "saved": c["id"] in saved},
@@ -545,6 +551,21 @@ async def shape_chismes(v: Viewer, rows: list[dict], check: bool = True) -> list
             "share_url": "/c/" + c["id"] if c["audience"] == "everyone" and c["status"] == "visible" else None,
         })
     return out
+
+
+def clip_view(clip) -> dict | None:
+    """A reposted ChismeTV clip: only YouTube (11-char id) or TikTok (numeric id); the player URL is built here, never stored."""
+    if not isinstance(clip, dict):
+        return None
+    cid = str(clip.get("id") or "")
+    if re.fullmatch(r"[\w-]{11}", cid) and not cid.isdigit():
+        thumb, embed = f"https://i.ytimg.com/vi/{cid}/hqdefault.jpg", f"https://www.youtube-nocookie.com/embed/{cid}?playsinline=1"
+    elif re.fullmatch(r"\d{15,20}", cid):
+        thumb, embed = None, f"https://www.tiktok.com/player/v1/{cid}"
+    else:
+        return None
+    return {"id": cid, "title": clean_line(clip.get("title"), 120), "creator": clean_line(clip.get("creator"), 60),
+            "thumb": thumb, "embed": embed, "link": "/?reel=" + cid}
 
 
 async def chisme_for(v: Viewer, cid: str) -> dict | None:
@@ -573,3 +594,9 @@ async def notify(user_id: str, actor_id: str, kind: str, chisme_id: str | None =
             return
     await S.db().insert("social_notifications", {"id": new_id(), "user_id": user_id, "actor_id": actor_id, "kind": kind,
                                                  "chisme_id": chisme_id, "read": False, "created_at": S.now_iso()})
+
+
+def install(app: FastAPI, **kw) -> None:
+    """app.py: social.install(app, owner=..., public_base=..., reel_lookup=..., reel_id=...). Routes: social_api.py."""
+    import social_api
+    social_api.install(app, **kw)
