@@ -224,11 +224,26 @@ def page(title: str, body: str) -> str:
 </head><body class="sx sx-plain"><header class="topbar sx-modbar"><div class="wrap"><a href="/" class="sx-modlink">‹ Chisme</a></div><div class="picado" aria-hidden="true"></div></header>{body}</body></html>"""
 
 
+# Chisme's designated DMCA agent (U.S. Copyright Office registration DMCA-1082743). DMCA_AGENT_INFO overrides it.
+DMCA_EMAIL = "Arnulfoled@outlook.com"
+DMCA_REG = "DMCA-1082743"
+DMCA_AGENT_DEFAULT = (f"Chisme's designated agent for copyright complaints is registered with the U.S. Copyright Office "
+                      f"(registration {DMCA_REG}). Email copyright complaints to {DMCA_EMAIL}, or send a notice with this form.")
+
+
 def dmca_page(done: str = "", err: str = "", f: dict | None = None) -> str:
     f = f or {}
     e = lambda k: html.escape(str(f.get(k) or ""), quote=True)
-    agent = html.escape(X._env("DMCA_AGENT_INFO") or "Chisme's designated DMCA agent registration with the U.S. Copyright Office is in progress. "
-                        "Until it's listed, send notices with this form.")
+    agent = html.escape(X._env("DMCA_AGENT_INFO") or DMCA_AGENT_DEFAULT)
+    agent = agent.replace(html.escape(DMCA_EMAIL), f'<a href="mailto:{DMCA_EMAIL}">{DMCA_EMAIL}</a>')
+    # the agent's full contact, as on the Copyright Office registration; name / address / phone come from env only
+    soon = '<i class="dmca-unset">Not listed here yet. Email the address below for now.</i>'
+    row = lambda label, v: f"<dt>{label}</dt><dd>{html.escape(v).replace(chr(10), '<br>') if v else soon}</dd>"
+    agent_card = (f'<section class="card dmca-agent" aria-labelledby="dmca-agent-h"><h2 id="dmca-agent-h">Designated copyright agent</h2><dl>'
+                  + row("Name", X._env("DMCA_AGENT_NAME").strip()) + row("Mailing address", X._env("DMCA_AGENT_ADDRESS").strip())
+                  + row("Phone", X._env("DMCA_AGENT_PHONE").strip())
+                  + f'<dt>Email</dt><dd><a href="mailto:{DMCA_EMAIL}">{DMCA_EMAIL}</a></dd>'
+                  + f'<dt>Registration</dt><dd>{DMCA_REG} (U.S. Copyright Office)</dd></dl></section>')
     if done:
         inner = f'<div class="card ok-card"><h2>Got it ✅</h2><p>{html.escape(done)}</p><p><a href="/">Back to Chisme</a></p></div>'
     else:
@@ -252,6 +267,7 @@ def dmca_page(done: str = "", err: str = "", f: dict | None = None) -> str:
 <p>If someone shared your photo, video or other work on Chisme without permission, tell us here and we'll take it down.
 We follow the Digital Millennium Copyright Act. Only send a notice for work you own or are allowed to act for; fake notices can get you in legal trouble.</p>
 <p class="small">{agent}</p>
+{agent_card}
 <p class="small">Was something of yours taken down by mistake? Reply to the email we send you with a counter-notice: your name and address,
 what was removed, a statement under penalty of perjury that it was removed by mistake, and your consent to your local federal court.
 Accounts that get repeated valid notices are closed.</p>

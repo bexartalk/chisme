@@ -219,3 +219,7 @@ body.sx-plain main { max-width: 680px; }
 .sx .rx.save { margin-left: 0; }
 .sx .tool, .sx .more, .sx .x, .sx .sw { border: 0; }
 .sx .feed-head { padding: 0 0 6px; }
+.sx .dmca-agent dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 12px; margin: 8px 0 0; }
+.sx .dmca-agent dt { font-weight: 900; }
+.sx .dmca-agent dd { margin: 0; overflow-wrap: anywhere; }
+.sx .dmca-unset { color: var(--muted); }

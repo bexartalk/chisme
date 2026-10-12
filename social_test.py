@@ -395,7 +395,17 @@ tia.post("/api/social/block/lupe", json={"on": False}, headers=H)
 
 # DMCA
 d = anon.get("/dmca").text
-check("Report copyright (DMCA)" in d and "penalty of perjury" in d and "designated DMCA agent" in d, "/dmca page")
+check("DMCA-1082743" in d and 'href="mailto:Arnulfoled@outlook.com"' in d, "/dmca shows the agent registration number and the copyright email by default")
+os.environ["DMCA_AGENT_INFO"] = "Agent: Test Person <b>x</b>"
+_o = anon.get("/dmca").text
+check("Agent: Test Person &lt;b&gt;x&lt;/b&gt;" in _o and "Email copyright complaints to" not in _o, "DMCA_AGENT_INFO still overrides it (escaped)")
+del os.environ["DMCA_AGENT_INFO"]
+check(d.count("Not listed here yet") == 3 and "Designated copyright agent" in d, "/dmca: name, address and phone show a placeholder while unset")
+os.environ.update(DMCA_AGENT_NAME="Test Agent", DMCA_AGENT_ADDRESS="1 Test St\nTestville, TX", DMCA_AGENT_PHONE="000-000-0000")
+_o = anon.get("/dmca").text
+check("Test Agent" in _o and "1 Test St<br>Testville, TX" in _o and "000-000-0000" in _o and "Not listed here yet" not in _o, "/dmca: the agent's contact comes from DMCA_AGENT_NAME / _ADDRESS / _PHONE")
+for _k in ("DMCA_AGENT_NAME", "DMCA_AGENT_ADDRESS", "DMCA_AGENT_PHONE"): del os.environ[_k]
+check("Report copyright (DMCA)" in d and "penalty of perjury" in d and "designated agent for copyright complaints" in d, "/dmca page")
 r = anon.post("/dmca", data={"claimant_name": "Ana Photog", "claimant_email": "ana@example.com", "work": "My photo of the Pearl",
                              "urls": f"https://chisme.co/c/{c_pub['id']}", "signature": "Ana Photog", "good_faith": "1", "accurate": "1"}, headers=H)
 check(r.status_code == 200 and "Your notice is in" in r.text and anon.get(f"/api/social/chismes/{c_pub['id']}").status_code == 404, "DMCA notice → listed Chisme hidden")
