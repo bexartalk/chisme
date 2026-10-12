@@ -430,7 +430,7 @@
     const d = await api(`/api/social/u/${encodeURIComponent(username)}?tab=${tab}`);
     if (!d.ok) { page("Not here", el("p", { class: "empty", text: d.error })); return; }
     const p = d.profile, acc = p.accent_hex || "#00C9CD";
-    const banner = el("div", { class: "banner", style: p.banner ? { background: `center/cover no-repeat url("${p.banner}")` } : { "--sx-acc": acc, background: "var(--sx-banner)" } });
+    const banner = profileHeader(p);
     const btns = el("div", { class: "p-btns" });
     if (p.relation === "me") {
       btns.append(el("a", { class: "btn acc", href: "#s/edit", text: "✏️ Edit profile" }), el("a", { class: "btn ghost", href: "#s/settings", text: "⚙️" , "aria-label": "Settings" }));
@@ -458,6 +458,41 @@
       el("p", { class: "p-counts" }, el("b", { text: String(p.homies) }), " HOMIES 🤝",
         p.relation !== "me" && p.mutual_homies ? el("span", {}, " · ", el("b", { text: String(p.mutual_homies) }), " Mutual Homies") : null),
       p.under_review ? el("p", { class: "note", text: "Your profile is being reviewed after some reports. You can still use Chisme." }) : null, tabs), list);
+  }
+  // v49.19 the profile header: the app icon's look (turquoise, Fiesta confetti, the Chisme bubble) with a cartoon San Antonio
+  // skyline along the bottom, or the person's own header photo. The owner gets 📷 Change header (+ Remove).
+  function profileHeader(p, opts = {}) {
+    const mine = p.relation === "me" || opts.mine;
+    const h = el("div", { class: "banner p-hdr" + (p.banner ? " has-photo" : ""), role: "img",
+      "aria-label": p.banner ? `${p.name}'s header photo` : "Chisme header: the Chisme bubble and the San Antonio skyline" });
+    if (p.banner) h.append(el("img", { class: "p-hdr-photo", src: p.banner, alt: "", decoding: "async" }));
+    else h.append(el("img", { class: "p-hdr-logo", src: "/static/site/chisme-bubble-logo.svg", alt: "", width: "569", height: "440" }));
+    h.append(el("img", { class: "p-hdr-sky", src: "/static/site/sa-skyline.svg", alt: "", "aria-hidden": "true" }), el("span", { class: "p-hdr-picado", "aria-hidden": "true" }));
+    if (mine && ME) {
+      const tools = el("div", { class: "p-hdr-tools" },
+        el("button", { type: "button", class: "chip-btn", text: "📷 Change header", onclick: gated(() => pickHeader(opts.after)) }),
+        p.banner ? el("button", { type: "button", class: "chip-btn", text: "✖ Remove", "aria-label": "Remove header photo", onclick: () => setHeader(null, opts.after) }) : null);
+      h.append(tools);
+    }
+    return h;
+  }
+  async function setHeader(name, after) {
+    const d = await api("/api/social/profile", { method: "PATCH", body: { banner: name } });
+    if (!d.ok) { toast(d.error, 4000); return; }
+    toast(name ? "New header 😎" : "Header photo removed"); await loadMe(); (after || route)();
+  }
+  function pickHeader(after) {
+    const inp = $("#pick-banner");
+    inp.onchange = async () => {
+      const f = inp.files[0]; inp.value = ""; if (!f) return;
+      toast("Uploading...");
+      try {
+        const d = await upload(await squeezePhoto(f, 2048), "banner");   // the same upload path as every photo (testers only, scanned, EXIF stripped)
+        if (!d.ok) { toast(d.error, 4000); return; }
+        await setHeader(d.name, after);
+      } catch (e) { toast(e.message); }
+    };
+    inp.click();
   }
   // the admin gives or takes a GOLD / BLUE badge (the server refuses anyone else)
   function badgeSheet(p, after) {
@@ -550,8 +585,7 @@
   function editView() {
     if (!needMe()) return;
     const st = { photo: undefined, banner: undefined, accent: ME.accent };
-    const prevBanner = el("div", { class: "banner edit", style: { background: ME.banner ? `center/cover url("${ME.banner}")` : "linear-gradient(135deg, var(--accent), #FF1A7F 55%, #FF6A0B)" } },
-      el("button", { type: "button", class: "chip-btn", text: "📷 Change cover", onclick: gated(() => $("#pick-banner").click()) }));
+    const prevBanner = profileHeader({ ...ME, relation: "me" }, { after: editView });
     const prevAv = el("div", { class: "av-edit" }, avatar(ME, 96), el("button", { type: "button", class: "chip-btn", text: "📷 Photo", onclick: gated(() => $("#pick-avatar").click()) }));
     const wire = (inputId, kind, key, apply) => {
       const inp = $(inputId);
@@ -566,7 +600,6 @@
       };
     };
     wire("#pick-avatar", "avatar", "photo", (u) => { const a = prevAv.querySelector(".av"); clear(a).append(el("img", { src: u, alt: "" })); });
-    wire("#pick-banner", "banner", "banner", (u) => { prevBanner.style.background = `center/cover url("${u}")`; });
     const [fn, name] = field("Display name", { maxlength: "40", value: ME.name });
     const [fu, user] = field("@username", { maxlength: "20", value: ME.username, autocapitalize: "none" });
     const [fb, bio] = field("Bio", { tag: "textarea", maxlength: "160", rows: "3" }); bio.value = ME.bio || "";

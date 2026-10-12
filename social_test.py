@@ -278,6 +278,41 @@ q = os.listdir(f"{tmp}/social/quarantine/c") if os.path.isdir(f"{tmp}/social/qua
 check(bool(q) and goonie.get("/api/social/media/" + holds[0]["media_name"]).status_code == 404, "…the file is in quarantine, never served")
 S.csam_scan = real_scan
 
+_anon_h = client()
+# ---------------------------------------------------------------- v49.19 profile header photo (the same upload path: testers only, scanned, EXIF gone)
+os.environ["UPLOADS_PUBLIC"] = "0"; os.environ["SOCIAL_UPLOAD_TESTERS"] = "goonie_tx"
+r = lupe.post("/api/social/upload?kind=banner", content=jpeg_with_gps(1800, 600), headers={**H, "content-type": "image/jpeg"})
+check(r.status_code == 403 and r.json().get("uploads_soon"), "header photo: UPLOADS_PUBLIC=0 → non-testers can't upload one")
+hb = goonie.post("/api/social/upload?kind=banner", content=jpeg_with_gps(2400, 800, (0, 201, 205)), headers={**H, "content-type": "image/jpeg"}).json()
+_raw = goonie.get(hb["url"]).content; _im = Image.open(io.BytesIO(_raw))
+check(hb["ok"] and hb["name"].startswith("b/") and _im.format == "WEBP" and not _im.getexif() and b"SpyCam" not in _raw and max(_im.size) <= 1600,
+      "header photo: a tester's upload is re-encoded, EXIF + GPS gone, capped at 1600 px")
+S.csam_scan = match
+_sk, _ = join("sketchy2"); os.environ["SOCIAL_UPLOAD_TESTERS"] = "goonie_tx,sketchy2"
+r = _sk.post("/api/social/upload?kind=banner", content=jpeg_with_gps(), headers={**H, "content-type": "image/jpeg"})
+check(r.status_code == 403 and _sk.get("/api/social/me").json()["me"] is None, "header photo: goes through the CSAM hook (match → held, account closed)")
+S.csam_scan = real_scan
+r = lupe.patch("/api/social/profile", json={"banner": hb["name"]}, headers=H)
+check(r.status_code == 400, "header photo: you can't use someone else's upload")
+r = goonie.patch("/api/social/profile", json={"banner": hb["name"]}, headers=H)
+check(r.status_code == 200 and r.json()["profile"]["banner"].endswith(hb["name"]) and _anon_h.get("/api/social/u/goonie_tx").json()["profile"]["banner"], "header photo: saved + shown on the profile")
+r = goonie.patch("/api/social/profile", json={"banner": None}, headers=H)
+check(r.status_code == 200 and r.json()["profile"]["banner"] is None and _anon_h.get("/api/social/u/goonie_tx").json()["profile"]["banner"] is None,
+      "header photo: Remove → back to the default Chisme header")
+os.environ.pop("SOCIAL_UPLOAD_TESTERS"); os.environ["UPLOADS_PUBLIC"] = "1"
+_js = open(f"{HERE}/static/social.js").read(); _css = open(f"{HERE}/static/social.css").read()
+_hdr = _css[_css.index("/* v49.19 the profile header"):]
+_sky = open(f"{HERE}/static/site/sa-skyline.svg").read()
+check("📷 Change header" in _js and "✖ Remove" in _js and "/static/site/chisme-bubble-logo.svg" in _js and "/static/site/sa-skyline.svg" in _js
+      and 'relation === "me"' in _js, "the owner gets Change header + Remove; the default is the Chisme bubble + the SA skyline")
+check(set(re.findall(r'fill="([^"]+)"', _sky)) == {"#000", "#C0C0C0"} and "sky-win" not in _sky, "the skyline SVG: black buildings, silver windows (from the app's header art)")
+_cols = {c.upper() for c in re.findall(r"#[0-9A-Fa-f]{3,6}\b", re.sub(r"/\*.*?\*/", "", _hdr, flags=re.S))}
+check(_cols <= {"#00C9CD", "#FF1A7F", "#FF6A0B", "#000", "#FFF", "#C0C0C0"} and not re.search(r"yellow|gold\b", re.sub(r"/\*.*?\*/", "", _hdr, flags=re.S), re.I),
+      f"the header uses only the icon's Fiesta colors (no yellow): {_cols}")
+_ff = re.search(r'@font-face \{ font-family: "Chisme Profile Display"; src: url\("([^"]+)"\)', _hdr)
+check(_ff and _ff.group(1) == "/static/fonts/chewy-site.woff" and os.path.exists(f"{HERE}{_ff.group(1)}") and "http" not in _ff.group(0)
+      and '.sx .p-name { font-family: "Chisme Profile Display"' in _hdr, "the profile name uses the self-hosted Chewy display font (no CDN)")
+
 # storage adapter: R2 when its keys are set (SigV4), local otherwise
 check(S.media().name == "local", "no R2 / Supabase keys → local media fallback")
 os.environ.update(R2_ACCOUNT_ID="acc123", R2_ACCESS_KEY_ID="AKIDTEST", R2_SECRET_ACCESS_KEY="secret", R2_BUCKET="chisme-media", R2_PUBLIC_BASE_URL="https://media.chisme.co")
@@ -395,7 +430,7 @@ check(anon.get("/stats/social/queue").status_code == 404 and lupe.get("/stats/so
 OWN = {"authorization": "Bearer " + TOKEN}
 q = anon.get("/stats/social/queue", headers=OWN).json()
 it = [g for g in q["items"] if g["id"] == tt["id"]]
-check(it and it[0]["count"] == 3 and it[0]["status"] == "hidden" and q["csam_unreported"] == 1, "mod queue lists it (3 reports, auto-hidden) + the CSAM hold count")
+check(it and it[0]["count"] == 3 and it[0]["status"] == "hidden" and q["csam_unreported"] == 2, "mod queue lists it (3 reports, auto-hidden) + the CSAM hold count")
 r = anon.post("/stats/social/action", json={"kind": "chisme", "id": tt["id"], "action": "restore"}, headers={**OWN, **H})
 check(r.status_code == 200 and anon.get(f"/api/social/chismes/{tt['id']}").status_code == 200
       and tt["id"] in {c["id"] for c in anon.get("/api/social/feed?tab=trending").json()["chismes"]}, "Keep it up → back up, in the feeds")
@@ -556,10 +591,10 @@ import re as _re
 _gold = _re.search(r"\.sx-bdg\.gold \{(.*?)\}\n", _sc2, _re.S).group(1)
 check("#FF6A0B" in _gold and "#C0C0C0" in _gold and not _re.search(r"#FF(D|E|F)[0-9A-F]00|#FFFF00|gold\b|yellow", _gold, _re.I), "the gold badge is orange-gold + silver, no yellow")
 # theme: social colors come from the app's variables, so switching seasons switches them
-_rules = _re.sub(r"/\*.*?\*/", "", _sc2, flags=_re.S)
+_rules = _re.sub(r"/\*.*?\*/", "", _sc2[:_sc2.index("/* v49.19 the profile header")], flags=_re.S)   # v49.19's header keeps the icon's fixed Fiesta colors
 _bg = _re.findall(r"background(?:-color)?:\s*(#[0-9A-Fa-f]{3,6})\b", _rules)
 check(set(_bg) <= {"#000", "#111", "#222", "#c4135f"}, f"no hard-coded light backgrounds in social.css (theme vars only): {set(_bg)}")
-check("var(--card)" in _rules and 'html[data-season="muertos"] .sx {' in _rules and "--sx-banner" in _sj, "the Muertos season restyles the social screens through the theme variables")
+check("var(--card)" in _rules and 'html[data-season="muertos"] .sx {' in _rules and "--sx-banner" in _rules, "the Muertos season restyles the social screens through the theme variables")
 _m3 = open(f"{HERE}/supabase/migrations/20261012200000_social_admin_badges.sql").read()
 check("check (badge is null or badge in ('gold', 'blue'))" in _m3 and "social_badges_admin_only" in _m3 and "'held'" in _m3 and "force row level security" in _m3,
       "the badge migration: gold/blue only, server-only trigger, held status, RLS forced")
