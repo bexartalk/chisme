@@ -18,8 +18,8 @@ By creating an account or using the Service, you agree to these Terms, our [Priv
 
 ## 2. Your account
 
-- You sign in through our authentication provider, Supabase, using a one-time email code, Sign in with Apple, or Sign in with Google.
-- Keep your email and linked Apple/Google accounts secure. You're responsible for what happens under your account.
+- You sign in through our authentication provider, Supabase, using your email address and a password, plus a 6-digit code we email you.
+- Keep your email and password secure, and don't share your login codes. You're responsible for what happens under your account.
 - Give us accurate information. Don't create accounts for someone else, and don't make an account to dodge a ban.
 - Tell us right away at **Arnulfoled@outlook.com** if you think someone got into your account.
 

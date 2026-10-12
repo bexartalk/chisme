@@ -24,7 +24,7 @@ Chisme is only for people **18 and older**. We don't knowingly collect informati
 
 ### Information you give us
 
-- **Account info:** your email address, and if you use Sign in with Apple or Google, the basic info those services share with us (usually your name, email address, and a unique account ID). If you use Apple's "Hide My Email," we get a relay address instead of your real one.
+- **Account info:** your email address, and your password, which is stored scrambled (hashed) so we can't read it.
 - **Profile info:** username, display name, profile photo, bio, and anything else you choose to add.
 - **Content you post:** photos, videos (up to 60 seconds), memes, comments, reposts, likes, and reactions.
 - **Social connections:** your Homies (mutual friend connections), friend requests, and the users you block.
@@ -68,10 +68,9 @@ Your username, display name, profile photo, bio, and the posts, comments, reacti
 We share information only in these situations:
 
 - **Service providers** who help us run Chisme, and only to do that work for us:
-  - **Supabase:** sign-in (email codes, Apple, Google), user accounts, and our database
+  - **Supabase:** sign-in (email, password, and 6-digit email codes), user accounts, and our database
   - **Cloudflare (R2):** storing and delivering your photos and videos
   - **Render:** hosting the Chisme app and servers
-  - **Apple and Google:** only if you choose to sign in with them
   - **Email delivery:** to send sign-in codes and account emails
 - **Sponsors and advertisers:** we show "Sponsored" posts, but we don't give sponsors your personal information. We may share combined, anonymous stats (like "this post got 2,000 views").
 - **Legal and safety:** when we believe in good faith it's required by law, a court order, or a valid legal request; to protect someone's safety; or to investigate fraud or abuse. We report child sexual abuse material to the National Center for Missing & Exploited Children (NCMEC) as federal law requires.
@@ -93,7 +92,6 @@ We share information only in these situations:
 - **Delete your account:** use the in-app account deletion option. No email or phone call needed.
 - **Get a copy or ask questions:** email **Arnulfoled@outlook.com** to ask for a copy of your personal information, ask us to correct or delete it, or ask about how we use it. We'll respond within 45 days. We may need to verify that you own the account first.
 - **Appeal:** if we deny a privacy request, you can reply to appeal, and we'll explain our decision. Texas residents who are still unhappy after an appeal may contact the Texas Attorney General.
-- **Disconnect Apple or Google:** you can remove Chisme's access in your Apple ID or Google Account settings.
 - **No discrimination:** we won't treat you differently for using your privacy rights.
 
 ## 8. Security
