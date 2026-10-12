@@ -68,10 +68,10 @@ Storage / local), `social_auth.py` (Supabase Auth), `static/social.{js,css}` (in
    **Arnulfoled@outlook.com**. That's the built-in default on `/dmca` (`DMCA_AGENT_DEFAULT` in `social_api.py`);
    set `DMCA_AGENT_INFO` only to override the text (the email still becomes a link). Keep the Copyright Office
    listing current (renew it every 3 years).
-   `/dmca` also shows the agent's full contact the way the registration lists it: set `DMCA_AGENT_NAME`,
-   `DMCA_AGENT_ADDRESS` (new lines allowed) and `DMCA_AGENT_PHONE` to match the registration exactly. Until they're
-   set, each shows "Not listed here yet. Email the address below for now." (The law asks for these to be on the
-   site, so fill them in soon.)
+   `/dmca` also shows the agent's full contact exactly as the registration lists it, built in as the defaults:
+   Arnulfo Ledezma (Chisme), 912 FM 2537 Lot #5, San Antonio, TX 78221, (210) 837-2281, Arnulfoled@outlook.com.
+   `DMCA_AGENT_NAME`, `DMCA_AGENT_ADDRESS` (new lines allowed) and `DMCA_AGENT_PHONE` override them; if the
+   registration changes, update it at the Copyright Office and here together.
 4. **Supabase:** review and apply the migration (not applied to production by this branch); set the Auth email
    template to send the 6-digit code (`{{ .Token }}`) through a custom SMTP sender; `SUPABASE_URL`,
    `SUPABASE_SERVICE_KEY`, `SUPABASE_PUBLISHABLE_KEY`; a `SOCIAL_SECRET`.

@@ -227,6 +227,9 @@ def page(title: str, body: str) -> str:
 # Chisme's designated DMCA agent (U.S. Copyright Office registration DMCA-1082743). DMCA_AGENT_INFO overrides it.
 DMCA_EMAIL = "Arnulfoled@outlook.com"
 DMCA_REG = "DMCA-1082743"
+DMCA_NAME = "Arnulfo Ledezma (Chisme)"
+DMCA_ADDRESS = "912 FM 2537 Lot #5, San Antonio, TX 78221"
+DMCA_PHONE = "(210) 837-2281"
 DMCA_AGENT_DEFAULT = (f"Chisme's designated agent for copyright complaints is registered with the U.S. Copyright Office "
                       f"(registration {DMCA_REG}). Email copyright complaints to {DMCA_EMAIL}, or send a notice with this form.")
 
@@ -236,12 +239,12 @@ def dmca_page(done: str = "", err: str = "", f: dict | None = None) -> str:
     e = lambda k: html.escape(str(f.get(k) or ""), quote=True)
     agent = html.escape(X._env("DMCA_AGENT_INFO") or DMCA_AGENT_DEFAULT)
     agent = agent.replace(html.escape(DMCA_EMAIL), f'<a href="mailto:{DMCA_EMAIL}">{DMCA_EMAIL}</a>')
-    # the agent's full contact, as on the Copyright Office registration; name / address / phone come from env only
+    # the agent's full contact, as on the Copyright Office registration; the registration's name / address / phone are the defaults; DMCA_AGENT_NAME / _ADDRESS / _PHONE override
     soon = '<i class="dmca-unset">Not listed here yet. Email the address below for now.</i>'
     row = lambda label, v: f"<dt>{label}</dt><dd>{html.escape(v).replace(chr(10), '<br>') if v else soon}</dd>"
     agent_card = (f'<section class="card dmca-agent" aria-labelledby="dmca-agent-h"><h2 id="dmca-agent-h">Designated copyright agent</h2><dl>'
-                  + row("Name", X._env("DMCA_AGENT_NAME").strip()) + row("Mailing address", X._env("DMCA_AGENT_ADDRESS").strip())
-                  + row("Phone", X._env("DMCA_AGENT_PHONE").strip())
+                  + row("Name", (X._env("DMCA_AGENT_NAME").strip() or DMCA_NAME)) + row("Mailing address", (X._env("DMCA_AGENT_ADDRESS").strip() or DMCA_ADDRESS))
+                  + row("Phone", (X._env("DMCA_AGENT_PHONE").strip() or DMCA_PHONE))
                   + f'<dt>Email</dt><dd><a href="mailto:{DMCA_EMAIL}">{DMCA_EMAIL}</a></dd>'
                   + f'<dt>Registration</dt><dd>{DMCA_REG} (U.S. Copyright Office)</dd></dl></section>')
     if done:

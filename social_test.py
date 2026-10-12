@@ -400,10 +400,11 @@ os.environ["DMCA_AGENT_INFO"] = "Agent: Test Person <b>x</b>"
 _o = anon.get("/dmca").text
 check("Agent: Test Person &lt;b&gt;x&lt;/b&gt;" in _o and "Email copyright complaints to" not in _o, "DMCA_AGENT_INFO still overrides it (escaped)")
 del os.environ["DMCA_AGENT_INFO"]
-check(d.count("Not listed here yet") == 3 and "Designated copyright agent" in d, "/dmca: name, address and phone show a placeholder while unset")
+check("Arnulfo Ledezma (Chisme)" in d and "912 FM 2537 Lot #5, San Antonio, TX 78221" in d and "(210) 837-2281" in d
+      and "Not listed here yet" not in d and "Designated copyright agent" in d, "/dmca: the registration's name, address and phone are the defaults")
 os.environ.update(DMCA_AGENT_NAME="Test Agent", DMCA_AGENT_ADDRESS="1 Test St\nTestville, TX", DMCA_AGENT_PHONE="000-000-0000")
 _o = anon.get("/dmca").text
-check("Test Agent" in _o and "1 Test St<br>Testville, TX" in _o and "000-000-0000" in _o and "Not listed here yet" not in _o, "/dmca: the agent's contact comes from DMCA_AGENT_NAME / _ADDRESS / _PHONE")
+check("Test Agent" in _o and "1 Test St<br>Testville, TX" in _o and "000-000-0000" in _o and "Arnulfo Ledezma" not in _o and "837-2281" not in _o, "/dmca: DMCA_AGENT_NAME / _ADDRESS / _PHONE override DMCA_AGENT_NAME / _ADDRESS / _PHONE")
 for _k in ("DMCA_AGENT_NAME", "DMCA_AGENT_ADDRESS", "DMCA_AGENT_PHONE"): del os.environ[_k]
 check("Report copyright (DMCA)" in d and "penalty of perjury" in d and "designated agent for copyright complaints" in d, "/dmca page")
 r = anon.post("/dmca", data={"claimant_name": "Ana Photog", "claimant_email": "ana@example.com", "work": "My photo of the Pearl",
