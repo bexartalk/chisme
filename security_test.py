@@ -103,6 +103,16 @@ async def rd():
     return out, calls, got
 out, calls, got = asyncio.run(rd())
 check(all(v != "fetched" for v in out.values()), f"private/loopback/metadata addresses refused: {out}")
+_real_pub = reader._public
+async def _private_pub(host): raise reader.Blocked("private address")
+reader._public = _private_pub
+try:
+    _r1 = c.get("/api/reader", params={"url": "https://news.example.com/story-that-resolves-private"})
+    _r2 = c.get("/api/reader", params={"url": "http://127.0.0.1/"}); _r3 = c.get("/api/reader", params={"url": "http://[::1]/"})
+finally:
+    reader._public = _real_pub
+check(_r1.status_code == 200 and _r1.json().get("frame") is False and _r1.json().get("why") == "blocked" and _r2.status_code == 400 and _r3.status_code == 400,
+      f"reader: a news link whose name resolves private → 200 'blocked' (no fetch, no console 400); IP literals still 400 ({_r1.status_code} {_r1.json()}, {_r2.status_code}, {_r3.status_code})")
 check(got == ["93.184.215.14"] and len(calls) == 1, f"the socket opens to the checked address, one lookup per connection ({got}, lookups {len(calls)})")
 
 print("== rate limits in Upstash")

@@ -2528,6 +2528,7 @@ async def api_geocode(q: str = Query(..., min_length=2, max_length=120)):
         return _err(ex)
 
 
+_re_iplit = re.compile(r"^(\d{1,3}(\.\d{1,3}){3}|[0-9a-f:]*:[0-9a-f:.]*)$", re.I)
 READER_LIMIT = RateLimit(90, 600)   # link checks per phone per 10 minutes (each result is cached anyway)
 READER_TTL, FRAME_TTL = 6 * 3600, 12 * 3600
 
@@ -2552,10 +2553,18 @@ async def api_reader(request: Request, url: str = Query(..., min_length=8, max_l
     try:
         info = await cached("reader:" + url, READER_TTL, lambda: rdr.inspect(rdr.safe_client(UA), url))
     except rdr.Blocked as ex:
+        # v49.19: a normal-looking link (a DNS name, not an IP or localhost) whose name resolves to a non-public address
+        # (a network that answers every name with a 198.18.x.x proxy address, a stale or hijacked record) is a link we
+        # can't check, like an unreachable one: answer "don't frame it" (nothing was fetched) instead of a 400, which
+        # the app logged as a console error every time it peeked at a story. Bad input itself (an IP literal,
+        # localhost, odd ports, non-web links) still gets the 400.
+        named = not _re_iplit.match(host.strip("[]")) and host not in ("localhost",) and not host.endswith((".local", ".internal", ".localhost"))
+        if named and str(ex) == "private address":
+            return {"url": url, "final_url": url, "host": host.removeprefix("www."), "frame": False, "why": "blocked"}
         return JSONResponse({"error": str(ex)}, status_code=400)
     except Exception:
         return {"url": url, "final_url": url, "host": host.removeprefix("www."), "frame": False, "why": "unreachable"}
-    if info.get("why") not in ("busy", "unreachable"):
+    if info.get("why") not in ("busy", "unreachable", "blocked"):
         _cache["frame:" + host] = (time.time(), bool(info.get("frame")))
     return info
 

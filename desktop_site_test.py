@@ -395,8 +395,11 @@ async def phone_checks(p):
     check(r["css"], "phone: desktop.css only applies at min-width 1024px")
     await pg.screenshot(path=os.path.join(SHOTS, "phone-unchanged.png"))
     await pg.goto(BASE + "/privacy"); await pg.wait_for_timeout(500)
-    lg = await pg.evaluate("() => [getComputedStyle(document.body).backgroundColor, getComputedStyle(document.querySelector('main a')).color, !!document.querySelector('.site-foot')]")
-    check(lg[0] == "rgb(255, 250, 243)" and lg[1] == "rgb(216, 27, 96)" and lg[2], f"phone: /privacy keeps v49.12's own colours (+ the footer) {lg}")
+    # v49.17+: the legal pages are Plato's docs rendered in the app's own look (tools/make_legal_pages.py: the app's
+    # style.css + social.css, the app's --bg and --link), not v49.12's standalone cream/pink sheet (#fffaf3 / #d81b60).
+    lg = await pg.evaluate("""() => { const v = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim(), probe = (c) => { const d = document.createElement('i'); d.style.color = c; document.body.append(d); const x = getComputedStyle(d).color; d.remove(); return x; };
+      return [getComputedStyle(document.body).backgroundColor, getComputedStyle(document.querySelector('.sx-legal-body a')).color, !!document.querySelector('.site-foot'), probe(v('--link')), probe(v('--bg'))]; }""")
+    check(lg[0] == lg[4] == "rgb(244, 243, 239)" and lg[1] == lg[3] and lg[2], f"phone: /privacy uses the app's own colours (--bg, --link) + the footer {lg}")
     check(not errs, f"phone: no page errors {errs[:3]}")
     await b.close()
 
@@ -485,7 +488,10 @@ def http_checks(FLAGS):
           and (meta(html, "property", "og:image") or "").startswith("https://chisme.co/"), "PUBLIC_BASE_URL → canonical / og:url / og:image on chisme.co")
     check(f"Sitemap: https://chisme.co/sitemap.xml" in get(FLAGS + "/robots.txt")[2], "robots.txt sitemap on chisme.co")
     check("<loc>https://chisme.co/about</loc>" in get(FLAGS + "/sitemap.xml")[2], "sitemap URLs on chisme.co")
-    check('href="https://chisme.co"' in get(FLAGS + "/privacy")[2], "the Privacy Policy names the new address")
+    # v49.17+: Plato's merged policy (word for word, never edited) names both addresses in its own text ("chisme.onrender.com
+    # and, later, chisme.co") with no link, so there's no href for the domain-move rewrite to swap; check the text instead.
+    _pv = get(FLAGS + "/privacy")[2]
+    check("chisme.co" in _pv and "chisme.onrender.com and, later, chisme.co" in _pv, "the Privacy Policy names the new address (chisme.co, in Plato's own words)")
     old = dict(NAV, Host="chisme.onrender.com")
     st, hd, _ = get(FLAGS + "/about?x=1", old)
     check(st == 301 and hd.get("location", hd.get("Location")) == "https://chisme.co/about?x=1", f"DOMAIN_REDIRECT=1: page on the old host → 301 chisme.co ({st} {hd.get('location')})")
