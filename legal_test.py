@@ -18,12 +18,12 @@ COVER = """(sel) => { const e = document.querySelector(sel); if (!e || !e.getCli
   const x = r.left + r.width / 2, y = r.top + r.height / 2; if (y > innerHeight || y < 0) return 'offscreen';
   const at = document.elementFromPoint(x, y); return at && (e === at || e.contains(at)) ? 'free' : 'covered by ' + (at && (at.id || at.className)); }"""
 async def main():
-    for name in ("privacy", "terms"):
+    for name in ("privacy", "terms", "community-rules"):
         with urllib.request.urlopen(URL + name, timeout=30) as r:
             body = r.read().decode(); st = r.status
         title = re.search(r"<title>(.*?)</title>", body).group(1)
         left = re.findall(r"\[[A-Z][A-Z /$]{3,}\]", body)
-        check(st == 200 and ("Privacy" if name == "privacy" else "Terms") in title and "bexartalkradio@gmail.com" in body and not left and 'id="track"' not in body,
+        check(st == 200 and {"privacy": "Privacy", "terms": "Terms", "community-rules": "Community Rules"}[name] in title and "Arnulfoled@outlook.com" in body and not left and 'id="track"' not in body,
               f"/{name}: a real page ({st}, '{title}', contact email, no placeholders left {left[:3]}, {body.count('class=\"todo\"')} TODO marks)")
     async with async_playwright() as p:
         for bname, bt, dev in (("chromium", p.chromium, dict(is_mobile=True, has_touch=True, device_scale_factor=2.625)), ("webkit", p.webkit, dict(is_mobile=True, has_touch=True, device_scale_factor=3))):
