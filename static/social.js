@@ -806,6 +806,7 @@
     if (!ME || !ME.admin) { page("Not here", el("p", { class: "empty", text: "Not here." })); return; }
     sec = ADM.some(([k]) => k === sec) ? sec : "analytics";
     const top = el("div", {}, el("h1", { text: "🔐 Admin" }), admTabs(sec));
+    setTimeout(() => { const t = top.querySelector('[aria-current="page"]'); if (t) t.scrollIntoView({ block: "nearest", inline: "center" }); }, 0);
     if (sec === "mod") return modView(top);
     if (sec === "posts") {
       return page("Admin", top, el("p", { class: "small", text: "Your owner posts: Sponsored checkbox, pins and all. Same composer as /stats/posts." }),
@@ -823,7 +824,7 @@
       } }, el("label", { class: "fld" }, "Title", t), el("label", { class: "fld" }, "Message", m), el("label", { class: "fld" }, "Link", l),
         el("button", { type: "submit", class: "btn pink sx-wide", text: "🔔 Send to everyone" }));
       return page("Admin", top, el("section", { class: "card" }, el("h2", { class: "h2", style: { margin: "0 0 6px" }, text: "Push to everyone" }),
-        el("p", { class: "small", text: info.ok ? `${info.subs} people have notifications on · ${info.today} sent today · ${info.status}` : "Push numbers aren't available right now." }), f));
+        el("p", { class: "small", text: info.ok ? `${info.subs} people have notifications on · ${info.today} sent today` : "Push numbers aren't available right now." }), f));
     }
     const [a, s] = await Promise.all([api("/stats/api/summary"), api("/api/social/admin/stats")]);
     const stat = (n, label) => el("div", { class: "adm-stat" }, el("b", { text: (n ?? 0).toLocaleString() }), el("small", { text: label }));
