@@ -14,7 +14,7 @@ TestClient, the local backend (SQLite + files in a temp folder) and the in-memor
 import asyncio, io, json, os, re, subprocess, sys, tempfile, time
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 tmp = tempfile.mkdtemp()
-for k in [k for k in os.environ if k.startswith(("UPSTASH_", "RENDER", "SUPABASE_", "R2_", "TURNSTILE_", "CSAM_", "SOCIAL_"))]:
+for k in [k for k in os.environ if k.startswith(("UPSTASH_", "RENDER", "SUPABASE_", "R2_", "TURNSTILE_", "CSAM_", "SOCIAL_", "UPLOADS_"))]:
     os.environ.pop(k)
 TOKEN = "social-test-admin-token-77"
 os.environ.update(ADMIN_TOKEN=TOKEN, SOCIAL_FAKE_AUTH="1", SOCIAL_DIR=f"{tmp}/social", PUSH_STORE_FILE=f"{tmp}/push.json",
@@ -156,6 +156,25 @@ codes = [rc.post("/api/social/signup", json={"email": f"spam{i}@example.com", **
 check(codes[-1] == 429, "sign-ups are rate limited per IP")
 r = goonie.post("/api/social/chismes", json={"text": "hi"}, headers={"origin": "https://evil.example"})
 check(r.status_code == 403, "cross-site writes are refused")
+
+# ---------------------------------------------------------------- uploads behind UPLOADS_PUBLIC (off by default) + a tester allowlist
+img = jpeg_with_gps()
+r = lupe.post("/api/social/upload?kind=chisme", content=img, headers={**H, "content-type": "image/jpeg"})
+check(r.status_code == 403 and r.json()["error"].startswith("Photo and video uploads are coming soon") and r.json().get("uploads_soon"),
+      "UPLOADS_PUBLIC unset: photo uploads say 'coming soon'")
+check(lupe.post("/api/social/upload?kind=video", content=b"x" * 100, headers={**H, "content-type": "video/mp4"}).status_code == 403, "…videos too")
+check(lupe.get("/api/social/me").json()["can_upload"] is False, "/me says can_upload: false")
+r = lupe.post("/api/social/chismes", json={"text": "text Chismes still work 🙌"}, headers=H)
+check(r.status_code == 201, "text Chismes stay open")
+os.environ["SOCIAL_UPLOAD_TESTERS"] = "goonie210, @Tia_Rosa"
+check(goonie.post("/api/social/upload?kind=chisme", content=img, headers={**H, "content-type": "image/jpeg"}).status_code == 200
+      and tia.post("/api/social/upload?kind=chisme", content=img, headers={**H, "content-type": "image/jpeg"}).status_code == 200
+      and goonie.get("/api/social/me").json()["can_upload"], "the owner + allowlisted testers can upload")
+check(lupe.post("/api/social/upload?kind=chisme", content=img, headers={**H, "content-type": "image/jpeg"}).status_code == 403, "…nobody else")
+os.environ.pop("SOCIAL_UPLOAD_TESTERS")
+os.environ["UPLOADS_PUBLIC"] = "1"
+check(lupe.get("/api/social/me").json()["can_upload"] is True, "UPLOADS_PUBLIC=1 opens uploads to everybody")
+check("Photo and video uploads are coming soon" in js, "the app shows the 'coming soon' copy")
 
 # ---------------------------------------------------------------- profile customization
 up = goonie.post("/api/social/upload?kind=avatar", content=jpeg_with_gps(), headers={**H, "content-type": "image/jpeg"}).json()

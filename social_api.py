@@ -296,6 +296,20 @@ def wrap(fn):
     return inner
 
 
+UPLOADS_SOON = "Photo and video uploads are coming soon 📸 Text Chismes work right now."
+
+
+def can_upload(me: dict | None) -> bool:
+    """UPLOADS_PUBLIC=1 opens photo + video uploads to everybody. Until a CSAM scanner is live it stays 0 (the default):
+    only the usernames in SOCIAL_UPLOAD_TESTERS (comma list; put the owner's @username first) may upload."""
+    if not me:
+        return False
+    if X._env("UPLOADS_PUBLIC") == "1":
+        return True
+    allow = {u.strip().lstrip("@").lower() for u in X._env("SOCIAL_UPLOAD_TESTERS").split(",") if u.strip()}
+    return me.get("username", "").lower() in allow
+
+
 def gotrue() -> SA.GoTrue:
     a = SA.auth()
     if not a:
@@ -591,7 +605,7 @@ def install(app: FastAPI, *, owner: Callable[..., Awaitable[bool]], public_base:
         priv = (await S.db().select("social_private", [("user_id", "eq", v.id)], limit=1) or [{}])[0]
         prof = await X.profile_view(v, v.me)
         return ok({"me": {**prof, "email_hint": priv.get("email_hint", ""), "area_choice": v.me.get("area")},
-                   "unread": unread, "requests": reqs, "owner": await is_owner(request)})
+                   "unread": unread, "requests": reqs, "can_upload": can_upload(v.me), "owner": await is_owner(request)})
 
     @app.post("/api/social/account/delete")
     @wrap
@@ -864,6 +878,8 @@ def install_profiles(app: FastAPI, is_owner) -> None:
         v = await me_or_401(request)
         if X._env("SOCIAL_UPLOADS") == "0":
             raise X.Bad("Uploads are paused for a bit. Text Chismes still work.", 503)
+        if not can_upload(v.me):
+            raise X.Bad(UPLOADS_SOON, 403, uploads_soon=True)
         if kind not in ("chisme", "avatar", "banner", "video"):
             raise X.Bad("Unknown upload.")
         await X.limit("upload", v.id, "That's a lot of uploads. Take a breather.")

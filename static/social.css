@@ -232,3 +232,4 @@ main > .form { padding: 10px 8px; }
 .legal .form input, .legal .form textarea { font: inherit; padding: 10px 12px; border-radius: 12px; border: 1.5px solid var(--line); }
 .share .chisme img, .share .chisme video { width: 100%; border-radius: 12px; margin-top: 8px; height: auto; }
 .share .btn { margin-top: 12px; }
+.menu .soon { grid-column: 1 / -1; margin: 4px 0 0; }

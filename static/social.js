@@ -176,6 +176,7 @@
   async function loadMe() {
     const d = await api("/api/social/me");
     ME = d.ok ? d.me : null;
+    if (ME) ME.can_upload = !!d.can_upload;
     $("#dot-alerts").hidden = !(d.unread > 0);
     $("#dot-req").hidden = !(d.requests > 0);
     if (ME) document.documentElement.style.setProperty("--accent", ME.accent_hex || "#00C9CD");
@@ -489,8 +490,8 @@
     if (!needMe()) return;
     const st = { photo: undefined, banner: undefined, accent: ME.accent };
     const prevBanner = el("div", { class: "banner edit", style: { background: ME.banner ? `center/cover url("${ME.banner}")` : "linear-gradient(135deg, var(--accent), #FF1A7F 55%, #FF6A0B)" } },
-      el("button", { type: "button", class: "chip-btn", text: "📷 Change cover", onclick: () => $("#pick-banner").click() }));
-    const prevAv = el("div", { class: "av-edit" }, avatar(ME, 96), el("button", { type: "button", class: "chip-btn", text: "📷 Photo", onclick: () => $("#pick-avatar").click() }));
+      el("button", { type: "button", class: "chip-btn", text: "📷 Change cover", onclick: media(() => $("#pick-banner").click()) }));
+    const prevAv = el("div", { class: "av-edit" }, avatar(ME, 96), el("button", { type: "button", class: "chip-btn", text: "📷 Photo", onclick: media(() => $("#pick-avatar").click()) }));
     const wire = (inputId, kind, key, apply) => {
       const inp = $(inputId);
       inp.onchange = async () => {
@@ -534,14 +535,16 @@
   }
 
   // ------------------------------------------------ ➕ CHISME: the menu + the composer
+  const SOON = "Photo and video uploads are coming soon 📸 Text Chismes work right now.";
+  const media = (fn) => () => { if (!ME.can_upload) { toast(SOON, 3500); return; } fn(); };
   function plusMenu() {
     if (!needMe()) return;
     const opt = (emo, label, fn) => el("button", { type: "button", class: "item big", onclick: () => { closeSheet(); fn(); } }, el("span", { "aria-hidden": "true", text: emo }), " " + label);
     sheet("➕ CHISME", el("div", { class: "menu grid" },
-      opt("📸", "Take Photo", () => composer({ pick: "#cam-photo" })), opt("🖼️", "Upload Photo", () => composer({ pick: "#pick-photo" })),
-      opt("🎥", "Record Video", () => composer({ pick: "#cam-video" })), opt("📁", "Upload Video", () => composer({ pick: "#pick-video" })),
-      opt("📺", "Repost a ChismeTV clip", () => composer({ clip: true })), opt("😂", "Post a Meme", () => composer({ meme: true, pick: "#pick-photo" })),
-      opt("✏️", "Text Chisme", () => composer({}))));
+      opt("📸", "Take Photo", media(() => composer({ pick: "#cam-photo" }))), opt("🖼️", "Upload Photo", media(() => composer({ pick: "#pick-photo" }))),
+      opt("🎥", "Record Video", media(() => composer({ pick: "#cam-video" }))), opt("📁", "Upload Video", media(() => composer({ pick: "#pick-video" }))),
+      opt("📺", "Repost a ChismeTV clip", () => composer({ clip: true })), opt("😂", "Post a Meme", () => composer({ meme: true, pick: ME.can_upload ? "#pick-photo" : null })),
+      opt("✏️", "Text Chisme", () => composer({})), ME.can_upload ? null : el("p", { class: "note soon", text: SOON })));
   }
   function composer(o = {}) {
     if (!needMe()) return;
@@ -586,9 +589,9 @@
     wire("#pick-photo", addPhotos); wire("#cam-photo", addPhotos);
     wire("#pick-video", (fs) => addVideo(fs[0])); wire("#cam-video", (fs) => addVideo(fs[0]));
     const tools = el("div", { class: "tools" },
-      el("button", { type: "button", class: "tool", "aria-label": "Add photos", text: "🖼️", onclick: () => $("#pick-photo").click() }),
-      el("button", { type: "button", class: "tool", "aria-label": "Take a photo", text: "📸", onclick: () => $("#cam-photo").click() }),
-      el("button", { type: "button", class: "tool", "aria-label": "Add a video", text: "🎥", onclick: () => $("#pick-video").click() }),
+      el("button", { type: "button", class: "tool", "aria-label": "Add photos", text: "🖼️", onclick: media(() => $("#pick-photo").click()) }),
+      el("button", { type: "button", class: "tool", "aria-label": "Take a photo", text: "📸", onclick: media(() => $("#cam-photo").click()) }),
+      el("button", { type: "button", class: "tool", "aria-label": "Add a video", text: "🎥", onclick: media(() => $("#pick-video").click()) }),
       el("button", { type: "button", class: "tool", "aria-label": "Repost a ChismeTV clip", text: "📺", onclick: () => clipPicker((c) => { st.clip = c; drawMedia(); }) }));
     const memeT = el("input", { type: "checkbox", checked: st.meme }); memeT.addEventListener("change", () => { st.meme = memeT.checked; });
     const aud = el("div", { class: "aud-pick", role: "radiogroup", "aria-label": "WHO CAN SEE THIS?" });

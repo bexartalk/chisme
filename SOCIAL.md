@@ -32,6 +32,11 @@ Storage / local), `social_auth.py` (Supabase Auth), `static/social.{html,js,css}
 * **Videos:** 60 s max. The phone re-records big or over-720p videos at 720p when it can; the server always re-encodes
   to H.264/AAC at 720p max with all metadata, chapters and data tracks dropped, and makes a poster frame. 40 MB max
   upload.
+* **Uploads are owner + testers only for now:** `UPLOADS_PUBLIC` is off (0) by default, because Cloudflare's CSAM
+  Scanning Tool needs a domain that runs through Cloudflare and chisme.onrender.com doesn't. Until a scanner is live,
+  only the @usernames in `SOCIAL_UPLOAD_TESTERS` (comma list; Goonie's first) can upload photos, videos, avatars or
+  covers. Everyone else sees "Photo and video uploads are coming soon 📸 Text Chismes work right now." Text Chismes,
+  ChismeTV reposts, reactions and comments stay open. Set `UPLOADS_PUBLIC=1` once the scanner is on.
 * **Storage:** Cloudflare R2 when all five `R2_*` keys are set, else Supabase Storage (`chisme-media` bucket), else a
   local folder (dev). Force one with `SOCIAL_MEDIA_STORE=r2|supabase|local`.
 * **CSAM scan hook:** every photo, and three frames + the poster of every video, go to `CSAM_SCAN_URL` (Bearer
@@ -57,5 +62,7 @@ Storage / local), `social_auth.py` (Supabase Auth), `static/social.{html,js,css}
 4. **Supabase:** review and apply the migration (not applied to production by this branch); set the Auth email
    template to send the 6-digit code (`{{ .Token }}`) through a custom SMTP sender; `SUPABASE_URL`,
    `SUPABASE_SERVICE_KEY`, `SUPABASE_PUBLISHABLE_KEY`; a `SOCIAL_SECRET`.
-5. Optional: `CSAM_SCAN_URL` / `CSAM_SCAN_TOKEN` (PhotoDNA, Thorn Safer…), `SOCIAL_APPLE=1` / `SOCIAL_GOOGLE=1`.
+5. **Uploads:** `SOCIAL_UPLOAD_TESTERS=<your @username>,<testers>` now; `UPLOADS_PUBLIC=1` only after chisme.co runs
+   through Cloudflare with the CSAM Scanning Tool on (or `CSAM_SCAN_URL` points at a live scanner).
+6. Optional: `CSAM_SCAN_URL` / `CSAM_SCAN_TOKEN` (PhotoDNA, Thorn Safer…), `SOCIAL_APPLE=1` / `SOCIAL_GOOGLE=1`.
    `SOCIAL_UPLOADS=0` pauses all uploads.
