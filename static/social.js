@@ -196,7 +196,7 @@
   async function loadMe() {
     const d = await api("/api/social/me");
     ME = d.ok ? d.me : null;
-    if (ME) Object.assign(ME, { can_upload: !!d.can_upload, unread: d.unread || 0, requests: d.requests || 0 });
+    if (ME) Object.assign(ME, { admin: !!d.admin, can_upload: !!d.can_upload, unread: d.unread || 0, requests: d.requests || 0 });
     const dot = $("#sx-dot"); if (dot) dot.hidden = !(d.unread > 0 || d.requests > 0);
     if (ME) document.documentElement.style.setProperty("--sx-acc", ME.accent_hex || "#00C9CD");
     const face = $("#sx-face"); if (face) { clear(face); if (ME) face.replaceWith(Object.assign(avatar(ME, 40), { id: "sx-face" })); }
@@ -235,6 +235,10 @@
     else a.append(el("span", { class: "av-i", text: (u.name || u.username || "?").trim().charAt(0).toUpperCase() }));
     return a;
   }
+  // a GOLD or BLUE badge next to a name (only the admin can give them; the server decides who has one)
+  const BADGE_LABEL = { gold: "Gold badge", blue: "Blue badge" };
+  function badgeEl(u) { return u && BADGE_LABEL[u.badge] ? el("i", { class: "sx-bdg " + u.badge, role: "img", "aria-label": BADGE_LABEL[u.badge], title: BADGE_LABEL[u.badge] }) : null; }
+  function nameEl(u, tag = "b", attrs = {}) { return el(tag, attrs, u.name || "", badgeEl(u)); }
   function richText(t) {
     const p = el("p", { class: "sx-txt" });
     String(t || "").split(/([#@][\w]{1,40})/u).forEach((part) => {
@@ -246,15 +250,16 @@
   }
   function card(c, opts = {}) {
     const a = c.author;
-    const art = el("article", { class: "chisme card" + (c.meme ? " meme" : "") + (c.hidden ? " is-hidden" : ""), "data-id": c.id,
+    const art = el("article", { class: "chisme card" + (c.meme ? " meme" : "") + (c.hidden ? " is-hidden" : "") + (c.held ? " is-held" : ""), "data-id": c.id,
       style: { "--acc": (CFG && CFG.accents[a.accent]) || "#00C9CD" } });
     art.append(el("header", { class: "by" },
-      el("a", { href: "#s/u/" + a.username, class: "who" }, avatar(a), el("span", {}, el("b", { text: a.name }), el("small", {}, "@" + a.username + " · " + ago(c.created_at),
+      el("a", { href: "#s/u/" + a.username, class: "who" }, avatar(a), el("span", {}, nameEl(a), el("small", {}, "@" + a.username + " · " + ago(c.created_at),
         a.fresh ? el("em", { class: "new", text: "new here" }) : null))),
       opts.pinned ? el("span", { class: "sx-pin", text: "📌 Pinned" }) : null,
       c.audience !== "everyone" ? el("span", { class: "aud", text: AUD[c.audience] }) : null,
       el("button", { type: "button", class: "more", "aria-label": "More options", text: "⋯", onclick: () => moreMenu(c) })));
     if (c.hidden) art.append(el("p", { class: "note", text: "Hidden while our team checks some reports. Only you can see it." }));
+    if (c.held) art.append(el("p", { class: "held-note", text: "⏳ Waiting for a quick check before everyone sees it." }));
     if (c.meme) art.append(el("span", { class: "meme-badge", text: "😂 MEME" }));
     if (c.text) art.append(richText(c.text));
     if (c.photos.length) {
@@ -410,7 +415,7 @@
   }
   function commentRow(x) {
     const row = el("div", { class: "comment", "data-id": x.id }, avatar(x.author, 32),
-      el("div", {}, el("b", { text: x.author.name }), el("small", { text: " @" + x.author.username + " · " + ago(x.created_at) }), richText(x.text)));
+      el("div", {}, nameEl(x.author), el("small", { text: " @" + x.author.username + " · " + ago(x.created_at) }), richText(x.text)));
     const actions = el("div", { class: "c-act" });
     if (x.can_delete) actions.append(el("button", { type: "button", class: "sx-link", text: "Delete", onclick: async () => {
       const d = await api("/api/social/comments/" + x.id, { method: "DELETE" }); if (d.ok) row.remove(); } }));
@@ -424,7 +429,7 @@
     const d = await api(`/api/social/u/${encodeURIComponent(username)}?tab=${tab}`);
     if (!d.ok) { page("Not here", el("p", { class: "empty", text: d.error })); return; }
     const p = d.profile, acc = p.accent_hex || "#00C9CD";
-    const banner = el("div", { class: "banner", style: { background: p.banner ? `center/cover no-repeat url("${p.banner}")` : `linear-gradient(135deg, ${acc}, #FF1A7F 55%, #FF6A0B)` } });
+    const banner = el("div", { class: "banner", style: p.banner ? { background: `center/cover no-repeat url("${p.banner}")` } : { "--sx-acc": acc, background: "var(--sx-banner)" } });
     const btns = el("div", { class: "p-btns" });
     if (p.relation === "me") {
       btns.append(el("a", { class: "btn acc", href: "#s/edit", text: "✏️ Edit profile" }), el("a", { class: "btn ghost", href: "#s/settings", text: "⚙️" , "aria-label": "Settings" }));
@@ -437,6 +442,7 @@
         p.relation === "homies" ? el("button", { type: "button", class: "item", text: "Stop being Homies", onclick: async () => {
           await api("/api/social/homies/" + p.username, { method: "POST", body: { action: "unhomie" } }); closeSheet(); route(); } }) : null)) }));
     } else btns.append(el("a", { class: "btn acc", href: "#s/signup", text: "🤝 HOMIE" }));
+    if (ME && ME.admin) btns.append(el("button", { type: "button", class: "btn ghost", text: "🏅 Badge", onclick: () => badgeSheet(p) }));
     const tabs = el("nav", { class: "ptabs", "aria-label": "Profile" }, ...["chismes", "photos", "videos"].map((t) =>
       el("a", { href: `#s/u/${p.username}/${t}`, "aria-current": t === tab ? "page" : "false", text: t.toUpperCase() })));
     const list = el("div", { class: "list" });
@@ -445,12 +451,27 @@
     if (!d.chismes.length && !d.pinned) list.append(el("p", { class: "empty", text: tab === "chismes" ? "No Chismes yet." : "Nothing here yet." }));
     page(p.name, el("section", { class: "profile", style: { "--acc": acc } }, banner,
       el("div", { class: "p-top" }, avatar(p, 96), btns),
-      el("h1", { class: "p-name", text: p.name }), el("p", { class: "p-user", text: "@" + p.username }),
+      nameEl(p, "h1", { class: "p-name" }), el("p", { class: "p-user", text: "@" + p.username }),
       p.area ? el("p", { class: "p-area", text: "📍 " + p.area + " • San Antonio" }) : null,
       p.bio ? richText(p.bio) : null,
       el("p", { class: "p-counts" }, el("b", { text: String(p.homies) }), " HOMIES 🤝",
         p.relation !== "me" && p.mutual_homies ? el("span", {}, " · ", el("b", { text: String(p.mutual_homies) }), " Mutual Homies") : null),
       p.under_review ? el("p", { class: "note", text: "Your profile is being reviewed after some reports. You can still use Chisme." }) : null, tabs), list);
+  }
+  // the admin gives or takes a GOLD / BLUE badge (the server refuses anyone else)
+  function badgeSheet(p, after) {
+    const set = async (badge) => {
+      const d = await api("/api/social/admin/badge", { method: "POST", body: { username: p.username, badge } });
+      closeSheet(); toast(d.ok ? (badge === "none" ? "Badge removed" : "Badge given 🏅") : d.error);
+      if (d.ok) (after || route)();
+    };
+    const cur = p.badge || "none";
+    const opt = (b, label, sub) => el("button", { type: "button", class: "item sx-big", "aria-pressed": cur === b ? "true" : "false", onclick: () => set(b) },
+      b === "none" ? el("span", { "aria-hidden": "true", text: "✖️" }) : el("i", { class: "sx-bdg " + b, "aria-hidden": "true" }), " " + label,
+      el("small", { class: "small", text: " " + sub }), cur === b ? el("b", { class: "pill", text: "Now" }) : null);
+    sheet("🏅 Badge for @" + p.username, el("div", { class: "menu badge-pick" },
+      el("p", { class: "small", text: "Badges show next to their name everywhere. Only you can give them." }),
+      opt("gold", "Gold", "the real deal, VIPs"), opt("blue", "Blue", "checked, trusted (skips new-user review)"), opt("none", "No badge", "take it off")));
   }
   function homieOrNah(p) {
     if (p.relation === "homies") { toast("Y'all are already Homies 🤝"); return; }
@@ -462,7 +483,7 @@
       route();
     };
     sheet("KNOW THIS PERSON?", el("div", { class: "hon" },
-      el("div", { class: "hon-who" }, avatar(p, 72), el("div", {}, el("b", { text: p.name }), el("p", { class: "small", text: "@" + p.username + (p.area ? " · 📍 " + p.area : "") }),
+      el("div", { class: "hon-who" }, avatar(p, 72), el("div", {}, nameEl(p), el("p", { class: "small", text: "@" + p.username + (p.area ? " · 📍 " + p.area : "") }),
         el("p", { class: "small", text: `${p.homies} Homies · ${p.mutual_homies} Mutual Homies` }))),
       p.bio ? el("p", { text: p.bio }) : null,
       el("a", { href: "#s/u/" + p.username, class: "small", text: "See their Chismes, photos and videos", onclick: closeSheet }),
@@ -646,7 +667,7 @@
       toast("Chisme posted 🌶️"); location.hash = st.meme ? "#s/feed/memes" : "#s/c/" + d.chisme.id;
     }, text, media, status, tools, el("label", { class: "chk" }, memeT, el("span", { text: "😂 It's a meme (shows in Memes)" })),
       el("p", { class: "sx-label", text: "WHO CAN SEE THIS?" }), aud, el("button", { type: "submit", class: "btn pink sx-wide sx-big", text: "POST CHISME 🌶️" }));
-    page("New Chisme", el("section", { class: "card composer" }, el("div", { class: "c-who" }, avatar(ME, 40), el("b", { text: ME.name })), f));
+    page("New Chisme", el("section", { class: "card composer" }, el("div", { class: "c-who" }, avatar(ME, 40), nameEl(ME)), f));
     if (o.pick) setTimeout(() => $(o.pick).click(), 50);
     if (o.clip) clipPicker((c) => { st.clip = c; drawMedia(); });
     composer.state = st; composer.draw = drawMedia;
@@ -683,7 +704,7 @@
       el("h2", { class: "h2", text: "Homie requests" }), reqs, el("h2", { class: "h2", text: "People you might know" }), sugg);
     const [r, s] = await Promise.all([api("/api/social/requests"), api("/api/social/suggestions")]);
     const row = (p, incoming) => el("div", { class: "card person" }, el("a", { href: "#s/u/" + p.username, class: "who" }, avatar(p, 52),
-      el("span", {}, el("b", { text: p.name }), el("small", { text: "@" + p.username + (p.mutual_homies ? ` · ${p.mutual_homies} Mutual Homies` : "") }))),
+      el("span", {}, nameEl(p), el("small", { text: "@" + p.username + (p.mutual_homies ? ` · ${p.mutual_homies} Mutual Homies` : "") }))),
       el("button", { type: "button", class: "btn acc", text: incoming ? "Review" : "Homie or Nah?", onclick: () => homieOrNah(p) }));
     (r.requests || []).forEach((p) => reqs.append(el("div", {}, el("p", { class: "small sx-notif", text: `${p.name} says you're Homies. 🤝` }), row(p, true))));
     if (!(r.requests || []).length) reqs.append(el("p", { class: "empty small", text: "No requests right now." }));
@@ -730,10 +751,24 @@
   }
 
   // ------------------------------------------------ the owner's moderation queue (/stats/social)
-  async function modView() {
+  async function modView(top) {
     const d = await api("/stats/social/queue");
-    if (!d.ok) { page("Moderation", el("p", { class: "err", text: d.error })); return; }
-    const act = async (kind, id, action) => { const r = await api("/stats/social/action", { method: "POST", body: { kind, id, action } }); toast(r.ok ? "Done ✅" : r.error); if (r.ok) modView(); };
+    if (!d.ok) { page("Moderation", top || "", el("p", { class: "err", text: d.error })); return; }
+    const again = () => modView(top);
+    const act = async (kind, id, action) => { const r = await api("/stats/social/action", { method: "POST", body: { kind, id, action } }); toast(r.ok ? "Done ✅" : r.error); if (r.ok) again(); };
+    const rev = async (body) => { const r = await api("/api/social/admin/review", { method: "POST", body }); toast(r.ok ? "Done ✅" : r.error); if (r.ok) again(); };
+    const nus = (d.new_users || []).map((u) => el("article", { class: "card mod" },
+      el("div", { class: "nu-row" }, avatar(u, 44), el("div", { class: "nu-who" }, nameEl(u), el("small", { class: "small", text: " @" + u.username + " · joined " + ago(u.created_at) })),
+        el("span", { class: "pill" + (u.review === "pending" ? " pink" : ""), text: u.review === "pending" ? "Waiting" : "OK" })),
+      ...(u.held || []).map((h) => el("div", {}, el("p", { class: "mod-prev", text: h.text || "(photo / video)" }),
+        el("div", { class: "mod-btns" }, el("button", { type: "button", class: "btn ghost", text: "✅ Post it", onclick: () => rev({ chisme: h.id, action: "approve" }) }),
+          el("button", { type: "button", class: "btn pink", text: "🗑️ Remove", onclick: () => rev({ chisme: h.id, action: "remove" }) })))),
+      el("div", { class: "mod-btns" },
+        u.review === "pending" ? el("button", { type: "button", class: "btn acc", text: "👍 Approve @" + u.username, onclick: () => rev({ username: u.username, action: "approve" }) }) : null,
+        el("button", { type: "button", class: "btn ghost", text: "🏅 Badge", onclick: () => badgeSheet(u, again) }),
+        el("a", { class: "btn ghost", href: (IN_APP ? "#s/u/" : "/#s/u/") + u.username, text: "Profile" }))));
+    const bl = (d.badges || []).map((u) => el("div", { class: "person sx-slim" }, el("span", {}, nameEl(u), el("small", { class: "small", text: " @" + u.username })),
+      u.role === "admin" ? el("small", { class: "small", text: "Admin" }) : el("button", { type: "button", class: "sx-link", text: "Change", onclick: () => badgeSheet(u, again) })));
     const items = d.items.map((g) => el("article", { class: "card mod" + (g.status === "hidden" ? " auto" : "") },
       el("header", { class: "mod-h" }, el("b", { text: { chisme: "Chisme", comment: "Comment", user: "Profile" }[g.kind] }),
         el("span", { class: "pill", text: `${g.count} report${g.count === 1 ? "" : "s"}` }),
@@ -751,11 +786,65 @@
       el("p", { class: "small", text: "From " + x.claimant_name }), el("p", { class: "mod-prev", text: x.work }), el("p", { class: "small quote", text: x.urls }),
       el("div", { class: "mod-btns" }, el("button", { type: "button", class: "btn pink", text: "Remove the content", onclick: () => act("dmca", x.id, "removed") }),
         el("button", { type: "button", class: "btn ghost", text: "Reject + restore", onclick: () => act("dmca", x.id, "rejected") }))));
-    page("Moderation", el("section", { class: "feed-head" }, el("h1", { text: "🛡️ Moderation queue" }),
+    page("Moderation", top || "", el("section", { class: "feed-head" }, el("h1", { text: "🛡️ Moderation queue" }),
       el("p", { class: "sub", text: `Things with ${3}+ reports hide themselves until you decide. Most reported first.` }),
       d.csam_unreported ? el("p", { class: "err", text: `⚠️ ${d.csam_unreported} scanner match(es) held. File the required NCMEC CyberTipline report.` }) : null),
       el("div", { class: "list" }, items.length ? items : el("p", { class: "empty", text: "Queue's empty. Chisme's behaving. 😇" })),
-      dm.length ? el("h2", { class: "h2", text: "Copyright (DMCA)" }) : null, el("div", { class: "list" }, dm));
+      dm.length ? el("h2", { class: "h2", text: "Copyright (DMCA)" }) : null, el("div", { class: "list" }, dm),
+      el("h2", { class: "h2", text: "🆕 New metiches" + (d.held_count ? ` · ${d.held_count} held` : "") }),
+      el("p", { class: "small", style: { margin: "0 14px 8px" }, text: d.review_on ? "New accounts' first Chismes wait here until you approve them or give a blue badge." : "Review is off (NEW_USER_REVIEW=0): new Chismes go straight up." }),
+      el("div", { class: "list" }, nus.length ? nus : el("p", { class: "empty", text: "No new metiches right now." })),
+      el("h2", { class: "h2", text: "🏅 Badges" }), el("section", { class: "card", style: { margin: "0 8px" } }, bl.length ? bl : el("p", { class: "small", text: "No badges yet. Give one from a profile." })));
+  }
+
+  // ------------------------------------------------ ☰ → Admin (only for the admin account; every call here is checked on the server too)
+  const ADM = [["analytics", "📊 Analytics"], ["posts", "📣 Sponsor posts"], ["push", "🔔 Notifications"], ["mod", "🛡️ Moderation"]];
+  function admTabs(cur) {
+    return el("nav", { class: "adm-tabs", "aria-label": "Admin" }, ...ADM.map(([k, t]) => el("a", { href: "#s/admin/" + k, "aria-current": k === cur ? "page" : "false", text: t })));
+  }
+  async function adminView(sec) {
+    if (!ME || !ME.admin) { page("Not here", el("p", { class: "empty", text: "Not here." })); return; }
+    sec = ADM.some(([k]) => k === sec) ? sec : "analytics";
+    const top = el("div", {}, el("h1", { text: "🔐 Admin" }), admTabs(sec));
+    if (sec === "mod") return modView(top);
+    if (sec === "posts") {
+      return page("Admin", top, el("p", { class: "small", text: "Your owner posts: Sponsored checkbox, pins and all. Same composer as /stats/posts." }),
+        el("iframe", { class: "adm-frame", src: "/stats/posts", title: "Sponsor posts composer" }));
+    }
+    if (sec === "push") {
+      const info = await api("/stats/push/info");
+      const t = el("input", { maxlength: "80", placeholder: "Chisme" }), m = el("textarea", { maxlength: "240", rows: "3", required: true, placeholder: "What's the chisme?" }),
+        l = el("input", { maxlength: "300", placeholder: "/#weather or a story link (optional)" });
+      const f = el("form", { class: "form", onsubmit: async (e) => {
+        e.preventDefault();
+        if (!confirm(`Send this to everyone with notifications on${info.ok ? ` (${info.subs})` : ""}?`)) return;
+        const r = await api("/stats/push/send", { method: "POST", body: { title: t.value, message: m.value, link: l.value } });
+        toast(r.ok ? (r.text || "Sent 🔔") : (r.text || r.error));
+      } }, el("label", { class: "fld" }, "Title", t), el("label", { class: "fld" }, "Message", m), el("label", { class: "fld" }, "Link", l),
+        el("button", { type: "submit", class: "btn pink sx-wide", text: "🔔 Send to everyone" }));
+      return page("Admin", top, el("section", { class: "card" }, el("h2", { class: "h2", style: { margin: "0 0 6px" }, text: "Push to everyone" }),
+        el("p", { class: "small", text: info.ok ? `${info.subs} people have notifications on · ${info.today} sent today · ${info.status}` : "Push numbers aren't available right now." }), f));
+    }
+    const [a, s] = await Promise.all([api("/stats/api/summary"), api("/api/social/admin/stats")]);
+    const stat = (n, label) => el("div", { class: "adm-stat" }, el("b", { text: (n ?? 0).toLocaleString() }), el("small", { text: label }));
+    const kids = [top];
+    ["today", "7d", "30d"].forEach((k) => {
+      const v = (a.periods || {})[k] || {}, sp = (s.periods || {})[k] || {};
+      kids.push(el("section", { class: "card" }, el("h2", { class: "h2", style: { margin: "0 0 8px" }, text: { today: "Today", "7d": "Last 7 days", "30d": "Last 30 days" }[k] }),
+        el("div", { class: "adm-grid" }, stat(v.visitors, "visitors"), stat(v.opens, "app opens"), stat(sp.new_users, "new users"), stat(sp.chismes, "Chismes posted"),
+          stat((sp.reactions || 0) + (sp.comments || 0), "reactions + comments"), stat(s.users, "people on Chisme"))));
+    });
+    kids.push(el("section", { class: "card" }, el("h2", { class: "h2", style: { margin: "0 0 8px" }, text: "🔥 Top Chismes this week" }),
+      ...((s.top || []).length ? s.top.map((c) => el("a", { class: "person sx-slim", href: "#s/c/" + c.id },
+        el("span", {}, c.author ? nameEl(c.author) : "", " " + (c.text || "(photo / video)").slice(0, 70)), el("b", { text: "❤️ " + c.reactions })))
+        : [el("p", { class: "small", text: "Nothing yet this week." })])));
+    kids.push(el("section", { class: "card" }, el("h2", { class: "h2", style: { margin: "0 0 8px" }, text: "📰 Top stories (30 days)" }),
+      ...((((a.periods || {})["30d"] || {}).top_stories || []).slice(0, 5).map((t) => el("p", { class: "small", text: `${t.title} · ${t.opens} opens` }))),
+      a.ok ? null : el("p", { class: "small", text: "Site numbers aren't available right now." })));
+    kids.push(el("section", { class: "card" }, el("h2", { class: "h2", style: { margin: "0 0 8px" }, text: "🆕 Newest people" }),
+      ...(s.new_users || []).map((u) => el("a", { class: "person sx-slim", href: "#s/u/" + u.username }, el("span", {}, nameEl(u), el("small", { class: "small", text: " @" + u.username })),
+        el("small", { class: "small", text: ago(u.created_at) })))));
+    page("Admin", ...kids);
   }
 
   // ------------------------------------------------ router
@@ -774,6 +863,7 @@
     if (a === "homies") return homiesView();
     if (a === "alerts") return alertsView();
     if (a === "settings") return settingsView();
+    if (a === "admin") return adminView(b);
     if (a === "signup") return signUp(b === "invite");
     if (a === "forgot") return forgot();
     if (a === "signin") return signIn();
@@ -783,9 +873,11 @@
   function menu() {
     const it = (emo, label, href, dot) => el("a", { class: "item sx-big", href, onclick: closeSheet }, el("span", { "aria-hidden": "true", text: emo }), " " + label, dot ? el("b", { class: "pill pink", text: " " + dot }) : null);
     const body = ME ? el("div", { class: "menu" },
-      el("a", { class: "item sx-big who-row", href: "#s/me", onclick: closeSheet }, avatar(ME, 44), el("span", {}, el("b", { text: ME.name }), el("small", { text: " @" + ME.username }))),
+      el("a", { class: "item sx-big who-row", href: "#s/me", onclick: closeSheet }, avatar(ME, 44), el("span", {}, nameEl(ME), el("small", { text: " @" + ME.username }))),
       it("✏️", "Customize my profile", "#s/edit"), it("🤝", "Homies", "#s/homies", ME.requests || 0), it("🔔", "Alerts", "#s/alerts", ME.unread || 0),
-      it("😂", "Memes", "#s/feed/memes"), it("⚙️", "Account and privacy", "#s/settings"), it("©️", "Report copyright (DMCA)", "/dmca"))
+      it("😂", "Memes", "#s/feed/memes"), it("⚙️", "Account and privacy", "#s/settings"), it("©️", "Report copyright (DMCA)", "/dmca"),
+      ...(ME.admin ? [el("p", { class: "adm-h", text: "🔐 Admin" }), it("📊", "Analytics", "#s/admin/analytics"), it("📣", "Sponsor posts", "#s/admin/posts"),
+        it("🔔", "Notifications", "#s/admin/push"), it("🛡️", "Moderation", "#s/admin/mod", ME.mod || 0)] : []))
       : el("div", { class: "menu" }, el("p", { class: "small", text: "Join to post Chismes, find your Homies and make a profile that's yours." }),
         it("🌶️", "Join Chisme", "#s/signup"), it("👋", "Sign in", "#s/signin"), it("😂", "Memes", "#s/feed/memes"), it("©️", "Report copyright (DMCA)", "/dmca"));
     sheet("☰ Menu", body);

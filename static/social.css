@@ -2,7 +2,17 @@
    tabs as the rest of Chisme (style.css), so everything here is scoped under .sx and only adds what the app doesn't
    have. Fiesta palette only: turquoise, pink, orange, purple, black, white, silver. NO yellow.
    --sx-acc is the person's own accent (their pick from the palette); the app's own --accent is left alone. */
-.sx { --tq: #00C9CD; --pk: #FF1A7F; --or: #FF6A0B; --pu: #8A3FFC; --sil: #A7A9AC; --sx-acc: var(--tq); }
+.sx { --tq: var(--fb-turq, var(--turq)); --pk: var(--fb-pink, var(--pink)); --or: var(--fb-orange, var(--orange)); --pu: #8A3FFC; --sil: var(--fb-silver, #A7A9AC);
+  /* every social color comes from the app's theme variables (style.css): switch the season and these follow */
+  --sx-surf: var(--card); --sx-soft: var(--near); --sx-hot: color-mix(in srgb, var(--pk) 72%, var(--ink));
+  --sx-cool: color-mix(in srgb, var(--tq) 55%, var(--ink)); --sx-note-bg: color-mix(in srgb, var(--pk) 12%, var(--card)); --sx-note-ink: var(--sx-hot);
+  --sx-pu-bg: color-mix(in srgb, var(--pu) 14%, var(--card)); --sx-pu-ink: color-mix(in srgb, var(--pu) 70%, var(--ink));
+  --sx-banner: linear-gradient(135deg, var(--sx-acc), var(--pk) 55%, var(--or)); }
+/* Día de los Muertos (html[data-season="muertos"]): the app's night-plum + marigold, same as its own cards */
+html[data-season="muertos"] .sx { --sx-banner: linear-gradient(135deg, var(--mq-plum), var(--pk) 58%, var(--marigold));
+  --sx-soft: var(--near); --sx-note-bg: color-mix(in srgb, var(--mq-pink) 16%, var(--card)); }
+html[data-season="muertos"] .sx .profile .banner { box-shadow: inset 0 -5px 0 var(--cempa); }
+html[data-season="muertos"] .sx .chisme { border-left-color: var(--acc); }
 html { --sx-acc: #00C9CD; }
 body.sx-locked { overflow: hidden; }
 @keyframes sx-pop { 40% { transform: scale(1.6) rotate(-12deg); } }
@@ -29,43 +39,42 @@ body.sx-locked { overflow: hidden; }
 .sx-view[hidden] { display: none; }
 .sx-back { display: inline-flex; align-items: center; gap: 4px; margin: 0 0 10px; font-weight: 900; text-decoration: none; color: var(--link); min-height: 44px; }
 /* user Chismes mixed into the All list carry a tag like the app's News / Sports / Events ones */
-.mix-people .mix-tag { background: #ffe0ef; color: #8a0040; }
-[data-theme="dark"] .mix-people .mix-tag { background: #4d0d2c; color: #ffd0e6; }
+.mix-people .mix-tag { background: color-mix(in srgb, var(--fb-pink, var(--pink)) 16%, var(--card)); color: color-mix(in srgb, var(--fb-pink, var(--pink)) 70%, var(--ink)); }
 /* the ☰ menu button in the top bar */
 .fb-menu { position: relative; }
-.fb-menu .sx-dot { position: absolute; top: 4px; right: 4px; width: 11px; height: 11px; border-radius: 50%; background: var(--pink); border: 2px solid #fff; }
+.fb-menu .sx-dot { position: absolute; top: 4px; right: 4px; width: 11px; height: 11px; border-radius: 50%; background: var(--pink); border: 2px solid var(--card); }
 .fb-menu .sx-dot[hidden] { display: none; }
-.sx a { color: #007E81; }
+.sx a { color: var(--sx-cool); }
 .sx h1 { font-size: 1.45rem; margin: .2em 0 .3em; }
 .sx .h2 { font-size: 1.05rem; margin: 18px 14px 8px; letter-spacing: .02em; }
-.sx .h2.danger { color: #C4005A; }
+.sx .h2.danger { color: var(--sx-hot); }
 .sx .small { font-size: .86rem; color: var(--muted); }
 .sx .sub { color: var(--muted); margin: 0 0 8px; }
-.sx .err { color: #C4005A; font-weight: 600; }
-.sx .note { background: #FFE6F1; color: #8A0040; border-radius: 10px; padding: 8px 10px; font-size: .9rem; }
+.sx .err { color: var(--sx-hot); font-weight: 600; }
+.sx .note { background: var(--sx-note-bg); color: var(--sx-note-ink); border-radius: 10px; padding: 8px 10px; font-size: .9rem; }
 .sx .hp { position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; }
 .sx .empty { text-align: center; color: var(--muted); padding: 28px 16px; }
 .sx .loading { text-align: center; color: var(--muted); padding: 28px; }
 .sx .list { display: flex; flex-direction: column; gap: 10px; padding: 0 8px; }
-.sx .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 0; border-radius: 12px; padding: 11px 16px; font: 700 .95rem/1.1 system-ui, sans-serif; text-decoration: none; cursor: pointer; min-height: 44px; color: #fff; background: var(--ink); }
+.sx .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 0; border-radius: 12px; padding: 11px 16px; font: 700 .95rem/1.1 system-ui, sans-serif; text-decoration: none; cursor: pointer; min-height: 44px; color: var(--card); background: var(--ink); }
 .sx .btn.pink { background: var(--pk); }
 .sx .btn.acc { background: var(--sx-acc); color: #fff; }
-.sx .btn.ghost { background: #fff; color: var(--ink); border: 1.5px solid var(--line); }
-.sx .btn.danger { background: #fff; color: #C4005A; border: 1.5px solid #FF1A7F; }
+.sx .btn.ghost { background: var(--sx-surf); color: var(--ink); border: 1.5px solid var(--line); }
+.sx .btn.danger { background: var(--sx-surf); color: var(--sx-hot); border: 1.5px solid var(--pk); }
 .sx .btn.sx-wide { width: 100%; margin-top: 8px; }
 .sx .btn.sx-big { font-size: 1.05rem; padding: 14px 18px; }
 .sx .btn:disabled { opacity: .55; }
-.sx .sx-link { background: none; border: 0; color: #007E81; font: inherit; padding: 6px 4px; cursor: pointer; text-decoration: underline; min-height: 32px; }
+.sx .sx-link { background: none; border: 0; color: var(--sx-cool); font: inherit; padding: 6px 4px; cursor: pointer; text-decoration: underline; min-height: 32px; }
 .sx .form { display: flex; flex-direction: column; gap: 10px; }
 .sx .fld { display: flex; flex-direction: column; gap: 4px; font-weight: 600; font-size: .9rem; }
-.sx .fld input, .sx .fld textarea, .sx .fld select, .sx .form textarea, .sx .form input[type=url], .sx .form input:not([type]) { font: inherit; padding: 11px 12px; border-radius: 12px; border: 1.5px solid var(--line); background: #fff; color: var(--ink); width: 100%; }
+.sx .fld input, .sx .fld textarea, .sx .fld select, .sx .form textarea, .sx .form input[type=url], .sx .form input:not([type]) { font: inherit; padding: 11px 12px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--sx-surf); color: var(--ink); width: 100%; }
 .sx :focus-visible { outline: 3px solid var(--tq); outline-offset: 2px; }
 .sx input:focus, .sx textarea:focus, .sx select:focus { outline: 3px solid color-mix(in srgb, var(--sx-acc) 45%, transparent); border-color: var(--sx-acc); }
 .sx .chk { display: flex; gap: 10px; align-items: flex-start; font-size: .92rem; }
 .sx .chk input { width: 22px; height: 22px; flex: none; accent-color: var(--pk); }
 .sx .auth { margin: 14px 8px; }
 .sx .links { text-align: center; font-size: .92rem; }
-.sx .bot { border: 2px dashed var(--tq); border-radius: 14px; padding: 10px 12px; background: #EFFFFF; }
+.sx .bot { border: 2px dashed var(--tq); border-radius: 14px; padding: 10px 12px; background: var(--sx-soft); }
 .sx .bot-copy { margin: 0 0 6px; font-weight: 800; }
 .sx .bot .row { display: flex; align-items: center; gap: 10px; }
 .sx .bot .row input { width: 90px; font: inherit; padding: 9px; border-radius: 10px; border: 1.5px solid var(--line); }
@@ -77,15 +86,15 @@ body.sx-locked { overflow: hidden; }
 .sx .who b { display: block; }
 .sx .who small { color: var(--muted); }
 .sx .new { font-style: normal; background: var(--tq); color: #fff; border-radius: 6px; font-size: .7rem; padding: 1px 5px; margin-left: 6px; font-weight: 700; }
-.sx .av { flex: none; display: inline-flex; border-radius: 50%; overflow: hidden; border: 3px solid var(--tq); background: #fff; align-items: center; justify-content: center; }
+.sx .av { flex: none; display: inline-flex; border-radius: 50%; overflow: hidden; border: 3px solid var(--tq); background: var(--sx-surf); align-items: center; justify-content: center; }
 .sx .av img { width: 100%; height: 100%; object-fit: cover; }
 .sx .av-i { font-weight: 800; color: var(--muted); font-size: 1.1rem; }
 .sx .more { background: none; border: 0; font-size: 1.3rem; padding: 4px 10px; min-width: 44px; min-height: 44px; cursor: pointer; color: var(--muted); }
 .sx .sx-pin, .sx .aud { font-size: .75rem; font-weight: 700; background: var(--bg); border-radius: 8px; padding: 2px 7px; color: var(--muted); }
-.sx .sx-pin { background: #EFE6FF; color: #4E1FA8; }
+.sx .sx-pin { background: var(--sx-pu-bg); color: var(--sx-pu-ink); }
 .sx .sx-txt { margin: 8px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
-.sx .sx-tag, .sx .mention { color: #C4005A; font-weight: 600; text-decoration: none; }
-.sx .mention { color: #007E81; }
+.sx .sx-tag, .sx .mention { color: var(--sx-hot); font-weight: 600; text-decoration: none; }
+.sx .mention { color: var(--sx-cool); }
 .sx .meme-badge { display: inline-block; margin-top: 8px; background: var(--or); color: #fff; font-weight: 800; font-size: .75rem; padding: 3px 8px; border-radius: 8px; }
 .sx .chisme.meme { border-left-color: var(--or); }
 .sx .photos { display: grid; gap: 4px; border-radius: 12px; overflow: hidden; margin: 8px 0; }
@@ -108,22 +117,22 @@ body.sx-locked { overflow: hidden; }
 .sx .react { display: flex; gap: 0; margin-top: 6px; border-top: 1px solid var(--line); padding-top: 6px; }
 .sx .rx { display: inline-flex; align-items: center; gap: 4px; background: none; border: 0; border-radius: 999px; padding: 6px 7px; font: 600 .9rem/1 system-ui, sans-serif; color: var(--muted); cursor: pointer; min-height: 40px; text-decoration: none; }
 .sx .rx span:first-child { font-size: 1.15rem; }
-.sx .rx.on { background: #FFE6F1; color: #C4005A; }
+.sx .rx.on { background: var(--sx-note-bg); color: var(--sx-hot); }
 .sx .rx.save { margin-left: auto; }
 .sx .rx.pop span:first-child { animation: sx-pop .4s ease; }
 .sx .rx.pop span:first-child { animation: none; }
-.sx .guest { text-align: center; background: linear-gradient(135deg, #E6FDFD, #FFE6F1); }
+.sx .guest { text-align: center; background: linear-gradient(135deg, var(--sx-soft), var(--sx-note-bg)); }
 .sx .guest p { margin: 4px 0 10px; }
 .sx .comments { display: flex; flex-direction: column; gap: 6px; padding: 0 8px; }
-.sx .comment { display: grid; grid-template-columns: 32px 1fr; gap: 8px; background: #fff; border-radius: 12px; padding: 8px 10px; border: 1px solid var(--line); }
+.sx .comment { display: grid; grid-template-columns: 32px 1fr; gap: 8px; background: var(--sx-surf); border-radius: 12px; padding: 8px 10px; border: 1px solid var(--line); }
 .sx .comment .sx-txt { margin: 2px 0; }
 .sx .c-act { grid-column: 2; display: flex; gap: 8px; }
 .sx main > .form { padding: 10px 8px; }
-.sx .profile { background: #fff; border-bottom: 1px solid var(--line); padding: 0 14px 0; --acc: var(--sx-acc); }
+.sx .profile { background: var(--sx-surf); border-bottom: 1px solid var(--line); padding: 0 14px 0; --acc: var(--sx-acc); }
 .sx .banner { height: 150px; margin: 0 -14px; position: relative; }
 .sx .banner.edit { display: flex; align-items: flex-end; justify-content: flex-end; padding: 10px; }
 .sx .p-top { position: relative; z-index: 1; display: flex; align-items: flex-end; justify-content: space-between; margin-top: -48px; }
-.sx .p-top .av { border-width: 4px; border-color: var(--acc); box-shadow: 0 0 0 3px #fff; }
+.sx .p-top .av { border-width: 4px; border-color: var(--acc); box-shadow: 0 0 0 3px var(--card); }
 .sx .p-btns { display: flex; gap: 8px; padding-bottom: 4px; }
 .sx .p-name { margin: 8px 0 0; }
 .sx .p-user { margin: 0; color: var(--muted); }
@@ -138,11 +147,11 @@ body.sx-locked { overflow: hidden; }
 .sx .chip-btn { background: rgba(17, 17, 17, .78); color: #fff; border: 0; border-radius: 999px; padding: 8px 12px; font-weight: 700; min-height: 40px; cursor: pointer; }
 .sx .editing + .card { margin: 10px 8px; }
 .sx .swatches { display: flex; gap: 10px; flex-wrap: wrap; padding: 4px 0; }
-.sx .sw { width: 44px; height: 44px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 0 0 1.5px var(--line); cursor: pointer; }
+.sx .sw { width: 44px; height: 44px; border-radius: 50%; border: 3px solid var(--card); box-shadow: 0 0 0 1.5px var(--line); cursor: pointer; }
 .sx .sw.on { box-shadow: 0 0 0 3px var(--ink); }
 .sx .sheet, .sx.sheet { position: fixed; inset: 0; z-index: 100000; background: rgba(0, 0, 0, .45); display: flex; align-items: flex-end; justify-content: center; }
 .sx .sheet[hidden], .sx.sheet[hidden] { display: none; }
-.sx .sheet-card, .sx.sheet-card { position: relative; background: #fff; width: 100%; max-width: 560px; border-radius: 20px 20px 0 0; padding: 10px 16px calc(18px + env(safe-area-inset-bottom)); max-height: 88vh; overflow-y: auto; }
+.sx .sheet-card, .sx.sheet-card { position: relative; background: var(--sx-surf); width: 100%; max-width: 560px; border-radius: 20px 20px 0 0; padding: 10px 16px calc(18px + env(safe-area-inset-bottom)); max-height: 88vh; overflow-y: auto; }
 .sx .grab { width: 40px; height: 5px; border-radius: 3px; background: var(--line); margin: 0 auto 8px; }
 .sx .sheet-card h2, .sx.sheet-card h2 { margin: 2px 40px 10px 0; font-size: 1.15rem; }
 .sx .x { position: absolute; top: 8px; right: 8px; width: 44px; height: 44px; border: 0; background: var(--bg); border-radius: 50%; font-size: 1rem; cursor: pointer; }
@@ -150,7 +159,7 @@ body.sx-locked { overflow: hidden; }
 .sx .menu.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .sx .item { text-align: left; background: var(--bg); border: 0; border-radius: 12px; padding: 13px 12px; font: 600 .98rem/1.2 system-ui, sans-serif; cursor: pointer; min-height: 48px; color: var(--ink); }
 .sx .item.sx-big span { font-size: 1.35rem; }
-.sx .item.danger { color: #C4005A; }
+.sx .item.danger { color: var(--sx-hot); }
 .sx .reasons { display: flex; flex-direction: column; gap: 4px; }
 .sx .reason { display: flex; gap: 10px; align-items: center; padding: 10px; border-radius: 10px; background: var(--bg); font-weight: 600; }
 .sx .reason input { width: 20px; height: 20px; accent-color: var(--pk); }
@@ -174,7 +183,7 @@ body.sx-locked { overflow: hidden; }
 .sx .tool:hover { background: var(--bg); }
 .sx .sx-label { font-weight: 800; font-size: .85rem; margin: 6px 0 0; letter-spacing: .04em; }
 .sx .aud-pick { display: flex; gap: 6px; flex-wrap: wrap; }
-.sx .audb { border: 1.5px solid var(--line); background: #fff; border-radius: 999px; padding: 9px 12px; font: 600 .9rem/1 system-ui, sans-serif; min-height: 42px; cursor: pointer; color: var(--ink); }
+.sx .audb { border: 1.5px solid var(--line); background: var(--sx-surf); border-radius: 999px; padding: 9px 12px; font: 600 .9rem/1 system-ui, sans-serif; min-height: 42px; cursor: pointer; color: var(--ink); }
 .sx .audb.on { background: var(--tq); border-color: var(--tq); color: #fff; }
 .sx .clips { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
 .sx .clip-row { display: grid; grid-template-columns: 96px 1fr; gap: 10px; text-align: left; align-items: center; background: var(--bg); border: 0; border-radius: 12px; padding: 6px; cursor: pointer; font: inherit; color: var(--ink); }
@@ -193,7 +202,7 @@ body.sx-locked { overflow: hidden; }
 .sx .quote { font-style: italic; }
 .sx .mod-btns { display: flex; gap: 6px; flex-wrap: wrap; }
 .sx .blur { filter: blur(18px); cursor: pointer; }
-.sx .toast, .sx.toast { position: fixed; z-index: 100001; left: 50%; transform: translateX(-50%); bottom: calc(92px + env(safe-area-inset-bottom)); background: var(--ink); color: #fff; padding: 11px 16px; border-radius: 12px; font-weight: 600; max-width: 92vw; box-shadow: 0 8px 22px rgba(0, 0, 0, .25); text-align: center; }
+.sx .toast, .sx.toast { position: fixed; z-index: 100001; left: 50%; transform: translateX(-50%); bottom: calc(92px + env(safe-area-inset-bottom)); background: var(--ink); color: var(--card); padding: 11px 16px; border-radius: 12px; font-weight: 600; max-width: 92vw; box-shadow: 0 8px 22px rgba(0, 0, 0, .25); text-align: center; }
 .sx .legal, .sx .share { max-width: 640px; margin: 0 auto; padding: 14px; }
 .sx .legal .back { display: inline-block; margin-bottom: 6px; font-weight: 700; text-decoration: none; }
 .sx .legal .form label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; font-size: .9rem; }
@@ -241,3 +250,31 @@ body.sx-plain main { max-width: 680px; }
 /* the plain pages' bar: the app hides .topbar on phones (its fbtop replaces it), so this one draws itself */
 .sx .sx-modbar, .sx.sx-plain > .sx-modbar { display: block !important; height: auto; background: var(--turq); color: #000; position: relative; }
 [data-season="muertos"] .sx .sx-modbar { background: var(--turq); color: #000; }
+
+/* badges next to names: GOLD = a metallic orange-gold built on #FF6A0B with a silver shine (never yellow); BLUE = the app's turquoise */
+.sx-bdg { display: inline-grid; place-items: center; width: 1.05em; height: 1.05em; border-radius: 50%; margin-left: .25em; vertical-align: -.12em;
+  font-size: .95em; font-weight: 900; line-height: 1; flex: none; color: #fff; font-style: normal; }
+.sx-bdg::before { content: "✓"; font-size: .68em; text-shadow: 0 1px 0 rgba(0, 0, 0, .35); }
+.sx-bdg.gold { background: radial-gradient(circle at 32% 26%, #fff 0 9%, #E4E6E8 15%, transparent 34%),
+  linear-gradient(135deg, #8A2E00 0%, #FF6A0B 28%, #FFB27A 46%, #C0C0C0 54%, #FF6A0B 70%, #A33A00 100%);
+  box-shadow: 0 0 0 1.5px #C0C0C0, inset 0 -1px 2px rgba(0, 0, 0, .35); }
+.sx-bdg.blue { background: radial-gradient(circle at 32% 26%, rgba(255, 255, 255, .85) 0 9%, transparent 30%), linear-gradient(135deg, var(--tq), #0A6FD6);
+  box-shadow: 0 0 0 1.5px var(--card); }
+.sx .badge-pick { display: grid; gap: 8px; }
+.sx .badge-pick .item b { margin-left: auto; }
+.sx .held-note { background: var(--sx-soft); color: var(--ink); border-left: 4px solid var(--or); border-radius: 10px; padding: 8px 10px; font-size: .9rem; }
+.sx .chisme.is-held { border-left-style: dashed; }
+/* the ☰ Admin section */
+.sx .adm-tabs { display: flex; gap: 6px; overflow-x: auto; margin: 0 0 10px; scrollbar-width: none; }
+.sx .adm-tabs a { flex: none; padding: .3em .8em; min-height: 44px; display: inline-flex; align-items: center; border-radius: 999px; border: 2px solid var(--line);
+  background: var(--card); color: var(--ink); font-weight: 900; text-decoration: none; font-size: .85rem; }
+.sx .adm-tabs a[aria-current="page"] { background: var(--tq); border-color: var(--tq); color: #000; }
+html[data-season="muertos"] .sx .adm-tabs a[aria-current="page"] { background: #c4135f; border-color: #c4135f; color: #fff; }
+.sx .adm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.sx .adm-stat { background: var(--sx-soft); border-radius: 12px; padding: 10px; }
+.sx .adm-stat b { display: block; font-size: 1.5rem; }
+.sx .adm-stat small { color: var(--muted); font-weight: 700; }
+.sx .adm-frame { width: 100%; min-height: 78vh; border: 0; border-radius: 12px; background: var(--card); }
+.sx .menu .adm-h { margin: 10px 2px 2px; font-size: .78rem; font-weight: 900; letter-spacing: .05em; text-transform: uppercase; color: var(--ink2); }
+.sx .nu-row { display: flex; gap: 10px; align-items: center; }
+.sx .nu-row .nu-who { flex: 1; min-width: 0; }

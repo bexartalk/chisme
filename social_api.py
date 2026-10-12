@@ -1316,11 +1316,11 @@ def install_chismes(app: FastAPI, is_owner, reel_lookup, reel_id) -> None:
             if X.badge_of(p):
                 continue
             mine = [held_view[c["id"]] for c in held if c["author_id"] == p["id"] and c["id"] in held_view]
-            new_users.append({**X.mini(p), "bio": p.get("bio") or "", "joined": p["created_at"], "verified": bool(p.get("verified")),
+            new_users.append({**X.mini(p), "bio": p.get("bio") or "", "joined": p["created_at"], "created_at": p["created_at"], "review": p.get("review") or "approved", "verified": bool(p.get("verified")),
                               "held": mine, "reports": p.get("report_count") or 0})
         return ok({"items": out, "dmca": [{k: d[k] for k in ("id", "claimant_name", "work", "urls", "created_at")} for d in dmca],
                    "csam_unreported": holds, "new_users": new_users, "held_count": len(held), "review_on": X.new_user_review(),
-                   "badges": [{**X.mini(p)} for p in await db.select("social_profiles", [("badge", "in", ["gold", "blue"]), ("status", "eq", "active")], limit=500)]})
+                   "badges": [{**X.mini(p), "role": p.get("role")} for p in await db.select("social_profiles", [("badge", "in", ["gold", "blue"]), ("status", "eq", "active")], limit=500)]})
 
     @app.post("/api/social/admin/badge")
     @wrap
@@ -1369,6 +1369,36 @@ def install_chismes(app: FastAPI, is_owner, reel_lookup, reel_id) -> None:
         await db.update("social_profiles", [("id", "eq", p["id"])], {"review": "approved"})
         await db.update("social_chismes", [("author_id", "eq", p["id"]), ("status", "eq", "held")], {"status": "visible"})
         return ok({"done": True})
+
+    @app.get("/api/social/admin/stats")
+    @wrap
+    async def admin_stats(request: Request):
+        """The social half of the ☰ Admin → Analytics page (the site half is the existing /stats/api/summary)."""
+        if not await admin_ok(request):
+            raise X.Bad("Not here.", 404)
+        import datetime as _dt
+        db = S.db()
+        now = _dt.datetime.now(_dt.timezone.utc)
+        out = {}
+        for k, days in (("today", 1), ("7d", 7), ("30d", 30)):
+            since = (now - _dt.timedelta(days=days)).isoformat()
+            out[k] = {"new_users": await db.count("social_profiles", [("created_at", "gte", since)]),
+                      "chismes": await db.count("social_chismes", [("created_at", "gte", since), ("status", "neq", "removed")]),
+                      "reactions": await db.count("social_reactions", [("created_at", "gte", since)]),
+                      "comments": await db.count("social_comments", [("created_at", "gte", since)])}
+        since = (now - _dt.timedelta(days=7)).isoformat()
+        rows = await db.select("social_chismes", [("created_at", "gte", since), ("status", "eq", "visible"), ("audience", "eq", "everyone")],
+                               order=[("created_at", True)], limit=300)
+        rx = {}
+        for r in await db.select("social_reactions", [("created_at", "gte", since)], cols=["chisme_id"], limit=20000):
+            rx[r["chisme_id"]] = rx.get(r["chisme_id"], 0) + 1
+        top = sorted(rows, key=lambda r: -rx.get(r["id"], 0))[:5]
+        authors = {p["id"]: p for p in await db.select("social_profiles", [("id", "in", list({r["author_id"] for r in top}) or ["-"])])}
+        newest = await db.select("social_profiles", [], order=[("created_at", True)], limit=8)
+        return ok({"periods": out, "users": await db.count("social_profiles", [("status", "eq", "active")]),
+                   "top": [{"id": r["id"], "text": (r.get("text") or "")[:140], "reactions": rx.get(r["id"], 0),
+                            "author": X.mini(authors[r["author_id"]]) if r["author_id"] in authors else None} for r in top],
+                   "new_users": [{**X.mini(p), "created_at": p["created_at"], "review": p.get("review")} for p in newest]})
 
     @app.post("/stats/social/action")
     @wrap

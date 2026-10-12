@@ -513,7 +513,22 @@ r = goonie.post("/api/social/report", json={"kind": "chisme", "id": fc2["id"], "
 check("report" in {n["kind"] for n in boss.get("/api/social/notifications").json()["notifications"]}, "the admin's alerts include reports")
 os.environ["NEW_USER_REVIEW"] = "0"
 check(X.new_user_review() is False and (os.environ.pop("NEW_USER_REVIEW") and X.new_user_review() is True), "NEW_USER_REVIEW is on unless set to 0")
-os.environ["NEW_USER_REVIEW"] = "0"
+_as = boss.get("/api/social/admin/stats").json()
+check(_as["ok"] and _as["periods"]["30d"]["new_users"] >= 3 and any(u["username"] == "fresh_face" for u in _as["new_users"]) and isinstance(_as["top"], list),
+      "☰ Admin → Analytics: social numbers (new users, Chismes, engagement, top Chismes) for the admin")
+check(goonie.get("/api/social/admin/stats").status_code == 404 and anon.get("/api/social/admin/stats").status_code == 404, "…404 for everyone else")
+_sj = open(f"{HERE}/static/social.js").read()
+check(all(k in _sj for k in ('"#s/admin/analytics"', '"#s/admin/posts"', '"#s/admin/push"', '"#s/admin/mod"', "ME.admin ?", "/stats/push/send", 'src: "/stats/posts"')),
+      "the ☰ menu has the Admin section (Analytics, Sponsor posts, Notifications, Moderation), shown only to the admin")
+_sc2 = open(f"{HERE}/static/social.css").read()
+import re as _re
+_gold = _re.search(r"\.sx-bdg\.gold \{(.*?)\}\n", _sc2, _re.S).group(1)
+check("#FF6A0B" in _gold and "#C0C0C0" in _gold and not _re.search(r"#FF(D|E|F)[0-9A-F]00|#FFFF00|gold\b|yellow", _gold, _re.I), "the gold badge is orange-gold + silver, no yellow")
+# theme: social colors come from the app's variables, so switching seasons switches them
+_rules = _re.sub(r"/\*.*?\*/", "", _sc2, flags=_re.S)
+_bg = _re.findall(r"background(?:-color)?:\s*(#[0-9A-Fa-f]{3,6})\b", _rules)
+check(set(_bg) <= {"#000", "#111", "#222", "#c4135f"}, f"no hard-coded light backgrounds in social.css (theme vars only): {set(_bg)}")
+check("var(--card)" in _rules and 'html[data-season="muertos"] .sx {' in _rules and "--sx-banner" in _sj, "the Muertos season restyles the social screens through the theme variables")
 _m3 = open(f"{HERE}/supabase/migrations/20261012200000_social_admin_badges.sql").read()
 check("check (badge is null or badge in ('gold', 'blue'))" in _m3 and "social_badges_admin_only" in _m3 and "'held'" in _m3 and "force row level security" in _m3,
       "the badge migration: gold/blue only, server-only trigger, held status, RLS forced")
@@ -543,7 +558,7 @@ check("strip GPS and other EXIF location metadata" in _pp and "in-app account de
 check("912 FM 2537 Lot #5" in anon.get("/community-rules").text, "the agent's mailing address is on the rules page (legal_contact.py can hide it)")
 check("enable row level security" in sql and "force row level security" in sql and "revoke all on table public.%I from anon" in sql, "RLS on, anon revoked")
 css = open(f"{HERE}/static/social.css").read().lower()
-check(not re.search(r"yellow|gold|#ff(?:d|e|f)[0-9a-f]00\b|#ff[cdef]\d0[0-9a-f]\b", css.replace("no yellow", "")), "no yellow in social.css")
+check(not re.search(r"yellow|gold|#ff(?:d|e|f)[0-9a-f]00\b|#ff[cdef]\d0[0-9a-f]\b", re.sub(r"/\*.*?\*/", "", css, flags=re.S).replace(".gold", "").replace("--marigold", "")), "no yellow in social.css (the .gold badge class and the app's orange --marigold aside)")
 
 print(f"\n{'ALL PASS' if not fails else str(fails) + ' FAILED'}")
 sys.exit(1 if fails else 0)

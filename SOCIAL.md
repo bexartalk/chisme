@@ -77,6 +77,23 @@ Storage / local), `social_auth.py` (Supabase Auth), `static/social.{js,css}` (in
   Supabase Auth user are deleted at once.
 * **RLS:** on and forced on every table; the public key can read nothing; nobody but the server can write.
 
+### The admin account, badges and new-user review
+- **Admin:** the account whose email matches `SOCIAL_OWNER_EMAIL` is the one full admin (`role=admin`). It always wears the GOLD badge, set on sign-up, verify and sign-in. Only one admin is allowed (a unique index in the migration).
+- **Badges:** GOLD or BLUE, shown next to names everywhere (cards, profiles, comments, Homies, menus, the admin lists). The admin gives or removes them with **🏅 Badge** on a profile, or under Moderation → Badges (in ☰ → Admin or on /stats/social). The server only accepts `POST /api/social/admin/badge` from the admin and answers 404 to anyone else. In Supabase, the trigger `social_badges_admin_only` refuses any change to badge, role or review that doesn't come from the service role. Gold is a metallic orange-gold built on #FF6A0B with a silver shine (no yellow). Blue uses the app's turquoise.
+- **New metiches:** with `NEW_USER_REVIEW=1` (the default) a new account's Chismes are held (`status=held`). Only the author and the admin can see them, and the author gets the note "Waiting for a quick check before everyone sees it." They go live when the admin approves the person or the post, or gives them a badge. A blue badge also skips review from then on. Set `NEW_USER_REVIEW=0` to turn it off.
+- **Admin alerts:** new sign-ups (on first verify), reports and held Chismes show up in the admin's 🔔 Alerts.
+- Migration: `supabase/migrations/20261012200000_social_admin_badges.sql` (not applied). Apply it after `20261012190000_social_signup_consent.sql`.
+
+### ☰ → Admin (admin only)
+The admin's ☰ menu has an Admin section. Each page reuses the existing tools, and `_signed_in` in app.py also accepts the admin's Chisme session, so the /stats/* endpoints check it on the server:
+- **📊 Analytics:** `/stats/api/summary` (visitors, opens, top stories) plus `GET /api/social/admin/stats` (new users, Chismes, reactions and comments, top Chismes this week, newest people).
+- **📣 Sponsor posts:** the existing owner-posts composer (`/stats/posts`, with the Sponsored checkbox and pins), framed in the app.
+- **🔔 Notifications:** a push to everyone through the existing `/stats/push/send` (it asks you to confirm first).
+- **🛡️ Moderation:** reports, DMCA, New metiches (approve, post or remove, badge) and the Badges list.
+
+### Theme
+Every social screen takes its colors from the app's theme variables (`--card`, `--ink`, `--line`, `--near`, `--turq`, and the app's pink and orange). In Día de los Muertos (`html[data-season="muertos"]`) it also uses `--mq-plum` and `--marigold`, so when the season switches off (or with `THEME_OVERRIDE=off`) the social screens switch back with the rest of the app. The tests check that social.css has no hard-coded light backgrounds.
+
 ## Goonie sets these up himself
 1. **Cloudflare R2** (needs a payment method on the free tier): bucket `chisme-media` with a public custom domain, plus
    a private bucket for quarantine. Then on Render: `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`,
