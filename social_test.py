@@ -511,6 +511,19 @@ r = boss.post("/api/social/admin/review", json={"chisme": h2["id"], "action": "r
 check(r.status_code == 200 and newd.get(f"/api/social/chismes/{h2['id']}").status_code == 404, "the admin can remove a held Chisme")
 r = goonie.post("/api/social/report", json={"kind": "chisme", "id": fc2["id"], "reason": "spam"}, headers=H)
 check("report" in {n["kind"] for n in boss.get("/api/social/notifications").json()["notifications"]}, "the admin's alerts include reports")
+# releasing held Chismes never un-hides one with AUTO_HIDE+ reports (approve person / approve post / badge)
+def _rep(cid, n=3): asyncio.run(S.db().update("social_chismes", [("id", "eq", cid)], {"report_count": n}))
+def _st(cid): return asyncio.run(S.db().select("social_chismes", [("id", "eq", cid)]))[0]["status"]
+for _i, _how in enumerate(("person", "post", "badge")):
+    _c, _ = join(f"reprel{_i}", "Rep Rel")
+    _bad, _ok = post(_c, text="reported while held"), post(_c, text="fine while held")
+    _rep(_bad["id"]); _rep(_ok["id"], 1)
+    if _how == "person": boss.post("/api/social/admin/review", json={"username": f"reprel{_i}", "action": "approve"}, headers=H)
+    elif _how == "post":
+        for _x in (_bad, _ok): boss.post("/api/social/admin/review", json={"chisme": _x["id"], "action": "approve"}, headers=H)
+    else: boss.post("/api/social/admin/badge", json={"username": f"reprel{_i}", "badge": "blue"}, headers=H)
+    check(_st(_bad["id"]) == "hidden" and anon.get(f"/api/social/chismes/{_bad['id']}").status_code == 404 and _st(_ok["id"]) == "visible",
+          f"release by {_how}: a held Chisme with {X.AUTO_HIDE}+ reports stays hidden, the rest go live")
 os.environ["NEW_USER_REVIEW"] = "0"
 check(X.new_user_review() is False and (os.environ.pop("NEW_USER_REVIEW") and X.new_user_review() is True), "NEW_USER_REVIEW is on unless set to 0")
 _as = boss.get("/api/social/admin/stats").json()

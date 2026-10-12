@@ -356,6 +356,13 @@ def signup_allowed(email: str) -> bool:
 _IS_OWNER = None
 
 
+async def release_held(filters: list) -> None:
+    """Held Chismes go live, except ones that already have AUTO_HIDE+ reports: those stay hidden for the moderation queue."""
+    db = S.db()
+    await db.update("social_chismes", filters + [("status", "eq", "held"), ("report_count", "gte", X.AUTO_HIDE)], {"status": "hidden"})
+    await db.update("social_chismes", filters + [("status", "eq", "held")], {"status": "visible"})
+
+
 async def admin_ok(request: Request, write: bool = False) -> bool:
     """The owner's /stats sign-in, or the signed-in admin account (SOCIAL_OWNER_EMAIL). Checked on every admin call."""
     if _IS_OWNER and await _IS_OWNER(request, write):
@@ -1342,7 +1349,7 @@ def install_chismes(app: FastAPI, is_owner, reel_lookup, reel_id) -> None:
         fields = {"badge": badge, "badge_at": S.now_iso() if badge else None}
         if badge:
             fields["review"] = "approved"
-            await S.db().update("social_chismes", [("author_id", "eq", p["id"]), ("status", "eq", "held")], {"status": "visible"})
+            await release_held([("author_id", "eq", p["id"])])
         await S.db().update("social_profiles", [("id", "eq", p["id"])], fields)
         return ok({"profile": X.mini({**p, **fields})})
 
@@ -1359,7 +1366,11 @@ def install_chismes(app: FastAPI, is_owner, reel_lookup, reel_id) -> None:
             cid = str(b["chisme"])[:60]
             if act not in ("approve", "remove"):
                 raise X.Bad("Pick approve or remove.")
-            n = await db.update("social_chismes", [("id", "eq", cid), ("status", "eq", "held")], {"status": "visible" if act == "approve" else "removed"})
+            if act == "approve":
+                n = await db.count("social_chismes", [("id", "eq", cid), ("status", "eq", "held")])
+                await release_held([("id", "eq", cid)])
+            else:
+                n = await db.update("social_chismes", [("id", "eq", cid), ("status", "eq", "held")], {"status": "removed"})
             return ok({"done": True})
         p = await X.profile_by(username=X.clean_username(b.get("username")))
         if not p:
@@ -1367,7 +1378,7 @@ def install_chismes(app: FastAPI, is_owner, reel_lookup, reel_id) -> None:
         if act != "approve":
             raise X.Bad("Pick approve.")
         await db.update("social_profiles", [("id", "eq", p["id"])], {"review": "approved"})
-        await db.update("social_chismes", [("author_id", "eq", p["id"]), ("status", "eq", "held")], {"status": "visible"})
+        await release_held([("author_id", "eq", p["id"])])
         return ok({"done": True})
 
     @app.get("/api/social/admin/stats")
