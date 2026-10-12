@@ -41,6 +41,7 @@ from limits import DailyCounter, RateLimit, SharedLimit, client_ip, ct_day
 
 import autopush
 import juanscores
+import social       # Chisme social, part 1: accounts, Homies, Chismes (/social, /api/social/*, /c/<id>, /dmca; social_api.py)
 import ownerposts   # Goonie's own posts in the feed ("From Chisme"): storage, composer routes, /p/<slug> (ownerposts.py)
 import push
 import stats
@@ -2634,6 +2635,10 @@ async def tia_knowledge(body: dict) -> dict:
 TIA_MAX_BODY = 32_000   # v49.11 (was 96 KB): the app sends ≈10–25 KB (12 messages + clipped story/event/food lines)
 
 
+TIA_GATE_TEXT = {"signin": "Tía's chat is for grown-ups (18+). Sign in to your Chisme account to chat with her.",
+                 "adult": "Tía's chat is for grown-ups (18+). Your account hasn't confirmed you're 18 or older, so she can't chat with you."}
+
+
 @app.post("/api/mascot/chat")
 async def api_mascot_chat(request: Request):
     """Tía Chismosa. Grounded only in the app's current feeds (server-side) + what the phone shows; nothing is stored. See mascot.py."""
@@ -2646,6 +2651,15 @@ async def api_mascot_chat(request: Request):
             raise ValueError
     except ValueError:
         return JSONResponse({"error": "bad request"}, status_code=400)
+    # Tía is 18+ (Terms §2): only a signed-in Chisme account that confirmed 18+ at sign-up gets her. Crisis replies
+    # (988 etc.) never call the AI, so they still answer everyone.
+    if not tia.safety(tia.last_user_text(body)):
+        try:
+            access = await social.tia_access(request)
+        except Exception:
+            access = "signin"
+        if access != "ok":
+            return JSONResponse({"reply": TIA_GATE_TEXT[access], "gate": access, "cites": [], "mode": "gate", "sources": []}, status_code=403)
     # v49.12: safety replies (the 988 crisis line, refusals) never call the AI and are never limited
     ok, wait = (True, 0) if tia.safety(tia.last_user_text(body)) else await MASCOT_LIMIT.hit(client_ip(request))
     if not ok:
@@ -2807,7 +2821,13 @@ def _gate(request: Request, error: str = "") -> str:
 
 
 async def _signed_in(request: Request) -> bool:
-    return await stats.session_ok(request.cookies.get(stats.COOKIE))
+    # the /stats sign-in, or Goonie's own Chisme account (SOCIAL_OWNER_EMAIL, the in-app ☰ → Admin tools reuse /stats/*)
+    if await stats.session_ok(request.cookies.get(stats.COOKIE)):
+        return True
+    try:
+        return await social.admin_session(request)
+    except Exception:
+        return False
 
 
 @app.get("/stats", include_in_schema=False)
@@ -3147,7 +3167,7 @@ def app_build() -> str:
     return m.group(1) if m else "0"
 
 
-# v49.12: Privacy Policy and Terms of Use (built from legal/*.md by tools/make_legal_pages.py)
+# Terms, Privacy Policy and Community Rules (Plato's legal/*.md, built by tools/make_legal_pages.py)
 @app.get("/privacy", include_in_schema=False)
 async def privacy_page():
     return FileResponse(BASE / "static" / "legal" / "privacy.html", media_type="text/html; charset=utf-8", headers={"Cache-Control": "no-cache"})
@@ -3156,6 +3176,11 @@ async def privacy_page():
 @app.get("/terms", include_in_schema=False)
 async def terms_page():
     return FileResponse(BASE / "static" / "legal" / "terms.html", media_type="text/html; charset=utf-8", headers={"Cache-Control": "no-cache"})
+
+
+@app.get("/community-rules", include_in_schema=False)
+async def community_rules_page():
+    return FileResponse(BASE / "static" / "legal" / "community-rules.html", media_type="text/html; charset=utf-8", headers={"Cache-Control": "no-cache"})
 
 
 # v49.12: the seasonal theme (Día de los Muertos). The page turns it on and off by itself (Chicago time, see the season
@@ -3278,9 +3303,9 @@ def _nonce(request: Request) -> str:
     return getattr(request.state, "csp_nonce", "") or ""
 
 
-def csp(nonce: str) -> str:
+def csp(nonce: str, extra: str = "") -> str:
     return ("default-src 'self'; "
-            "script-src 'self'" + (" 'nonce-" + nonce + "'" if nonce else "") + "; "
+            "script-src 'self'" + (" 'nonce-" + nonce + "'" if nonce else "") + extra + "; "
             "style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; "
             "font-src 'self' data:; connect-src 'self'; frame-src 'self' https:; worker-src 'self'; manifest-src 'self'; "
             "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'")
@@ -3298,7 +3323,7 @@ def _security_headers(request: Request, resp: Response) -> None:
     if _https(request):
         h.setdefault("Strict-Transport-Security", "max-age=31536000")
     if (h.get("content-type") or "").startswith("text/html"):
-        h["Content-Security-Policy"] = csp(_nonce(request))
+        h["Content-Security-Policy"] = csp(_nonce(request), social.csp_script_extra() if request.url.path == "/" else "")
 
 
 @app.middleware("http")
@@ -3321,6 +3346,9 @@ async def cache_headers(request, call_next):
 
 # Owner posts: the composer (/stats/posts, the same owner check as Juan's god mode: _juan_admin), /api/posts, /p/<slug>
 ownerposts.install(app, owner=_juan_admin, nope=_nope, public_base=public_base, nonce=_nonce, ua=UA, signed_in=_signed_in)
+
+# Chisme social, part 1 (social.py / social_api.py): the mod queue uses the same owner check as the composer
+social.install(app, owner=_juan_admin, public_base=public_base, reel_lookup=reel_item, reel_id=reel_id_of)
 
 app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
 

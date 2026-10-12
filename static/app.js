@@ -1,7 +1,7 @@
 /* Chisme — frontend (location-aware) */
 // Build of this file. Must equal the number in sw.js VERSION ("chisme-v22"); the page compares it
 // with the build the HTML was served for and reloads once if an old cached app.js got mixed in.
-window.CHISME_APP_BUILD = "49.16";
+window.CHISME_APP_BUILD = "49.17";
 (() => {
   "use strict";
   // v49.13: Chisme's public address for share links + the promo text: one setting on the server (PUBLIC_BASE_URL, else the
@@ -4105,6 +4105,7 @@ window.CHISME_APP_BUILD = "49.16";
           // v49.11: summaries clipped, so the whole request stays well under the server's 32 KB cap
           context: { stories: tiaSlim(items.stories), weather: items.weather, events: tiaSlim(items.events), sports: tiaSlim(items.sports), food: tiaSlim(items.food) } }) });
       const j = await r.json();
+      if (r.status === 403 && j.gate) { typing.remove(); tiaBusy = false; $("#tia-send").disabled = false; tiaGate(j.gate); return; }
       const src = new Map((j.sources || []).map((s) => [s.id, s]));
       let wx = 0;   // one weather chip is enough (they all open the Weather tab)
       const cites = (j.cites || []).map((id) => src.get(id)).filter(Boolean).filter((s) => s.kind !== "weather" || !wx++)
@@ -4120,8 +4121,27 @@ window.CHISME_APP_BUILD = "49.16";
     const h2 = tiaLoad(); h2.push(reply); tiaSave(h2); tiaRender();
     tiaBusy = false; $("#tia-send").disabled = false;
   }
+  // Tía is 18+: a signed-in Chisme account that confirmed 18+ at sign-up. Everyone else sees the gate (the server checks too).
+  async function tiaGate(force) {
+    let state = force || "ok";
+    if (!force) {
+      try { const r = await fetch("/api/social/me", { credentials: "same-origin" }); const j = await r.json(); state = !j.me ? "signin" : j.me.adult ? "ok" : "adult"; }
+      catch { state = "ok"; }   // offline: her offline replies need no server, and the server still checks every message
+    }
+    const g = $("#tia-gate"), on = state !== "ok";
+    g.hidden = !on;
+    tiaDlg.classList.toggle("gated", on);
+    if (on) {
+      $("#tia-gate-p").textContent = state === "adult" ? "Your account hasn't confirmed you're 18 or older, so Tía can't chat with you. Sorry, mija!"
+        : "Sign in to your Chisme account to chat with Tía. You need to be 18 or older.";
+      $("#tia-gate-in").hidden = $("#tia-gate-up").hidden = state === "adult";
+    }
+    return !on;
+  }
+  for (const id of ["#tia-gate-in", "#tia-gate-up"]) { const a = $(id); if (a) a.addEventListener("click", () => { tiaOpener = null; tiaDlg.close(); }); }
   function openTia() {
     tiaOpener = document.activeElement;
+    tiaGate();
     tiaDaily(); tiaRender();
     if (!tiaDlg.open) { tiaDlg.showModal(); $("#tia-title").focus({ preventScroll: true }); }   // v49.3: no focus ring on Settings after a tap
   }
