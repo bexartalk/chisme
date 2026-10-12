@@ -15,6 +15,9 @@ create table if not exists public.social_profiles (
   bio           text not null default '' check (char_length(bio) <= 160),
   area          text check (area is null or char_length(area) <= 40),
   photo         text check (photo is null or photo ~ '^a/[0-9]{6}/[A-Za-z0-9_-]{12}\.webp$'),
+  banner        text check (banner is null or banner ~ '^b/[0-9]{6}/[A-Za-z0-9_-]{12}\.webp$'),
+  accent        text not null default 'turquoise' check (accent in ('turquoise', 'pink', 'orange', 'purple', 'silver', 'black')),
+  pinned_id     uuid,                                 -- one of their own Chismes (checked by the server)
   privacy       jsonb not null default '{}'::jsonb check (jsonb_typeof(privacy) = 'object'),
   status        text not null default 'active' check (status in ('active', 'banned')),
   verified      boolean not null default false,
@@ -79,11 +82,13 @@ create table if not exists public.social_blocks (
 );
 
 create table if not exists public.social_media (      -- every upload (resized WebP, metadata stripped)
-  name          text primary key check (name ~ '^[ac]/[0-9]{6}/[A-Za-z0-9_-]{12}\.webp$'),
+  name          text primary key check (name ~ '^([acb]/[0-9]{6}/[A-Za-z0-9_-]{12}\.webp|v/[0-9]{6}/[A-Za-z0-9_-]{12}\.(mp4|webp))$'),
   owner_id      uuid not null references auth.users (id) on delete cascade,
-  kind          text not null check (kind in ('chisme', 'avatar')),
+  kind          text not null check (kind in ('chisme', 'avatar', 'banner', 'video', 'poster')),
   status        text not null check (status in ('pending', 'attached', 'quarantine', 'blocked')),
   w             integer, h integer, bytes integer,
+  seconds       real check (seconds is null or seconds <= 60.5),   -- videos: 60 s max, 720p max (re-encoded, metadata dropped)
+  poster        text,
   created_at    timestamptz not null default now()
 );
 
@@ -92,6 +97,9 @@ create table if not exists public.social_chismes (
   author_id     uuid not null references auth.users (id) on delete cascade,
   text          text not null default '' check (char_length(text) <= 2000),
   photos        jsonb not null default '[]'::jsonb check (jsonb_typeof(photos) = 'array' and jsonb_array_length(photos) <= 4),
+  videos        jsonb not null default '[]'::jsonb check (jsonb_typeof(videos) = 'array' and jsonb_array_length(videos) <= 1),
+  clip          jsonb check (clip is null or jsonb_typeof(clip) = 'object'),   -- a reposted ChismeTV clip {id, title, creator}
+  meme          boolean not null default false,
   audience      text not null check (audience in ('everyone', 'homies', 'me')),
   hashtags      jsonb not null default '[]'::jsonb check (jsonb_typeof(hashtags) = 'array'),
   mentions      jsonb not null default '[]'::jsonb check (jsonb_typeof(mentions) = 'array'),
@@ -100,7 +108,7 @@ create table if not exists public.social_chismes (
   report_count  integer not null default 0,
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now(),
-  check (char_length(text) > 0 or jsonb_array_length(photos) > 0)
+  check (char_length(text) > 0 or jsonb_array_length(photos) > 0 or jsonb_array_length(videos) > 0 or clip is not null)
 );
 
 create table if not exists public.social_reactions (
@@ -157,6 +165,19 @@ create table if not exists public.social_bans (       -- banned sign-ups: the em
   created_at    timestamptz not null default now()
 );
 
+create table if not exists public.social_dmca (       -- DMCA takedown notices from /dmca (server-only; the claimant's contact stays private)
+  id               uuid primary key,
+  claimant_name    text not null check (char_length(claimant_name) between 2 and 120),
+  claimant_email   text not null check (char_length(claimant_email) <= 254),
+  claimant_address text not null default '' check (char_length(claimant_address) <= 300),
+  work             text not null check (char_length(work) between 3 and 1000),
+  urls             text not null check (char_length(urls) between 3 and 2000),
+  statement        text not null default '' check (char_length(statement) <= 2000),
+  signature        text not null check (char_length(signature) between 2 and 120),
+  status           text not null default 'open' check (status in ('open', 'removed', 'rejected')),
+  created_at       timestamptz not null default now()
+);
+
 create table if not exists public.social_csam_holds ( -- a scanner match: evidence kept (private bucket) for the legal report; no FK on purpose
   id            uuid primary key,
   media_name    text not null,
@@ -175,6 +196,7 @@ create index if not exists social_nahs_target on public.social_nahs (target_id);
 create index if not exists social_blocks_blocked on public.social_blocks (blocked_id);
 create index if not exists social_media_owner on public.social_media (owner_id);
 create index if not exists social_chismes_author on public.social_chismes (author_id, created_at desc);
+create index if not exists social_chismes_meme on public.social_chismes (meme, created_at desc) where meme;
 create index if not exists social_chismes_feed on public.social_chismes (status, audience, created_at desc);
 create index if not exists social_reactions_user on public.social_reactions (user_id);
 create index if not exists social_saves_chisme on public.social_saves (chisme_id);
@@ -205,7 +227,7 @@ declare t text;
 begin
   foreach t in array array['social_profiles', 'social_private', 'social_sessions', 'social_homies', 'social_homie_requests',
                            'social_nahs', 'social_blocks', 'social_media', 'social_chismes', 'social_reactions', 'social_saves',
-                           'social_comments', 'social_reports', 'social_notifications', 'social_bans', 'social_csam_holds'] loop
+                           'social_comments', 'social_reports', 'social_notifications', 'social_bans', 'social_csam_holds', 'social_dmca'] loop
     execute format('alter table public.%I enable row level security', t);
     execute format('alter table public.%I force row level security', t);
     execute format('revoke all on table public.%I from anon', t);
@@ -251,6 +273,8 @@ drop policy if exists "own notifications" on public.social_notifications;
 create policy "own notifications" on public.social_notifications for select to authenticated using (user_id = (select auth.uid()));
 drop policy if exists "server only" on public.social_bans;
 create policy "server only" on public.social_bans for select to authenticated using (false);
+drop policy if exists "server only" on public.social_dmca;
+create policy "server only" on public.social_dmca for select to authenticated using (false);
 drop policy if exists "server only" on public.social_csam_holds;
 create policy "server only" on public.social_csam_holds for select to authenticated using (false);
 

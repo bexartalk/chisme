@@ -26,7 +26,7 @@ import httpx
 
 TABLES: dict[str, dict] = {   # columns, primary key, json columns, bool columns
     "social_profiles": {"pk": ["id"], "json": ["privacy"], "bool": ["verified", "flagged"],
-                        "cols": ["id", "username", "display_name", "bio", "area", "photo", "privacy", "status", "verified", "flagged",
+                        "cols": ["id", "username", "display_name", "bio", "area", "photo", "banner", "accent", "pinned_id", "privacy", "status", "verified", "flagged",
                                  "report_count", "created_at", "updated_at"]},
     "social_private": {"pk": ["user_id"], "cols": ["user_id", "email_hash", "email_hint", "phone", "birthday", "tos_at", "privacy_at",
                                                    "signup_ip", "device", "created_at"], "unique": [["email_hash"]]},
@@ -35,9 +35,9 @@ TABLES: dict[str, dict] = {   # columns, primary key, json columns, bool columns
     "social_homie_requests": {"pk": ["id"], "cols": ["id", "from_id", "to_id", "status", "created_at"], "unique": [["from_id", "to_id"]]},
     "social_nahs": {"pk": ["user_id", "target_id"], "cols": ["user_id", "target_id", "created_at"]},
     "social_blocks": {"pk": ["blocker_id", "blocked_id"], "cols": ["blocker_id", "blocked_id", "created_at"]},
-    "social_media": {"pk": ["name"], "cols": ["name", "owner_id", "kind", "status", "w", "h", "bytes", "created_at"]},
-    "social_chismes": {"pk": ["id"], "json": ["photos", "hashtags", "mentions", "tags"],
-                       "cols": ["id", "author_id", "text", "photos", "audience", "hashtags", "mentions", "tags", "status", "report_count",
+    "social_media": {"pk": ["name"], "cols": ["name", "owner_id", "kind", "status", "w", "h", "bytes", "seconds", "poster", "created_at"]},
+    "social_chismes": {"pk": ["id"], "json": ["photos", "videos", "clip", "hashtags", "mentions", "tags"], "bool": ["meme"],
+                       "cols": ["id", "author_id", "text", "photos", "videos", "clip", "meme", "audience", "hashtags", "mentions", "tags", "status", "report_count",
                                 "created_at", "updated_at"]},
     "social_reactions": {"pk": ["chisme_id", "user_id", "kind"], "cols": ["chisme_id", "user_id", "kind", "created_at"]},
     "social_saves": {"pk": ["user_id", "chisme_id"], "cols": ["user_id", "chisme_id", "created_at"]},
@@ -46,6 +46,8 @@ TABLES: dict[str, dict] = {   # columns, primary key, json columns, bool columns
                                               "created_at"], "unique": [["reporter_id", "target_kind", "target_id"]]},
     "social_notifications": {"pk": ["id"], "bool": ["read"], "cols": ["id", "user_id", "actor_id", "kind", "chisme_id", "read", "created_at"]},
     "social_bans": {"pk": ["email_hash"], "cols": ["email_hash", "reason", "created_at"]},
+    "social_dmca": {"pk": ["id"], "cols": ["id", "claimant_name", "claimant_email", "claimant_address", "work", "urls", "statement",
+                                           "signature", "status", "created_at"]},
     "social_csam_holds": {"pk": ["id"], "cols": ["id", "media_name", "owner_id", "sha256", "created_at", "reported_at"]},
 }
 OPS = {"eq", "neq", "in", "nin", "gt", "gte", "lt", "lte", "isnull", "notnull", "prefix", "contains"}
@@ -307,7 +309,11 @@ class SupabaseDB:
 
 
 # ---------------------------------------------------------------- media
-NAME_RX = re.compile(r"^[ac]/\d{6}/[A-Za-z0-9_-]{12}\.webp$")
+NAME_RX = re.compile(r"^(?:[acb]/\d{6}/[A-Za-z0-9_-]{12}\.webp|v/\d{6}/[A-Za-z0-9_-]{12}\.(?:mp4|webp))$")
+
+
+def ctype(name: str) -> str:
+    return "video/mp4" if name.endswith(".mp4") else "image/webp"
 
 
 class LocalMedia:
@@ -358,7 +364,7 @@ class SupabaseMedia:
 
     async def put(self, name, data):
         r = await self.http.post(f"{self.url}/storage/v1/object/{self.bucket}/{name}", content=data,
-                                 headers=self._h({"Content-Type": "image/webp", "Cache-Control": "max-age=31536000", "x-upsert": "false"}))
+                                 headers=self._h({"Content-Type": ctype(name), "Cache-Control": "max-age=31536000", "x-upsert": "false"}))
         if r.status_code >= 400:
             raise StorageError(f"Supabase Storage {r.status_code}")
 
@@ -415,7 +421,7 @@ class R2Media:
 
     async def put(self, name, data):
         url = self._u(name)
-        h = _sigv4("PUT", url, {"content-type": "image/webp", "cache-control": "public, max-age=31536000, immutable"}, data, self.access, self.secret)
+        h = _sigv4("PUT", url, {"content-type": ctype(name), "cache-control": "public, max-age=31536000, immutable"}, data, self.access, self.secret)
         r = await self.http.put(url, content=data, headers=h)
         if r.status_code >= 400:
             raise StorageError(f"R2 {r.status_code}")
@@ -525,7 +531,7 @@ def csam_conf() -> tuple[str, str]:
     return (url, _env("CSAM_SCAN_TOKEN")) if url.startswith("https://") or url.startswith("http://127.0.0.1") or url.startswith("http://localhost") else ("", "")
 
 
-async def csam_scan(data: bytes, client: httpx.AsyncClient | None = None) -> str:
+async def csam_scan(data: bytes, client: httpx.AsyncClient | None = None, kind: str = "image/webp") -> str:
     """'clean' | 'match' | 'error'. POSTs the WebP to CSAM_SCAN_URL (Bearer CSAM_SCAN_TOKEN), expects {"match": bool}.
     The adapter for whichever service Goonie gets (e.g. Microsoft PhotoDNA Cloud, Thorn Safer) answers in that shape.
     Not configured → 'clean' (nothing to wait for; Cloudflare's CSAM Scanning Tool, if on, watches the served files)."""
@@ -535,7 +541,7 @@ async def csam_scan(data: bytes, client: httpx.AsyncClient | None = None) -> str
     own = client is None
     c = client or httpx.AsyncClient(timeout=20)
     try:
-        r = await c.post(url, content=data, headers={"Content-Type": "image/webp", **({"Authorization": "Bearer " + tok} if tok else {})})
+        r = await c.post(url, content=data, headers={"Content-Type": kind, **({"Authorization": "Bearer " + tok} if tok else {})})
         if r.status_code >= 400:
             return "error"
         m = r.json().get("match")
