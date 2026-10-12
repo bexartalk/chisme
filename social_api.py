@@ -306,9 +306,9 @@ def gotrue() -> SA.GoTrue:
 def install(app: FastAPI, *, owner: Callable[..., Awaitable[bool]], public_base: Callable[[Request], str],
             reel_lookup: Callable[[str], dict | None] | None = None, reel_id: Callable[[str], str | None] | None = None) -> None:
 
-    async def is_owner(request: Request) -> bool:
+    async def is_owner(request: Request, write: bool = False) -> bool:
         try:
-            return bool(await owner(request, json_only=False))
+            return bool(await owner(request, json_only=write))
         except Exception:
             return False
 
@@ -319,6 +319,13 @@ def install(app: FastAPI, *, owner: Callable[..., Awaitable[bool]], public_base:
         ts = '<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>' if site else ""
         body = (BASE / "static" / "social.html").read_text().replace("{{TS_SCRIPT}}", ts)
         return HTMLResponse(body, headers={"Cache-Control": "no-cache"})
+
+    @app.get("/stats/social", include_in_schema=False)
+    async def mod_page(request: Request):
+        if not await is_owner(request):
+            return RedirectResponse("/stats", 303)
+        body = (BASE / "static" / "social.html").read_text().replace("{{TS_SCRIPT}}", "").replace('data-mode="app"', 'data-mode="mod"')
+        return HTMLResponse(body, headers={"Cache-Control": "no-store", "X-Robots-Tag": "noindex"})
 
     @app.get("/dmca", include_in_schema=False)
     async def dmca_get(request: Request):
@@ -1176,7 +1183,7 @@ def install_chismes(app: FastAPI, is_owner, reel_lookup, reel_id) -> None:
             msg += " If it's your work, send a takedown notice at /dmca so we can remove it for good."
         return ok({"message": msg, "hidden": hidden, "dmca": reason == "copyright"})
 
-    @app.get("/api/social/mod")
+    @app.get("/stats/social/queue")
     @wrap
     async def mod_queue(request: Request):
         if not await is_owner(request):
@@ -1220,11 +1227,11 @@ def install_chismes(app: FastAPI, is_owner, reel_lookup, reel_id) -> None:
         return ok({"items": out, "dmca": [{k: d[k] for k in ("id", "claimant_name", "work", "urls", "created_at")} for d in dmca],
                    "csam_unreported": holds})
 
-    @app.post("/api/social/mod/action")
+    @app.post("/stats/social/action")
     @wrap
     async def mod_action(request: Request):
         guard(request)
-        if not await is_owner(request):
+        if not await is_owner(request, write=True):
             raise X.Bad("Not here.", 404)
         b = await body_of(request)
         kind, tid, act = b.get("kind"), str(b.get("id") or "")[:60], b.get("action")

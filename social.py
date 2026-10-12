@@ -69,7 +69,7 @@ TAG_RX = re.compile(r"(?<![\w#])#([^\W_][\w]{0,39})", re.U)
 MENTION_RX = re.compile(r"(?<![\w@])@([A-Za-z0-9_]{3,20})\b")
 LINK_RX = re.compile(r"(?i)\b(?:https?://|www\.)\S+|\b[a-z0-9-]{2,}\.(?:com|net|org|io|co|ly|gg|me|xyz|app|link|info|biz|ru|tk|top|shop|site|online)(?:/\S*)?\b")
 HDR = {"Cache-Control": "no-store", "Referrer-Policy": "same-origin"}
-BOT_COPY = "Prove you ain't a bot, cuh. 🤖"
+BOT_COPY = "Prove you ain't a bot, cuh 🤖"
 
 
 # ---------------------------------------------------------------- config + small helpers

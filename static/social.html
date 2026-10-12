@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#00C9CD">
+  <title>Chisme · the chisme from your people</title>
+  <link rel="icon" href="/static/icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="/static/social.css">
+  {{TS_SCRIPT}}
+</head>
+<body data-mode="app">
+  <header class="top">
+    <a class="logo" href="/" aria-label="Chisme home">Chisme</a>
+    <nav class="feeds" id="feedtabs" aria-label="Feeds">
+      <a href="#feed/homies" data-tab="homies">🤝 Homies</a>
+      <a href="#feed/sananto" data-tab="sananto">🌶️ San Anto</a>
+      <a href="#feed/trending" data-tab="trending">🔥 Trending</a>
+      <a href="#feed/memes" data-tab="memes">😂 Memes</a>
+    </nav>
+  </header>
+  <main id="view" tabindex="-1" aria-live="polite"></main>
+  <nav class="bottom" id="bottom" aria-label="Chisme">
+    <a href="#feed/sananto" data-nav="feed"><span aria-hidden="true">🏠</span>Feeds</a>
+    <a href="#homies" data-nav="homies"><span aria-hidden="true">🤝</span>Homies<b class="dot" id="dot-req" hidden></b></a>
+    <button type="button" class="plus" id="plus" aria-haspopup="dialog">➕ CHISME</button>
+    <a href="#alerts" data-nav="alerts"><span aria-hidden="true">🔔</span>Alerts<b class="dot" id="dot-alerts" hidden></b></a>
+    <a href="#me" data-nav="me"><span aria-hidden="true">👤</span>Me</a>
+  </nav>
+  <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" hidden>
+    <div class="sheet-card"><div class="grab" aria-hidden="true"></div><h2 id="sheet-title"></h2><div id="sheet-body"></div>
+      <button type="button" class="x" id="sheet-x" aria-label="Close">✕</button></div>
+  </div>
+  <div class="toast" id="toast" role="status" hidden></div>
+  <input type="file" id="pick-photo" accept="image/jpeg,image/png,image/webp,image/heic,image/*" multiple hidden>
+  <input type="file" id="cam-photo" accept="image/*" capture="environment" hidden>
+  <input type="file" id="pick-video" accept="video/mp4,video/quicktime,video/webm,video/*" hidden>
+  <input type="file" id="cam-video" accept="video/*" capture="environment" hidden>
+  <input type="file" id="pick-avatar" accept="image/*" hidden>
+  <input type="file" id="pick-banner" accept="image/*" hidden>
+  <script src="/static/social.js" defer></script>
+</body>
+</html>

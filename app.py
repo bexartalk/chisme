@@ -41,6 +41,7 @@ from limits import DailyCounter, RateLimit, SharedLimit, client_ip, ct_day
 
 import autopush
 import juanscores
+import social       # Chisme social, part 1: accounts, Homies, Chismes (/social, /api/social/*, /c/<id>, /dmca; social_api.py)
 import ownerposts   # Goonie's own posts in the feed ("From Chisme"): storage, composer routes, /p/<slug> (ownerposts.py)
 import push
 import stats
@@ -3238,9 +3239,9 @@ def _nonce(request: Request) -> str:
     return getattr(request.state, "csp_nonce", "") or ""
 
 
-def csp(nonce: str) -> str:
+def csp(nonce: str, extra: str = "") -> str:
     return ("default-src 'self'; "
-            "script-src 'self'" + (" 'nonce-" + nonce + "'" if nonce else "") + "; "
+            "script-src 'self'" + (" 'nonce-" + nonce + "'" if nonce else "") + extra + "; "
             "style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; "
             "font-src 'self' data:; connect-src 'self'; frame-src 'self' https:; worker-src 'self'; manifest-src 'self'; "
             "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'")
@@ -3258,7 +3259,7 @@ def _security_headers(request: Request, resp: Response) -> None:
     if _https(request):
         h.setdefault("Strict-Transport-Security", "max-age=31536000")
     if (h.get("content-type") or "").startswith("text/html"):
-        h["Content-Security-Policy"] = csp(_nonce(request))
+        h["Content-Security-Policy"] = csp(_nonce(request), social.csp_script_extra() if request.url.path == "/social" else "")
 
 
 @app.middleware("http")
@@ -3281,6 +3282,9 @@ async def cache_headers(request, call_next):
 
 # Owner posts: the composer (/stats/posts, the same owner check as Juan's god mode: _juan_admin), /api/posts, /p/<slug>
 ownerposts.install(app, owner=_juan_admin, nope=_nope, public_base=public_base, nonce=_nonce, ua=UA, signed_in=_signed_in)
+
+# Chisme social, part 1 (social.py / social_api.py): the mod queue uses the same owner check as the composer
+social.install(app, owner=_juan_admin, public_base=public_base, reel_lookup=reel_item, reel_id=reel_id_of)
 
 app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
 
