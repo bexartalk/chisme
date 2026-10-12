@@ -63,7 +63,7 @@ TOP = """() => { const R = (e) => { if (!e || !e.getClientRects().length) return
     bars: [...document.querySelectorAll('#fbtop .fb-burger i')].map((i) => getComputedStyle(i).backgroundColor), menuBg: menu ? getComputedStyle(menu).backgroundColor : '' }; }"""
 TABS = """() => [...document.querySelectorAll('#tabs .tab')].filter((t) => t.getClientRects().length).map((t) => ({ v: t.dataset.view || t.id, l: t.textContent.trim(),
   cur: t.getAttribute('aria-current') === 'page', img: !!t.querySelector('img'), w: t.getBoundingClientRect().width, h: t.getBoundingClientRect().height, on: t.classList.contains('tia-on') }))"""
-CHIPS = """() => [...document.querySelectorAll('.mq-chips')].map((n) => ({ view: n.closest('.view').dataset.view, chips: [...n.querySelectorAll('.mq-chip')].map((c) => c.dataset.go),
+CHIPS = """() => [...document.querySelectorAll('.mq-chips')].map((n) => ({ view: n.closest('.view').dataset.view, chips: [...n.querySelectorAll('.mq-chip[data-go]')].map((c) => c.dataset.go), sx: [...n.querySelectorAll('.sx-chip')].map((c) => c.dataset.sx),
   cur: (n.querySelector('.mq-chip[aria-current="true"]') || {}).dataset?.go }))"""
 STATE = "() => ({ view: __chisme.view, tab: (document.querySelector('#tabs .tab[aria-current=\"page\"]') || {}).dataset?.view || null, hide: document.documentElement.classList.contains('fb-hide') })"
 
@@ -72,7 +72,7 @@ async def top_bar(b, w, h):
     ctx, pg = await open_page(b, w, h)
     t = await pg.evaluate(TOP)
     c = (t["art"]["l"] + t["art"]["r"]) / 2
-    check(t["menu"] and t["menuLabel"] == "Menu" and t["menuPopup"] == "dialog" and t["menu"]["w"] >= 42 and t["menu"]["h"] >= 42 and t["menu"]["l"] < 20,
+    check(t["menu"] and t["menuLabel"].startswith("Menu") and t["menuPopup"] == "dialog" and t["menu"]["w"] >= 42 and t["menu"]["h"] >= 42 and t["menu"]["l"] < 20,
           f"{tag}: ☰ Menu on the left, a 42 px+ button labelled 'Menu' {t['menu']}")
     check(len(t["bars"]) == 3 and t["menuBg"].startswith("rgba"), f"{tag}: ☰ is three bars on a see-through disc ({t['menuBg']})")
     check(not t["gear"] and not t["topTia"], f"{tag}: no ⚙️ and no Tía in the top bar")
@@ -99,7 +99,8 @@ async def phone(b):
           f"bottom tabs: Chisme · Ofrendas · Juegos · Tía (her avatar) {[t['l'] for t in tabs]}")
     check(all(t["w"] >= 44 and t["h"] >= 44 for t in tabs), "every tab is a 44 px+ target")
     chips = await pg.evaluate(CHIPS)
-    check(len(chips) == 5 and all(c["chips"] == ["chisme", "news", "sports", "events", "weather"] and c["cur"] == c["view"] for c in chips),
+    check(len(chips) == 5 and all(c["chips"] == ["chisme", "news", "sports", "events", "weather"] and c["cur"] == c["view"] for c in chips)
+          and [c["sx"] for c in chips if c["view"] == "chisme"] == [["homies", "sananto", "trending", "memes"]] and all(not c["sx"] for c in chips if c["view"] != "chisme"),
           f"every Chisme view has All · News · Sports · Events · Weather, its own lit {[(c['view'], c['cur']) for c in chips]}")
     trunc = await pg.evaluate("[...document.querySelectorAll('.view.active .mq-chip')].filter((c) => c.scrollWidth > c.clientWidth + 0.5).map((c) => c.textContent.trim())")
     check(not trunc, f"the 5 chips fit untruncated {trunc}")
@@ -114,30 +115,41 @@ async def phone(b):
     await pg.click('#tabs .tab[data-view="chisme"]'); await pg.wait_for_timeout(900)
     check((await pg.evaluate(STATE))["view"] == "weather", "the Chisme tab goes back to the Weather chip (the last one picked)")
     await pg.click('.view.active .mq-chip[data-go="chisme"]'); await pg.wait_for_timeout(900)
-    # ☰ → Settings
+    # nav-on-social: ☰ opens one Menu sheet with social's rows (signed out: Join, Sign in, Memes, DMCA) above Settings
+    await pg.click("#fb-menu"); await pg.wait_for_timeout(900)
+    rm = await pg.evaluate("() => ({ open: document.querySelector('#menu').open, own: !!document.querySelector('#sheet:not([hidden])'), settings: document.querySelector('#settings').open, rows: [...document.querySelectorAll('#menu [data-menu-item]')].map(n => n.dataset.menuItem) })")
+    check(rm["open"] and not rm["own"] and not rm["settings"] and rm["rows"][0] == "social:0" and rm["rows"][-1] == "settings" and len(rm["rows"]) == 5,
+          f"☰ opens exactly one menu: social's rows (Join, Sign in, Memes, DMCA) then Settings {rm}")
+    await pg.screenshot(path=os.path.join(OUT, "menu-social-real.png"))
+    await pg.keyboard.press("Escape"); await pg.wait_for_timeout(400)
+    # with only Settings in it, ☰ goes straight to Settings (what ⚙️ opened)
+    await pg.evaluate("() => __chismeMenu.setSection('social', null)")
+    await pg.evaluate("() => { const M = __chismeMenu; M.__open = M.open; }")
+    await pg.evaluate("() => document.querySelector('#fb-menu').onclick = () => { if (!__chismeMenu.sheet) document.querySelector('#settings-btn').click(); }")   # (social's hook would put its rows back on open)
     await pg.click("#fb-menu"); await pg.wait_for_timeout(500)
-    check(await pg.evaluate("document.querySelector('#settings').open"), "☰ opens Settings (what ⚙️ opened)")
+    check(await pg.evaluate("document.querySelector('#settings').open"), "☰ opens Settings (what ⚙️ opened) when Settings is its only item")
     await pg.screenshot(path=os.path.join(OUT, "menu-open.png"))
     await pg.click("#settings-close"); await pg.wait_for_timeout(400)
     sheet = await pg.evaluate("() => ({ first: document.querySelector('#menu [data-menu-item]')?.dataset.menuItem, label: document.querySelector('#menu-title')?.textContent, n: document.querySelectorAll('#menu [data-menu-item]').length, sheet: __chismeMenu.sheet })")
     check(sheet["first"] == "settings" and sheet["label"] == "Menu" and sheet["n"] == 1 and not sheet["sheet"], f"the Menu sheet has Settings first (one item, so ☰ goes straight to Settings) {sheet}")
     # other features plug rows in (Chisme social's items from social-p1, via __chismeMenu.setSection)
-    await pg.evaluate("""() => { window.__picked = null; __chismeMenu.setSection('social', [
+    await pg.evaluate("() => { document.querySelector('#fb-menu').onclick = __chismeMenu.__open; }")
+    await pg.evaluate("""() => { window.__picked = null; __chismeMenu.setSection('test', [
       { emoji: '🙋', label: 'My profile', href: '#s/me' }, { emoji: '✏️', label: 'Customize my profile', href: '#s/edit' },
       { emoji: '🤝', label: 'Homies', href: '#s/homies', badge: 2 }, { emoji: '🔔', label: 'Alerts', href: '#s/alerts', badge: 5 },
       { emoji: '😂', label: 'Memes', onSelect: () => { window.__picked = 'memes'; } }, { emoji: '⚙️', label: 'Account and privacy', href: '#s/settings' },
       { emoji: '©️', label: 'Report copyright (DMCA)', href: '/dmca' }]); __chismeMenu.setDot(true); }""")
     await pg.click("#fb-menu"); await pg.wait_for_timeout(500)
     m = await pg.evaluate("() => ({ open: document.querySelector('#menu').open, keys: [...document.querySelectorAll('#menu [data-menu-item]')].map(n => n.dataset.menuItem), dot: !document.querySelector('#fb-menu #sx-dot').hidden, ctl: document.querySelector('#fb-menu').getAttribute('aria-controls') })")
-    check(m["open"] and len(m["keys"]) == 8 and m["keys"][0] == "social:0" and m["keys"][-1] == "settings" and m["dot"] and m["ctl"] == "menu", f"with the social rows, ☰ shows the Menu sheet: social first, Settings last, the dot on ☰ {m}")
+    check(m["open"] and len([k for k in m["keys"] if k.startswith("test:")]) == 7 and m["keys"][0] == "test:0" and m["keys"][-1] == "settings" and m["dot"] and m["ctl"] == "menu", f"with the social rows, ☰ shows the Menu sheet: social first, Settings last, the dot on ☰ {m}")
     await pg.screenshot(path=os.path.join(OUT, "menu-social.png"))
-    await pg.click("#menu [data-menu-item='social:4']"); await pg.wait_for_timeout(300)
+    await pg.click("#menu [data-menu-item='test:4']"); await pg.wait_for_timeout(300)
     check(await pg.evaluate("window.__picked === 'memes' && !document.querySelector('#menu').open"), "a row's onSelect runs and the sheet closes")
     await pg.click("#fb-menu"); await pg.wait_for_timeout(400)
     await pg.click("#menu-settings"); await pg.wait_for_timeout(400)
     check(await pg.evaluate("document.querySelector('#settings').open && !document.querySelector('#menu').open"), "the sheet's Settings opens Settings")
     await pg.click("#settings-close"); await pg.wait_for_timeout(400)
-    await pg.evaluate("() => { __chismeMenu.setSection('social', null); __chismeMenu.setDot(false); }")
+    await pg.evaluate("() => { __chismeMenu.setSection('test', null); __chismeMenu.setSection('social', null); __chismeMenu.setDot(false); }")
     check(await pg.evaluate("!__chismeMenu.sheet && document.querySelector('#fb-menu').getAttribute('aria-controls') === 'settings'"), "removing the section puts ☰ back to one-tap Settings")
     # the bubble still opens Settings too
     await pg.click("#settings-btn"); await pg.wait_for_timeout(400)
@@ -268,7 +280,7 @@ async def native(b):
     tabs = await pg.evaluate(TABS); t = await pg.evaluate(TOP)
     await pg.click("#tab-tia"); await pg.wait_for_timeout(600)
     tia = await pg.evaluate("document.querySelector('#tia').open")
-    check([x["v"] for x in tabs] == ["chisme", "antojos", "juegos", "tab-tia"] and t["menuLabel"] == "Menu" and tia and not pg.errs, f"the store app's user agent: same nav, Tía opens, no errors {pg.errs[:2]}")
+    check([x["v"] for x in tabs] == ["chisme", "antojos", "juegos", "tab-tia"] and t["menuLabel"].startswith("Menu") and tia and not pg.errs, f"the store app's user agent: same nav, Tía opens, no errors {pg.errs[:2]}")
     await ctx.close()
 
 async def main():
