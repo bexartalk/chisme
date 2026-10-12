@@ -1,0 +1,399 @@
+"""Chisme social, part 1 (social.py, social_api.py, social_store.py, social_auth.py): no browser, no network. FastAPI's
+TestClient, the local backend (SQLite + files in a temp folder) and the in-memory fake Supabase Auth.
+  • accounts: the bot check ("Prove you ain't a bot, cuh 🤖": signed math challenge + honeypot; Turnstile mocked), 18+
+    (under-18 refused and remembered), the 6-digit email code, sign-in, forgot / reset, rate limits, no email ever answered
+  • profiles: avatar, banner, display name, @username, bio, part of town, theme accent (Fiesta palette only), pinned Chisme;
+    no LIVE anywhere
+  • uploads: photos re-encoded to WebP with EXIF/GPS gone; videos re-encoded to <= 720p, <= 60 s, metadata gone, a poster;
+    too long / not a video / too big refused; the CSAM hook (match → held privately, account closed; error → refused);
+    R2 is picked when its keys are set (SigV4 PUT mocked), local fallback otherwise
+  • Chismes: audiences (Everyone / Homies Only / Only Me), mutual Homies + private NAH, feeds (Homies, San Anto, Trending,
+    Memes), reactions incl. 🌶️ + 😂, comments, saves, share pages, ChismeTV clip reposts
+  • safety: report → auto-hide at 3, moderation queue (owner only) + restore / remove / ban, block, delete account, the
+    DMCA page + form + "Report copyright", CSRF (cross-site refused), RLS on every table in the migration, no yellow"""
+import asyncio, io, json, os, re, subprocess, sys, tempfile, time
+HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
+tmp = tempfile.mkdtemp()
+for k in [k for k in os.environ if k.startswith(("UPSTASH_", "RENDER", "SUPABASE_", "R2_", "TURNSTILE_", "CSAM_", "SOCIAL_"))]:
+    os.environ.pop(k)
+TOKEN = "social-test-admin-token-77"
+os.environ.update(ADMIN_TOKEN=TOKEN, SOCIAL_FAKE_AUTH="1", SOCIAL_DIR=f"{tmp}/social", PUSH_STORE_FILE=f"{tmp}/push.json",
+                  STATS_STORE_FILE=f"{tmp}/stats.json", AUTO_PUSH_WAKE_DELAY="9999", OWNER_POSTS_DIR=f"{tmp}/posts", OWNER_POSTS_STATIC_MAP="0")
+fails = 0
+
+
+def check(ok, what):
+    global fails
+    print(("PASS " if ok else "FAIL ") + what)
+    if not ok:
+        fails += 1
+
+
+import httpx
+from fastapi.testclient import TestClient
+from PIL import Image
+import app as A
+import social as X
+import social_api as API
+import social_auth as SA
+import social_store as S
+
+OFF = [0.0]
+_real_now = X.now
+X.now = lambda: _real_now() + OFF[0]
+H = {"origin": "http://testserver"}
+_ip = [10]
+
+
+def client():
+    _ip[0] += 1
+    c = TestClient(A.app)
+    c.headers.update({"x-forwarded-for": f"10.0.0.{_ip[0]}"})
+    return c
+
+
+def bot(c):
+    cfg = c.get("/api/social/config").json()
+    a, b = map(int, re.findall(r"\d+", cfg["challenge"]["question"]))
+    OFF[0] += 3   # a person takes more than 2 s to fill the form
+    return {"challenge": {"id": cfg["challenge"]["id"], "answer": str(a + b)}}
+
+
+def join(username, name=None, bday="1990-05-05", fresh=False, **extra):
+    c = client()
+    email = f"{username}@example.com"
+    body = {"email": email, "password": "Tamales&Tea42", "password2": "Tamales&Tea42", "display_name": name or username.title(),
+            "username": username, "birthday": bday, "tos": True, **bot(c), **extra}
+    r = c.post("/api/social/signup", json=body, headers=H)
+    if r.status_code != 200:
+        return c, r
+    code = SA.FAKE.last_code(email)
+    r2 = c.post("/api/social/verify", json={"email": email, "code": code}, headers=H)
+    if r2.status_code == 200 and not fresh:   # past the new-account limits (tested on their own below)
+        asyncio.run(S.db().update("social_profiles", [("username", "eq", username)], {"created_at": S.now_iso(time.time() - 10 * 86400)}))
+    return c, r2
+
+
+def jpeg_with_gps(w=900, h=700, color=(0, 201, 205)):
+    im = Image.new("RGB", (w, h), color)
+    ex = Image.Exif()
+    ex[0x010F] = "SpyCam"            # Make
+    ex[0x8825] = {1: "N", 2: (29.0, 25.0, 0.0), 3: "W", 4: (98.0, 29.0, 0.0)}   # GPS
+    buf = io.BytesIO(); im.save(buf, "JPEG", exif=ex, quality=90)
+    return buf.getvalue()
+
+
+def make_video(seconds=3, size="1280x720", meta=True):
+    out = f"{tmp}/v{seconds}_{size}.mp4"
+    cmd = ["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", f"testsrc=size={size}:rate=30", "-f", "lavfi", "-i", "sine=frequency=440",
+           "-t", str(seconds), "-c:v", "libx264", "-preset", "ultrafast", "-c:a", "aac", "-shortest"]
+    if meta:
+        cmd += ["-metadata", "location=+29.4241-098.4936/", "-metadata", "title=secret", "-metadata", "creation_time=2020-01-01T00:00:00Z"]
+    subprocess.run(cmd + [out], check=True, capture_output=True)
+    return open(out, "rb").read()
+
+
+def probe(data):
+    p = f"{tmp}/probe.mp4"; open(p, "wb").write(data)
+    return json.loads(subprocess.run(["ffprobe", "-v", "error", "-print_format", "json", "-show_format", "-show_streams", p],
+                                     capture_output=True).stdout)
+
+
+# ---------------------------------------------------------------- accounts
+c0 = client()
+cfg = c0.get("/api/social/config").json()
+check(cfg["bot_copy"] == "Prove you ain't a bot, cuh 🤖", "bot-check copy")
+check(cfg["providers"] == [], "Apple / Google sign-in off unless flagged (and Supabase is set up)")
+check(not any(k for k in cfg if "live" in k.lower()) and "go live" not in json.dumps(cfg).lower(), "no LIVE in the config")
+page = c0.get("/social").text
+check("➕ CHISME" in page and "LIVE" not in page and "Go Live" not in page, "/social has ➕ CHISME and no LIVE / Go Live")
+js = open(f"{HERE}/static/social.js").read()
+check("LIVE" not in js and "Go Live" not in js and "WHO CAN SEE THIS?" in js and "WHAT'S THE CHISME? 👀" in js and "POST CHISME 🌶️" in js,
+      "composer copy (no LIVE tab / Go Live in part 1)")
+check(".innerHTML" not in js, "the app never writes user text with innerHTML")
+
+r = c0.post("/api/social/signup", json={"email": "x@example.com", "password": "Tamales&Tea42", "password2": "Tamales&Tea42", "display_name": "X",
+                                        "username": "xbot", "birthday": "1990-01-01", "tos": True, "challenge": {"id": "nope.1.2", "answer": "4"}}, headers=H)
+check(r.status_code == 400 and "Prove you ain't a bot, cuh 🤖" in r.json()["error"], "a failed bot check is refused with the copy")
+b = bot(c0); b["website"] = "http://spam"
+r = c0.post("/api/social/signup", json={"email": "y@example.com", "password": "Tamales&Tea42", "password2": "Tamales&Tea42", "display_name": "Y",
+                                        "username": "ybot", "birthday": "1990-01-01", "tos": True, **b}, headers=H)
+check(r.status_code == 400, "the honeypot field refuses bots")
+
+ck, r = join("kiddo", bday=f"{time.localtime().tm_year - 16}-01-01")
+check(r.status_code == 403 and r.json().get("under_age") and ck.cookies.get(X.U18), "under 18 → refused and remembered on that phone")
+r = ck.post("/api/social/signup", json={"email": "kiddo2@example.com", **bot(ck)}, headers=H)
+check(r.status_code == 403, "…and a retry with an older birthday is refused too")
+
+goonie, r = join("goonie_tx", "Goonie") if False else join("goonie210", "Goonie")
+check(r.status_code == 200 and goonie.cookies.get(X.COOKIE), "sign-up → 6-digit email code → signed in")
+me = goonie.get("/api/social/me").json()
+check(me["me"]["username"] == "goonie210" and "goonie210@example.com" not in json.dumps(me, ensure_ascii=False) and me["me"]["email_hint"] == "g•••@example.com", "/me never shows the full email")
+lupe, _ = join("lupe", "Lupe")
+tia, _ = join("tia_rosa", "Tía Rosa")
+nena, _ = join("nena", "Nena")
+r = client().post("/api/social/signup", json={"email": "goonie210@example.com", "password": "Tamales&Tea42", "password2": "Tamales&Tea42",
+                                              "display_name": "Dup", "username": "dupper", "birthday": "1990-01-01", "tos": True, **bot(client())}, headers=H)
+check(r.status_code == 200 and r.json()["next"] == "verify", "an email that's already in gets the same answer (no account fishing)")
+
+lc = client()
+r = lc.post("/api/social/login", json={"email": "lupe@example.com", "password": "wrong-password"}, headers=H)
+check(r.status_code == 400, "a wrong password is refused")
+r = lc.post("/api/social/login", json={"email": "lupe@example.com", "password": "Tamales&Tea42"}, headers=H)
+check(r.status_code == 200, "sign in with email + password (Supabase Auth checks it)")
+fc = client()
+r = fc.post("/api/social/forgot", json={"email": "nena@example.com", **bot(fc)}, headers=H)
+code = SA.FAKE.last_code("nena@example.com", "recovery")
+r = fc.post("/api/social/reset", json={"email": "nena@example.com", "code": code, "password": "Fresh&Tea2026", "password2": "Fresh&Tea2026"}, headers=H)
+check(r.status_code == 200, "forgot password → 6-digit code → new password")
+check(nena.get("/api/social/me").json()["me"] is None and fc.get("/api/social/me").json()["me"]["username"] == "nena",
+      "…signs out every other session and signs this phone in")
+nena = fc
+
+rc = client()
+rc.headers["x-forwarded-for"] = "10.9.9.9"
+codes = [rc.post("/api/social/signup", json={"email": f"spam{i}@example.com", **bot(rc)}, headers=H).status_code for i in range(6)]
+check(codes[-1] == 429, "sign-ups are rate limited per IP")
+r = goonie.post("/api/social/chismes", json={"text": "hi"}, headers={"origin": "https://evil.example"})
+check(r.status_code == 403, "cross-site writes are refused")
+
+# ---------------------------------------------------------------- profile customization
+up = goonie.post("/api/social/upload?kind=avatar", content=jpeg_with_gps(), headers={**H, "content-type": "image/jpeg"}).json()
+ban = goonie.post("/api/social/upload?kind=banner", content=jpeg_with_gps(2000, 700, (255, 26, 127)), headers={**H, "content-type": "image/jpeg"}).json()
+check(up["ok"] and up["name"].startswith("a/") and ban["ok"] and ban["name"].startswith("b/"), "avatar + banner upload")
+raw = goonie.get(up["url"]).content
+im = Image.open(io.BytesIO(raw))
+check(im.format == "WEBP" and not im.getexif() and b"SpyCam" not in raw and max(im.size) <= 512, "avatar: WebP, EXIF + GPS gone, resized")
+r = goonie.patch("/api/social/profile", json={"display_name": "Goonie El Tejano 🤠", "username": "goonie", "bio": "Spilling the tea since day one #satx",
+                                              "accent": "pink", "area": "Southside", "photo": up["name"], "banner": ban["name"]}, headers=H)
+p = r.json().get("profile", {})
+check(r.status_code == 400, "reserved @username refused in the same save")
+r = goonie.patch("/api/social/profile", json={"display_name": "Goonie El Tejano 🤠", "bio": "Spilling the tea since day one #satx",
+                                              "accent": "pink", "area": "Southside", "photo": up["name"], "banner": ban["name"]}, headers=H)
+p = r.json().get("profile", {})
+check(r.status_code == 200 and p["accent_hex"] == "#FF1A7F" and p["banner"] and p["photo"] and p["name"] == "Goonie El Tejano 🤠"
+      and p["area"] == "Southside" and p["bio"].startswith("Spilling"), "profile saved: name, bio, area, accent, avatar, banner")
+r = goonie.patch("/api/social/profile", json={"username": "goonie"}, headers=H)
+check(r.status_code == 400, "reserved @usernames can't be taken")
+r = goonie.patch("/api/social/profile", json={"username": "goonie_tx"}, headers=H)
+check(r.status_code == 200 and r.json()["profile"]["username"] == "goonie_tx", "change @username")
+check(goonie.patch("/api/social/profile", json={"accent": "yellow"}, headers=H).status_code == 400, "accent must come from the Fiesta palette (no yellow)")
+check("yellow" not in X.ACCENTS and all(not re.match(r"#(F{2}[CDEF]|F[CDEF]{1}[CDEF])", h, re.I) for h in X.ACCENTS.values()), "no yellow accent")
+check(lupe.patch("/api/social/profile", json={"photo": up["name"]}, headers=H).status_code == 400, "you can't use someone else's upload")
+
+# ---------------------------------------------------------------- photos + videos
+ph = goonie.post("/api/social/upload?kind=chisme", content=jpeg_with_gps(3000, 2000), headers={**H, "content-type": "image/jpeg"}).json()
+raw = goonie.get(ph["url"]).content
+im = Image.open(io.BytesIO(raw))
+check(ph["ok"] and im.format == "WEBP" and not im.getexif() and max(im.size) <= 1600 and b"SpyCam" not in raw, "chisme photo: resized WebP, no EXIF / GPS")
+r = goonie.post("/api/social/upload?kind=chisme", content=b"GIF89a" + b"0" * 500, headers={**H, "content-type": "image/gif"})
+check(r.status_code == 400, "non-photo files refused")
+r = goonie.post("/api/social/upload?kind=chisme", content=b"0" * (9 * 1024 * 1024), headers={**H, "content-type": "image/jpeg"})
+check(r.status_code == 413, "photos over 8 MB refused")
+vid = goonie.post("/api/social/upload?kind=video", content=make_video(3, "1920x1080"), headers={**H, "content-type": "video/mp4"}).json()
+check(vid.get("ok") and vid["name"].endswith(".mp4") and vid["h"] <= 720 and vid["seconds"] <= 60 and vid["poster"], "video: re-encoded to 720p, with a poster")
+vraw = goonie.get(vid["url"]).content
+pr = probe(vraw)
+tags = json.dumps(pr["format"].get("tags", {})) + json.dumps([s.get("tags", {}) for s in pr["streams"]])
+check("29.4241" not in tags and "secret" not in tags and "2020-01-01" not in tags and b"+29.4241" not in vraw, "video: location / title / date metadata gone")
+r = goonie.post("/api/social/upload?kind=video", content=make_video(62, "320x240", meta=False), headers={**H, "content-type": "video/mp4"})
+check(r.status_code == 400 and "60 seconds" in r.json()["error"], "videos over 60 s refused")
+r = goonie.post("/api/social/upload?kind=video", content=b"not a video at all" * 100, headers={**H, "content-type": "video/mp4"})
+check(r.status_code == 400, "non-videos refused")
+r = goonie.post("/api/social/upload?kind=video", content=b"0" * (41 * 1024 * 1024), headers={**H, "content-type": "video/mp4"})
+check(r.status_code == 413, "videos over 40 MB refused")
+
+# CSAM hook: a match is held privately and closes the account; a scanner error refuses the upload
+bad_c, _ = join("sketchy")
+real_scan = S.csam_scan
+async def match(data, client=None, kind="image/webp"): return "match"
+async def broken(data, client=None, kind="image/webp"): return "error"
+S.csam_scan = broken
+r = bad_c.post("/api/social/upload?kind=chisme", content=jpeg_with_gps(), headers={**H, "content-type": "image/jpeg"})
+check(r.status_code == 503, "CSAM scanner down → the upload waits (refused, nothing stored)")
+S.csam_scan = match
+r = bad_c.post("/api/social/upload?kind=chisme", content=jpeg_with_gps(), headers={**H, "content-type": "image/jpeg"})
+holds = asyncio.run(S.db().select("social_csam_holds"))
+check(r.status_code == 403 and len(holds) == 1 and bad_c.get("/api/social/me").json()["me"] is None, "CSAM match → held privately, account closed")
+q = os.listdir(f"{tmp}/social/quarantine/c") if os.path.isdir(f"{tmp}/social/quarantine/c") else []
+check(bool(q) and goonie.get("/api/social/media/" + holds[0]["media_name"]).status_code == 404, "…the file is in quarantine, never served")
+S.csam_scan = real_scan
+
+# storage adapter: R2 when its keys are set (SigV4), local otherwise
+check(S.media().name == "local", "no R2 / Supabase keys → local media fallback")
+os.environ.update(R2_ACCOUNT_ID="acc123", R2_ACCESS_KEY_ID="AKIDTEST", R2_SECRET_ACCESS_KEY="secret", R2_BUCKET="chisme-media", R2_PUBLIC_BASE_URL="https://media.chisme.co")
+m = S.media()
+check(m.name == "r2" and m.url("c/202610/abcdefghijkl.webp") == "https://media.chisme.co/c/202610/abcdefghijkl.webp", "R2 picked when its 5 keys are set")
+seen = []
+m.http = httpx.AsyncClient(transport=httpx.MockTransport(lambda req: (seen.append(req), httpx.Response(200))[1]))
+asyncio.run(m.put("v/202610/abcdefghijkl.mp4", b"data"))
+check(seen and seen[0].method == "PUT" and seen[0].url.host == "acc123.r2.cloudflarestorage.com" and seen[0].headers["content-type"] == "video/mp4"
+      and seen[0].headers["authorization"].startswith("AWS4-HMAC-SHA256 Credential=AKIDTEST/"), "R2 PUT is SigV4-signed with the right type")
+for k in ("R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "R2_BUCKET", "R2_PUBLIC_BASE_URL"):
+    os.environ.pop(k)
+check(S.media().name == "local", "…and back to local when the keys are gone")
+
+# ---------------------------------------------------------------- Chismes, audiences, Homies
+def post(c, **b):
+    r = c.post("/api/social/chismes", json=b, headers=H)
+    return r.json().get("chisme") or r.json()
+
+c_pub = post(goonie, text="Who else is at the Pearl tonight? #satx #fiesta", photos=[ph["name"]], audience="everyone")
+c_vid = post(goonie, text="Fiesta parade vibes", video=vid["name"], audience="everyone")
+c_hom = post(goonie, text="Homies only: tamales at my tía's Sunday", audience="homies")
+c_me = post(goonie, text="note to self: buy more Big Red", audience="me")
+check(c_pub["photos"] and c_vid["videos"] and c_vid["videos"][0]["poster"], "Chismes with a photo and a video")
+check(post(goonie, text="again", photos=[ph["name"]]).get("ok") is False, "an upload can't be reused in a second Chisme")
+anon = client()
+check(anon.get("/c/" + c_pub["id"]).status_code == 200 and anon.get("/c/" + c_hom["id"]).status_code == 404, "share page: public yes, Homies-only no")
+lupe_feed = lupe.get("/api/social/u/goonie_tx").json()
+ids = {c["id"] for c in lupe_feed["chismes"]}
+check(c_pub["id"] in ids and c_hom["id"] not in ids and c_me["id"] not in ids, "strangers see only Everyone Chismes")
+check(lupe_feed["profile"]["relation"] == "none" and "email" not in json.dumps(lupe_feed), "profile view: no email / phone / birthday")
+r = lupe.post("/api/social/homies/goonie_tx", json={"action": "homie"}, headers=H).json()
+check(r["relation"] == "requested", "🤝 HOMIE sends a request")
+n = goonie.get("/api/social/notifications").json()["notifications"]
+check(any(x["text"] == "Lupe says you're Homies. 🤝" for x in n), 'the notification reads "Lupe says you\'re Homies. 🤝"')
+r = goonie.post("/api/social/homies/lupe", json={"action": "accept"}, headers=H).json()
+check(r["relation"] == "homies", "YEAH, HOMIE → mutual Homies")
+ids = {c["id"] for c in lupe.get("/api/social/u/goonie_tx").json()["chismes"]}
+check(c_hom["id"] in ids and c_me["id"] not in ids, "Homies see Homies-only, never Only Me")
+nena.post("/api/social/homies/goonie_tx", json={"action": "homie"}, headers=H)
+r = goonie.post("/api/social/homies/nena", json={"action": "nah"}, headers=H).json()
+check(nena.get("/api/social/u/goonie_tx").json()["profile"]["relation"] == "requested", "✋ NAH is private: their side still says requested")
+check(not goonie.get("/api/social/requests").json()["requests"], "…and it leaves my request list")
+tia.post("/api/social/homies/goonie_tx", json={"action": "homie"}, headers=H); goonie.post("/api/social/homies/tia_rosa", json={"action": "accept"}, headers=H)
+prof = anon.get("/api/social/u/goonie_tx").json()["profile"]
+check(prof["homies"] == 2 and "followers" not in json.dumps(prof).lower(), "HOMIES count, never followers")
+check(lupe.get("/api/social/u/tia_rosa").json()["profile"]["mutual_homies"] == 1, "Mutual Homies count")
+
+# pinned Chisme
+r = goonie.patch("/api/social/profile", json={"pinned_id": c_vid["id"]}, headers=H)
+d = anon.get("/api/social/u/goonie_tx").json()
+check(d["pinned"] and d["pinned"]["id"] == c_vid["id"] and c_vid["id"] not in {c["id"] for c in d["chismes"]}, "pinned Chisme on top of the profile")
+check(lupe.patch("/api/social/profile", json={"pinned_id": c_vid["id"]}, headers=H).status_code == 400, "you can only pin your own")
+d = anon.get("/api/social/u/goonie_tx?tab=videos").json()
+check([c["id"] for c in d["chismes"]] == [c_vid["id"]], "VIDEOS tab")
+check([c["id"] for c in anon.get("/api/social/u/goonie_tx?tab=photos").json()["chismes"]] == [c_pub["id"]], "PHOTOS tab")
+
+# new accounts: stricter posting limits, no links
+newbie, _ = join("newbie", fresh=True)
+check(post(newbie, text="check out spam.xyz/deal").get("ok") is False, "new accounts can't post links")
+codes = [newbie.post("/api/social/chismes", json={"text": f"hola {i} {'x' * i}"}, headers=H).status_code for i in range(4)]
+check(codes[:3] == [201] * 3 and codes[3] == 429, "new accounts: 3 Chismes an hour")
+
+# memes + ChismeTV clip reposts
+meme = post(lupe, text="When your tía asks why you're still single 😂 #memes", audience="everyone")
+meme2 = post(tia, text="Me at the Spurs game pretending I know the rules", meme=True, audience="everyone")
+clip = post(nena, text="Y'all need these tacos", clip={"url": "https://chisme.co/?reel=dQw4w9WgXcQ"}, audience="everyone")
+tt = post(nena, text="this one too", clip={"url": "https://www.tiktok.com/@eatmigos/video/7301234567890123456"}, audience="everyone")
+check(meme.get("meme") and meme2.get("meme") and "memes" in meme2["hashtags"], "#memes or the meme switch → a meme")
+check(clip.get("clip") and clip["clip"]["id"] == "dQw4w9WgXcQ" and clip["clip"]["embed"].startswith("https://www.youtube-nocookie.com/embed/"), "repost a ChismeTV (YouTube) clip")
+check(tt.get("clip") and tt["clip"]["embed"] == "https://www.tiktok.com/player/v1/7301234567890123456", "repost a ChismeTV (TikTok) clip")
+check(post(nena, clip={"url": "javascript:alert(1)"}).get("ok") is False, "bad clip links refused")
+mf = anon.get("/api/social/feed?tab=memes").json()["chismes"]
+check({c["id"] for c in mf} == {meme["id"], meme2["id"]}, "Memes feed: only memes")
+
+# reactions, comments, saves
+for who, k in ((lupe, "chile"), (tia, "chile"), (nena, "laugh"), (lupe, "laugh")):
+    who.post(f"/api/social/chismes/{meme['id']}/react", json={"kind": k}, headers=H)
+cm = nena.get(f"/api/social/chismes/{meme['id']}").json()["chisme"]
+check(cm["counts"]["chile"] == 2 and cm["counts"]["laugh"] == 2 and cm["mine"]["laugh"], "reactions incl. 🌶️ and 😂 (counts + mine)")
+nena.post(f"/api/social/chismes/{meme['id']}/react", json={"kind": "laugh"}, headers=H)
+check(nena.get(f"/api/social/chismes/{meme['id']}").json()["chisme"]["counts"]["laugh"] == 1, "tap again → reaction off")
+check(set(X.REACTIONS.values()) >= {"🌶️", "😂"}, "🌶️ and 😂 are reactions")
+r = tia.post(f"/api/social/chismes/{meme['id']}/comments", json={"text": "JAJAJA mija 💀"}, headers=H)
+check(r.status_code == 201 and anon.get(f"/api/social/chismes/{meme['id']}/comments").json()["comments"][0]["text"] == "JAJAJA mija 💀", "comments")
+r = lupe.post(f"/api/social/chismes/{c_hom['id']}/comments", json={"text": "ya llego"}, headers=H)
+check(r.status_code == 201 and nena.post(f"/api/social/chismes/{c_hom['id']}/comments", json={"text": "me?"}, headers=H).status_code == 404,
+      "can't comment on what you can't see")
+lupe.post(f"/api/social/chismes/{c_pub['id']}/save", json={}, headers=H)
+check(lupe.get(f"/api/social/chismes/{c_pub['id']}").json()["chisme"]["mine"]["saved"], "🔖 save")
+check(lupe.get(f"/api/social/chismes/{c_pub['id']}").json()["chisme"]["share_url"] == "/c/" + c_pub["id"], "↗ share link for public Chismes")
+
+# feeds
+hf = lupe.get("/api/social/feed?tab=homies").json()["chismes"]
+check({c_pub["id"], c_hom["id"]} <= {c["id"] for c in hf} and meme2["id"] not in {c["id"] for c in hf}, "Homies feed: confirmed Homies (+ me)")
+sa = anon.get("/api/social/feed?tab=sananto").json()["chismes"]
+check(c_pub["id"] in {c["id"] for c in sa} and c_hom["id"] not in {c["id"] for c in sa}, "San Anto feed: public Chismes around SA")
+tr = anon.get("/api/social/feed?tab=trending").json()["chismes"]
+check(tr and tr[0]["id"] == meme["id"], "Trending: the most-reacted Chisme first")
+check(anon.get("/api/social/feed?tab=homies").json()["chismes"] == [], "signed out: no Homies feed")
+
+# ---------------------------------------------------------------- reports, auto-hide, moderation
+r = lupe.post("/api/social/report", json={"kind": "chisme", "id": tt["id"], "reason": "copyright"}, headers=H).json()
+check(r["ok"] and r["dmca"] and "/dmca" in r["message"], "'Report copyright' points to the DMCA form")
+r = goonie.post("/api/social/report", json={"kind": "chisme", "id": tt["id"], "reason": "spam"}, headers=H).json()
+check(not r["hidden"], "2 reports: still up")
+check(lupe.post("/api/social/report", json={"kind": "chisme", "id": tt["id"], "reason": "spam"}, headers=H).json()["message"].startswith("You already"),
+      "one report per person")
+r = tia.post("/api/social/report", json={"kind": "chisme", "id": tt["id"], "reason": "spam"}, headers=H).json()
+check(r["hidden"] and tt["id"] not in {c["id"] for c in anon.get("/api/social/feed?tab=sananto").json()["chismes"]}, "3 reports → auto-hidden from feeds")
+mine = nena.get(f"/api/social/chismes/{tt['id']}").json()
+check(mine.get("chisme", {}).get("hidden") is True, "…the author still sees it, marked hidden")
+check(nena.post("/api/social/report", json={"kind": "chisme", "id": clip["id"], "reason": "spam"}, headers=H).status_code == 404, "can't report your own")
+check(anon.get("/stats/social/queue").status_code == 404 and lupe.get("/stats/social/queue").status_code == 404, "mod queue: owner only")
+OWN = {"authorization": "Bearer " + TOKEN}
+q = anon.get("/stats/social/queue", headers=OWN).json()
+it = [g for g in q["items"] if g["id"] == tt["id"]]
+check(it and it[0]["count"] == 3 and it[0]["status"] == "hidden" and q["csam_unreported"] == 1, "mod queue lists it (3 reports, auto-hidden) + the CSAM hold count")
+r = anon.post("/stats/social/action", json={"kind": "chisme", "id": tt["id"], "action": "restore"}, headers={**OWN, **H})
+check(r.status_code == 200 and anon.get(f"/api/social/chismes/{tt['id']}").status_code == 200
+      and tt["id"] in {c["id"] for c in anon.get("/api/social/feed?tab=trending").json()["chismes"]}, "Keep it up → back up, in the feeds")
+check(anon.post("/stats/social/action", json={"kind": "chisme", "id": tt["id"], "action": "restore"}, headers={**OWN, "origin": "https://evil.example"}).status_code == 403,
+      "mod actions refuse cross-site")
+anon.post("/stats/social/action", json={"kind": "chisme", "id": meme2["id"], "action": "remove"}, headers={**OWN, **H})
+check(anon.get(f"/api/social/chismes/{meme2['id']}").status_code == 404, "Take it down → gone")
+troll, _ = join("troll")
+tc = post(troll, text="bad stuff", audience="everyone")
+for w in (lupe, tia, nena):
+    w.post("/api/social/report", json={"kind": "user", "id": "troll", "reason": "harassment"}, headers=H)
+q = anon.get("/stats/social/queue", headers=OWN).json()
+check(any(g["kind"] == "user" and g["status"] == "flagged" for g in q["items"]), "profiles reported 3× get flagged")
+troll_id = [g for g in q["items"] if g["kind"] == "user"][0]["id"]
+anon.post("/stats/social/action", json={"kind": "user", "id": troll_id, "action": "ban"}, headers={**OWN, **H})
+check(troll.get("/api/social/me").json()["me"] is None and anon.get(f"/api/social/chismes/{tc['id']}").status_code == 404, "ban → signed out, Chismes gone")
+r = client().post("/api/social/signup", json={"email": "troll@example.com", "password": "Tamales&Tea42", "password2": "Tamales&Tea42", "display_name": "T",
+                                              "username": "troll2", "birthday": "1990-01-01", "tos": True, **bot(client())}, headers=H)
+check(r.status_code == 403, "a banned email can't sign up again")
+
+# block
+r = tia.post("/api/social/block/lupe", json={"on": True}, headers=H).json()
+check(r["blocked"] and lupe.get("/api/social/u/tia_rosa").status_code == 404 and tia.get("/api/social/u/lupe").status_code == 404, "block hides both ways")
+check(lupe.post("/api/social/homies/tia_rosa", json={"action": "homie"}, headers=H).status_code == 404, "…and stops Homie requests")
+check(meme["id"] not in {c["id"] for c in tia.get("/api/social/feed?tab=memes").json()["chismes"]}, "…and their Chismes")
+tia.post("/api/social/block/lupe", json={"on": False}, headers=H)
+
+# DMCA
+d = anon.get("/dmca").text
+check("Report copyright (DMCA)" in d and "penalty of perjury" in d and "designated DMCA agent" in d, "/dmca page")
+r = anon.post("/dmca", data={"claimant_name": "Ana Photog", "claimant_email": "ana@example.com", "work": "My photo of the Pearl",
+                             "urls": f"https://chisme.co/c/{c_pub['id']}", "signature": "Ana Photog", "good_faith": "1", "accurate": "1"}, headers=H)
+check(r.status_code == 200 and "Your notice is in" in r.text and anon.get(f"/api/social/chismes/{c_pub['id']}").status_code == 404, "DMCA notice → listed Chisme hidden")
+check(anon.post("/dmca", data={"claimant_name": "x"}, headers=H).status_code == 400, "DMCA form needs every part")
+xss = anon.post("/dmca", data={"claimant_name": "<script>alert(1)</script>"}, headers=H).text
+check("<script>alert(1)" not in xss, "DMCA form escapes what you typed")
+q = anon.get("/stats/social/queue", headers=OWN).json()
+check(q["dmca"] and "ana@example.com" not in json.dumps(q), "DMCA notice in the queue (claimant email not echoed)")
+anon.post("/stats/social/action", json={"kind": "dmca", "id": q["dmca"][0]["id"], "action": "rejected"}, headers={**OWN, **H})
+check(anon.get(f"/api/social/chismes/{c_pub['id']}").status_code == 200, "rejected notice → restored")
+
+# delete account
+r = nena.post("/api/social/account/delete", json={"confirm": "nah"}, headers=H)
+check(r.status_code == 400, "delete needs DELETE typed")
+r = nena.post("/api/social/account/delete", json={"confirm": "DELETE"}, headers=H)
+check(r.status_code == 200 and anon.get("/api/social/u/nena").status_code == 404 and anon.get(f"/api/social/chismes/{clip['id']}").status_code == 404,
+      "delete account → profile + Chismes gone")
+check(not asyncio.run(S.db().select("social_private", [("user_id", "eq", nena.cookies.get("x") or "")])), "…private row gone")
+
+# ---------------------------------------------------------------- migration: RLS on every table, no yellow
+sql = open(f"{HERE}/supabase/migrations/20261004150000_social_p1.sql").read()
+tables = set(re.findall(r"create table if not exists public\.(\w+)", sql))
+rls = re.search(r"foreach t in array array\[(.*?)\] loop", sql, re.S).group(1)
+check(tables == set(S.TABLES) and all(f"'{t}'" in rls for t in tables), "every table is in the migration with RLS on + forced")
+check("enable row level security" in sql and "force row level security" in sql and "revoke all on table public.%I from anon" in sql, "RLS on, anon revoked")
+css = open(f"{HERE}/static/social.css").read().lower()
+check(not re.search(r"yellow|gold|#ff(?:d|e|f)[0-9a-f]00\b|#ff[cdef]\d0[0-9a-f]\b", css.replace("no yellow", "")), "no yellow in social.css")
+
+print(f"\n{'ALL PASS' if not fails else str(fails) + ' FAILED'}")
+sys.exit(1 if fails else 0)
