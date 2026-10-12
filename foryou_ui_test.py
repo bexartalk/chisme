@@ -13,6 +13,9 @@ v47: preloading: 3 players on iPhone (on screen + the next 2 videos), 4 elsewher
 Start tap (or the first tap in the feed) unlocks sound for every video after it: WebKit iPhone, 5 videos in a row, each playing
 within 3 s, with sound after one tap (also with YouTube held back until 3 s after Start). Settings → Food videos: sound on/off
 (default on). TikToks go after YouTube on iPhone; elsewhere the next TikTok warms muted in its slide.
+v49.16: in the Chromium finger-swipe run, the TikToks from the 4th slide on are served as a silent embed (it loads but never
+reports ready, like the headless TikTok that used to stall everything after it): that one is marked 'warm-timeout' after
+~5 s (its poster + iframe kept) and the video after it still warms, side by side, well before that timeout.
 Screens: dieta-foryou-banner.png, dieta-vertical-feed.png, dieta-why-chip.png, food-panza.png, food-sound.png, food-sound-held.png,
 settings-food-sound.png"""
 import re
@@ -52,8 +55,13 @@ def own_error(m):
 async def wait_warm(pg, ms=8000):   # v42/v47: the video on screen plays and the next 2 videos (donate slides skipped) are loaded in players of their own (first frame, held)
     try: await pg.wait_for_function("""() => { const f = window.__chisme.forYou, P = f.player, sl = [...document.querySelectorAll('#feed-scroll .vf-slide')], c = sl[f.cur];
       if (!(c.dataset.kind === 'yt' ? P.st === 1 : c._st === 1)) return false;
-      return sl.slice(f.cur + 1).filter(s => s.dataset.url).slice(0, P.ahead).every(s => s.dataset.warm === 'ready' || (P.ios && s.dataset.kind === 'tt')); }""", timeout=ms)
-    except Exception: pass
+      return sl.slice(f.cur + 1).filter(s => s.dataset.url).slice(0, P.ahead).every(s => s.dataset.warm === 'ready' || s.dataset.warm === 'warm-timeout' || (P.ios && s.dataset.kind === 'tt')); }""", timeout=ms)
+    except Exception: pass   # (v49.16: 'warm-timeout' = done too: that warm-up gave up after ~5 s; the checks say which one they expect)
+
+SILENT = "<!doctype html><meta charset=utf-8><title>silent embed</title><body style='margin:0;background:#000'></body>"   # v49.16: an embed that never reports ready
+WARMLOG = """addEventListener('DOMContentLoaded', () => { window.__warmLog = []; new MutationObserver((ms) => { for (const m of ms) { const s = m.target;
+  if (!s.classList || !s.classList.contains('vf-slide')) continue; window.__warmLog.push([[...document.querySelectorAll('#feed-scroll .vf-slide')].indexOf(s), s.dataset.warm || '', Math.round(performance.now())]); } })
+  .observe(document.body, { subtree: true, attributes: true, attributeFilter: ['data-warm'] }); });"""
 
 async def show_info(pg, i):   # while a video plays its info + buttons are hidden; a tap on the video pauses it and brings them back
     sel = f"#feed-scroll .vf-slide:nth-child({i + 1})"
@@ -279,9 +287,23 @@ async def cr(p):   # a real finger swipe on the video itself scrolls to the next
     b = await p.chromium.launch(executable_path="/usr/bin/google-chrome", args=["--no-sandbox", "--autoplay-policy=no-user-gesture-required"])
     ctx = await b.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True, device_scale_factor=3)
     await ctx.add_init_script(INIT % "localStorage.setItem('chisme-feed-sound','on');")   # v49.12: sound turned on (the default is muted)
-    pg = await ctx.new_page(); await pg.goto(URL + "#cual-dieta")
+    await ctx.add_init_script(WARMLOG)
+    pg = await ctx.new_page()
+    silent, hits = set(), []   # v49.16: TikTok ids served as a silent embed (never reports ready)
+    async def tt(route):
+        m = re.search(r"/player/v1/(\d+)", route.request.url)
+        if m and m.group(1) in silent: hits.append(m.group(1)); await route.fulfill(status=200, content_type="text/html", body=SILENT)
+        else: await route.continue_()
+    await pg.route("**/www.tiktok.com/player/v1/**", tt)
+    await pg.goto(URL + "#cual-dieta")
     await pg.wait_for_function("() => window.__chisme && window.__chisme.foodReady && !document.querySelector('#foryou-card').hidden", timeout=90000)
-    await pg.tap("#fy-start"); await pg.wait_for_function("document.querySelector('#feed').open", timeout=5000); await pg.wait_for_timeout(1200)
+    await pg.tap("#fy-start"); await pg.wait_for_function("document.querySelector('#feed').open", timeout=5000)
+    sl0 = await pg.evaluate("[...document.querySelectorAll('#feed-scroll .vf-slide')].map(s => ({ kind: s.dataset.kind || '', url: s.dataset.url || '' }))")
+    mute = [i for i, x in enumerate(sl0[:8]) if i >= 3 and x["kind"] == "tt"]   # (slides 3+ only warm after the first swipe: no race with the route)
+    for i in mute: silent.add(re.search(r"/video/(\d+)", sl0[i]["url"]).group(1))
+    kinds0 = "".join("t" if x["kind"] == "tt" else "y" if x["url"] else "-" for x in sl0[:8])
+    if not mute: print(f"    (no TikTok on slides 4-8 today ({kinds0}): the silent embed isn't exercised here; feed_preload_test's stall run is)")
+    await pg.wait_for_timeout(1200)
     cdp = await ctx.new_cdp_session(pg)
     async def swipe(y0, dy):   # a finger drag (Input.synthesizeScrollGesture doesn't scroll anything in headless Chrome)
         await cdp.send("Input.dispatchTouchEvent", {"type": "touchStart", "touchPoints": [{"x": 195, "y": y0}]})
@@ -307,8 +329,23 @@ async def cr(p):   # a real finger swipe on the video itself scrolls to the next
         check(pl["st"] == 1 and not pl["loading"] and pl["snd"] == "🔊 Sound on", f"Chromium: video {want + 1} is already playing 0.4 s after the swipe (it was warming), no spinner, sound stays on ({pl})")
         await wait_warm(pg); f = await pg.evaluate(FEED)
         on = sorted({x["slide"] for x in f["frames"]})   # the one on screen (+ the one just behind it, kept paused for a swipe back)
-        check(f["cur"] == want and f["top"] % f["h"] == 0 and want in on and set(on) <= {want - 1, want} and f["warm"] == [want + 1, want + 2] and f["playingUi"] == [want] and f["yt"] == 4,
-              f"Chromium: finger swipe up on the video ({under}) → video {want + 1}, snapped exactly (scrollTop {f['top']}), only it plays; videos {want + 2} + {want + 3} are warm, 4 players ({[(x['slide'], x['src'][:40]) for x in f['frames']]}, warm {f['warm']})")
+        # v49.16: the next 2 are warm: 'ready', or for a silent TikTok embed 'warm-timeout' (poster + iframe kept); a real TikTok may
+        # also time out in headless Chrome. What matters: nothing after a stalled one is left unwarmed.
+        nx = [want + 1, want + 2]
+        ws = await pg.evaluate("(nx) => nx.map(i => { const s = document.querySelectorAll('#feed-scroll .vf-slide')[i], th = s.querySelector('img.vf-thumb'); return { i, kind: s.dataset.kind, warm: s.dataset.warm || '', frame: !!s.querySelector('iframe.vf-frame'), poster: !!th && th.complete && th.naturalWidth > 0, timer: !!s._warmT }; })", nx)
+        def warm_ok(w):
+            if w["i"] in mute: return w["warm"] == "warm-timeout" and w["frame"] and w["poster"] and not w["timer"]
+            return w["warm"] == "ready" or (w["kind"] == "tt" and w["warm"] == "warm-timeout" and w["frame"])
+        check(f["cur"] == want and f["top"] % f["h"] == 0 and want in on and set(on) <= {want - 1, want} and all(warm_ok(w) for w in ws) and f["playingUi"] == [want] and f["yt"] == 4,
+              f"Chromium: finger swipe up on the video ({under}) → video {want + 1}, snapped exactly (scrollTop {f['top']}), only it plays; videos {want + 2} + {want + 3} are warm, 4 players ({[(x['slide'], x['src'][:40]) for x in f['frames']]}, warm {[(w['i'], w['kind'], w['warm'] + (' (silent)' if w['i'] in mute else '')) for w in ws]})")
+    if mute and mute[0] <= 4:   # v49.16: the silent one (in the window by now) gave up after ~5 s, and the video after it still got warm
+        log = await pg.evaluate("window.__warmLog || []"); m0 = mute[0]
+        st = next((t for i, w, t in log if i == m0 and w == "1"), None); to = next((t for i, w, t in log if i == m0 and w == "warm-timeout"), None)
+        nxt = m0 + 1 if m0 + 1 < len(sl0) and sl0[m0 + 1]["url"] else None
+        rd = next((t for i, w, t in log if i == nxt and w == "ready"), None) if nxt is not None else None
+        check(bool(hits) and st is not None and to is not None and 4000 <= to - st <= 7000 and (nxt is None or rd is not None),
+              f"Chromium: the silent TikTok (slide {m0}) is marked 'warm-timeout' {f'{(to - st) / 1000:.1f} s' if st is not None and to is not None else 'never'} after it started warming (4-7 s), and the video after it (slide {nxt}) still got warm: {rd is not None} (it used to wait forever) (served silent {len(hits)}×)")
+    elif mute: print(f"    (the silent TikTok is on slide {mute[0]}, past the 2 swipes here; feed_preload_test's stall run covers it)")
     await swipe(300, 450)
     try: await pg.wait_for_function("window.__chisme.forYou.cur === 1", timeout=5000)
     except Exception: pass
