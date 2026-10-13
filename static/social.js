@@ -1106,7 +1106,8 @@
       el("div", { class: "nudge-btns" },
         el("a", { class: "btn pink sx-wide", id: "nudge-join", href: "#s/signup", onclick: () => closeSheet() }, "Join Chisme"),
         el("button", { type: "button", class: "btn ghost sx-wide", id: "nudge-later", onclick: closeSheet }, "Not now"))));
-    $("#sheet").classList.add("is-nudge"); sheetBack = () => $("#sheet").classList.remove("is-nudge");
+    $("#sheet").classList.add("is-nudge");
+    sheetBack = () => { $("#sheet").classList.remove("is-nudge"); nudge.due = nudge.active + NUDGE.again; };   // the next wait starts when it closes
   }
   if (IN_APP && MODE === "app") setInterval(() => {
     if (document.visibilityState !== "visible") return;
