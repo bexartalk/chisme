@@ -337,7 +337,7 @@ html[data-season="muertos"] .sx .profile .p-hdr { box-shadow: none; }
 .sx .p-homies .btn { min-height: 44px; display: inline-flex; align-items: center; }
 
 
-/* v49.22 the sign-up nudge sheet ("Join the Metiches"): turquoise / pink / orange on white or black, no yellow */
+/* v49.22 the sign-up nudge sheet ("Join the Chisme"): turquoise / pink / orange on white or black, no yellow */
 .sx-nudge .nudge-pitch { margin: 0 0 10px; font-size: 1.05rem; font-weight: 700; }
 .sx-nudge .nudge-perks { list-style: none; margin: 0 0 14px; padding: 12px 14px; display: grid; gap: 8px; border-radius: 14px;
   background: var(--sx-soft); border-left: 4px solid var(--or); font-weight: 700; }

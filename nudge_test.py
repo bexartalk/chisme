@@ -1,4 +1,4 @@
-"""v49.22 the sign-up nudge ("Join the Metiches"): signed-out phones get a sheet after NUDGE.first ms of active use, 'Not
+"""v49.22 the sign-up nudge ("Join the Chisme"): signed-out phones get a sheet after NUDGE.first ms of active use, 'Not
 now' lets them browse, a 2nd after NUDGE.again more, never a 3rd that visit, and later visits the same day get none.
 It waits while a video / the feed / a game is up, doesn't count hidden time, never shows on the sign-in screens, to
 signed-in people, on desktop, or when sign-ups are closed (SIGNUPS_PUBLIC unset). Timings shortened via window.__CHISME_NUDGE.
@@ -63,7 +63,7 @@ async def main():
                 join: (document.querySelector('#nudge-join') || {}).textContent, later: (document.querySelector('#nudge-later') || {}).textContent,
                 joinBg: getComputedStyle(document.querySelector('#nudge-join')).backgroundColor, fit: r.left >= 0 && r.right <= innerWidth + .5,
                 big: [...sh.querySelectorAll('.nudge-btns .btn')].every((x) => x.getBoundingClientRect().height >= 44) }; }""")
-            check("Join the Metiches" in s["title"] and all(w in s["body"] for w in ("Like", "Comment", "Save", "Homies")), f"the sheet: 'Join the Metiches' + like / comment / save / Homies ({s['title']!r})")
+            check("Join the Chisme 👀" in s["title"] and all(w in s["body"] for w in ("Like", "Comment", "Save", "Homies")), f"the sheet: 'Join the Chisme 👀' + like / comment / save / Homies ({s['title']!r})")
             check(s["join"] == "Join Chisme" and s["later"] == "Not now" and s["big"] and s["fit"], f"…'Join Chisme' and 'Not now', 44 px+ buttons, fits 390 px ({s['joinBg']})")
             yl = await pg.evaluate("""() => { const out = []; for (const n of document.querySelectorAll('#sheet, #sheet *')) { const cs = getComputedStyle(n);
               for (const k of ['color', 'backgroundColor', 'borderLeftColor']) { const m = (cs[k].match(/[\\d.]+/g) || []).map(Number); if (m.length < 3 || m[3] === 0) continue;

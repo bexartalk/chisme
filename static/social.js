@@ -1074,7 +1074,7 @@
     });
     const ml = $("#mix-list"); if (ml) new MutationObserver(() => mixIn()).observe(ml, { childList: true });
   }
-  // v49.22 the sign-up nudge ("Join the Metiches"): signed-out phones only. After NUDGE.first ms of ACTIVE use (the page
+  // v49.22 the sign-up nudge ("Join the Chisme"): signed-out phones only. After NUDGE.first ms of ACTIVE use (the page
   // visible) a sheet pitches an account; "Not now" lets them browse. Again after NUDGE.again more active ms, at most
   // NUDGE.perSession a visit, and on later visits at most once a day (localStorage chisme-nudge = { day }). Never while a
   // video / reel / game / dialog is up (it waits), never on legal pages or the sign-in screens, never when sign-ups are
@@ -1099,7 +1099,7 @@
   function showNudge() {
     nudge.shown += 1; nudge.due = nudge.active + NUDGE.again; nudgeStore({ day: today() });
     const perk = (emo, t) => el("li", {}, el("span", { "aria-hidden": "true", text: emo }), " " + t);
-    sheet("Join the Metiches 👀", el("div", { class: "sx-nudge" },
+    sheet("Join the Chisme 👀", el("div", { class: "sx-nudge" },
       el("p", { class: "nudge-pitch", text: "Make a free account and get in on the chisme." }),
       el("ul", { class: "nudge-perks" }, perk("❤️", "Like and react to Chismes"), perk("💬", "Comment and spill your side"),
         perk("🔖", "Save the good stuff"), perk("🤝", "Find your Homies")),
