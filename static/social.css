@@ -343,4 +343,4 @@ html[data-season="muertos"] .sx .profile .p-hdr { box-shadow: none; }
   background: var(--sx-soft); border-left: 4px solid var(--or); font-weight: 700; }
 .sx-nudge .nudge-btns { display: grid; gap: 10px; }
 .sx-nudge .btn { min-height: 48px; display: flex; align-items: center; justify-content: center; font-size: 1.05rem; }
-#sheet.is-nudge h2 { color: var(--pk, #FF1A7F); }
+.sx.sheet.is-nudge h2 { color: var(--pk, #FF1A7F); }
