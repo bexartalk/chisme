@@ -48,7 +48,7 @@ async def clock_checks(b, dev):
         if label.startswith("Nov 4"):
             vis = await pg.evaluate("[...document.querySelectorAll('.muertos-only')].filter(n => n.offsetParent).length")
             tabs = await pg.evaluate("[...document.querySelectorAll('#tabs .tab')].map(t => t.textContent.trim())")
-            check(vis == 0 and "Chisme" in tabs[0] and len(tabs) == 4, f"…after: no banner / gallery / papel picado / marigolds left, the Chisme tab stays ({vis} shown, {tabs})")
+            check(vis == 0 and "Chisme" in tabs[2] and len(tabs) == 5, f"…after: no banner / gallery / papel picado / marigolds left, the Chisme tab stays ({vis} shown, {tabs})")
             await pg.screenshot(path=f"{SHOTS}/after-nov3-home.png")
         await ctx.close()
     print("— a page left open across the end")
