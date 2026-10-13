@@ -394,6 +394,11 @@ async def phone_checks(p):
     check(r["list"] != "grid" and r["w"] <= r["iw"], f"phone: single-column feed, no sideways scroll ({r['list']})")
     check(r["css"], "phone: desktop.css only applies at min-width 1024px")
     await pg.screenshot(path=os.path.join(SHOTS, "phone-unchanged.png"))
+    # v49.20: signed out, the Chisme feed has no Homies UI and one chip row (no people chips)
+    await pg.wait_for_timeout(1200)
+    hm = await pg.evaluate("""() => { const v = document.querySelector('#view-chisme'), t = [...v.querySelectorAll('*')].filter((n) => n.getClientRects().length && !n.closest('.sx-mix')).map((n) => n.childNodes.length && [...n.childNodes].filter((c) => c.nodeType === 3).map((c) => c.textContent).join('')).join(' ');
+      return [/homie/i.test(t), document.querySelectorAll('#sx-chips .sx-chip').length, document.querySelectorAll('#sx-chips .mq-chip').length]; }""")
+    check(not hm[0] and hm[1] == 0 and hm[2] == 5, f"phone, signed out: no Homies UI in the Chisme feed, 5 chips, no people chips {hm}")
     await pg.goto(BASE + "/privacy"); await pg.wait_for_timeout(500)
     # v49.17+: the legal pages are Plato's docs rendered in the app's own look (tools/make_legal_pages.py: the app's
     # style.css + social.css, the app's --bg and --link), not v49.12's standalone cream/pink sheet (#fffaf3 / #d81b60).

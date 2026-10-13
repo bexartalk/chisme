@@ -2094,14 +2094,8 @@ dialog.tia-menu.menu-sheet .tia-menu-in{max-height:calc(100dvh - 146px)}
 .tia-menu .menu-sec .tia-menu-btn .tm-big{font-size:1.05rem}
 .menu-sec{margin-top:10px}
 
-/* v49.16 nav-on-social: one chip row on Chisme: All · News · Sports · Events · Weather, then social's Homies · San Anto ·
-   Trending · Memes (data-sx, social.js). Nine chips don't fit one line on a phone, so the row wraps to two (no sideways
-   scroll, nothing cut off); every chip stays 44 px+ wide. A thin gap sets the people chips apart from the app's. */
-#sx-chips.mq-chips{flex-wrap:wrap;row-gap:4px}
-#sx-chips .mq-chip{flex:1 1 auto;min-width:44px;min-height:44px;overflow:visible;text-overflow:clip}
-#sx-chips .sx-chip{min-width:44px;min-height:44px;padding:.25em .45em;font-size:min(.85rem,19px,4.2vw)}
-#sx-chips .mq-chip[data-go="weather"]{margin-right:4px}
-#sx-chips .sx-chip[aria-current="true"]{background:var(--turq);color:#000;border-color:var(--turq)}
-@media (max-width:599px){ #sx-chips .sx-chip span{display:none} }
-@media (max-width:479px){ #sx-chips .mq-chip,#sx-chips .sx-chip{padding:.25em .4em;font-size:min(.85rem,19px,3.9vw)} }
-[data-season="muertos"] #sx-chips .sx-chip[aria-current="true"]{background:#c4135f;color:#fff;border-color:#c4135f}
+/* v49.20: Chisme's chips are ONE row again, the same five as every Chisme view (All · News · Sports · Events · Weather).
+   The people chips (Homies · San Anto · Trending · Memes) are gone: San Anto and Trending Chismes mix into All, Memes
+   lives in the ☰ menu, Homies is a step in account setup and a section on your own profile. Fits 320 px, 44 px+ each. */
+#sx-chips.mq-chips{flex-wrap:nowrap}
+#sx-chips .mq-chip{min-width:44px;min-height:44px}

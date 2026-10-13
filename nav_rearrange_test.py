@@ -71,6 +71,9 @@ async def top_bar(b, w, h):
     tag = f"{w}×{h}"
     ctx, pg = await open_page(b, w, h)
     t = await pg.evaluate(TOP)
+    cr = await pg.evaluate("() => { const b = [...document.querySelectorAll('#sx-chips .mq-chip')]; const r = b.map((c) => c.getBoundingClientRect()); return [b.map((c) => c.dataset.go || c.dataset.sx), new Set(r.map((x) => Math.round(x.top))).size, Math.min(...r.map((x) => x.width)), Math.min(...r.map((x) => x.height)), b.filter((c) => c.scrollWidth > c.clientWidth + 0.5).length, Math.max(...r.map((x) => x.right)) <= innerWidth]; }")
+    check(cr[0] == ["chisme", "news", "sports", "events", "weather"] and cr[1] == 1 and cr[2] >= 44 and cr[3] >= 44 and not cr[4] and cr[5],
+          f"{tag}: Chisme chips are ONE row (All · News · Sports · Events · Weather), 44 px+, untruncated, on screen {cr}")
     c = (t["art"]["l"] + t["art"]["r"]) / 2
     check(t["menu"] and t["menuLabel"].startswith("Menu") and t["menuPopup"] == "dialog" and t["menu"]["w"] >= 42 and t["menu"]["h"] >= 42 and t["menu"]["l"] < 20,
           f"{tag}: ☰ Menu on the left, a 42 px+ button labelled 'Menu' {t['menu']}")
@@ -100,8 +103,11 @@ async def phone(b):
     check(all(t["w"] >= 44 and t["h"] >= 44 for t in tabs), "every tab is a 44 px+ target")
     chips = await pg.evaluate(CHIPS)
     check(len(chips) == 5 and all(c["chips"] == ["chisme", "news", "sports", "events", "weather"] and c["cur"] == c["view"] for c in chips)
-          and [c["sx"] for c in chips if c["view"] == "chisme"] == [["homies", "sananto", "trending", "memes"]] and all(not c["sx"] for c in chips if c["view"] != "chisme"),
+          and [c["sx"] for c in chips if c["view"] == "chisme"] == [[]] and all(not c["sx"] for c in chips if c["view"] != "chisme"),
           f"every Chisme view has All · News · Sports · Events · Weather, its own lit {[(c['view'], c['cur']) for c in chips]}")
+    # v49.20: Chisme's chip row is ONE row, the same five (no Homies / San Anto / Trending / Memes chips)
+    rows = await pg.evaluate("() => { const b = [...document.querySelectorAll('#sx-chips .mq-chip')].map((c) => c.getBoundingClientRect()); return [b.length, new Set(b.map((r) => Math.round(r.top))).size, Math.min(...b.map((r) => r.width)), Math.min(...b.map((r) => r.height))]; }")
+    check(rows[0] == 5 and rows[1] == 1 and rows[2] >= 44 and rows[3] >= 44, f"Chisme chips: one row of 5, every chip 44 px+ {rows}")
     trunc = await pg.evaluate("[...document.querySelectorAll('.view.active .mq-chip')].filter((c) => c.scrollWidth > c.clientWidth + 0.5).map((c) => c.textContent.trim())")
     check(not trunc, f"the 5 chips fit untruncated {trunc}")
     hi = await pg.evaluate("document.querySelector('#mix-hi').textContent")

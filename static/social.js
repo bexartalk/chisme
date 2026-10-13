@@ -1,5 +1,5 @@
 /* Chisme social, part 1. Runs inside the main app (index.html, after app.js): user Chismes sit in the Chisme feed
-   (mixed into All, plus the Homies / San Anto / Trending / Memes chips), ➕ CHISME opens from the bar there, and
+   (mixed into All; v49.20: no people chips, Memes in the ☰ menu, Homies in account setup), ➕ CHISME opens from the bar there, and
    profiles, Homies, alerts and settings open in place of the feed (#sx-view) from the feed and from the ☰ menu.
    Its routes are #s/... so they never collide with the app's own #news, #juegos... The owner's /stats/social
    moderation queue uses the same file (social.html, data-mode="mod"). Plain DOM, no framework.
@@ -162,7 +162,7 @@
     const [fc, code] = field("6-digit code", { inputmode: "numeric", autocomplete: "one-time-code", maxlength: "6", pattern: "[0-9]{6}", required: true });
     const f = form(async () => {
       const d = await api("/api/social/verify", { method: "POST", body: { email: emailAddr, code: code.value } });
-      if (d.ok) { await loadMe(); location.hash = "#s/edit"; toast("You're in! 🎉 Make your profile yours."); return; }
+      if (d.ok) { await loadMe(); location.hash = "#s/setup/homies"; toast("You're in! 🎉"); return; }   // v49.20: Find your Homies first
       return d.error;
     }, fc, el("button", { class: "btn pink sx-wide", type: "submit", text: "Confirm" }));
     const again = el("button", { type: "button", class: "sx-link", text: "Send a new code", onclick: async () => {
@@ -366,7 +366,6 @@
 
   // ------------------------------------------------ feeds
   const EMPTY = {
-    homies: "No chisme from your Homies yet. Find your people in 🤝 Homies.",
     sananto: "San Anto's quiet... too quiet. Be the first to spill. 🌶️",
     trending: "Nothing's trending yet. Give a Chile 🌶️ to what you love.",
     memes: "No memes yet?! Post one with #memes and get the 😂 rolling.",
@@ -380,7 +379,6 @@
       memes: ["😂 Memes", "The funniest stuff on Chisme. Tag yours #memes."],
     }[tab];
     page(head[0], el("section", { class: "card mix sx-feed" }, el("div", { class: "sec-head" }, el("h2", { text: head[0] })), el("p", { class: "hint", text: head[1] }), list));
-    if (tab === "homies" && !ME) { clear(list).append(guestCard()); return; }
     const d = await api("/api/social/feed?tab=" + tab);
     clear(list);
     if (!d.ok) { list.append(el("p", { class: "err", text: d.error })); return; }
@@ -453,6 +451,7 @@
     page(p.name, el("section", { class: "profile", style: { "--acc": acc } }, banner,
       el("div", { class: "p-top" }, avatar(p, 96), btns),
       nameEl(p, "h1", { class: "p-name" }), el("p", { class: "p-user", text: "@" + p.username }),
+      p.relation === "me" ? homiesHighlight(p) : null,
       p.area ? el("p", { class: "p-area", text: "📍 " + p.area + " • San Antonio" }) : null,
       p.bio ? richText(p.bio) : null,
       el("p", { class: "p-counts" }, el("b", { text: String(p.homies) }), " HOMIES 🤝",
@@ -746,6 +745,35 @@
     (s.people || []).forEach((p) => sugg.append(row(p, false)));
     if (!(s.people || []).length) sugg.append(el("p", { class: "empty small", text: "No suggestions yet. Invite your people to Chisme." }));
   }
+  // v49.20: Homies is part of account setup: right after you confirm your email, a featured "Find your Homies" step
+  // (people you might know, Homie or Nah?), then on to your profile. It can be skipped.
+  async function homiesStep() {
+    if (!needMe()) return;
+    const sugg = el("div", { class: "list" }, el("p", { class: "loading", text: "Looking for your people..." }));
+    page("Find your Homies", el("section", { class: "card sx-hl sx-setup" },
+      el("p", { class: "sx-step", text: "Step 1 of 2 · Account setup" }),
+      el("h1", { text: "🤝 Find your Homies" }),
+      el("p", { class: "sub", text: "Chisme is better with your people. Homies see your Homies Only Chismes, and you see theirs. Mutual only: both of y'all have to say yeah." }),
+      sugg,
+      el("div", { class: "sx-setup-btns" }, el("a", { class: "btn pink sx-wide", href: "#s/edit", text: "Next: make your profile ✏️" }),
+        el("a", { class: "btn ghost sx-wide sx-skip", href: "#s/edit", text: "Skip for now" })),
+      el("p", { class: "small", text: "You can find Homies any time from your profile or the ☰ menu." })));
+    const s = await api("/api/social/suggestions");
+    clear(sugg);
+    (s.people || []).slice(0, 6).forEach((p) => sugg.append(el("div", { class: "card person" }, el("a", { href: "#s/u/" + p.username, class: "who" }, avatar(p, 52),
+      el("span", {}, nameEl(p), el("small", { text: "@" + p.username + (p.mutual_homies ? ` · ${p.mutual_homies} Mutual Homies` : "") }))),
+      el("button", { type: "button", class: "btn acc", text: "Homie or Nah?", onclick: () => homieOrNah(p) }))));
+    if (!(s.people || []).length) sugg.append(el("p", { class: "empty small", text: "No suggestions yet. Invite your people to Chisme, and they'll show up here." }));
+  }
+  // v49.20: the highlighted Homies section near the top of your own profile
+  function homiesHighlight(p) {
+    const req = (ME && ME.requests) || 0;
+    return el("section", { class: "card sx-hl p-homies", "aria-label": "Your Homies" },
+      el("div", { class: "p-homies-t" }, el("b", { text: "🤝 Your Homies" }), el("span", { class: "p-homies-n", text: String(p.homies) }),
+        req ? el("span", { class: "pill pink", text: `${req} new request${req === 1 ? "" : "s"}` }) : null),
+      el("p", { class: "small", text: p.homies ? "Find more of your people. Homies see your Homies Only Chismes." : "No Homies yet. Find your people and get the chisme going." }),
+      el("a", { class: "btn pink", href: "#s/homies", text: req ? "Review requests 🤝" : "Find your Homies 🤝" }));
+  }
   async function alertsView() {
     if (!needMe()) return;
     const d = await api("/api/social/notifications");
@@ -889,7 +917,9 @@
     if (MODE === "mod") { document.body.classList.add("mod-mode"); return modView(); }
     if (IN_APP && !location.hash.startsWith("#s/")) { if (CH.classList.contains("sx-on")) leaveSocial(); return; }
     const h = decodeURIComponent(location.hash.slice(IN_APP ? 3 : 1) || "feed/sananto"), [a, b, c] = h.split("/");
-    if (a === "feed") return feed(["homies", "sananto", "trending", "memes"].includes(b) ? b : "sananto");
+    if (a === "feed" && b === "homies") return ME ? homiesView() : signIn();   // v49.20: no Homies feed card; Homies is the Homies page
+    if (a === "feed") return feed(["sananto", "trending", "memes"].includes(b) ? b : "sananto");
+    if (a === "setup" && b === "homies") return homiesStep();
     if (a === "u" && b) return profileView(b, ["photos", "videos"].includes(c) ? c : "chismes");
     if (a === "me") return ME ? profileView(ME.username) : signIn();
     if (a === "c" && b) return oneView(b);
@@ -938,10 +968,16 @@
     if (!list || mixIn.busy || list.querySelector(".sx-mix") || !list.querySelector(".mix-item")) return;
     mixIn.busy = true;
     try {
-      const d = mixIn.cache || (mixIn.cache = await api("/api/social/feed?tab=sananto"));
+      // v49.20: no San Anto / Trending chips, so both mix into All: the top Trending ones first, then San Anto's newest
+      const d = mixIn.cache || (mixIn.cache = await Promise.all([api("/api/social/feed?tab=trending"), api("/api/social/feed?tab=sananto")]).then(([t, s]) => {
+        const seen = new Set(), out = [];
+        (t.chismes || []).slice(0, 2).forEach((c) => { seen.add(c.id); out.push([c, "🔥 ", "Trending"]); });
+        (s.chismes || []).forEach((c) => { if (!seen.has(c.id)) out.push([c, "🌶️ ", "San Anto"]); });
+        return out.slice(0, 6);
+      }));
       const items = [...list.children].filter((n) => n.classList.contains("mix-item"));
-      (d.chismes || []).slice(0, 6).forEach((c, i) => {
-        const w = el("div", { class: "mix-item mix-people sx sx-mix" }, el("span", { class: "mix-tag" }, el("span", { "aria-hidden": "true", text: "🌶️ " }), "San Anto"), card(c));
+      d.forEach(([c, emo, tag], i) => {
+        const w = el("div", { class: "mix-item mix-people sx sx-mix" }, el("span", { class: "mix-tag" }, el("span", { "aria-hidden": "true", text: emo }), tag), card(c));
         const at = items[2 + i * 3]; at ? at.after(w) : list.append(w);
       });
     } finally { mixIn.busy = false; }

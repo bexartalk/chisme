@@ -110,6 +110,15 @@ check(r.status_code == 302 and r.headers["location"] == "/#s/feed/sananto", "/so
 page = c0.get("/").text
 check("➕ CHISME" in page and 'id="sx-chips"' in page and 'id="fb-menu"' in page and "/static/social.js" in page,
       "the main app's Chisme feed carries the social chips, the ➕ CHISME bar and the ☰ menu")
+_sj = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "social.js"), encoding="utf-8").read()
+check('data-sx=' not in page and page.count('class="mq-chip"', page.index('id="sx-chips"'), page.index("</nav>", page.index('id="sx-chips"'))) == 5,
+      "v49.20: one chip row (All · News · Sports · Events · Weather); no Homies / San Anto / Trending / Memes chips")
+check('location.hash = "#s/setup/homies"' in _sj and "Find your Homies" in _sj and "Skip for now" in _sj and 'a === "setup" && b === "homies"' in _sj,
+      "v49.20: right after the email code, a featured, skippable 'Find your Homies' setup step")
+check("homiesHighlight(p)" in _sj and 'p.relation === "me" ? homiesHighlight(p)' in _sj, "v49.20: a highlighted Homies section near the top of your own profile")
+check('r("😂", "Memes", "#s/feed/memes")' in _sj and 'tab=trending' in _sj[_sj.index("async function mixIn"):] and 'tab=sananto' in _sj[_sj.index("async function mixIn"):],
+      "v49.20: Memes stays in the ☰ menu; San Anto and Trending Chismes mix into All")
+check('if (tab === "homies" && !ME)' not in _sj and 'a === "feed" && b === "homies"' in _sj, "v49.20: no Homies card in the feed (#s/feed/homies opens the Homies page)")
 check(page.count('<header id="fbtop"') == 1 and page.count('data-view="chisme"') >= 1 and "LIVE" not in page and "Go Live" not in page,
       "one header (the app's own), no second Chisme section, no LIVE / Go Live")
 css = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "social.css")).read()

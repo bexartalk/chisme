@@ -301,3 +301,15 @@ html.reduce-motion .sx .p-hdr-air { animation: none; }
 html[data-season="muertos"] .sx .profile .p-hdr { box-shadow: none; }
 .sx .p-name { font-family: "Chisme Profile Display", "Arial Rounded MT Bold", system-ui, sans-serif; font-weight: 400; font-size: 2rem; line-height: 1.05; letter-spacing: .3px; margin: 10px 0 2px; }
 .sx .p-name .sx-bdg { font-family: system-ui, sans-serif; font-size: .7em; }
+
+/* v49.20 Homies in account setup: the featured step and the highlight on your own profile (turquoise + pink, no yellow) */
+.sx .sx-hl { border: 3px solid #00C9CD; background: linear-gradient(135deg, rgba(0,201,205,.16), rgba(255,26,127,.10)); box-shadow: 0 4px 0 #FF1A7F; }
+.sx .sx-step { display: inline-block; margin: 0 0 6px; padding: 2px 10px; border-radius: 999px; background: #000; color: #fff; font-weight: 900; font-size: .8rem; }
+.sx .sx-setup h1 { margin: 4px 0; }
+.sx .sx-setup .empty { padding: 10px 0; margin: 6px 0; }
+.sx .sx-setup-btns { display: grid; gap: 8px; margin-top: 12px; }
+.sx .sx-setup-btns .btn { min-height: 44px; text-align: center; }
+.sx .p-homies { margin: 10px 0; padding: 12px 14px; }
+.sx .p-homies-t { display: flex; align-items: center; gap: 8px; font-size: 1.05rem; }
+.sx .p-homies-n { min-width: 28px; padding: 0 8px; border-radius: 999px; background: #00C9CD; color: #000; font-weight: 900; text-align: center; }
+.sx .p-homies .btn { min-height: 44px; display: inline-flex; align-items: center; }
