@@ -217,7 +217,7 @@
   }
   function homiesOn() {
     if (!IN_APP || !location.hash.startsWith("#s/")) return false;
-    const [a, b] = decodeURIComponent(location.hash.slice(3)).split("/");
+    let a, b; try { [a, b] = decodeURIComponent(location.hash.slice(3)).split("/"); } catch (e) { return false; }   // a malformed #s/% hash
     if (a === "me") return true;
     if (a === "u" && ME && b && b.toLowerCase() === String(ME.username).toLowerCase()) return true;
     return !ME && (a === "signin" || a === "signup" || a === "forgot");
