@@ -261,12 +261,22 @@ body.sx-plain main { max-width: 680px; }
 .sx-bdg.blue { background: radial-gradient(circle at 32% 26%, rgba(255, 255, 255, .85) 0 9%, transparent 30%), linear-gradient(135deg, var(--tq), #0A6FD6);
   box-shadow: 0 0 0 1.5px var(--card); }
 /* v49.21 the 🌮 Golden Taco: a taco silhouette in the gold badge's metallic orange-gold + silver shine (never yellow) */
-.sx-bdg.taco { width: 1.4em; height: 1.05em; border-radius: 0; box-shadow: none; vertical-align: -.1em;
-  background: radial-gradient(circle at 34% 30%, #fff 0 7%, #E4E6E8 12%, transparent 30%),
-    linear-gradient(135deg, #8A2E00 0%, #FF6A0B 28%, #FFB27A 46%, #C0C0C0 54%, #FF6A0B 70%, #A33A00 100%);
+/* v49.22 shiny: a moving white/silver glint over a rich metallic orange-gold (deep copper, #FF6A0B, pale peach, silver), never lemon */
+.sx-bdg.taco { position: relative; width: 1.4em; height: 1.05em; border-radius: 0; box-shadow: none; vertical-align: -.1em;
+  background: linear-gradient(105deg, transparent 38%, rgba(255, 255, 255, .95) 47%, #E4E6E8 50%, rgba(255, 255, 255, .9) 53%, transparent 62%) 160% 0 / 260% 100% no-repeat,
+    radial-gradient(circle at 34% 30%, #fff 0 7%, #E4E6E8 12%, transparent 30%),
+    linear-gradient(160deg, #6E2400 0%, #B84A00 18%, #FF6A0B 36%, #FFB27A 50%, #C0C0C0 56%, #FF8A3D 66%, #C45200 82%, #6E2400 100%);
   -webkit-mask: url("/static/site/taco-badge.svg") center / contain no-repeat; mask: url("/static/site/taco-badge.svg") center / contain no-repeat;
-  filter: drop-shadow(0 0 .6px #C0C0C0); }
-.sx-bdg.taco::before { content: none; }
+  filter: drop-shadow(0 0 .6px #C0C0C0) drop-shadow(0 .06em .05em rgba(110, 36, 0, .45));
+  animation: sx-taco-shine 3.2s ease-in-out infinite; }
+/* the checkmark sits in the middle of the shell (white with a copper edge so it reads on the gold, even small) */
+.sx-bdg.taco::before { content: "✓"; position: absolute; left: 50%; top: 80%; transform: translate(-50%, -50%); font-size: .5em; font-weight: 900;
+  color: #fff; text-shadow: 0 0 1px #6E2400, 0 1px 0 #6E2400; line-height: 1; }
+@keyframes sx-taco-shine { 0%, 55% { background-position: 160% 0, 0 0, 0 0; } 100% { background-position: -60% 0, 0 0, 0 0; } }
+@media (prefers-reduced-motion: reduce) { .sx-bdg.taco { animation: none; } }
+html.reduce-motion .sx-bdg.taco { animation: none; }
+/* bigger on the profile page so the gold reads clearly; the small one stays next to names in feeds */
+.sx .p-name .sx-bdg.taco { font-size: 1.3em; margin-left: .2em; }
 .sx .bdgs { display: inline-flex; align-items: center; white-space: nowrap; vertical-align: baseline; }
 .sx .bdgs .sx-bdg { vertical-align: 0; }
 .sx .taco-h { display: flex; align-items: center; gap: 4px; margin: 10px 0 0; font-size: 1rem; }
