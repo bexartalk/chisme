@@ -200,21 +200,12 @@
     if (typeof menuRows === "function") menuRows();   // v49.16: keep the ☰ rows in step with who's signed in
     const dot = $("#sx-dot"); if (dot) dot.hidden = !(d.unread > 0 || d.requests > 0);
     if (ME) document.documentElement.style.setProperty("--sx-acc", ME.accent_hex || "#00C9CD");
-    homiesIcon();
     const face = $("#sx-face"); if (face) { clear(face); if (ME) face.replaceWith(Object.assign(avatar(ME, 40), { id: "sx-face" })); }
     return ME;
   }
-  // v49.22: the bottom bar's Homies tab: your photo (else the person icon), and lit while your own profile (or, signed
+  // v49.22: the bottom bar's Homies tab is lit while your own profile (or, signed
   // out, Sign in / Join) is showing. app.js's updateTabs() reads html[data-homies].
-  const HOM = $("#tab-homies"), HOM_SVG = HOM ? HOM.querySelector(".tab-homies-ico svg") : null;
-  function homiesIcon() {
-    if (!HOM) return;
-    const ico = HOM.querySelector(".tab-homies-ico"), want = ME && ME.photo ? ME.photo : "";
-    if (ico.dataset.photo === want) return;
-    ico.dataset.photo = want;
-    if (want) clear(ico).append(el("img", { src: want, alt: "", width: 28, height: 28, decoding: "async" }));
-    else if (HOM_SVG) clear(ico).append(HOM_SVG.cloneNode(true));
-  }
+  const HOM = $("#tab-homies");   // its icon is fixed art (two homies), not your photo
   function homiesOn() {
     if (!IN_APP || !location.hash.startsWith("#s/")) return false;
     let a, b; try { [a, b] = decodeURIComponent(location.hash.slice(3)).split("/"); } catch (e) { return false; }   // a malformed #s/% hash

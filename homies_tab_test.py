@@ -1,7 +1,7 @@
 """v49.22: the Homies tab. The bottom tab bar is Homies · ¿Y la dieta? (Ofrendas in the Día de Muertos season) · Chisme ·
 Juegos · Tía, with Chisme in the middle.
   • Homies opens your own profile (the page with the 🤝 Your Homies section) and is the current tab while it shows (the same
-    pink pill + bar as the other tabs); signed out it opens Sign in / Join. Its icon is your photo, else a person icon.
+    pink pill + bar as the other tabs); signed out it opens Sign in / Join. Its icon is its own art: two homies fist-bumping.
   • 5 tabs, one row, 44 px+ targets, nothing wraps (but '¿Y la dieta?', which may take 2 lines) or spills past the edge at
     320, 360, 390 and 430 px; Chisme's tab sits in the middle of the screen; no yellow on the bar.
   • the bar still slides away on scroll down and comes back on scroll up with your profile open; Chisme / other tabs leave it.
@@ -109,7 +109,13 @@ async def main():
                     check(sw[0] <= sw[1], f"{tag}: no sideways scroll {sw}")
                     yl = await pg.evaluate(YELLOW); check(not yl, f"{tag}: no yellow on the tab bar {yl[:3]}")
                     if w == 390 and season == "off":
-                        check(await pg.evaluate("!!document.querySelector('#tab-homies .tab-homies-ico svg')"), "signed out: Homies shows the person icon")
+                        ic = await pg.evaluate("""() => { const i = document.querySelector('#tab-homies .tab-homies-ico'), sv = i && i.querySelector('svg.homies-ico'), r = sv ? sv.getBoundingClientRect() : {};
+                          return { svg: !!sv, img: !!i.querySelector('img'), html: sv ? sv.outerHTML : '', w: r.width, h: r.height }; }""")
+                        import re as _re
+                        cols = set(c.upper() for c in _re.findall(r"#[0-9A-Fa-f]{3,6}\b", ic["html"]))
+                        check(ic["svg"] and not ic["img"] and len(ic["html"]) < 3000 and "script" not in ic["html"].lower() and " on" not in ic["html"].lower().replace(" one", "")
+                              and {"#00C9CD", "#FF1A7F", "#FF6A0B"} <= cols and cols <= {"#00C9CD", "#FF1A7F", "#FF6A0B", "#000", "#FFF"} and 24 <= ic["w"] <= 32,
+                              f"Homies has its own two-homies icon (small inline SVG, palette only {sorted(cols)}, no script, {ic['w']}px)")
                         await pg.click("#tab-homies"); await pg.wait_for_timeout(1200)
                         s = await pg.evaluate("""() => ({ hash: location.hash, cur: document.querySelector('#tab-homies').getAttribute('aria-current'),
                           ch: document.querySelector('#tabs .tab[data-view=chisme]').getAttribute('aria-current'), txt: (document.querySelector('#sx-view') || {}).textContent || '',
@@ -165,8 +171,8 @@ async def main():
                     s = await pg.evaluate("[document.querySelector('#tab-homies').getAttribute('aria-current'), document.querySelector('#tabs .tab[data-view=juegos]').getAttribute('aria-current'), location.hash]")
                     check(s[0] is None and s[1] == "page" and not s[2].startswith("#s/"), f"Juegos from your profile: Juegos current, profile closed {s}")
                     # your photo becomes the icon
-                    has = await pg.evaluate("!!document.querySelector('#tab-homies .tab-homies-ico svg')")
-                    check(has, "no photo yet: the person icon")
+                    has = await pg.evaluate("[!!document.querySelector('#tab-homies .tab-homies-ico svg.homies-ico'), !!document.querySelector('#tab-homies img')]")
+                    check(has == [True, False], "signed in: still the two-homies icon (never your photo)")
                 await pg.close()
                 if c2 is not ctx: await c2.close()
             await ctx.close()

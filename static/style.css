@@ -1909,13 +1909,10 @@ dialog.reel-share[open]{animation:rs-up .22s ease-out}
   .tabs .tab-tia.tia-on{color:var(--fb-turq)}
   .tabs .tab-tia.tia-on > span[aria-hidden]:first-child{background:var(--fb-turq)}
   @media (max-width:359px){ .tabs .tab-tia .tab-tia-ico img{width:24px;height:24px} }
-  /* v49.22: Homies' tab (far left): your photo in a pink ring (like Tía's), else a person icon; it opens your profile and is the
+  /* v49.22: Homies' tab (far left): its own icon (two homies fist-bumping); it opens your profile and is the
      current tab (turquoise pill + pink bar) while your profile is showing */
-  .tabs .tab-homies .tab-homies-ico svg{display:block;width:26px;height:26px;color:#fff}
-  .tabs .tab-homies[aria-current="page"] .tab-homies-ico svg{color:#000}
-  .tabs .tab-homies .tab-homies-ico img{display:block;width:28px;height:28px;border-radius:50%;object-fit:cover;box-shadow:0 0 0 2px var(--fb-pink);background:#0b0b2a}
-  .tabs .tab-homies[aria-current="page"] .tab-homies-ico img{box-shadow:0 0 0 2px #000}
-  @media (max-width:359px){ .tabs .tab-homies .tab-homies-ico img{width:24px;height:24px} .tabs .tab-homies .tab-homies-ico svg{width:22px;height:22px} }
+  .tabs .tab-homies .tab-homies-ico svg{display:block;width:30px;height:30px}   /* v49.22: two homies fist-bumping (turquoise / orange tees, pink backwards cap); the same on the pink pill */
+  @media (max-width:359px){ .tabs .tab-homies .tab-homies-ico svg{width:26px;height:26px} }
 
   /* --- hidden (scrolling down): both bars slide off and fade out; the status-bar strip (.fb-safe) stays at the top */
   html.fb-hide .fbtop,html.feed-open .fbtop{transform:translateY(calc(-1 * var(--fb-up)));opacity:0;box-shadow:none}
