@@ -1074,6 +1074,46 @@
     });
     const ml = $("#mix-list"); if (ml) new MutationObserver(() => mixIn()).observe(ml, { childList: true });
   }
+  // v49.22 the sign-up nudge ("Join the Metiches"): signed-out phones only. After NUDGE.first ms of ACTIVE use (the page
+  // visible) a sheet pitches an account; "Not now" lets them browse. Again after NUDGE.again more active ms, at most
+  // NUDGE.perSession a visit, and on later visits at most once a day (localStorage chisme-nudge = { day }). Never while a
+  // video / reel / game / dialog is up (it waits), never on legal pages or the sign-in screens, never when sign-ups are
+  // closed for this visitor. Tests shorten the timings with window.__CHISME_NUDGE = { first, again, tick }.
+  const NUDGE = Object.assign({ first: 3 * 60e3, again: 10 * 60e3, tick: 1000, perSession: 2 }, window.__CHISME_NUDGE || {});
+  const nudge = { active: 0, due: NUDGE.first, shown: 0 };
+  const today = () => new Date().toLocaleDateString("en-CA");
+  function nudgeStore(v) { try { if (v) localStorage.setItem("chisme-nudge", JSON.stringify(v)); return JSON.parse(localStorage.getItem("chisme-nudge") || "{}") || {}; } catch (e) { return {}; } }
+  function nudgeAllowed() {
+    if (ME || !CFG || !CFG.accounts || CFG.signups_public === false) return false;   // signed in, or sign-ups closed for this visitor
+    if (nudge.shown >= NUDGE.perSession || (nudge.shown === 0 && nudgeStore().day === today())) return false;
+    const h = document.documentElement;
+    if (h.classList.contains("dk") || location.pathname !== "/") return false;   // phones / the app only; not /terms, /privacy, /dmca …
+    if (/^#s\/(signin|signup|forgot|setup)/.test(location.hash)) return false;
+    return true;
+  }
+  function nudgeBusy() {
+    const h = document.documentElement;
+    return !$("#sheet").hidden || !!document.querySelector("dialog[open]") || h.classList.contains("feed-open") || h.classList.contains("game-fs")
+      || h.classList.contains("a2hs-open") || [...document.querySelectorAll("video")].some((v) => !v.paused && !v.ended);
+  }
+  function showNudge() {
+    nudge.shown += 1; nudge.due = nudge.active + NUDGE.again; nudgeStore({ day: today() });
+    const perk = (emo, t) => el("li", {}, el("span", { "aria-hidden": "true", text: emo }), " " + t);
+    sheet("Join the Metiches 👀", el("div", { class: "sx-nudge" },
+      el("p", { class: "nudge-pitch", text: "Make a free account and get in on the chisme." }),
+      el("ul", { class: "nudge-perks" }, perk("❤️", "Like and react to Chismes"), perk("💬", "Comment and spill your side"),
+        perk("🔖", "Save the good stuff"), perk("🤝", "Find your Homies")),
+      el("div", { class: "nudge-btns" },
+        el("a", { class: "btn pink sx-wide", id: "nudge-join", href: "#s/signup", onclick: () => closeSheet() }, "Join Chisme"),
+        el("button", { type: "button", class: "btn ghost sx-wide", id: "nudge-later", onclick: closeSheet }, "Not now"))));
+    $("#sheet").classList.add("is-nudge"); sheetBack = () => $("#sheet").classList.remove("is-nudge");
+  }
+  if (IN_APP && MODE === "app") setInterval(() => {
+    if (document.visibilityState !== "visible") return;
+    nudge.active += NUDGE.tick;
+    if (nudge.active >= nudge.due && nudgeAllowed() && !nudgeBusy()) showNudge();   // busy: try again next tick
+  }, NUDGE.tick);
+  window.__chismeNudge = { state: () => ({ ...nudge, allowed: nudgeAllowed(), busy: nudgeBusy() }) };
   window.addEventListener("hashchange", route);
   (async () => {
     const c = await api("/api/social/config");
