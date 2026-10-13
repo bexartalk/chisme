@@ -242,7 +242,22 @@
   // v49.21 the 🌮 Golden Taco: a metallic orange-gold taco next to the name, alongside the gold / blue check
   const TACO_LABEL = "Golden Taco: verified by Chisme";
   function tacoEl(u) { return u && u.taco ? el("i", { class: "sx-bdg taco", role: "img", "aria-label": TACO_LABEL, title: TACO_LABEL }) : null; }
-  function nameEl(u, tag = "b", attrs = {}) { const b = [badgeEl(u), tacoEl(u)].filter(Boolean); return el(tag, attrs, u.name || "", b.length ? el("span", { class: "bdgs" }, ...b) : null); }
+  // v49.21: the Golden Taco replaces the round gold / blue check (it has its own ✓). The last word of the name and the
+  // badge stay together on one line, so the badge never drops to a line by itself.
+  function nameEl(u, tag = "b", attrs = {}) {
+    const b = u && u.taco ? [tacoEl(u)] : [badgeEl(u)].filter(Boolean), name = String(u.name || "");
+    if (!b.length) return el(tag, attrs, name);
+    const cut = name.trimEnd().lastIndexOf(" ");
+    return el(tag, attrs, cut > 0 ? name.slice(0, cut + 1) : "", el("span", { class: "bdgs" }, cut > 0 ? name.slice(cut + 1) : name, ...b));
+  }
+  // v49.21: on a profile the name and its badge share ONE line: shrink the name (and the big taco with it) until it fits
+  function fitName(h) {
+    if (!h || !h.isConnected) return;
+    h.style.fontSize = "";
+    const lh = () => parseFloat(getComputedStyle(h).fontSize) * 1.25;
+    let fs = parseFloat(getComputedStyle(h).fontSize);
+    while (h.getBoundingClientRect().height > lh() && fs > 16) { fs -= 1; h.style.fontSize = fs + "px"; }
+  }
   function richText(t) {
     const p = el("p", { class: "sx-txt" });
     String(t || "").split(/([#@][\w]{1,40})/u).forEach((part) => {
@@ -453,13 +468,16 @@
     if (!d.chismes.length && !d.pinned) list.append(el("p", { class: "empty", text: tab === "chismes" ? "No Chismes yet." : "Nothing here yet." }));
     page(p.name, el("section", { class: "profile", style: { "--acc": acc } }, banner,
       el("div", { class: "p-top" }, avatar(p, 96), btns),
-      nameEl(p, "h1", { class: "p-name" }), el("p", { class: "p-user", text: "@" + p.username }),
+      nameEl(p, "h1", { class: "p-name sx-fit" }), el("p", { class: "p-user", text: "@" + p.username }),
       p.relation === "me" ? homiesHighlight(p) : null,
       p.area ? el("p", { class: "p-area", text: "📍 " + p.area + " • San Antonio" }) : null,
       p.bio ? richText(p.bio) : null,
       el("p", { class: "p-counts" }, el("b", { text: String(p.homies) }), " HOMIES 🤝",
         p.relation !== "me" && p.mutual_homies ? el("span", {}, " · ", el("b", { text: String(p.mutual_homies) }), " Mutual Homies") : null),
       p.under_review ? el("p", { class: "note", text: "Your profile is being reviewed after some reports. You can still use Chisme." }) : null, tabs), list);
+    const fit = () => fitName(view.querySelector(".p-name.sx-fit"));
+    fit(); if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit);
+    if (!fitName.on) { fitName.on = true; addEventListener("resize", () => fitName(view.querySelector(".p-name.sx-fit"))); }
   }
   // v49.19 the profile header: the app icon's look (turquoise, Fiesta confetti, the Chisme bubble) with a cartoon San Antonio
   // skyline along the bottom, or the person's own header photo. The owner gets 📷 Change header (+ Remove).

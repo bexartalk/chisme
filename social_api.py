@@ -546,7 +546,7 @@ def install(app: FastAPI, *, owner: Callable[..., Awaitable[bool]], public_base:
         await X.promote_owner(prof["id"], email)
         if not prof.get("verified") and prof.get("role") != "admin" and X.normalize_email(email) != X.owner_email():
             await X.notify_admins(prof["id"], "new_user")   # the admin's alerts: a new metiche to look at
-        r = ok({"username": prof["username"]})
+        r = ok({"username": X.display_handle(prof["username"])})
         await X.start_session(r, request, prof["id"])
         return r
 
@@ -587,7 +587,7 @@ def install(app: FastAPI, *, owner: Callable[..., Awaitable[bool]], public_base:
             raise X.Bad("This account is closed.", 403)
         if not prof.get("verified"):
             await S.db().update("social_profiles", [("id", "eq", prof["id"])], {"verified": True})
-        r = ok({"username": prof["username"]})
+        r = ok({"username": X.display_handle(prof["username"])})
         await X.promote_owner(prof["id"], email)
         await X.start_session(r, request, prof["id"])
         return r
@@ -1126,7 +1126,7 @@ def install_chismes(app: FastAPI, is_owner, reel_lookup, reel_id) -> None:
         if tab in ("sananto", "trending") and v.id:   # a private NAH just shows them less (pushed down, never hidden from them)
             nah = await v.nahs()
             if nah:
-                ids = {p["id"]: p["username"] for p in await S.db().select("social_profiles", [("id", "in", list(nah))], cols=["id", "username"])}
+                ids = {p["id"]: X.display_handle(p["username"]) for p in await S.db().select("social_profiles", [("id", "in", list(nah))], cols=["id", "username"])}
                 names = set(ids.values())
                 items = [c for c in items if c["author"]["username"] not in names] + [c for c in items if c["author"]["username"] in names]
         return ok({"tab": tab, "chismes": items[:20], "signed_in": bool(v.id)})
@@ -1378,8 +1378,8 @@ def install_chismes(app: FastAPI, is_owner, reel_lookup, reel_id) -> None:
         await S.db().update("social_profiles", [("id", "eq", p["id"])], fields)
         v = await X.viewer(request)
         await S.db().insert("social_admin_audit", {"id": X.new_id(), "actor_id": v.me["id"] if v.me else None,
-                                                   "actor": ("@" + v.me["username"]) if v.me else "owner (stats sign-in)",
-                                                   "target_id": p["id"], "target_username": p["username"],
+                                                   "actor": ("@" + X.display_handle(v.me["username"])) if v.me else "owner (stats sign-in)",
+                                                   "target_id": p["id"], "target_username": X.display_handle(p["username"]),
                                                    "action": "golden_taco_grant" if on else "golden_taco_revoke", "created_at": S.now_iso()})
         return ok({"profile": X.mini({**p, **fields})})
 

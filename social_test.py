@@ -529,7 +529,10 @@ check(X.username_problem("goonie_tx") == "" and X.username_problem("gnome") == "
 boss, r = join("boss_goonie", "Goonie", email="boss.goonie@example.com")
 asyncio.run(S.db().update("social_profiles", [("username", "eq", "goonie")], {"created_at": S.now_iso(time.time() - 10 * 86400)}))
 bme = boss.get("/api/social/me").json()
-check(bme["me"]["username"] == "goonie", f"reserved: the owner (SOCIAL_OWNER_EMAIL) gets @goonie automatically at sign-up (typed boss_goonie → {bme['me']['username']})")
+check(bme["me"]["username"] == "Goonie" and asyncio.run(X.profile_by(username="goonie"))["username"] == "goonie"
+      and anon.get("/api/social/u/Goonie").json()["profile"]["username"] == "Goonie" and anon.get("/api/social/u/goonie").status_code == 200,
+      "the owner's handle shows as @Goonie (capital G); stored lowercase so lookups and uniqueness stay case-insensitive")
+check(bme["me"]["username"].lower() == "goonie", f"reserved: the owner (SOCIAL_OWNER_EMAIL) gets @goonie automatically at sign-up (typed boss_goonie → {bme['me']['username']})")
 check(bme["me"].get("taco") is True, "the owner has the 🌮 Golden Taco by default")
 check(r.status_code == 200 and bme["admin"] is True and bme["me"]["badge"] == "gold", "SOCIAL_OWNER_EMAIL's account is the admin, with the gold badge")
 check(goonie.get("/api/social/me").json()["admin"] is False, "everyone else isn't")
@@ -562,10 +565,10 @@ check(r.status_code == 200 and r.json()["profile"]["taco"] is False, "Golden Tac
 check(boss.post("/api/social/admin/golden-taco", json={"username": "goonie", "on": False}, headers=H).status_code == 400, "…but the owner's stays")
 _log = sorted(asyncio.run(S.db().select("social_admin_audit", [], limit=10)), key=lambda x: x["created_at"])
 _lupe = asyncio.run(X.profile_by(username="lupe")); _boss = asyncio.run(X.profile_by(username="goonie"))
-check([x["action"] for x in _log] == ["golden_taco_grant", "golden_taco_revoke"] and all(x["actor_id"] == _boss["id"] and x["actor"] == "@goonie" and x["target_id"] == _lupe["id"]
+check([x["action"] for x in _log] == ["golden_taco_grant", "golden_taco_revoke"] and all(x["actor_id"] == _boss["id"] and x["actor"] == "@Goonie" and x["target_id"] == _lupe["id"]
       and x["target_username"] == "lupe" and x["created_at"] for x in _log), f"Golden Taco: grant + revoke audited (who, target, action, time) {_log}")
 _q = boss.get("/stats/social/queue", headers=H).json()
-check(any(u["username"] == "goonie" for u in _q.get("tacos", [])) and sorted(x["action"] for x in _q.get("taco_log", [])) == ["golden_taco_grant", "golden_taco_revoke"],
+check(any(u["username"] == "Goonie" for u in _q.get("tacos", [])) and sorted(x["action"] for x in _q.get("taco_log", [])) == ["golden_taco_grant", "golden_taco_revoke"],
       f"☰ Admin → Moderation lists Golden Taco holders and the audit log {str(_q)[:300]}")
 check(goonie.get("/stats/social/queue", headers=H).status_code in (401, 403, 404), "…and only the admin sees it")
 boss.post("/api/social/admin/badge", json={"username": "lupe", "badge": "none"}, headers=H)
@@ -662,6 +665,9 @@ check(all(c in _tc.group(1) for c in ("#6E2400", "#FF6A0B", "#FFB27A", "#C0C0C0"
       "the Golden Taco: metallic orange-gold + white/silver glint (no yellow), shimmer stops with reduced motion (OS or app), ✓ in the middle, bigger on profiles")
 check(_tc and "#FF6A0B" in _tc.group(1) and "#C0C0C0" in _tc.group(1) and not _re.search(r"#FF(D|E|F)[0-9A-F]00|#FFFF00|gold\b|yellow", _tc.group(1), _re.I)
       and "taco" in _sj and "/api/social/admin/golden-taco" in _sj, "the Golden Taco badge renders: orange-gold + silver (the gold style), no yellow; grant/revoke in the sheet")
+check("u && u.taco ? [tacoEl(u)] : [badgeEl(u)]" in _sj and 'el("span", { class: "bdgs" }' in _sj and "function fitName" in _sj and "sx-fit" in _sj,
+      "the Golden Taco replaces the round check (only the taco shows); it stays on the name's line (profiles shrink the name to fit)")
+check(boss.post("/api/social/admin/badge", json={"username": "Goonie", "badge": "none"}, headers=H).status_code == 400, "…@Goonie works as typed in admin calls too")
 _m3 = open(f"{HERE}/supabase/migrations/20261012200000_social_admin_badges.sql").read()
 check("check (badge is null or badge in ('gold', 'blue'))" in _m3 and "social_badges_admin_only" in _m3 and "'held'" in _m3 and "force row level security" in _m3,
       "the badge migration: gold/blue only, server-only trigger, held status, RLS forced")

@@ -181,7 +181,12 @@ def clean_username(v) -> str:
 
 # v49.21: @goonie is reserved for the owner (SOCIAL_OWNER_EMAIL). Lookalikes (g00nie, goonie_, go_onie, gooonie, goon1e,
 # goonle) are refused for everyone, the owner included. The DB enforces the same rule (social_username_skeleton()).
-OWNER_HANDLE = "goonie"
+OWNER_HANDLE = "goonie"          # stored lowercase (the p1 table's ^[a-z0-9_]{3,20}$ check, case-insensitive uniqueness)
+OWNER_DISPLAY = "Goonie"         # v49.21: shown with a capital G everywhere (@Goonie)
+
+
+def display_handle(u: str) -> str:
+    return OWNER_DISPLAY if u == OWNER_HANDLE else u
 _SKEL = str.maketrans({"0": "o", "1": "i", "l": "i", "!": "i", "3": "e", "4": "a", "5": "s", "7": "t", "8": "b", "_": None})
 
 
@@ -398,7 +403,7 @@ async def session_uid(request: Request) -> str | None:
 async def profile_by(uid: str | None = None, username: str | None = None) -> dict | None:
     if uid:
         rows = await S.db().select("social_profiles", [("id", "eq", uid)], limit=1)
-    elif username and USER_RX.match(username):
+    elif username and USER_RX.match(username := username.lower()):
         rows = await S.db().select("social_profiles", [("username", "eq", username)], limit=1)
     else:
         return None
@@ -531,7 +536,7 @@ def badge_of(p: dict) -> str | None:
 
 
 def mini(p: dict) -> dict:
-    return {"username": p["username"], "name": p["display_name"], "photo": photo_url(p.get("photo")),
+    return {"username": display_handle(p["username"]), "name": p["display_name"], "photo": photo_url(p.get("photo")),
             "accent": p.get("accent") if p.get("accent") in ACCENTS else "turquoise", "fresh": age_hours(p) < FRESH_DAYS * 24,
             "badge": badge_of(p), "taco": golden_taco_of(p)}
 

@@ -15,7 +15,8 @@ $$;
 alter table public.social_profiles add column if not exists golden_taco boolean not null default false;
 alter table public.social_profiles add column if not exists golden_taco_at timestamptz;
 
--- the owner's handle: only the admin row may be exactly 'goonie'; nobody (the admin included) may hold a lookalike
+-- the owner's handle: only the admin row may be exactly 'goonie' (stored lowercase, as the p1 username check requires and so
+-- uniqueness stays case-insensitive; the app shows it as @Goonie); nobody (the admin included) may hold a lookalike
 alter table public.social_profiles drop constraint if exists social_profiles_goonie_reserved;
 alter table public.social_profiles add constraint social_profiles_goonie_reserved check (
   public.social_username_skeleton(username) <> 'gonie' or (username = 'goonie' and role = 'admin'));
