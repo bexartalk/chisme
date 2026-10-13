@@ -10,7 +10,7 @@
   • Weather is the Chisme tab's 5th chip (All · News · Sports · Events · Weather) in every chip row; it shows the old Weather
     tab (alerts, current, radar, forecast) with the Chisme tab lit; #weather, #radar, #radar-sec, #forecast-sec, #alerts and
     ?tab=weather land there; the Chisme tab goes back to the Weather chip if that was the last one
-  • the bottom tabs: Chisme · ¿Y la dieta? (Ofrendas in the season) · Juegos · Tía; Tía (her avatar) opens her chat and
+  • the bottom tabs (v49.22): Homies · ¿Y la dieta? (Ofrendas in the season) · Chisme · Juegos · Tía; Tía (her avatar) opens her chat and
     is lit while it's open; the bars still hide on scroll down / come back on scroll up
   • ¿Y la dieta? ↔ Ofrendas: with the clock mocked to Oct 10 2026 (no pin) the 2nd tab reads Ofrendas, with it mocked to
     Nov 5 2026 it reads ¿Y la dieta? (the season is over) in the same slot
@@ -213,7 +213,7 @@ async def season(b):
     for when, ms, want, on in (("Oct 10 2026", 1791633600000, "Ofrendas", True), ("Nov 5 2026", 1793880000000, "¿Y la dieta?", False)):
         ctx, pg = await open_page(b, season="auto", now=ms)
         r = await pg.evaluate("() => [new Date().toISOString(), document.documentElement.dataset.season || '', [...document.querySelectorAll('#tabs .tab')].filter((t) => t.getClientRects().length).map((t) => t.textContent.trim()), getComputedStyle(document.querySelector('.fb-confetti')).display, document.querySelector('#view-antojos').getAttribute('aria-label')]")
-        check(r[2][1].endswith(want) and (r[1] == "muertos") == on and len(r[2]) == 4 and r[2][2].endswith("Juegos") and r[2][3].endswith("Tía"),
+        check(r[2][1].endswith(want) and (r[1] == "muertos") == on and len(r[2]) == 5 and r[2][3].endswith("Juegos") and r[2][4].endswith("Tía"),
               f"{when}: the 2nd tab reads {want} (season {'on' if on else 'off'}) {r[:3]}")
         check((r[3] != "none") == on and r[4] == want, f"{when}: confetti {'on' if on else 'off'}, the food view is named {want} ({r[3]}, {r[4]!r})")
         await pg.screenshot(path=os.path.join(OUT, f"season-{'on' if on else 'over'}.png"))
@@ -264,7 +264,8 @@ async def no_yellow(b):
 async def desktop(b):
     print("\n== desktop 1280×800")
     ctx, pg = await open_page(b, 1280, 800, ua=None)
-    r = await pg.evaluate("""() => ({ dk: document.documentElement.classList.contains('dk'), tabs: [...document.querySelectorAll('#tabs .tab')].filter((t) => t.getClientRects().length).map((t) => t.textContent.trim()),
+    r = await pg.evaluate("""() => ({ dk: document.documentElement.classList.contains('dk'), tabs: [...document.querySelectorAll('#tabs .tab')].filter((t) => t.getClientRects().length)
+        .sort((a, b) => a.getBoundingClientRect().left - b.getBoundingClientRect().left).map((t) => t.textContent.trim()),   // v49.22: on screen order (CSS keeps Chisme first)
       set: !!document.querySelector('#tabs #settings-btn'), fab: getComputedStyle(document.querySelector('#tia-btn')).display !== 'none', top: getComputedStyle(document.querySelector('#fbtop')).display,
       chips: [...document.querySelectorAll('#view-chisme .mq-chip')].map((c) => c.dataset.go), over: document.querySelector('#tabs').scrollWidth > document.querySelector('#tabs').clientWidth + 1 })""")
     check(r["dk"] and len(r["tabs"]) == 3 and r["tabs"][0].endswith("Chisme") and r["tabs"][2].endswith("Juegos") and not any("Tía" in t or "Weather" in t for t in r["tabs"]),
@@ -286,7 +287,7 @@ async def native(b):
     tabs = await pg.evaluate(TABS); t = await pg.evaluate(TOP)
     await pg.click("#tab-tia"); await pg.wait_for_timeout(600)
     tia = await pg.evaluate("document.querySelector('#tia').open")
-    check([x["v"] for x in tabs] == ["chisme", "antojos", "juegos", "tab-tia"] and t["menuLabel"].startswith("Menu") and tia and not pg.errs, f"the store app's user agent: same nav, Tía opens, no errors {pg.errs[:2]}")
+    check([x["v"] for x in tabs] == ["tab-homies", "antojos", "chisme", "juegos", "tab-tia"] and t["menuLabel"].startswith("Menu") and tia and not pg.errs, f"the store app's user agent: same nav, Tía opens, no errors {pg.errs[:2]}")
     await ctx.close()
 
 async def main():
