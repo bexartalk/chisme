@@ -239,7 +239,10 @@
   // a GOLD or BLUE badge next to a name (only the admin can give them; the server decides who has one)
   const BADGE_LABEL = { gold: "Gold badge", blue: "Blue badge" };
   function badgeEl(u) { return u && BADGE_LABEL[u.badge] ? el("i", { class: "sx-bdg " + u.badge, role: "img", "aria-label": BADGE_LABEL[u.badge], title: BADGE_LABEL[u.badge] }) : null; }
-  function nameEl(u, tag = "b", attrs = {}) { return el(tag, attrs, u.name || "", badgeEl(u)); }
+  // v49.21 the 🌮 Golden Taco: a metallic orange-gold taco next to the name, alongside the gold / blue check
+  const TACO_LABEL = "Golden Taco: verified by Chisme";
+  function tacoEl(u) { return u && u.taco ? el("i", { class: "sx-bdg taco", role: "img", "aria-label": TACO_LABEL, title: TACO_LABEL }) : null; }
+  function nameEl(u, tag = "b", attrs = {}) { const b = [badgeEl(u), tacoEl(u)].filter(Boolean); return el(tag, attrs, u.name || "", b.length ? el("span", { class: "bdgs" }, ...b) : null); }
   function richText(t) {
     const p = el("p", { class: "sx-txt" });
     String(t || "").split(/([#@][\w]{1,40})/u).forEach((part) => {
@@ -505,9 +508,20 @@
     const opt = (b, label, sub) => el("button", { type: "button", class: "item sx-big", "aria-pressed": cur === b ? "true" : "false", onclick: () => set(b) },
       b === "none" ? el("span", { "aria-hidden": "true", text: "✖️" }) : el("i", { class: "sx-bdg " + b, "aria-hidden": "true" }), " " + label,
       el("small", { class: "small", text: " " + sub }), cur === b ? el("b", { class: "pill", text: "Now" }) : null);
+    const taco = async (on) => {   // v49.21: admin only on the server too; every grant / revoke goes in the audit log
+      const d = await api("/api/social/admin/golden-taco", { method: "POST", body: { username: p.username, on } });
+      closeSheet(); toast(d.ok ? (on ? "Golden Taco given 🌮" : "Golden Taco taken back") : d.error);
+      if (d.ok) (after || route)();
+    };
+    const owner = p.role === "admin" || p.relation === "me" && ME && ME.admin;
     sheet("🏅 Badge for @" + p.username, el("div", { class: "menu badge-pick" },
       el("p", { class: "small", text: "Badges show next to their name everywhere. Only you can give them." }),
-      opt("gold", "Gold", "the real deal, VIPs"), opt("blue", "Blue", "checked, trusted (skips new-user review)"), opt("none", "No badge", "take it off")));
+      opt("gold", "Gold", "the real deal, VIPs"), opt("blue", "Blue", "checked, trusted (skips new-user review)"), opt("none", "No badge", "take it off"),
+      el("h3", { class: "taco-h" }, el("i", { class: "sx-bdg taco", "aria-hidden": "true" }), " Golden Taco"),
+      el("p", { class: "small", text: "Chisme's own verified mark. It sits next to their gold or blue badge. Every grant and revoke is logged." }),
+      owner ? el("p", { class: "small taco-own", text: "🌮 The owner's Golden Taco stays." })
+        : p.taco ? el("button", { type: "button", class: "item sx-big taco-btn", "aria-pressed": "true", onclick: () => taco(false) }, el("i", { class: "sx-bdg taco", "aria-hidden": "true" }), " Revoke the Golden Taco", el("b", { class: "pill", text: "Has it" }))
+        : el("button", { type: "button", class: "item sx-big taco-btn", "aria-pressed": "false", onclick: () => taco(true) }, el("i", { class: "sx-bdg taco", "aria-hidden": "true" }), " Grant the Golden Taco")));
   }
   function homieOrNah(p) {
     if (p.relation === "homies") { toast("Y'all are already Homies 🤝"); return; }
@@ -857,7 +871,15 @@
       el("h2", { class: "h2", text: "🆕 New metiches" + (d.held_count ? ` · ${d.held_count} held` : "") }),
       el("p", { class: "small", style: { margin: "0 14px 8px" }, text: d.review_on ? "New accounts' first Chismes wait here until you approve them or give a blue badge." : "Review is off (NEW_USER_REVIEW=0): new Chismes go straight up." }),
       el("div", { class: "list" }, nus.length ? nus : el("p", { class: "empty", text: "No new metiches right now." })),
-      el("h2", { class: "h2", text: "🏅 Badges" }), el("section", { class: "card", style: { margin: "0 8px" } }, bl.length ? bl : el("p", { class: "small", text: "No badges yet. Give one from a profile." })));
+      el("h2", { class: "h2", text: "🏅 Badges" }), el("section", { class: "card", style: { margin: "0 8px" } }, bl.length ? bl : el("p", { class: "small", text: "No badges yet. Give one from a profile." })),
+      // v49.21 the Golden Taco: who has it (grant / revoke from here or their profile's 🏅 Badge) and the audit log
+      el("h2", { class: "h2" }, el("i", { class: "sx-bdg taco", "aria-hidden": "true" }), " Golden Taco"),
+      el("section", { class: "card", style: { margin: "0 8px" } }, ...(d.tacos || []).map((u) => el("div", { class: "person sx-slim" }, el("span", {}, nameEl(u), el("small", { class: "small", text: " @" + u.username })),
+        u.role === "admin" ? el("small", { class: "small", text: "Owner" }) : el("button", { type: "button", class: "sx-link", text: "Revoke", onclick: () => badgeSheet(u, again) }))),
+        el("p", { class: "small", text: "Grant it from someone's profile: 🏅 Badge → Grant the Golden Taco." })),
+      el("h3", { class: "h2 small", text: "Golden Taco log" }),
+      el("section", { class: "card", style: { margin: "0 8px" } }, (d.taco_log || []).length ? (d.taco_log || []).map((x) => el("p", { class: "small",
+        text: `${x.action === "golden_taco_grant" ? "🌮 Granted to" : "✖️ Revoked from"} @${x.target_username} by ${x.actor} · ${ago(x.created_at)}` })) : el("p", { class: "small", text: "No changes yet." })));
   }
 
   // ------------------------------------------------ ☰ → Admin (only for the admin account; every call here is checked on the server too)

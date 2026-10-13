@@ -59,7 +59,7 @@ PRIVACY_CHOICES = {"area": ("everyone", "homies", "nobody"), "homies_list": ("ev
                    "requests": ("everyone", "mutuals"), "default_audience": AUDIENCES}
 RESERVED = {"chisme", "chismeapp", "admin", "administrator", "support", "help", "moderator", "mod", "mods", "staff", "official",
             "tia", "tiachismosa", "root", "system", "null", "undefined", "api", "stats", "settings", "me", "homies", "everyone",
-            "goonie", "security", "privacy", "terms", "news", "about"}
+            "security", "privacy", "terms", "news", "about"}
 COMMON_PW = {"password", "password1", "12345678", "123456789", "1234567890", "qwertyui", "qwerty123", "iloveyou", "chisme123",
              "11111111", "00000000", "abcdefgh", "abc12345", "sanantonio", "spurs123", "letmein1", "welcome1"}
 USER_RX = re.compile(r"^[a-z0-9_]{3,20}$")
@@ -179,9 +179,27 @@ def clean_username(v) -> str:
     return str(v or "").strip().lstrip("@").lower()
 
 
-def username_problem(u: str) -> str:
+# v49.21: @goonie is reserved for the owner (SOCIAL_OWNER_EMAIL). Lookalikes (g00nie, goonie_, go_onie, gooonie, goon1e,
+# goonle) are refused for everyone, the owner included. The DB enforces the same rule (social_username_skeleton()).
+OWNER_HANDLE = "goonie"
+_SKEL = str.maketrans({"0": "o", "1": "i", "l": "i", "!": "i", "3": "e", "4": "a", "5": "s", "7": "t", "8": "b", "_": None})
+
+
+def username_skeleton(u: str) -> str:
+    return re.sub(r"(.)\1+", r"\1", str(u or "").lower().translate(_SKEL))
+
+
+def is_owner_handle(u: str) -> bool:
+    """@goonie itself or anything that reads like it."""
+    return username_skeleton(u) == username_skeleton(OWNER_HANDLE)
+
+
+def username_problem(u: str, email: str = "", admin: bool = False) -> str:
     if not USER_RX.match(u):
         return "Your @username needs 3–20 letters, numbers or underscores."
+    if is_owner_handle(u):
+        mine = admin or bool(owner_email() and normalize_email(email) == owner_email())
+        return "" if mine and u == OWNER_HANDLE else "That @username isn't available. Try another one."
     if u in RESERVED or namefilter.blocked(u):
         return "That @username isn't available. Try another one."
     return ""
@@ -500,6 +518,11 @@ def photo_url(name: str | None) -> str | None:
 BADGES = {"gold": "Gold badge: someone Chisme knows", "blue": "Blue badge: an active member"}
 
 
+def golden_taco_of(p: dict) -> bool:
+    """v49.21 the 🌮 Golden Taco: the owner (admin) always has it; anyone else only if the admin gave it."""
+    return p.get("role") == "admin" or bool(p.get("golden_taco"))
+
+
 def badge_of(p: dict) -> str | None:
     """The admin is always gold; everyone else has what the admin gave them (or nothing)."""
     if p.get("role") == "admin":
@@ -510,7 +533,7 @@ def badge_of(p: dict) -> str | None:
 def mini(p: dict) -> dict:
     return {"username": p["username"], "name": p["display_name"], "photo": photo_url(p.get("photo")),
             "accent": p.get("accent") if p.get("accent") in ACCENTS else "turquoise", "fresh": age_hours(p) < FRESH_DAYS * 24,
-            "badge": badge_of(p)}
+            "badge": badge_of(p), "taco": golden_taco_of(p)}
 
 
 # ---------------------------------------------------------------- the admin (the owner's own account) + new-user review
@@ -527,7 +550,11 @@ async def promote_owner(uid: str, email: str) -> None:
     """At sign-up / code / sign-in: the SOCIAL_OWNER_EMAIL account becomes the admin (and only that one)."""
     oe = owner_email()
     if oe and normalize_email(email) == oe:
-        await S.db().update("social_profiles", [("id", "eq", uid)], {"role": "admin", "badge": "gold", "review": "approved"})
+        f = {"role": "admin", "badge": "gold", "review": "approved", "golden_taco": True}
+        p = await profile_by(uid=uid)
+        if p and not p.get("golden_taco_at"):
+            f["golden_taco_at"] = S.now_iso()
+        await S.db().update("social_profiles", [("id", "eq", uid)], f)
 
 
 async def admin_session(request: Request) -> bool:

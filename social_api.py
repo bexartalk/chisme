@@ -482,7 +482,9 @@ def install(app: FastAPI, *, owner: Callable[..., Awaitable[bool]], public_base:
         if not name:
             raise X.Bad("Add your display name.")
         u = X.clean_username(b.get("username"))
-        p = X.username_problem(u)
+        if X.owner_email() and email == X.owner_email() and not await S.db().count("social_profiles", [("username", "eq", X.OWNER_HANDLE)]):
+            u = X.OWNER_HANDLE   # v49.21: the owner's account gets @goonie, whatever they typed
+        p = X.username_problem(u, email)
         if p:
             raise X.Bad(p)
         pw, pw2 = str(b.get("password") or ""), str(b.get("password2") or "")
@@ -510,7 +512,8 @@ def install(app: FastAPI, *, owner: Callable[..., Awaitable[bool]], public_base:
         await S.db().insert("social_profiles", {"id": uid, "username": u, "display_name": name, "bio": "", "area": None, "photo": None,
                                                 "banner": None, "accent": "turquoise", "pinned_id": None, "privacy": {}, "status": "active",
                                                 "verified": False, "flagged": False, "report_count": 0, "created_at": t, "updated_at": t,
-                                                "role": None, "badge": None, "badge_at": None, "review": "pending" if X.new_user_review() else None})
+                                                "role": None, "badge": None, "badge_at": None, "review": "pending" if X.new_user_review() else None,
+                                                "golden_taco": False, "golden_taco_at": None})
         await S.db().insert("social_private", {"user_id": uid, "email_hash": eh, "email_hint": X.mask_email(email_raw), "phone": phone,
                                                # the birthday itself is never stored: only "18+, checked on this date"
                                                "adult": True, "age_checked_at": t, "tos_at": t, "tos_version": X.TERMS_VERSION,
@@ -736,7 +739,7 @@ def install_profiles(app: FastAPI, is_owner) -> None:
         if "username" in b:
             u = X.clean_username(b["username"])
             if u != v.me["username"]:
-                p = X.username_problem(u)
+                p = X.username_problem(u, admin=v.me.get("role") == "admin")
                 if p:
                     raise X.Bad(p)
                 if await S.db().count("social_profiles", [("username", "eq", u)]):
@@ -1327,7 +1330,9 @@ def install_chismes(app: FastAPI, is_owner, reel_lookup, reel_id) -> None:
                               "held": mine, "reports": p.get("report_count") or 0})
         return ok({"items": out, "dmca": [{k: d[k] for k in ("id", "claimant_name", "work", "urls", "created_at")} for d in dmca],
                    "csam_unreported": holds, "new_users": new_users, "held_count": len(held), "review_on": X.new_user_review(),
-                   "badges": [{**X.mini(p), "role": p.get("role")} for p in await db.select("social_profiles", [("badge", "in", ["gold", "blue"]), ("status", "eq", "active")], limit=500)]})
+                   "badges": [{**X.mini(p), "role": p.get("role")} for p in await db.select("social_profiles", [("badge", "in", ["gold", "blue"]), ("status", "eq", "active")], limit=500)],
+                   "tacos": [{**X.mini(p), "role": p.get("role")} for p in await db.select("social_profiles", [("status", "eq", "active")], limit=5000) if X.golden_taco_of(p)],
+                   "taco_log": await db.select("social_admin_audit", [("action", "in", ["golden_taco_grant", "golden_taco_revoke"])], order=[("created_at", False)], limit=50)})
 
     @app.post("/api/social/admin/badge")
     @wrap
@@ -1351,6 +1356,31 @@ def install_chismes(app: FastAPI, is_owner, reel_lookup, reel_id) -> None:
             fields["review"] = "approved"
             await release_held([("author_id", "eq", p["id"])])
         await S.db().update("social_profiles", [("id", "eq", p["id"])], fields)
+        return ok({"profile": X.mini({**p, **fields})})
+
+    @app.post("/api/social/admin/golden-taco")
+    @wrap
+    async def admin_golden_taco(request: Request):
+        """v49.21 the 🌮 Golden Taco: admin only, grant or revoke, every change written to social_admin_audit."""
+        guard(request)
+        if not await admin_ok(request, write=True):
+            raise X.Bad("Not here.", 404)
+        b = await body_of(request)
+        on = b.get("on")
+        if not isinstance(on, bool):
+            raise X.Bad("Say grant or revoke.")
+        p = await X.profile_by(username=X.clean_username(b.get("username")))
+        if not p:
+            raise X.Bad("No one by that @username.", 404)
+        if p.get("role") == "admin" and not on:
+            raise X.Bad("The owner's Golden Taco stays.")
+        fields = {"golden_taco": on, "golden_taco_at": S.now_iso() if on else None}
+        await S.db().update("social_profiles", [("id", "eq", p["id"])], fields)
+        v = await X.viewer(request)
+        await S.db().insert("social_admin_audit", {"id": X.new_id(), "actor_id": v.me["id"] if v.me else None,
+                                                   "actor": ("@" + v.me["username"]) if v.me else "owner (stats sign-in)",
+                                                   "target_id": p["id"], "target_username": p["username"],
+                                                   "action": "golden_taco_grant" if on else "golden_taco_revoke", "created_at": S.now_iso()})
         return ok({"profile": X.mini({**p, **fields})})
 
     @app.post("/api/social/admin/review")

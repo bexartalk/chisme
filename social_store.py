@@ -25,12 +25,13 @@ from typing import Any
 import httpx
 
 TABLES: dict[str, dict] = {   # columns, primary key, json columns, bool columns
-    "social_profiles": {"pk": ["id"], "json": ["privacy"], "bool": ["verified", "flagged"],
+    "social_profiles": {"pk": ["id"], "json": ["privacy"], "bool": ["verified", "flagged", "golden_taco"],
                         "cols": ["id", "username", "display_name", "bio", "area", "photo", "banner", "accent", "pinned_id", "privacy", "status", "verified", "flagged",
-                                 "role", "badge", "badge_at", "review",
+                                 "role", "badge", "badge_at", "review", "golden_taco", "golden_taco_at",
                                  "report_count", "created_at", "updated_at"]},
     "social_private": {"pk": ["user_id"], "bool": ["adult"], "cols": ["user_id", "email_hash", "email_hint", "phone", "adult", "age_checked_at", "tos_at", "tos_version", "privacy_at", "privacy_version",
                                                    "signup_ip", "device", "created_at"], "unique": [["email_hash"]]},
+    "social_admin_audit": {"pk": ["id"], "cols": ["id", "actor_id", "actor", "target_id", "target_username", "action", "created_at"]},   # v49.21: who changed what, when
     "social_consents": {"pk": ["id"], "cols": ["id", "user_id", "kind", "version", "agreed_at"]},   # append-only record of what they agreed to
     "social_sessions": {"pk": ["id_hash"], "cols": ["id_hash", "user_id", "created_at", "expires_at", "ua"]},
     "social_homies": {"pk": ["a", "b"], "cols": ["a", "b", "created_at"]},

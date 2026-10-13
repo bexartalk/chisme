@@ -520,8 +520,17 @@ check(not any(asyncio.run(S.db().select(t, [(col, "eq", _nid)])) for t, col in (
 check(nena.get("/api/social/me").json()["me"] is None, "…and the deleted account is signed out")
 
 # ---------------------------------------------------------------- the admin account, badges, new-user review
+# v49.21: @goonie and its lookalikes are refused for anyone but the owner
+for _u in ("goonie", "Goonie", "g00nie", "goonie_", "go_onie", "goon1e", "GOONLE"):
+    _c, _r = join(_u, "Not Goonie", email=f"lookalike{abs(hash(_u))}@example.com")
+    check(_r.status_code == 400 and "isn't available" in _r.json().get("error", ""), f"reserved: @{_u} refused for someone else at sign-up")
+check(goonie.patch("/api/social/profile", json={"username": "g00nie"}, headers=H).status_code == 400, "reserved: a lookalike refused on a profile edit too")
+check(X.username_problem("goonie_tx") == "" and X.username_problem("gnome") == "", "…but ordinary names that just start the same are fine (goonie_tx)")
 boss, r = join("boss_goonie", "Goonie", email="boss.goonie@example.com")
+asyncio.run(S.db().update("social_profiles", [("username", "eq", "goonie")], {"created_at": S.now_iso(time.time() - 10 * 86400)}))
 bme = boss.get("/api/social/me").json()
+check(bme["me"]["username"] == "goonie", f"reserved: the owner (SOCIAL_OWNER_EMAIL) gets @goonie automatically at sign-up (typed boss_goonie → {bme['me']['username']})")
+check(bme["me"].get("taco") is True, "the owner has the 🌮 Golden Taco by default")
 check(r.status_code == 200 and bme["admin"] is True and bme["me"]["badge"] == "gold", "SOCIAL_OWNER_EMAIL's account is the admin, with the gold badge")
 check(goonie.get("/api/social/me").json()["admin"] is False, "everyone else isn't")
 JH = {**H, "content-type": "application/json"}
@@ -535,8 +544,31 @@ check(anon.get("/api/social/u/lupe").json()["profile"]["badge"] == "blue", "…a
 r = boss.post("/api/social/admin/badge", json={"username": "lupe", "badge": "gold"}, headers=H); check(r.json()["profile"]["badge"] == "gold", "…switches it to gold")
 r = boss.post("/api/social/admin/badge", json={"username": "lupe", "badge": "none"}, headers=H)
 check(r.json()["profile"]["badge"] is None, "…and removes it")
-r = boss.post("/api/social/admin/badge", json={"username": "boss_goonie", "badge": "none"}, headers=H)
+r = boss.post("/api/social/admin/badge", json={"username": "goonie", "badge": "none"}, headers=H)
 check(r.status_code == 400, "the admin's own gold badge can't be removed")
+# v49.21 the 🌮 Golden Taco: admin only, audited, shown next to names alongside gold / blue
+r = goonie.post("/api/social/admin/golden-taco", json={"username": "lupe", "on": True}, headers=H)
+check(r.status_code == 404 and not X.golden_taco_of(asyncio.run(X.profile_by(username="lupe"))), "Golden Taco: a non-admin's grant is refused (server side)")
+check(anon.post("/api/social/admin/golden-taco", json={"username": "lupe", "on": True}, headers=H).status_code == 404, "…and signed out too")
+check(not asyncio.run(S.db().select("social_admin_audit", [], limit=10)), "…and refused tries write nothing to the audit log")
+boss.post("/api/social/admin/badge", json={"username": "lupe", "badge": "blue"}, headers=H)
+r = boss.post("/api/social/admin/golden-taco", json={"username": "lupe", "on": True}, headers=H)
+check(r.status_code == 200 and r.json()["profile"]["taco"] is True and r.json()["profile"]["badge"] == "blue", "Golden Taco: the admin grants it (it sits alongside the blue badge)")
+_feed = anon.get("/api/social/feed?tab=memes").json()["chismes"]
+check(any(c["author"]["username"] == "lupe" and c["author"]["taco"] for c in _feed) and anon.get("/api/social/u/lupe").json()["profile"]["taco"] is True,
+      "…and it shows next to the name in feeds and on the profile")
+r = boss.post("/api/social/admin/golden-taco", json={"username": "lupe", "on": False}, headers=H)
+check(r.status_code == 200 and r.json()["profile"]["taco"] is False, "Golden Taco: the admin revokes it")
+check(boss.post("/api/social/admin/golden-taco", json={"username": "goonie", "on": False}, headers=H).status_code == 400, "…but the owner's stays")
+_log = sorted(asyncio.run(S.db().select("social_admin_audit", [], limit=10)), key=lambda x: x["created_at"])
+_lupe = asyncio.run(X.profile_by(username="lupe")); _boss = asyncio.run(X.profile_by(username="goonie"))
+check([x["action"] for x in _log] == ["golden_taco_grant", "golden_taco_revoke"] and all(x["actor_id"] == _boss["id"] and x["actor"] == "@goonie" and x["target_id"] == _lupe["id"]
+      and x["target_username"] == "lupe" and x["created_at"] for x in _log), f"Golden Taco: grant + revoke audited (who, target, action, time) {_log}")
+_q = boss.get("/stats/social/queue", headers=H).json()
+check(any(u["username"] == "goonie" for u in _q.get("tacos", [])) and sorted(x["action"] for x in _q.get("taco_log", [])) == ["golden_taco_grant", "golden_taco_revoke"],
+      f"☰ Admin → Moderation lists Golden Taco holders and the audit log {str(_q)[:300]}")
+check(goonie.get("/stats/social/queue", headers=H).status_code in (401, 403, 404), "…and only the admin sees it")
+boss.post("/api/social/admin/badge", json={"username": "lupe", "badge": "none"}, headers=H)
 # the owner tools (/stats/*) take the admin account too: analytics, push, sponsor posts
 check(boss.get("/stats/api/summary").status_code == 200 and goonie.get("/stats/api/summary").status_code in (401, 404), "analytics: admin yes, others no")
 check(boss.get("/stats/posts/list").status_code == 200 and goonie.get("/stats/posts/list").status_code in (401, 404), "sponsor posts list: admin yes, others no")
@@ -617,6 +649,13 @@ _rules = _re.sub(r"/\*.*?\*/", "", _sc2[:_sc2.index("/* v49.19 the profile heade
 _bg = _re.findall(r"background(?:-color)?:\s*(#[0-9A-Fa-f]{3,6})\b", _rules)
 check(set(_bg) <= {"#000", "#111", "#222", "#c4135f"}, f"no hard-coded light backgrounds in social.css (theme vars only): {set(_bg)}")
 check("var(--card)" in _rules and 'html[data-season="muertos"] .sx {' in _rules and "--sx-banner" in _rules, "the Muertos season restyles the social screens through the theme variables")
+_m4 = open(f"{HERE}/supabase/migrations/20261013000000_social_golden_taco_goonie.sql").read()
+check(all(k in _m4 for k in ("golden_taco boolean not null default false", "social_profiles_goonie_reserved", "social_username_skeleton", "social_admin_audit",
+      "force row level security", "revoke all on table public.social_admin_audit from anon, authenticated, public", "new.golden_taco is distinct from old.golden_taco", "append-only")),
+      "the v49.21 migration: golden_taco column, @goonie reserved in the DB, server-only trigger covers the taco, audit table RLS-forced and append-only")
+_tc = _re.search(r"\.sx-bdg\.taco \{(.*?)\}\n", _sc2, _re.S)
+check(_tc and "#FF6A0B" in _tc.group(1) and "#C0C0C0" in _tc.group(1) and not _re.search(r"#FF(D|E|F)[0-9A-F]00|#FFFF00|gold\b|yellow", _tc.group(1), _re.I)
+      and "taco" in _sj and "/api/social/admin/golden-taco" in _sj, "the Golden Taco badge renders: orange-gold + silver (the gold style), no yellow; grant/revoke in the sheet")
 _m3 = open(f"{HERE}/supabase/migrations/20261012200000_social_admin_badges.sql").read()
 check("check (badge is null or badge in ('gold', 'blue'))" in _m3 and "social_badges_admin_only" in _m3 and "'held'" in _m3 and "force row level security" in _m3,
       "the badge migration: gold/blue only, server-only trigger, held status, RLS forced")
@@ -626,8 +665,11 @@ sql = open(f"{HERE}/supabase/migrations/20261004150000_social_p1.sql").read()
 sql2 = open(f"{HERE}/supabase/migrations/20261012190000_social_signup_consent.sql").read()
 tables = set(re.findall(r"create table if not exists public\.(\w+)", sql))
 tables2 = set(re.findall(r"create table if not exists public\.(\w+)", sql2))
+sql4 = open(f"{HERE}/supabase/migrations/20261013000000_social_golden_taco_goonie.sql").read()   # v49.21: social_admin_audit
+tables4 = set(re.findall(r"create table if not exists public\.(\w+)", sql4))
 rls = re.search(r"foreach t in array array\[(.*?)\] loop", sql, re.S).group(1)
-check(tables | tables2 == set(S.TABLES) and all(f"'{t}'" in rls for t in tables)
+check(tables | tables2 | tables4 == set(S.TABLES) and all(f"'{t}'" in rls for t in tables)
+      and all(f"alter table public.{t} force row level security" in sql4 and f"revoke all on table public.{t} from anon" in sql4 for t in tables4)
       and all(f"alter table public.{t} force row level security" in sql2 and f"revoke all on table public.{t} from anon" in sql2 for t in tables2),
       "every table is in a migration with RLS on + forced (social_consents in the new one)")
 check("drop column if exists birthday" in sql2 and "check (adult = true)" in sql2 and "tos_version" in sql2 and "Apply AFTER 20261004150000_social_p1.sql" in sql2,

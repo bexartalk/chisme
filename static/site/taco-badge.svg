@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 24"><!-- v49.21 Golden Taco badge mask: filling (lighter) peeking over a folded shell (solid rim, a gap, then the shell's face) -->
+<g fill="#000" fill-opacity=".55"><circle cx="7" cy="12.5" r="3.2"/><circle cx="11.5" cy="8.6" r="3.4"/><circle cx="16.5" cy="7.2" r="3.4"/><circle cx="21.5" cy="8.6" r="3.4"/><circle cx="25.5" cy="12.5" r="3.2"/></g>
+<path d="M1.5 23C1.5 15 7.9 9.5 16 9.5S30.5 15 30.5 23H27.6C27.6 16.8 22.6 12.4 16 12.4S4.4 16.8 4.4 23Z" fill="#000"/>
+<path d="M6 23C6 17.9 10.4 14 16 14s10 3.9 10 9Z" fill="#000" fill-opacity=".85"/>
+</svg>
