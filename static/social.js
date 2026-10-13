@@ -472,7 +472,7 @@
     if (!d.chismes.length && !d.pinned) list.append(el("p", { class: "empty", text: tab === "chismes" ? "No Chismes yet." : "Nothing here yet." }));
     page(p.name, el("section", { class: "profile", style: { "--acc": acc } }, banner,
       el("div", { class: "p-top" }, avatar(p, 96), btns),
-      nameEl(p, "h1", { class: "p-name sx-fit" }), el("p", { class: "p-user", text: "@" + p.username }),
+      nameEl(p, "h1", { class: "p-name sx-fit" }), el("p", { class: "p-user" }, "@" + p.username, p.taco ? el("i", { class: "sx-bdg taco", "aria-hidden": "true" }) : null),  // v49.21: the taco next to the @handle too
       p.relation === "me" ? homiesHighlight(p) : null,
       p.area ? el("p", { class: "p-area", text: "📍 " + p.area + " • San Antonio" }) : null,
       p.bio ? richText(p.bio) : null,

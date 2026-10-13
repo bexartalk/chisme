@@ -277,6 +277,8 @@ body.sx-plain main { max-width: 680px; }
 html.reduce-motion .sx-bdg.taco { animation: none; }
 /* bigger on the profile page so the gold reads clearly; the small one stays next to names in feeds */
 .sx .p-name .sx-bdg.taco { font-size: 1.3em; margin-left: .2em; }
+.sx .p-user { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sx .p-user .sx-bdg.taco { margin-left: .3em; }
 .sx .bdgs { display: inline-flex; align-items: center; white-space: nowrap; vertical-align: baseline; }
 .sx .bdgs .sx-bdg { vertical-align: 0; }
 .sx .taco-h { display: flex; align-items: center; gap: 4px; margin: 10px 0 0; font-size: 1rem; }
