@@ -658,13 +658,24 @@ check(all(k in _m4 for k in ("golden_taco boolean not null default false", "soci
       "the v49.21 migration: golden_taco column, @goonie reserved in the DB, server-only trigger covers the taco, audit table RLS-forced and append-only")
 _tc = _re.search(r"\.sx-bdg\.taco \{(.*?)\}\n", _sc2, _re.S)
 _tcall = _sc2[_sc2.index(".sx-bdg.taco {"):_sc2.index(".sx .p-name .sx-bdg.taco")+80]
-check(all(c in _tc.group(1) for c in ("#6E2400", "#FF6A0B", "#FFB27A", "#C0C0C0", "rgba(255, 255, 255, .95)", "animation: sx-taco-shine"))
-      and "@keyframes sx-taco-shine" in _tcall and '@media (prefers-reduced-motion: reduce) { .sx-bdg.taco { animation: none; } }' in _tcall
-      and "html.reduce-motion .sx-bdg.taco { animation: none; }" in _tcall and 'content: "✓"' in _tcall and ".sx .p-name .sx-bdg.taco { font-size: 1.3em" in _tcall
-      and not _re.search(r"#FF(D|E|F)[0-9A-F]{3}\b|#FFFF00|yellow|lemon", _re.sub(r"/\*.*?\*/", "", _tcall, flags=_re.S), _re.I),
-      "the Golden Taco: metallic orange-gold + white/silver glint (no yellow), shimmer stops with reduced motion (OS or app), ✓ in the middle, bigger on profiles")
-check(_tc and "#FF6A0B" in _tc.group(1) and "#C0C0C0" in _tc.group(1) and not _re.search(r"#FF(D|E|F)[0-9A-F]00|#FFFF00|gold\b|yellow", _tc.group(1), _re.I)
-      and "taco" in _sj and "/api/social/admin/golden-taco" in _sj, "the Golden Taco badge renders: orange-gold + silver (the gold style), no yellow; grant/revoke in the sheet")
+_svg = open(f"{HERE}/static/site/taco-v2.svg").read()
+_hexes = set(h.upper() for h in _re.findall(r"#([0-9A-Fa-f]{6})\b", _svg + _re.sub(r"/\*.*?\*/", "", _tcall, flags=_re.S)))
+def _yellowish(h):
+    r, g, b = (int(h[i:i + 2], 16) / 255 for i in (0, 2, 4)); mx, mn = max(r, g, b), min(r, g, b)
+    if mx - mn < .25 or mx < .5: return False
+    hue = 60 * (((g - b) / (mx - mn)) % 6) if mx == r else 60 * ((b - r) / (mx - mn) + 2) if mx == g else 60 * ((r - g) / (mx - mn) + 4)
+    return 42 < hue % 360 < 70
+check(_tc and 'url("/static/site/taco-v2.svg")' in _tc.group(1) and len(_svg) < 6000 and _svg.lstrip().startswith("<svg")
+      and all(c in _svg for c in ("#6E2400", "#FF6A0B", "#FFB27A", "#C0C0C0")) and "<script" not in _svg.lower() and "href" not in _svg,
+      "the Golden Taco v2: one small SVG (< 6 KB, no script / links): metallic orange-gold shell (copper, #FF6A0B, peach, silver)")
+check(_re.search(r'stroke="#fff"[^>]*stroke-width', _svg) and _re.search(r'stroke="url\(#k\)"', _svg) and "#2FA84F" in _svg and "#E8261E" in _svg and "#6B2A12" in _svg,
+      "…a WHITE check over a metallic orange-gold edge (not green); lettuce, tomato, beef in the filling")
+check(not [h for h in _hexes if _yellowish(h)] and not _re.search(r"yellow|lemon|gold\b", _re.sub(r"<!--.*?-->", "", _svg), _re.I),
+      f"…no yellow anywhere in the badge or its CSS {[h for h in _hexes if _yellowish(h)]}")
+check("animation: sx-taco-shine" in _tcall and "@keyframes sx-taco-shine" in _tcall and "@media (prefers-reduced-motion: reduce) { .sx-bdg.taco::after { animation: none; } }" in _tcall
+      and "html.reduce-motion .sx-bdg.taco::after { animation: none; }" in _tcall and ".sx .p-name .sx-bdg.taco { font-size: 1.3em" in _tcall,
+      "…the glint still sweeps (stops with reduced motion, OS or app); bigger on profiles")
+check("taco" in _sj and "/api/social/admin/golden-taco" in _sj, "the Golden Taco badge renders; grant/revoke in the sheet")
 check("u && u.taco ? [tacoEl(u)] : [badgeEl(u)]" in _sj and 'el("span", { class: "bdgs" }' in _sj and "function fitName" in _sj and "sx-fit" in _sj,
       "the Golden Taco replaces the round check (only the taco shows); it stays on the name's line (profiles shrink the name to fit)")
 check(boss.post("/api/social/admin/badge", json={"username": "Goonie", "badge": "none"}, headers=H).status_code == 400, "…@Goonie works as typed in admin calls too")
