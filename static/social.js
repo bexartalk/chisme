@@ -254,9 +254,13 @@
   function fitName(h) {
     if (!h || !h.isConnected) return;
     h.style.fontSize = "";
-    const lh = () => parseFloat(getComputedStyle(h).fontSize) * 1.25;
+    const oneLine = () => {   // every piece of the name (text and badge) sits on the first line
+      const r = document.createRange(); r.selectNodeContents(h);
+      const tops = [...r.getClientRects()].filter((x) => x.width > 1).map((x) => x.top + x.height / 2);
+      return !tops.length || Math.max(...tops) - Math.min(...tops) < parseFloat(getComputedStyle(h).fontSize) * 0.6;
+    };
     let fs = parseFloat(getComputedStyle(h).fontSize);
-    while (h.getBoundingClientRect().height > lh() && fs > 16) { fs -= 1; h.style.fontSize = fs + "px"; }
+    while (!oneLine() && fs > 16) { fs -= 1; h.style.fontSize = fs + "px"; }
   }
   function richText(t) {
     const p = el("p", { class: "sx-txt" });
