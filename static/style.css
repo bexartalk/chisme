@@ -163,7 +163,7 @@ h2{margin:0;font-size:1.55rem;font-weight:900;color:var(--ink);letter-spacing:-.
 body{padding-top:var(--tabs-h,calc(66px + env(safe-area-inset-top,0px)))}
 /* v49.12: 4 tabs (Chisme holds News, Sports and Events). Labels are capped by the screen width, so even the largest Text
    size fits at 320 px; if a label ever can't fit, the columns keep their content width and the row scrolls sideways */
-.tabs-inner{display:grid;grid-template-columns:repeat(4,minmax(min-content,1fr));gap:4px;padding-top:6px;padding-bottom:6px;
+.tabs-inner{display:grid;grid-template-columns:repeat(5,minmax(min-content,1fr));gap:4px;padding-top:6px;padding-bottom:6px;
   overflow-x:auto;scrollbar-width:none;overscroll-behavior-x:contain}
 .tabs-inner::-webkit-scrollbar{display:none}
 @media (max-width:420px){ .tabs .tabs-inner{padding-left:6px;padding-right:6px;gap:3px} }
@@ -179,7 +179,7 @@ body{padding-top:var(--tabs-h,calc(66px + env(safe-area-inset-top,0px)))}
 /* v40/v49.12: big tabs on phones. Labels are 14-18 px bold (they grow with the Text size setting, capped so they fit); one row
    of four, icon above the label, so all 4 are always on screen, nothing scrolls away, and '¿Y la dieta?' may wrap to 2 lines */
 @media (max-width:600px){
-  .tabs-inner{grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
+  .tabs-inner{grid-template-columns:repeat(5,minmax(0,1fr));gap:5px}
   .tab{flex-direction:column;gap:2px;min-height:56px;padding:.2em .15em;font-size:clamp(14px,.85rem,min(18px,4.4vw));line-height:1.05;letter-spacing:.005em}
   .tab span{font-size:1.3em}
   .tab .tl{text-align:center}
@@ -1909,6 +1909,13 @@ dialog.reel-share[open]{animation:rs-up .22s ease-out}
   .tabs .tab-tia.tia-on{color:var(--fb-turq)}
   .tabs .tab-tia.tia-on > span[aria-hidden]:first-child{background:var(--fb-turq)}
   @media (max-width:359px){ .tabs .tab-tia .tab-tia-ico img{width:24px;height:24px} }
+  /* v49.22: Homies' tab (far left): your photo in a pink ring (like Tía's), else a person icon; it opens your profile and is the
+     current tab (turquoise pill + pink bar) while your profile is showing */
+  .tabs .tab-homies .tab-homies-ico svg{display:block;width:26px;height:26px;color:#fff}
+  .tabs .tab-homies[aria-current="page"] .tab-homies-ico svg{color:#000}
+  .tabs .tab-homies .tab-homies-ico img{display:block;width:28px;height:28px;border-radius:50%;object-fit:cover;box-shadow:0 0 0 2px var(--fb-pink);background:#0b0b2a}
+  .tabs .tab-homies[aria-current="page"] .tab-homies-ico img{box-shadow:0 0 0 2px #000}
+  @media (max-width:359px){ .tabs .tab-homies .tab-homies-ico img{width:24px;height:24px} .tabs .tab-homies .tab-homies-ico svg{width:22px;height:22px} }
 
   /* --- hidden (scrolling down): both bars slide off and fade out; the status-bar strip (.fb-safe) stays at the top */
   html.fb-hide .fbtop,html.feed-open .fbtop{transform:translateY(calc(-1 * var(--fb-up)));opacity:0;box-shadow:none}

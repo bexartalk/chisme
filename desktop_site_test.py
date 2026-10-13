@@ -58,7 +58,8 @@ def meta(html, attr, name):
     return m.group(1) if m else None
 
 def free_port():
-    for p in range(8301, 8399):
+    lo, hi = (int(x) for x in os.environ.get("DK_PORTS", "8301-8398").split("-"))   # e.g. DK_PORTS=8482-8490
+    for p in range(lo, hi + 1):
         if p in (8211, 8231, 8260, 8275): continue
         with socket.socket() as s:
             try: s.bind(("127.0.0.1", p)); return p
@@ -258,7 +259,7 @@ async def desktop_checks(browser, w, h, tag):
     await pg.keyboard.press("Enter"); await pg.wait_for_timeout(700)
     landed = await pg.evaluate("document.activeElement && (document.activeElement.id || document.activeElement.tagName)")
     check(landed == "mix-title", f"{tag}: the skip link moves focus to the stories ({landed})")
-    ring = await pg.evaluate("() => { const t = document.querySelector('#tabs .tab'); t.focus(); const cs = getComputedStyle(t); return cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) > 0 || cs.boxShadow !== 'none'; }")
+    ring = await pg.evaluate("() => { const t = document.querySelector('#tabs .tab[data-view]'); t.focus(); const cs = getComputedStyle(t); return cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) > 0 || cs.boxShadow !== 'none'; }")
     check(ring, f"{tag}: visible focus ring on the nav tabs")
     # the reader as a side panel
     a = pg.locator("#mix-list .story h3 a").first
@@ -390,7 +391,7 @@ async def phone_checks(p):
         css: [...document.styleSheets].some((s) => (s.href || '').includes('desktop.css') && s.media && s.media.mediaText.includes('1024')),
         list: getComputedStyle(document.querySelector('#mix-list')).display, title: document.title }; }""")
     check(not r["dk"] and r["inj"] == 0, f"phone: no desktop class, nothing injected ({r['inj']})")
-    check(r["topbar"] and r["set"] and r["tabs"] == 4, "phone: the app's own top bar (with the Chisme bubble / Settings) and its 4 tabs (v49.16: Chisme · ¿Y la dieta? · Juegos · Tía)")
+    check(r["topbar"] and r["set"] and r["tabs"] == 5, "phone: the app's own top bar (with the Chisme bubble / Settings) and its 5 tabs (v49.22: Homies · ¿Y la dieta? · Chisme · Juegos · Tía)")
     check(r["list"] != "grid" and r["w"] <= r["iw"], f"phone: single-column feed, no sideways scroll ({r['list']})")
     check(r["css"], "phone: desktop.css only applies at min-width 1024px")
     await pg.screenshot(path=os.path.join(SHOTS, "phone-unchanged.png"))

@@ -3068,7 +3068,7 @@ window.CHISME_APP_BUILD = "49.21";
   // goes back to the chip you last picked (this session; a new launch starts on All). #news, #sports, #events, #weather,
   // ?tab=sports … still land on their chip.
   // v49.16 (nav-rearrange): Weather is the Chisme tab's 5th chip (All · News · Sports · Events · Weather), not a tab of its
-  // own. The bottom tabs are Chisme · ¿Y la dieta? (Ofrendas in the Día de Muertos season) · Juegos · Tía (#tab-tia: her
+  // own. The bottom tabs are (v49.22) Homies · ¿Y la dieta? (Ofrendas in the Día de Muertos season) · Chisme · Juegos · Tía (#tab-tia: her
   // chat, not a view), and the swipe order follows them.
   const VIEWS = ["chisme", "news", "sports", "events", "weather", "antojos", "juegos"];
   const CHISME_GROUP = ["chisme", "news", "sports", "events", "weather"], TABS_SHOWN = ["chisme", "antojos", "juegos"];
@@ -3140,11 +3140,14 @@ window.CHISME_APP_BUILD = "49.21";
     return { reset, show: () => set(false), hide: () => set(true), get hidden() { return hidden; }, get on() { return fbOn(); } };
   })();
   window.__chismeNav = fbNav;
+  window.__chismeTabs = () => updateTabs();   // v49.22: social.js re-lights the tabs when Homies (your profile) opens / closes
   const viewsTop = () => viewsEl.getBoundingClientRect().top + window.scrollY;
   const pos = (i, dx = 0) => { track.style.transform = `translateX(calc(${-i} * (100% + ${GAP}px) + ${dx}px))`; };
   function updateTabs(scrollId) {
     for (const t of document.querySelectorAll(".tab")) {
-      const on = (t.dataset.view === VIEWS[cur] || (t.dataset.view === "chisme" && CHISME_GROUP.includes(VIEWS[cur]))) && !t.dataset.scroll;
+      // v49.22: while your own profile is showing (social.js sets html[data-homies]), the Homies tab is the current one
+      const hom = document.documentElement.dataset.homies === "1";
+      const on = hom ? t.id === "tab-homies" : (t.dataset.view === VIEWS[cur] || (t.dataset.view === "chisme" && CHISME_GROUP.includes(VIEWS[cur]))) && !t.dataset.scroll;
       t.toggleAttribute("aria-current", false);
       if (on) t.setAttribute("aria-current", "page");
       t.classList.toggle("sub-current", !!t.dataset.scroll && t.dataset.scroll === scrollId);

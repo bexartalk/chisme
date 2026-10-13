@@ -30,7 +30,7 @@ async def wk(p):
     await pg.goto(URL)
     await pg.wait_for_function("() => window.__chisme && window.__chisme.ready", timeout=90000)
     tabs = await pg.evaluate("[...document.querySelectorAll('#tabs .tab')].map(t => t.textContent.trim().replace(/^\\S+\\s/, ''))")
-    check(tabs == ["Chisme", "¿Y la dieta?", "Juegos", "Tía"], f"nav is Chisme · ¿Y la dieta? · Juegos · Tía ({tabs})")   # v49.12: one Chisme tab; v49.16 order (Weather is a Chisme chip)
+    check(tabs == ["Homies", "¿Y la dieta?", "Chisme", "Juegos", "Tía"], f"nav is Homies · ¿Y la dieta? · Chisme · Juegos · Tía (v49.22) ({tabs})")   # v49.12: one Chisme tab; v49.16 order (Weather is a Chisme chip)
     panes = await pg.evaluate("[...document.querySelectorAll('#track > .view')].map(v => v.dataset.view)")
     check(panes == ["chisme", "news", "sports", "events", "weather", "antojos", "juegos"], f"swipe panes: All · News · Sports · Events · Weather, then the other tabs ({panes})")
     opts = await pg.evaluate("[...document.querySelectorAll('#settings input[name=deftab]')].map(i => i.value).filter(v => v !== 'random')")

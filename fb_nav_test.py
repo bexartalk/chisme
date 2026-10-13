@@ -22,7 +22,7 @@ Desktop (1024 px and up) must be exactly as before.
     the new-stories pill, the sync pill and the Terms bar ride on `translate` with the same timing; the status-bar strip
     (.fb-safe) stays put in the bar's colour; Reduce motion = no sliding, only a short fade
   • v49.15.3 the phone top bar has the city skyline (the old header's art) behind its buttons, no ¿Oyistes?, the same height;
-    the tab bar is Chisme · ¿Y la dieta? (Ofrendas in the Día de Muertos season) · Juegos · Tía (v49.16; Weather is a Chisme chip)
+    the tab bar is Homies · ¿Y la dieta? (Ofrendas in the Día de Muertos season) · Chisme · Juegos · Tía (v49.22; Weather is a Chisme chip)
   • v49.15.3 (temporary) the Muertos top bar keeps the skyline's drifting helicopter and lit (marigold-orange) window squares,
     the papel picado strip, and no ¿Oyistes? in or over it, light + dark
 Screenshots: SHOTS (default /workspace/chisme-navbar-shots/): top, scrolled, scroll-up, tia-open, dark, chismetv, muertos, weather,
@@ -213,9 +213,9 @@ async def phone(b, bname, dev, shots):
     check(lay["header"] == "none" and lay["fab"] == "none" and lay["set"] == "top bar" and lay["ids"],
           f"{bname}: the skyline header and the floating Tía are off on phones; #settings-btn sits in the top bar; every id is still there {lay}")
     tabs = await pg.evaluate("[...document.querySelectorAll('#tabs .tab')].map((t) => { const r = t.getBoundingClientRect(); return { v: t.dataset.view || t.id, w: r.width, h: r.height, b: r.bottom, l: t.textContent.trim() }; })")
-    check(len(tabs) == 4 and all(t["w"] >= 44 and t["h"] >= 44 for t in tabs), f"{bname}: 4 tabs on the bottom bar, each a 44 px+ target {[(t['v'], round(t['w']), round(t['h'])) for t in tabs]}")
-    check([t["v"] for t in tabs] == ["chisme", "antojos", "juegos", "tab-tia"] and "¿Y la dieta?" in tabs[1]["l"] and "Tía" in tabs[3]["l"] and len({round(t["b"]) for t in tabs}) == 1,
-          f"{bname}: the tab bar reads Chisme · ¿Y la dieta? · Juegos · Tía (v49.16) {[t['l'] for t in tabs]}")
+    check(len(tabs) == 5 and all(t["w"] >= 44 and t["h"] >= 44 for t in tabs), f"{bname}: 5 tabs on the bottom bar, each a 44 px+ target {[(t['v'], round(t['w']), round(t['h'])) for t in tabs]}")
+    check([t["v"] for t in tabs] == ["tab-homies", "antojos", "chisme", "juegos", "tab-tia"] and "Homies" in tabs[0]["l"] and "¿Y la dieta?" in tabs[1]["l"] and "Tía" in tabs[4]["l"] and len({round(t["b"]) for t in tabs}) == 1,
+          f"{bname}: the tab bar reads Homies · ¿Y la dieta? · Chisme · Juegos · Tía (v49.22) {[t['l'] for t in tabs]}")
     sky = await pg.evaluate(SKY)
     check(sky["sky"] and sky["shown"] > 0 and sky["inBar"] and not sky["oyistes"] and not sky["tag"] and sky["barH"] <= 60,
           f"{bname}: the top bar has the city skyline behind its buttons ({sky['which']} skyline, {sky['shown']} shapes, inside the {sky['barH']} px bar), no ¿Oyistes? {sky}")
@@ -315,7 +315,7 @@ async def phone(b, bname, dev, shots):
               f"{bname}: {tag}: the skyline shows in the top bar, stands out from it (colour difference {sky['fillDiff']}) and isn't yellow {sky['fills']}")
         tl = await pg.evaluate("[...document.querySelectorAll('#tabs .tab')].map((t) => (t.dataset.view || t.id) + ':' + t.textContent.trim())")
         want2 = "Ofrendas" if season == "muertos" else "¿Y la dieta?"
-        check([x.split(":")[0] for x in tl] == ["chisme", "antojos", "juegos", "tab-tia"] and want2 in tl[1], f"{bname}: {tag}: tab order Chisme · {want2} · Juegos · Tía {tl}")
+        check([x.split(":")[0] for x in tl] == ["tab-homies", "antojos", "chisme", "juegos", "tab-tia"] and want2 in tl[1], f"{bname}: {tag}: tab order Homies · {want2} · Chisme · Juegos · Tía {tl}")
         if shots and name: await pg.screenshot(path=f"{OUT}/{name}.png")
         if shots and name == "dark": await pg.screenshot(path=f"{OUT}/top-skyline-dark.png", clip={"x": 0, "y": 0, "width": 390, "height": 140})
         if shots and name == "muertos": await pg.screenshot(path=f"{OUT}/tabbar-season.png", clip={"x": 0, "y": 844 - 110, "width": 390, "height": 110})

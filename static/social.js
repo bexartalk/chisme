@@ -200,8 +200,32 @@
     if (typeof menuRows === "function") menuRows();   // v49.16: keep the ☰ rows in step with who's signed in
     const dot = $("#sx-dot"); if (dot) dot.hidden = !(d.unread > 0 || d.requests > 0);
     if (ME) document.documentElement.style.setProperty("--sx-acc", ME.accent_hex || "#00C9CD");
+    homiesIcon();
     const face = $("#sx-face"); if (face) { clear(face); if (ME) face.replaceWith(Object.assign(avatar(ME, 40), { id: "sx-face" })); }
     return ME;
+  }
+  // v49.22: the bottom bar's Homies tab: your photo (else the person icon), and lit while your own profile (or, signed
+  // out, Sign in / Join) is showing. app.js's updateTabs() reads html[data-homies].
+  const HOM = $("#tab-homies"), HOM_SVG = HOM ? HOM.querySelector(".tab-homies-ico svg") : null;
+  function homiesIcon() {
+    if (!HOM) return;
+    const ico = HOM.querySelector(".tab-homies-ico"), want = ME && ME.photo ? ME.photo : "";
+    if (ico.dataset.photo === want) return;
+    ico.dataset.photo = want;
+    if (want) clear(ico).append(el("img", { src: want, alt: "", width: 28, height: 28, decoding: "async" }));
+    else if (HOM_SVG) clear(ico).append(HOM_SVG.cloneNode(true));
+  }
+  function homiesOn() {
+    if (!IN_APP || !location.hash.startsWith("#s/")) return false;
+    const [a, b] = decodeURIComponent(location.hash.slice(3)).split("/");
+    if (a === "me") return true;
+    if (a === "u" && ME && b && b.toLowerCase() === String(ME.username).toLowerCase()) return true;
+    return !ME && (a === "signin" || a === "signup" || a === "forgot");
+  }
+  function homiesTab() {
+    const d = document.documentElement, on = homiesOn() ? "1" : "";
+    if ((d.dataset.homies || "") !== on) { if (on) d.dataset.homies = on; else delete d.dataset.homies; }
+    if (window.__chismeTabs) window.__chismeTabs();
   }
   function needMe() { if (ME) return true; location.hash = "#s/signin"; return false; }
   // A social page: in the app it replaces the Chisme feed (same header, tabs and background); the chips stay on top
@@ -225,6 +249,7 @@
     if (!IN_APP) return;
     CH.classList.remove("sx-on", "sx-sub"); view.hidden = true; clear(view); chips(null);
     if (location.hash.startsWith("#s/")) history.replaceState(history.state, "", location.pathname + location.search);
+    homiesTab();
   }
   function chips(tab) { document.querySelectorAll("#sx-chips .sx-chip").forEach((b) => b.setAttribute("aria-current", b.dataset.sx === tab ? "true" : "false")); }
 
@@ -958,6 +983,10 @@
   // ------------------------------------------------ router
   async function route() {
     if (!$("#sheet").hidden) closeSheet();
+    homiesTab();
+    try { return await route1(); } finally { homiesTab(); }
+  }
+  async function route1() {
     if (MODE === "mod") { document.body.classList.add("mod-mode"); return modView(); }
     if (IN_APP && !location.hash.startsWith("#s/")) { if (CH.classList.contains("sx-on")) leaveSocial(); return; }
     const h = decodeURIComponent(location.hash.slice(IN_APP ? 3 : 1) || "feed/sananto"), [a, b, c] = h.split("/");
@@ -1037,9 +1066,12 @@
     else $("#fb-menu").addEventListener("click", async () => { if (ME) await loadMe(); menu(); });
     document.addEventListener("click", (e) => {   // the app's own chips and tabs take you back to its feeds
       if (leaving) return;
-      if (e.target.closest(".mq-chip:not(.sx-chip), #tabs .tab") && location.hash.startsWith("#s/")) leaveSocial();
-      else if (e.target.closest(".mq-chip:not(.sx-chip), #tabs .tab") && CH.classList.contains("sx-on")) leaveSocial();
+      if (e.target.closest(".mq-chip:not(.sx-chip), #tabs .tab:not(#tab-homies)") && location.hash.startsWith("#s/")) leaveSocial();
+      else if (e.target.closest(".mq-chip:not(.sx-chip), #tabs .tab:not(#tab-homies)") && CH.classList.contains("sx-on")) leaveSocial();
     }, true);
+    if (HOM) HOM.addEventListener("click", () => {   // v49.22: Homies = your profile (signed out: Sign in / Join)
+      if (location.hash === "#s/me") { route(); window.scrollTo(0, 0); } else location.hash = "#s/me";
+    });
     const ml = $("#mix-list"); if (ml) new MutationObserver(() => mixIn()).observe(ml, { childList: true });
   }
   window.addEventListener("hashchange", route);

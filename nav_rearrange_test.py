@@ -98,8 +98,8 @@ async def phone(b):
     print("\n== phone 390×844, Día de Muertos")
     ctx, pg = await open_page(b)
     tabs = await pg.evaluate(TABS)
-    check([t["v"] for t in tabs] == ["chisme", "antojos", "juegos", "tab-tia"] and tabs[1]["l"].endswith("Ofrendas") and tabs[3]["l"].endswith("Tía") and tabs[3]["img"],
-          f"bottom tabs: Chisme · Ofrendas · Juegos · Tía (her avatar) {[t['l'] for t in tabs]}")
+    check([t["v"] for t in tabs] == ["tab-homies", "antojos", "chisme", "juegos", "tab-tia"] and tabs[0]["l"].endswith("Homies") and tabs[1]["l"].endswith("Ofrendas") and tabs[4]["l"].endswith("Tía") and tabs[4]["img"],
+          f"bottom tabs (v49.22): Homies · Ofrendas · Chisme · Juegos · Tía (her avatar) {[t['l'] for t in tabs]}")
     check(all(t["w"] >= 44 and t["h"] >= 44 for t in tabs), "every tab is a 44 px+ target")
     chips = await pg.evaluate(CHIPS)
     check(len(chips) == 5 and all(c["chips"] == ["chisme", "news", "sports", "events", "weather"] and c["cur"] == c["view"] for c in chips)

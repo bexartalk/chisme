@@ -189,9 +189,12 @@
   <!-- Section buttons: position:fixed. Desktop: the top nav (body gets matching top padding). v49.15 phones/tablets: the bottom tab bar -->
   <nav id="tabs" class="tabs" aria-label="Sections">
     <div class="wrap tabs-inner">
-      <button type="button" class="tab" data-view="chisme" aria-controls="view-chisme" aria-current="page"><span aria-hidden="true">📰</span> <span class="tab-l">Chisme</span></button>
+      <!-- v49.22: Homies (far left) = your own profile (the page with the Homies section); signed out it opens Sign in / Join.
+           Not a view: social.js routes it to #s/me and lights it while your profile is showing. Phones only (desktop.css hides it). -->
+      <button type="button" id="tab-homies" class="tab tab-homies" aria-controls="view-chisme"><span aria-hidden="true" class="tab-homies-ico"><svg viewBox="0 0 24 24" width="24" height="24" focusable="false"><circle cx="12" cy="12" r="11" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="9.5" r="3.6" fill="currentColor"/><path d="M5.6 19.2c1.3-3 3.7-4.6 6.4-4.6s5.1 1.6 6.4 4.6" fill="currentColor"/></svg></span> <span class="tab-l">Homies</span></button>
       <button type="button" class="tab" data-view="antojos" aria-controls="view-antojos"><span aria-hidden="true">🌮</span> <b class="tl tab-l">¿Y la dieta?</b></button>
-      <button type="button" class="tab" data-view="juegos" aria-controls="view-juegos"><span aria-hidden="true">🎲</span> Juegos</button>
+      <button type="button" class="tab" data-view="chisme" aria-controls="view-chisme" aria-current="page"><span aria-hidden="true">📰</span> <span class="tab-l">Chisme</span></button>
+      <button type="button" class="tab" data-view="juegos" aria-controls="view-juegos"><span aria-hidden="true">🎲</span> <span class="tab-l">Juegos</span></button>
       <!-- v49.16: Tía on the far right (her avatar as the icon): opens her chat, like her old top-bar bubble. Not a view, so no
            data-view; phones only (desktop keeps the floating Tía, desktop.css hides this). -->
       <button type="button" id="tab-tia" class="tab tab-tia" aria-label="Tía: chat with Tía Chismosa" aria-haspopup="dialog" aria-controls="tia"><span aria-hidden="true" class="tab-tia-ico"><img src="/static/mascot/avatar-64.webp?art=3" srcset="/static/mascot/avatar-64.webp?art=3 1x, /static/mascot/avatar-128.webp?art=3 2x" width="28" height="28" alt="" decoding="async"></span> <span class="tab-l">Tía</span></button>

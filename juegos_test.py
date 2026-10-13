@@ -174,7 +174,7 @@ async def webkit(p):
     await pg.wait_for_timeout(1500)
     tabs = await pg.evaluate("[...document.querySelectorAll('#tabs .tab')].map(t => t.textContent.trim())")
     fit = await pg.evaluate("(() => { const t = document.querySelector('.tabs-inner'), j = document.querySelector('.tab[data-view=juegos]').getBoundingClientRect(); return t.scrollWidth <= t.clientWidth + 1 && j.right <= innerWidth; })()")
-    check([t.split()[-1] for t in tabs] == ["Chisme", "dieta?", "Juegos", "Tía"] and tabs[2] == "🎲 Juegos", f"tab bar: Chisme · ¿Y la dieta? · 🎲 Juegos · Tía (v49.16 order) ({tabs})")
+    check([t.split()[-1] for t in tabs] == ["Homies", "dieta?", "Chisme", "Juegos", "Tía"] and tabs[3] == "🎲 Juegos", f"tab bar: Homies · ¿Y la dieta? · Chisme · 🎲 Juegos · Tía (v49.22 order) ({tabs})")
     check(fit, "all 4 tabs fit on an iPhone 13 (no sideways scroll)")
     check(await pg.evaluate("__chisme.view") == "juegos" and await pg.evaluate("__chisme.juegos.id") == "loteria", "#loteria opens Juegos → Chismería")
     games = await pg.evaluate("[...document.querySelectorAll('.game-pick b')].map(b => b.textContent)")
