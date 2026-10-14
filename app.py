@@ -2516,8 +2516,45 @@ async def api_event_cities():
     return {"cities": [{"id": c[0], "name": c[1], "feeds": [f[1] for f in c[4]], "links": [{"name": n, "url": u} for n, u in c[5]]} for c in REGION_CITIES]}
 
 
+async def build_events_all() -> dict:
+    """v49.23: every city Chisme follows, mixed into one feed sorted by date (the default; no location needed)."""
+    async def one(c):
+        try:
+            return c, await cached(f"events:{cell(c[2], c[3], 0.02)}", 45, lambda: build_events(*cell(c[2], c[3], 0.02)), stale=3600)
+        except Exception:
+            return c, None
+    res = await asyncio.gather(*(one(c) for c in REGION_CITIES))
+    seen, up, on, sources, links, pending = set(), [], [], {}, [], 0
+    for c, r in res:
+        if not r:
+            continue
+        pending += r.get("pending") or 0
+        for bucket, out in (("events", up), ("ongoing", on)):
+            for e in r.get(bucket) or []:
+                k = e.get("url") or e.get("id")
+                if k in seen:
+                    continue
+                seen.add(k)
+                out.append(dict(e, city=c[1], km=None))
+        for s_ in r.get("sources") or []:
+            sources.setdefault(s_.get("name"), s_)
+        for l in r.get("links") or []:
+            if l not in links:
+                links.append(l)
+    up.sort(key=lambda i: i["start"])
+    on.sort(key=lambda i: i["end"] or i["start"])
+    return {"generated": time.time(), "place": {"label": "All cities", "city": None, "neighborhood": None}, "all_cities": True,
+            "events": up[:150], "ongoing": on[:40], "pending": pending, "radius_km": EVENT_RADIUS_KM, "days": EVENT_DAYS,
+            "message": None, "sources": list(sources.values()), "links": links}
+
+
 @app.get("/api/events")
 async def api_events(lat: float | None = Query(None), lon: float | None = Query(None), city: str | None = Query(None, max_length=40)):
+    if city == "all" or (city is None and lat is None and lon is None):
+        try:
+            return await cached("events:all", 45, build_events_all, stale=3600)
+        except Exception as ex:
+            return _err(ex)
     if city:
         c = REGION.get(city)
         if not c:

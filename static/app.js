@@ -106,7 +106,7 @@ window.CHISME_APP_BUILD = "49.23";
   let TZ = DEVICE_TZ;
   let lastWeather = null;
   const rendered = { weather: null, news: null, events: null };
-  var evCity = (() => { try { return localStorage.getItem("chisme-ev-city") || ""; } catch (e) { return ""; } })();   // v49.23 events city filter
+  var evCity = (() => { try { return localStorage.getItem("chisme-ev-city2") || "all"; } catch (e) { return "all"; } })();   // default: every city mixed   // v49.23 events city filter
   const evKey = () => evCity ? "city:" + evCity : q();  // which location each section is showing
   const tzAbbr = (d = new Date()) => {
     try { return new Intl.DateTimeFormat("en-US", { timeZone: TZ, timeZoneName: "short" }).formatToParts(d).find((p) => p.type === "timeZoneName").value; }
@@ -1318,14 +1318,14 @@ window.CHISME_APP_BUILD = "49.23";
         el("div", { class: "ev-links" }, ext(e.url, `Event page (${e.source})`, "primary", evMeta(e)),
           gmaps ? ext(gmaps, "🗺 Map & directions", null, evMapMeta(e)) : null,
           e.website && e.website !== e.url ? ext(e.website, "Organizer site", null, { ...evMeta(e), source: hostOf(e.website) + " (organizer)" }) : null),
-        el("p", { class: "ev-src" }, "Listed on " + e.source, ...also)));
+        el("p", { class: "ev-src" }, (e.city ? "📍 " + e.city + " · " : "") + "Listed on " + e.source, ...also)));
   }
   // ---------- event categories + food reviews
   const CAT_KEY = "chisme-events-cat";
   const CATS = {
     all: { test: () => true },
     concerts: { test: (e) => (e.tags || []).includes("concerts"),
-      intro: (k) => `🎸 Turn it up: ${k} ${k === 1 ? "show" : "shows"} coming up around ${shortPlace()}.`,
+      intro: (k) => `🎸 Turn it up: ${k} ${k === 1 ? "show" : "shows"} coming up ${evData && evData.all_cities ? "across Texas" : "around " + shortPlace()}.`,
       empty: "No concerts on the calendars right now. Hum something to yourself and check back soon. 🎶" },
     festivals: { test: (e) => (e.tags || []).includes("festivals"),
       intro: (k) => `🎉 Fiesta mode: ${k} ${k === 1 ? "festival or market" : "festivals & markets"} on the way.`,
@@ -2664,15 +2664,18 @@ window.CHISME_APP_BUILD = "49.23";
   let evRetry = null, evRetries = 0;
   section("events", {
     url: () => evCity ? `/api/events?city=${encodeURIComponent(evCity)}` : `/api/events?${q()}`,
-    loading: () => $("#events-list").replaceChildren(el("p", { class: "loading", text: `Rounding up the parties near ${shortPlace()}…` })),
+    loading: () => $("#events-list").replaceChildren(el("p", { class: "loading", text: evCity === "all" ? "Rounding up the parties…" : `Rounding up the parties near ${shortPlace()}…` })),
     fail: (e) => $("#events-list").replaceChildren(el("p", { class: "error", text: "Oops! Couldn't reach the event calendars (" + e.message + "). We'll keep trying." })),
     apply: (n, { saved }) => {
       clearTimeout(evRetry);
       if (!saved) rendered.events = evKey();
-      const where = evCity && n.place && n.place.city ? n.place.city : shortPlace();
+      const allC = !!n.all_cities;
+      const where = allC ? "Texas" : evCity && n.place && n.place.city ? n.place.city : shortPlace();
       const list = n.events || [], ongoing = n.ongoing || [];
-      $("#events-title").textContent = n.place && n.place.city ? `What's happening in ${n.place.city}` : "What's happening";
-      $("#events-intro").textContent = list.length
+      $("#events-title").textContent = !allC && n.place && n.place.city ? `What's happening in ${n.place.city}` : "What's happening";
+      $("#events-intro").textContent = list.length && allC
+        ? `${list.length} things going on across Texas, soonest first. Pick a city below if you want just one.`
+        : list.length
         ? pick([`${list.length} things going on around ${where} in the next few weeks.`,
                 `What's new? ${list.length} upcoming events near ${where} — pick your party.`,
                 `Get off the couch, ${where}! ${list.length} events coming up nearby.`])
@@ -2718,7 +2721,7 @@ window.CHISME_APP_BUILD = "49.23";
     const sel = $("#ev-city");
     if (sel) {
       sel.value = evCity;
-      sel.onchange = () => { evCity = sel.value; try { localStorage.setItem("chisme-ev-city", evCity); } catch (e) {} renderLaunches(); load("events"); };
+      sel.onchange = () => { evCity = sel.value; try { localStorage.setItem("chisme-ev-city2", evCity); } catch (e) {} renderLaunches(); load("events"); };
       renderLaunches();
     }
   }
@@ -3497,6 +3500,7 @@ window.CHISME_APP_BUILD = "49.23";
   function notifClose(how) {
     const ask = $("#push-ask");
     if (how) { notif.how = how; lsSet(NOTIF_KEY, JSON.stringify(notif)); askDone(how); }
+    notifPhase = "done";   // v49.23: never again this open
     if (ask.hidden) return;
     ask.hidden = true; document.documentElement.classList.remove("notif-open");
     if (notifOpener && notifOpener.isConnected && notifOpener !== document.body) notifOpener.focus({ preventScroll: true });
@@ -3526,6 +3530,7 @@ window.CHISME_APP_BUILD = "49.23";
     const html = document.documentElement;
     if (firstRun() || !$("#loc-panel").hidden || html.classList.contains("a2hs-open") || document.querySelector("dialog[open]") || html.classList.contains("game-fs")
       || document.getElementById("wake") || document.visibilityState !== "visible") { if (!firstRun()) notifTry(2000); return; }   // (first run: chisme-setup-done calls again)
+    if (notifPhase !== "pending") return;   // v49.23: another notifTry (retry / setup-done) already showed it while we awaited: "Not now" sticks
     notifOpen(iosNeedsHome() ? "ios" : "ask");
   }
   function pushEngaged() {   // a story was opened in the reader (still counted, for the record)
@@ -4010,7 +4015,7 @@ window.CHISME_APP_BUILD = "49.23";
     clearTimeout(tipTimer);
     tipTimer = setTimeout(() => {
       if (!tipEl || tipDone() || !tipEl.hidden) return;
-      if (tipFirstOpen || notifPhase === "shown" || a2Shown) return;   // this open already had its popup: next open
+      if (tipFirstOpen || notifPhase === "shown" || notifPhase === "done" || a2Shown) return;   // this open already had its popup: next open
       if (tipBusy()) { tipTry(2500); return; }
       tipEl.hidden = false; tipShownAt = Date.now(); document.documentElement.classList.add("stip-open");
     }, delay);

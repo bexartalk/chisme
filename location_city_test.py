@@ -82,6 +82,7 @@ async def main():
             check(city.split()[0] in st or (wx.get("periods") or wx.get("forecast")), f"Weather: NWS for {city} ({st.strip()[:70]})")
             # Events
             await pg.tap('#tabs [data-view="chisme"]'); await pg.tap('.view.active .mq-chip[data-go="events"]')
+            await pg.select_option('#ev-city', '')   # v49.23: the feed defaults to all cities mixed; this checks Near me
             await pg.wait_for_function("() => window.__chisme.eventsReady", timeout=150000); await pg.wait_for_timeout(1500)
             ev = await pg.evaluate("({ intro: document.querySelector('#events-intro').textContent, n: document.querySelectorAll('#events-list .ev').length, src: [...document.querySelectorAll('#event-sources li, #ev-sources li')].map(l => l.textContent.slice(0, 40)) })")
             check(ev["n"] > 0 and not any("Visit San Antonio" in s for s in ev["src"]), f"Events: {ev['n']} near {city}, no Visit San Antonio ({ev['intro'][:70]})")

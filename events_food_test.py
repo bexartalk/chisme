@@ -40,7 +40,7 @@ async def main():
         await page.wait_for_timeout(1500)
         cdp = await ctx.new_cdp_session(page)
         rep["all"] = await page.evaluate(STATE_JS)
-        data = await page.evaluate("fetch('/api/events?lat=29.35&lon=-98.56').then(r => r.json())")
+        data = await page.evaluate("fetch('/api/events').then(r => r.json())")
         ev = data["events"]
         # chip row: horizontal swipe on it must not switch views
         await page.evaluate("document.querySelector('#ev-chips').scrollIntoView({block: 'center', behavior: 'instant'})")
@@ -64,6 +64,7 @@ async def main():
                 await page.screenshot(path=str(OUT / "events-categories.png"))
         # Food
         rep["food_chip_gone"] = await page.evaluate("!document.querySelector(\"#ev-chips [data-cat='food']\")")
+        await page.locator("#tabs [data-view='antojos']").scroll_into_view_if_needed()
         await page.tap("#tabs [data-view='antojos']")
         await page.wait_for_function("() => window.__chisme.foodReady && document.querySelectorAll('#food-creators .fr').length", timeout=60000)
         await page.wait_for_timeout(500)
@@ -103,8 +104,8 @@ async def main():
             viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True, timezone_id="America/Chicago",
             geolocation={"latitude": 29.35, "longitude": -98.56}, permissions=["geolocation"])
         pg = ctx.pages[0]
-        await pg.goto(URL + "#food", wait_until="networkidle")
-        await pg.reload(wait_until="networkidle")  # now controlled by the service worker, which saves the API responses
+        await pg.goto(URL + "#food", wait_until="networkidle", timeout=120000)
+        await pg.reload(wait_until="networkidle", timeout=120000)  # now controlled by the service worker, which saves the API responses
         await pg.wait_for_function("() => window.__chisme.eventsReady && window.__chisme.foodReady", timeout=120000)
         await pg.wait_for_timeout(1500)
         await ctx.set_offline(True)
