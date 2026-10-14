@@ -157,7 +157,7 @@ async def run(p, b, dev, opts):
     if await pg.evaluate(f"{G} && {G}.state && {G}.state.fullscreen"): await pg.evaluate(f"{G}.exitFullscreen && {G}.exitFullscreen()")
     csp = await pg.evaluate("window.__csp")
     if csp: note(dev, f"CSP violations: {sorted(set(csp))[:8]}")
-    real = [e for e in errs if "access control" not in e and "net::ERR" not in e]
+    real = [e for e in errs if "access control" not in e and "net::ERR" not in e and "compute-pressure" not in e]   # (compute-pressure: logged for the YouTube player iframe, not Chisme)
     if real: note(dev, f"console errors: {sorted(set(real))[:8]}")
     if bad: note(dev, f"same-site HTTP errors: {sorted(set(bad))[:8]}")
     await ctx.close()

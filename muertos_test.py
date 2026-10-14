@@ -108,7 +108,9 @@ async def phone(b, name, dev, theme, tag, w=None, tabs=False):
     s = await pg.evaluate(SEASON)
     labels = await pg.evaluate("[...document.querySelectorAll('#tabs .tab')].map(t => t.textContent.trim())")
     check(s[0] == "muertos" and labels[0].endswith("Homies") and labels[1].endswith("Ofrendas") and labels[2].endswith("Chisme") and labels[3].endswith("Juegos") and labels[4].endswith("Tía") and len(labels) == 5, f"themed: tabs {labels} (v49.22: Homies · Ofrendas · Chisme · Juegos · Tía)")
+    simple = await pg.evaluate("document.documentElement.classList.contains('simple')")   # simple feed: no greeting banner, no pills
     shown = await pg.evaluate("Object.fromEntries(['.mq-picado', '#muertos-banner', '#mq-gallery', '.tia-flores'].map(s => [s, !!document.querySelector(s).offsetParent || getComputedStyle(document.querySelector(s)).display !== 'none']))")
+    if simple: shown.pop("#muertos-banner", None)
     check(all(shown.values()), f"papel picado, greeting, gallery, Tía's marigolds on show ({shown})")
     await pg.screenshot(path=f"{SHOTS}/{tag}-home.png")
     low = []
@@ -118,9 +120,10 @@ async def phone(b, name, dev, theme, tag, w=None, tabs=False):
     check(not low, f"contrast ≥ 4.5 everywhere checked ({low})")
     over = await pg.evaluate("(() => [...document.querySelectorAll('#muertos-banner *, #tabs .tab, .view.active .mq-chip')].filter(n => n.offsetParent && n.getBoundingClientRect().right > innerWidth + 1).length)()")
     check(over == 0, f"nothing runs off the right edge ({over})")
-    await pg.click("#mb-photos"); await pg.wait_for_timeout(1500)
-    sp = await pg.evaluate("[window.__chisme.view, Math.round(document.querySelector('#mq-gallery').getBoundingClientRect().top)]")
-    check(sp[0] == "chisme" and -40 < sp[1] < 400, f"greeting 'See the photos' scrolls to the gallery on Chisme: All ({sp})")
+    if not simple:
+      await pg.click("#mb-photos"); await pg.wait_for_timeout(1500)
+      sp = await pg.evaluate("[window.__chisme.view, Math.round(document.querySelector('#mq-gallery').getBoundingClientRect().top)]")
+      check(sp[0] == "chisme" and -40 < sp[1] < 400, f"greeting 'See the photos' scrolls to the gallery on Chisme: All ({sp})")
     await pg.evaluate("window.scrollTo(0, 0)"); await pg.wait_for_timeout(300)
     # gallery
     g = await pg.evaluate("""[...document.querySelectorAll('#mq-gal-strip .mq-gal-item')].map(f => { const c = f.querySelector('.mq-credit'), a = [...c.querySelectorAll('a')];
@@ -143,11 +146,15 @@ async def phone(b, name, dev, theme, tag, w=None, tabs=False):
     if tabs:
         await pg.evaluate("window.scrollTo(0, 0)")
         for view in ("news", "sports", "events"):
-            await pg.click(f".view.active .mq-chip[data-go='{view}']"); await pg.wait_for_timeout(2500)
+            if simple: await pg.evaluate(f"window.__chisme.goView('{view}')")
+            else: await pg.click(f".view.active .mq-chip[data-go='{view}']")
+            await pg.wait_for_timeout(2500)
             await pg.evaluate("window.scrollTo(0, 0)"); await pg.wait_for_timeout(300)
             await pg.screenshot(path=f"{SHOTS}/{tag}-chisme-{view}.png")
         for view, nm in (("weather", "weather"), ("antojos", "ofrendas"), ("juegos", "juegos")):
-            await pg.click(".view.active .mq-chip[data-go='weather']" if view == "weather" else f"#tabs [data-view='{view}']"); await pg.wait_for_timeout(3000)   # v49.16: Weather is a Chisme chip
+            if simple and view == "weather": await pg.evaluate("window.__chisme.goView('weather')")
+            else: await pg.click(".view.active .mq-chip[data-go='weather']" if view == "weather" else f"#tabs [data-view='{view}']")
+            await pg.wait_for_timeout(3000)   # v49.16: Weather is a Chisme chip
             await pg.evaluate("window.scrollTo(0, 0)"); await pg.wait_for_timeout(300)
             await pg.screenshot(path=f"{SHOTS}/{tag}-{nm}.png")
             low = []
@@ -157,11 +164,12 @@ async def phone(b, name, dev, theme, tag, w=None, tabs=False):
             check(not low, f"{nm}: contrast ≥ 4.5 ({low})")
         await pg.click("#tabs [data-view='chisme']"); await pg.wait_for_timeout(800)
     # banner ✕
-    await pg.evaluate("window.scrollTo(0, 0)"); await pg.click("#muertos-banner-x"); await pg.wait_for_timeout(300)
-    gone = await pg.evaluate("getComputedStyle(document.querySelector('#muertos-banner')).display")
-    await ready(pg)
-    gone2 = await pg.evaluate("getComputedStyle(document.querySelector('#muertos-banner')).display")
-    check(gone == "none" and gone2 == "none", f"greeting ✕: gone, and stays gone after a reload ({gone}, {gone2})")
+    if not simple:
+      await pg.evaluate("window.scrollTo(0, 0)"); await pg.click("#muertos-banner-x"); await pg.wait_for_timeout(300)
+      gone = await pg.evaluate("getComputedStyle(document.querySelector('#muertos-banner')).display")
+      await ready(pg)
+      gone2 = await pg.evaluate("getComputedStyle(document.querySelector('#muertos-banner')).display")
+      check(gone == "none" and gone2 == "none", f"greeting ✕: gone, and stays gone after a reload ({gone}, {gone2})")
     check(not errs, f"no page errors ({errs[:2]})")
     await ctx.close()
 
