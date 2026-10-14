@@ -2105,3 +2105,7 @@ dialog.tia-menu.menu-sheet .tia-menu-in{max-height:calc(100dvh - 146px)}
    lives in the ☰ menu, Homies is a step in account setup and a section on your own profile. Fits 320 px, 44 px+ each. */
 #sx-chips.mq-chips{flex-wrap:nowrap}
 #sx-chips .mq-chip{min-width:44px;min-height:44px}
+
+/* v49.23 Our places & history gallery (reuses the Día de Muertos strip + viewer) */
+.pl-hist{margin:4px 0 0;font-size:.86rem;line-height:1.4;color:var(--ink2)}
+.pl-v-hist{font-weight:600}

@@ -3610,17 +3610,23 @@ window.CHISME_APP_BUILD = "49.23";
   function mqCredit(ph) {
     const lic = ph.license_url ? ext(ph.license_url, ph.license, null, { title: ph.license, source: "License", summary: `The license for this photo by ${ph.photographer}.` })
       : el("span", { text: ph.license });
-    const src = ext(ph.source_url, "Wikimedia Commons", null, { title: `${ph.title} · ${ph.place}, ${ph.year}`, source: "Wikimedia Commons",
+    const src = ext(ph.source_url, "Wikimedia Commons", null, { title: `${ph.title} · ${phWhere(ph)}`, source: "Wikimedia Commons",
       summary: `Photo: ${ph.photographer} · ${ph.license}`, image: ph.thumb });
     return el("p", { class: "art-credit mq-credit" }, "Photo: ", el("b", { text: ph.photographer }), " / ", lic, " / ", src, ph.resized ? " (resized)" : "");
   }
-  function mqView(i) {
-    const list = mqGal || [], dlg = $("#mq-viewer"); if (!list.length || !dlg) return;
+  // v49.23: the viewer shows whichever gallery opened it (Día de Muertos or Our places & history)
+  var mqCur = null;
+  const phWhere = (ph) => ph.year ? `${ph.place}, ${ph.year}` : (ph.area || ph.place || "");
+  function mqView(i, list) {
+    if (list) mqCur = list;
+    list = mqCur || mqGal || []; const dlg = $("#mq-viewer"); if (!list.length || !dlg) return;
     i = (i + list.length) % list.length; dlg.dataset.i = String(i);
     const ph = list[i], img = $("#mq-v-img");
-    img.src = ph.file; img.width = ph.w; img.height = ph.h; img.alt = `${ph.title}, ${ph.place}, ${ph.year}`;
-    $("#mq-v-cap").textContent = `${ph.title} · ${ph.place}, ${ph.year}`;
-    $("#mq-v-credit").replaceWith(Object.assign(mqCredit(ph), { id: "mq-v-credit" }));
+    img.src = ph.file; img.width = ph.w; img.height = ph.h; img.alt = `${ph.title}, ${phWhere(ph)}`;
+    $("#mq-v-cap").textContent = `${ph.title} · ${phWhere(ph)}`;
+    const cr = Object.assign(mqCredit(ph), { id: "mq-v-credit" });
+    if (ph.history) cr.prepend(el("span", { class: "pl-v-hist", text: ph.history + " " }), ext(ph.history_url, "(Wikipedia)", null, { title: ph.title, source: "Wikipedia", summary: ph.history }), el("br"));
+    $("#mq-v-credit").replaceWith(cr);
     $("#mq-v-n").textContent = `${i + 1} of ${list.length}`;
     if (!dlg.open) dlg.showModal();
   }
@@ -3633,11 +3639,38 @@ window.CHISME_APP_BUILD = "49.23";
       strip.replaceChildren(...mqGal.map((ph, i) => {
         const img = el("img", { src: ph.thumb, alt: `${ph.title}, ${ph.place}, ${ph.year}`, width: ph.tw, height: ph.th, loading: "lazy", decoding: "async", draggable: "false" });
         const btn = el("button", { type: "button", class: "mq-gal-open", "aria-label": `See it big: ${ph.title}` }, img);
-        btn.onclick = () => mqView(i);
+        btn.onclick = () => mqView(i, mqGal);
         return el("figure", { class: "mq-gal-item", role: "listitem", "data-id": ph.id }, btn,
           el("figcaption", {}, el("p", { class: "mq-gal-cap", text: ph.title }), el("p", { class: "mq-gal-place", text: `${ph.place} · ${ph.year}` }), mqCredit(ph)));
       }));
     }).catch(() => { mqGal = null; });
+  }
+  // v49.23 Our places & history: San Antonio + South Texas landmarks and community places (static/places/places.json,
+  // built by tools/make_places_gallery.py): each the Wikipedia article's freely licensed Commons lead photo, credited
+  // (photographer / license / Wikimedia Commons), with the article's own first lines as the history, linked.
+  var plGal = null;
+  function placesInit() {
+    if (plGal) return;
+    plGal = [];
+    const strip = $("#pl-gal-strip"); if (!strip) return;
+    fetch("/static/places/places.json").then((r) => r.json()).then((j) => {
+      plGal = (j.photos || []).filter((p) => p.file && p.photographer && p.license && p.source_url && p.history && p.history_url);
+      strip.replaceChildren(...plGal.map((ph, i) => {
+        const img = el("img", { src: ph.thumb, alt: `${ph.title}, ${ph.area}`, width: ph.tw, height: ph.th, loading: "lazy", decoding: "async", draggable: "false" });
+        const btn = el("button", { type: "button", class: "mq-gal-open", "aria-label": `See it big: ${ph.title}` }, img);
+        btn.onclick = () => mqView(i, plGal);
+        return el("figure", { class: "mq-gal-item pl-item", role: "listitem", "data-id": ph.id }, btn,
+          el("figcaption", {}, el("p", { class: "mq-gal-cap", text: ph.title }), el("p", { class: "mq-gal-place", text: ph.area }),
+            el("p", { class: "pl-hist" }, ph.history + " ", ext(ph.history_url, "Wikipedia", null, { title: ph.title, source: "Wikipedia", summary: ph.history })), mqCredit(ph)));
+      }));
+    }).catch(() => { plGal = null; });
+  }
+  {
+    const pls = $("#pl-gallery");
+    if (pls && "IntersectionObserver" in window) {
+      const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) { io.disconnect(); placesInit(); } }, { rootMargin: "600px" });
+      io.observe(pls);
+    } else if (pls) placesInit();
   }
   {
     const dlg = $("#mq-viewer");
