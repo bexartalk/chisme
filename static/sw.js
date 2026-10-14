@@ -9,6 +9,7 @@ const SHELL = [
   "/",
   "/manifest.webmanifest",
   `/static/style.css?v=${BUILD}`,
+  `/static/simple.css?v=${BUILD}`,
   `/static/foryou.js?v=${BUILD}`,
   `/static/newsorder.js?v=${BUILD}`,
   `/static/donatelines.js?v=${BUILD}`,

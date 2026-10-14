@@ -1,0 +1,62 @@
+/* Simple-feed mockup (branch chisme-simple-feed, html.simple): one clean scrolling feed like Facebook.
+   Navigation = the bottom tabs + ☰ (News, Sports, Events, Weather, ChismeTV, Photos live there). No filter pills over
+   the feed, no extra banners; white cards with dark readable text everywhere; Día de Muertos only colours the header. */
+html.simple{--sf-bg:#f0f2f5;--sf-card:#fff;--sf-ink:#1c1e21;--sf-muted:#65676b;--sf-line:#e4e6eb;--sf-link:#0b5cad;--sf-r:12px}
+html.simple[data-theme="dark"]{--sf-bg:#18191a;--sf-card:#242526;--sf-ink:#e4e6eb;--sf-muted:#b0b3b8;--sf-line:#3a3b3c;--sf-link:#7ab8ff}
+html.simple body,html.simple[data-season="muertos"] body{background:var(--sf-bg)!important;background-image:none!important;color:var(--sf-ink);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+html.simple main, html.simple .view{background:transparent!important}
+/* clutter off: the pill rows, the feed intro, the greeting banner, the swipe hint, the stand-alone donate cards */
+html.simple .mq-chips,html.simple #mix-hi,html.simple #muertos-banner,html.simple .greet,html.simple .swipe-hint,
+html.simple #donate-chisme,html.simple #donate-mid,html.simple .donate-every,html.simple aside.donate,html.simple .mq-picado{display:none!important}
+/* one card style */
+html.simple .card,html.simple[data-season="muertos"] .card,html.simple[data-season="muertos"][data-theme="light"] .card,
+html.simple .story,html.simple[data-season="muertos"][data-theme="light"] .story,html.simple .mix-item,html.simple article.ev,html.simple article.sn{
+  background:var(--sf-card)!important;color:var(--sf-ink)!important;border:1px solid var(--sf-line)!important;border-radius:var(--sf-r)!important;
+  box-shadow:0 1px 2px rgba(0,0,0,.12)!important;background-image:none!important}
+html.simple #mix.card{background:transparent!important;border:0!important;box-shadow:none!important;padding:0}
+html.simple #mix-list{display:flex;flex-direction:column;gap:10px}
+html.simple .mix-item{padding:12px 14px;margin:0}
+html.simple .card h2,html.simple .card h3,html.simple .card h4,html.simple .mix-item h3,html.simple .mix-item h3 a,html.simple .story h3 a{color:var(--sf-ink)!important;font-family:inherit;letter-spacing:0}
+html.simple .card h2{font-size:1.15rem;font-weight:800}
+html.simple .mix-item h3,html.simple .story h3{font-size:1.02rem;font-weight:700;line-height:1.3}
+html.simple .meta,html.simple .stamp,html.simple .small,html.simple .hint,html.simple .ev-src,html.simple .sum,html.simple .blurb{color:var(--sf-muted)!important;font-weight:500}
+html.simple h3 a,html.simple h4 a{color:var(--sf-ink)!important}
+html.simple .mix-tag{background:var(--sf-bg)!important;color:var(--sf-muted)!important;border:0!important;font-weight:700}
+html.simple .sec-head h2::after{display:none!important}
+html.simple #mq-gallery,html.simple #pl-gallery{color:var(--sf-ink)!important;margin-top:18px}
+html.simple #mq-gallery .mq-gal-sub,html.simple #mq-gallery .hint{color:var(--sf-muted)!important}
+/* the compose box: a plain Facebook "What's on your mind" row */
+html.simple .sx-compose{background:var(--sf-card)!important;border:1px solid var(--sf-line)!important;border-radius:var(--sf-r)!important;box-shadow:0 1px 2px rgba(0,0,0,.12)!important;color:var(--sf-muted)}
+html.simple .sx-compose .sx-q{color:var(--sf-muted)}
+/* From Chisme card (once, low): same clean card */
+html.simple .from-chisme,html.simple[data-season="muertos"] .from-chisme{aspect-ratio:auto;max-width:none;margin:10px 0;color:var(--sf-ink)!important}
+html.simple .from-chisme::before{display:none}
+html.simple .from-chisme .fc-t,html.simple .from-chisme .fc-p,html.simple .from-chisme .fc-jefa-t{color:var(--sf-ink)!important}
+html.simple .from-chisme .fc-label{background:var(--sf-bg)!important;color:var(--sf-muted)!important}
+html.simple .from-chisme .fc-bmc,html.simple .from-chisme .fc-share{border:1px solid var(--sf-line);box-shadow:none;border-radius:8px;min-height:44px}
+html.simple .from-chisme .fc-share{background:var(--sf-bg);color:var(--sf-ink)}
+html.simple .from-chisme .bubble-edge{fill:var(--sf-card)!important}
+/* the ChismeTV row: Facebook Reels style, vertical 9:16 thumbnails scrolling sideways */
+.tv-row{display:none}
+html.simple .tv-row{display:block;background:var(--sf-card);border:1px solid var(--sf-line);border-radius:var(--sf-r);box-shadow:0 1px 2px rgba(0,0,0,.12);padding:12px 0 14px}
+html.simple .tv-row[hidden]{display:none}
+.tv-row-h{display:flex;align-items:center;justify-content:space-between;padding:0 14px 10px}
+.tv-row-t{margin:0;font-size:1.02rem;font-weight:800;color:var(--sf-ink)}
+.tv-row-all{background:none;border:0;color:var(--sf-link);font-weight:700;font-size:.92rem;min-height:44px;padding:0 4px;cursor:pointer}
+.tv-strip{display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x mandatory;padding:0 14px;scrollbar-width:none;overscroll-behavior-x:contain}
+.tv-strip::-webkit-scrollbar{display:none}
+.tv-clip{position:relative;flex:none;width:112px;aspect-ratio:9/16;border:0;padding:0;border-radius:10px;overflow:hidden;scroll-snap-align:start;
+  background:linear-gradient(180deg,#3E1160,#01063B);cursor:pointer}
+.tv-clip img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.tv-clip::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 55%,rgba(0,0,0,.75))}
+.tv-play{position:absolute;top:8px;left:8px;z-index:1;width:26px;height:26px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;font-size:.7rem;display:flex;align-items:center;justify-content:center}
+.tv-by{position:absolute;left:8px;right:8px;bottom:8px;z-index:1;color:#fff;font-size:.78rem;font-weight:800;line-height:1.2;text-align:left;text-shadow:0 1px 2px #000}
+/* Muertos accents stay on the header (top bar + bottom tabs) only */
+html.simple[data-season="muertos"] .card{border-top:1px solid var(--sf-line)!important}
+/* the page footer sits on the plain grey page now (not the night sky) */
+html.simple .foot > p,html.simple .foot > p > span,html.simple .wx-disclaimer,html.simple .view > .hint,html.simple .view > p.hint{color:var(--sf-muted)!important}
+html.simple .foot a,html.simple .wx-disclaimer a{color:var(--sf-link)!important}
+/* a post inside a feed row is one card, not a card in a card */
+html.simple .mix-item .story,html.simple .mix-item article,html.simple[data-season][data-theme] .mix-item .story,html.simple[data-season][data-theme] .mix-item article,html.simple[data-theme] .mix-item .story,html.simple[data-theme] .mix-item article{
+  border:0!important;box-shadow:none!important;padding:0!important;margin:0!important;background:transparent!important}

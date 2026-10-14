@@ -901,7 +901,7 @@ window.CHISME_APP_BUILD = "49.24";
     return null;
   }
   function placeMid() {
-    if (!midTab || midGone()) return;
+    if (!midTab || midGone() || document.documentElement.classList.contains("simple")) return;   // simple feed: no mid-list donate card
     const spot = midSpot(midTab);
     if (!spot || !spot[0].parentNode) return;
     const [ref, how] = spot;
@@ -1017,9 +1017,41 @@ window.CHISME_APP_BUILD = "49.24";
     if (tab === "events") return [...V.querySelectorAll("#events-list > article.ev")];
     return [];
   }
+  // ---------- simple-feed mockup: a Reels-style row of ChismeTV clips after every 5th post (it takes the promo slots), and
+  // the From Chisme card at most once, low in the feed (after post 23, or the last post of a short list).
+  const SIMPLE = document.documentElement.classList.contains("simple"), TV_EVERY = 5, FC_LOW = 23;
+  var tvSrc = null;   // the ranked ChismeTV list (set by renderForYouCard); var so it's safe to read before that runs
+  function tvRow() {
+    const row = el("aside", { class: "tv-row", "aria-label": "ChismeTV clips" },
+      el("div", { class: "tv-row-h" }, el("h3", { class: "tv-row-t" }, el("span", { "aria-hidden": "true", text: "📺 " }), "ChismeTV"),
+        el("button", { type: "button", class: "tv-row-all", text: "See all" })),
+      el("div", { class: "tv-strip no-swipe", role: "list" }));
+    row.querySelector(".tv-row-all").onclick = (e) => window.__chisme && window.__chisme.openFeed(e.currentTarget, 0);
+    fillTvRow(row);
+    return row;
+  }
+  function fillTvRow(row) {
+    const strip = row.querySelector(".tv-strip"), list = (tvSrc || []).slice(0, 10);
+    row.hidden = !list.length;
+    strip.replaceChildren(...list.map((r, i) => {
+      const it = r.item, b = el("button", { type: "button", class: "tv-clip", role: "listitem", "aria-label": `Play: ${it.title || "video"} (${it.creator || it.source || ""})` });
+      if (it.image) { const im = el("img", { src: it.image, alt: "", loading: "lazy", referrerpolicy: "no-referrer" }); im.onerror = () => im.remove(); b.append(im); }
+      b.append(el("span", { class: "tv-play", "aria-hidden": "true", text: "▶" }), el("span", { class: "tv-by", text: it.creator || it.source || "" }));
+      b.onclick = () => window.__chisme && window.__chisme.openFeed(b, i);
+      return b;
+    }));
+  }
+  if (SIMPLE) { const v = document.getElementById("view-chisme"); for (const id of ["mq-gallery", "pl-gallery"]) { const g = document.getElementById(id); if (v && g) v.append(g); } }   // photo galleries: below the feed
+  const fillTvRows = () => document.querySelectorAll(".tv-row").forEach(fillTvRow);
   function placeFrom(tab) {
     if (!FC_TABS.includes(tab)) return;
-    document.querySelectorAll(`#view-${tab} .from-chisme`).forEach((n) => n.remove());
+    document.querySelectorAll(`#view-${tab} .from-chisme, #view-${tab} .tv-row`).forEach((n) => n.remove());
+    if (SIMPLE) {
+      const items = fcItems(tab), where = [];
+      if (tab === "chisme") for (let k = TV_EVERY; k < items.length; k += TV_EVERY) items[k - 1].after(tvRow());
+      if (items.length) { const j = Math.min(FC_LOW, items.length); (items[j - 1].nextElementSibling && items[j - 1].nextElementSibling.matches(".tv-row") ? items[j - 1].nextElementSibling : items[j - 1]).after(fcCard(j, true)); where.push(j); }
+      fcWhere[tab] = where; return;
+    }
     const items = fcItems(tab), where = [];
     for (let k = FC_EVERY; k <= items.length; k += FC_EVERY) {
       let j = k;
@@ -1833,6 +1865,7 @@ window.CHISME_APP_BUILD = "49.24";
       if (fyList[0]) lsSet("chisme-foryou-lead", fyList[0].crew);   // next visit leads with someone else
       renderCover();
     }
+    tvSrc = fyList; fillTvRows();
     const n = fyList.length || vids.length;
     const likes = FY.interests(fyProfile || FY.load(), 3);
     $("#fy-meta").textContent = !vids.length ? "No videos in the feeds right now — check back soon."
@@ -3313,7 +3346,7 @@ window.CHISME_APP_BUILD = "49.24";
   const THEME_KEY = "chisme-theme", TAB_KEY = "chisme-default-tab";
   const themePref = () => localStorage.getItem(THEME_KEY) || "system";
   const darkMQ = matchMedia("(prefers-color-scheme: dark)");
-  function defaultTab() { const t = localStorage.getItem(TAB_KEY); return VIEWS.includes(t) ? t : "random"; }   // v49.12: 🔀 Surprise me unless a tab was picked
+  function defaultTab() { const t = localStorage.getItem(TAB_KEY); return VIEWS.includes(t) ? t : document.documentElement.classList.contains("simple") ? "chisme" : "random"; }   // simple feed: opens on the feed   // v49.12: 🔀 Surprise me unless a tab was picked
   function applyTheme() {
     const pref = themePref();
     const dark = pref === "dark" || (pref === "system" && darkMQ.matches);
@@ -4293,6 +4326,14 @@ window.CHISME_APP_BUILD = "49.24";
       menuDlg.addEventListener("click", (e) => { if (e.target === menuDlg) menuDlg.close(); });   // a tap outside it
       $("#menu-settings").onclick = () => { menuDlg.close(); openSettings(); };
       menuDlg.addEventListener("close", () => { if (!document.querySelector("dialog[open]") && menuBtn) menuBtn.focus({ preventScroll: true }); });
+    }
+    if (SIMPLE) {   // simple feed: the section pages and extras live in ☰ (not as pills over the feed)
+      const go = (v) => () => window.__chisme.goView(v);
+      setSection("browse", [{ emoji: "📰", label: "News", onSelect: go("news") }, { emoji: "🏀", label: "Sports", onSelect: go("sports") },
+        { emoji: "🎉", label: "Events", sub: "Every city, soonest first", onSelect: go("events") }, { emoji: "🌤️", label: "Weather & radar", onSelect: go("weather") },
+        { emoji: "📺", label: "ChismeTV", onSelect: () => window.__chisme.openFeed(null, 0) },
+        { emoji: "📸", label: "Photos & history", onSelect: () => { window.__chisme.goView("chisme"); setTimeout(() => { const g = document.querySelector("#mq-gallery:not([hidden]), #pl-gallery"); if (g) g.scrollIntoView({ behavior: "smooth" }); }, 300); } }],
+        { title: "Browse" });
     }
     window.__chismeMenu = { open: openMenu, setSection, onBeforeOpen: (f) => hooks.push(f),
       setDot: (on) => { const d = $("#sx-dot"); if (d) d.hidden = !on; }, get sheet() { return sheet(); } };

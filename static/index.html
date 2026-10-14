@@ -39,11 +39,13 @@
   <link rel="stylesheet" href="/static/vendor/leaflet/leaflet.css">
   <link rel="stylesheet" href="/static/style.css?v=__BUILD__">
   <link rel="stylesheet" href="/static/ownerposts.css?v=__BUILD__">
-  <link rel="stylesheet" href="/static/social.css?v=__BUILD__">   <!-- Chisme social: user Chismes, profiles, Homies (social.js; scoped under .sx) -->   <!-- the owner's own posts ("From Chisme") -->
+  <link rel="stylesheet" href="/static/social.css?v=__BUILD__">
+  <link rel="stylesheet" href="/static/simple.css?v=__BUILD__">   <!-- simple-feed mockup: one clean Facebook-style feed (html.simple) -->   <!-- Chisme social: user Chismes, profiles, Homies (social.js; scoped under .sx) -->   <!-- the owner's own posts ("From Chisme") -->
   <script>
     /* The server fills in the build; app.js and style.css are requested with ?v=<build>, so an
        older service worker's cached copies can never be mixed with this page. */
     window.CHISME_BUILD = "__BUILD__";
+    document.documentElement.classList.add("simple");   /* simple-feed mockup (branch chisme-simple-feed) */
     /* Settings that must apply before the first paint (no light flash in dark mode) */
     (function () {
       var d = document.documentElement, pref = "system", fs = 0, rm = "";
@@ -103,6 +105,7 @@
         else if (V.indexOf(q.get("tab")) >= 0) t = q.get("tab");
         else if (V.indexOf(fixed) >= 0) t = fixed;
         else if (!localStorage.getItem("chisme-location-setup")) t = "chisme";
+        else if (d.classList.contains("simple")) t = "chisme";   // simple feed: always opens on the feed
         else {   // only the 3 section tabs on show (v49.16): Chisme (opens on All; News, Sports, Events and Weather are inside it), food, Juegos
           var vis = ["chisme", "antojos", "juegos"];
           var last = localStorage.getItem("chisme-launch-last"); if (last === "news" || last === "sports" || last === "events" || last === "weather") last = "chisme";
