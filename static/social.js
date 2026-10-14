@@ -154,7 +154,7 @@
       el("p", { class: "small" }, "Also read the ", el("a", { href: "/community-rules", target: "_blank", text: "Community Rules" }), ". They're part of the Terms."),
       bot, el("button", { class: "btn pink sx-wide", type: "submit", text: "Join Chisme 🌶️" }));
     page("Join", el("section", { class: "card auth" }, el("h1", { text: "Join Chisme" }),
-      el("p", { class: "sub", text: "Your Homies, your city, your chisme. Your email stays private; we only use it to send your 6-digit code." }), f,
+      el("p", { class: "sub", text: "Your Homies, your city, your chisme — for Hispanic families everywhere, rooted in Texas. Your email stays private; we only use it to send your 6-digit code." }), f,
       el("p", { class: "links" }, el("a", { href: "#s/signin", text: "Already in? Sign in" }))));
   }
 
@@ -485,7 +485,7 @@
     const list = el("div", { class: "list" });
     if (d.pinned) list.append(card(d.pinned, { pinned: true }));
     d.chismes.forEach((c) => list.append(card(c)));
-    if (!d.chismes.length && !d.pinned) list.append(el("p", { class: "empty", text: tab === "chismes" ? "No Chismes yet." : "Nothing here yet." }));
+    if (!d.chismes.length && !d.pinned) list.append(el("p", { class: "empty", text: tab === "chismes" ? "No Chismes yet. Be the first to spill. 🌶️" : "Nothing here yet." }));
     page(p.name, el("section", { class: "profile", style: { "--acc": acc } }, banner,
       el("div", { class: "p-top" }, avatar(p, 96), btns),
       nameEl(p, "h1", { class: "p-name sx-fit" }), el("p", { class: "p-user" }, "@" + p.username, p.taco ? el("i", { class: "sx-bdg taco", "aria-hidden": "true" }) : null),  // v49.21: the taco next to the @handle too
@@ -1103,7 +1103,7 @@
     nudge.shown += 1; nudge.due = nudge.active + NUDGE.again; nudgeStore({ day: today() });
     const perk = (emo, t) => el("li", {}, el("span", { "aria-hidden": "true", text: emo }), " " + t);
     sheet("Join the Chisme 👀", el("div", { class: "sx-nudge" },
-      el("p", { class: "nudge-pitch", text: "Make a free account and get in on the chisme." }),
+      el("p", { class: "nudge-pitch", text: "Make a free account and get in on the chisme — Hispanic families everywhere, rooted in Texas." }),
       el("ul", { class: "nudge-perks" }, perk("❤️", "Like and react to Chismes"), perk("💬", "Comment and spill your side"),
         perk("🔖", "Save the good stuff"), perk("🤝", "Find your Homies")),
       el("div", { class: "nudge-btns" },

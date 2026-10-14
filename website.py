@@ -39,12 +39,12 @@ DESKTOP_MIN = 1024   # px; the same number is in desktop.css's <link media> and 
 # The tagline, in ONE place (spelling pending the owner's OK): titles, descriptions, OG alt, the footers, About,
 # the desktop hero (desktop.js reads <meta name="chisme-tagline">), /api/site and the OG image (tools/make_site_art.py).
 TAGLINE = "Chisme. ¿Oyistes?"
-TITLE = f"{TAGLINE} · San Antonio news, food & games"
+TITLE = f"{TAGLINE} · News, food & games for Hispanic families"
 LOGO = "/static/site/chisme-bubble-logo.svg"   # the 'Chisme' bubble cut from the app icon (tools/make_site_logo.py)
-DESC = (f"{TAGLINE} San Antonio news, sports, events, weather, food and games in one "
-        "free app. Made for the waiting room.")
+DESC = (f"{TAGLINE} News, sports, events, weather, food and games for Hispanic families everywhere, "
+        "rooted in Texas. Free. Made for the waiting room.")
 OG_IMAGE = "/static/site/og-banner.png"   # v49.15.3: the 1200×630 link-preview banner (same as index.html's og block)
-OG_ALT = ("The Chisme logo and its pitch (San Antonio news, sports, games and chisme, all in one free app), a Día de los Muertos "
+OG_ALT = ("The Chisme logo and its pitch (news, sports, games and chisme for Hispanic families, rooted in Texas), a Día de los Muertos "
           "ofrenda with a framed sugar skull, candles, fruit and pan dulce, two phones showing Chisme, and the San Antonio skyline")   # v49.15.3: what the banner shows (no ¿Oyistes? on it any more); same as index.html
 
 _HOST_RX = re.compile(r"^[A-Za-z0-9.-]{1,253}(:\d{1,5})?$")
@@ -325,18 +325,18 @@ def about_body() -> str:
     return f"""<article class="prose">
 <p class="kicker"><img src="/static/mascot/avatar-64.webp?art=3" srcset="/static/mascot/avatar-64.webp?art=3 1x, /static/mascot/avatar-128.webp?art=3 2x" alt="Tía Chismosa, Chisme's mascot" width="44" height="44"> <span>¡Hola, metiche!</span></p>
 <h1>About Chisme</h1>
-<p class="lead">{esc(TAGLINE)} It's San Antonio's local news, sports, events, weather, food and games in one free app.</p>
-<p>Stuck in the waiting room at your doctor's appointment? That's what Chisme is for. Open it, catch up on what's happening around town, watch a local food review on ChismeTV, play a quick game, and you're chismeando before they call your name.</p>
+<p class="lead">{esc(TAGLINE)} News, sports, events, weather, food and games for Hispanic families everywhere — rooted in Texas, with San Antonio features right where they started.</p>
+<p>Stuck in the waiting room at your doctor's appointment? That's what Chisme is for. Open it, catch up on what's happening around you, watch a food review on ChismeTV, play a quick game, and you're chismeando before they call your name.</p>
 <h2>What's inside</h2>
 <ul class="feat">
 <li><b>📰 Chisme</b>: local news, sports and events mixed into one feed, closest to you first. Stories open inside Chisme, credited to the outlet that reported them.</li>
 <li><b>🌤️ Weather</b>: National Weather Service forecasts and alerts, plus live rain radar.</li>
-<li><b>🌮 ¿Y la dieta?</b>{" (Ofrendas during Día de Muertos)" if d == "Ofrendas" else ""}: San Antonio's food creators taste-test so you don't have to guess. Swipe through their videos on 📺 ChismeTV and save the spots worth the drive.</li>
+<li><b>🌮 ¿Y la dieta?</b>{" (Ofrendas during Día de Muertos)" if d == "Ofrendas" else ""}: Food creators (San Antonio first, then beyond) taste-test so you don't have to guess. Swipe through their videos on 📺 ChismeTV and save the spots worth the drive.</li>
 <li><b>🎲 Juegos</b>: Chismería, our take on Lotería, and The Juan That Got Away. They work offline.</li>
 <li><b>☕ Tía Chismosa</b>: the app's mascot. Ask her what's going on and she answers from what's in Chisme, with the source.</li>
 </ul>
 <h2>How Chisme works</h2>
-<p>No account and no sign-up. Your settings, saved spots and scores stay on your phone. Chisme only uses your approximate location to find your weather and nearby stories. The details are in the <a href="/privacy">Privacy Policy</a>.</p>
+<p>Accounts are optional. Your settings, saved spots and scores stay on your phone. Chisme only uses your approximate location to find your weather and nearby stories. The details are in the <a href="/privacy">Privacy Policy</a>.</p>
 <p>Chisme is free. It's paid for by tips and by a few local businesses that sponsor a spot. Every sponsored spot is clearly marked <b>Sponsored</b>. Want yours there? <a href="/support#advertise">Ask about a local sponsor spot</a>.</p>
 <h2>Get it on your phone</h2>
 <p>Chisme is a web app. Open it in your phone's browser and add it to your Home Screen: on iPhone, open it in Safari, tap Share, then <b>Add to Home Screen</b>. On Android, open it in Chrome, tap the ⋮ menu, then <b>Add to Home screen</b> or <b>Install app</b>. Coming soon to the App Store and Google Play.</p>
