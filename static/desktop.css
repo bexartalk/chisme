@@ -312,7 +312,7 @@ html.dk .terms-bar{right:96px}
    · Not too white: cards and widgets #ECFAFA, the reader + page cards #F4FBFB (a turquoise tint: no bright white, no cream).
    ===================================================================================================================== */
 @font-face{font-family:"Chisme Site Display";src:url("/static/fonts/chewy-site.woff") format("woff");font-display:swap}
-html.dk{--dk-display:"Chisme Site Display","Chisme Display",system-ui,sans-serif;--dk-card:#ECFAFA;--dk-card2:#F4FBFB;--dk-wline:#000}
+html.dk{--dk-display:"Chisme Site Display","Chisme Display",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;--dk-card:#ECFAFA;--dk-card2:#F4FBFB;--dk-wline:#000}
 html.dk[data-theme="dark"]{--dk-card:var(--card);--dk-card2:var(--card);--dk-wline:var(--line)}
 html.dk:not([data-theme="dark"]){--card:#ECFAFA}
 /* the logo in the nav */

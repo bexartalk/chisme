@@ -190,7 +190,7 @@ HEAD = """<!doctype html><html lang="en"><head><meta charset="utf-8">
 <style>
 :root{--ink:#0a0a0a;--bg:#f4f3ef;--card:#fff;--line:#d6d2ca;--pink:#EF426F;--turq:#00C9CD;--orange:#FF8200;--pinkd:#b8123f;--turqd:#00797c;--silver:#a7a9ac;--silverl:#eceded;--muted:#3b3b3b}
 *{box-sizing:border-box}[hidden]{display:none!important}html{-webkit-text-size-adjust:100%}
-body{margin:0;background:var(--bg);color:var(--ink);font:500 17px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;overflow-x:hidden}
+body{margin:0;background:var(--bg);color:var(--ink);font:500 17px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;overflow-x:hidden}
 button,input,select,textarea{font:inherit;color:inherit}a{color:#0a3d8f}
 button:focus-visible,a:focus-visible,summary:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:4px solid var(--pink);outline-offset:2px}
 .top{position:sticky;top:0;z-index:20;background:var(--ink);color:#fff;padding:calc(env(safe-area-inset-top) + 6px) 10px 0}

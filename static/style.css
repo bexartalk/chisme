@@ -5,7 +5,9 @@
 }
 *{box-sizing:border-box}
 html{font-size:var(--fs);-webkit-text-size-adjust:100%}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;line-height:1.4;font-weight:500}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.4;font-weight:500}
+/* v49.23: smoother Facebook-like system UI font everywhere (form controls too); logo + title art keep their own fonts */
+button,input,select,textarea{font-family:inherit}
 a{color:var(--link)}
 .wrap{max-width:1200px;margin:0 auto;padding:0 16px}
 button{font:inherit;font-weight:700;color:var(--ink);background:#fff;border:2px solid var(--ink);border-radius:10px;padding:.35em .8em;cursor:pointer;min-height:44px}
@@ -259,7 +261,7 @@ main{padding-top:0}
 .ev-venue .txt a{font-weight:900}
 .minimap{flex:0 0 auto;width:112px;height:84px;border-radius:10px;border:2px solid var(--line);overflow:hidden;position:relative;background:#dfe7ee;display:block}
 .minimap img{position:absolute;width:256px;height:256px;max-width:none}
-.minimap .mm-credit{position:absolute;right:0;bottom:0;padding:0 3px;background:rgba(255,255,255,.85);color:#000;font:600 9px/1.3 system-ui,sans-serif;border-top-left-radius:4px;white-space:nowrap}   /* v49.12 */
+.minimap .mm-credit{position:absolute;right:0;bottom:0;padding:0 3px;background:rgba(255,255,255,.85);color:#000;font:600 9px/1.3 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;border-top-left-radius:4px;white-space:nowrap}   /* v49.12 */
 .minimap .pin{position:absolute;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;background:var(--pink);border:3px solid #000}
 .price{display:inline-block;font-weight:900;font-size:.85rem;border:2px solid #000;border-radius:8px;padding:.05em .5em}
 .price.free{background:#1e7a34;color:#fff;border-color:#1e7a34}
@@ -1003,7 +1005,7 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
 /* v49.3: her name in the logo's spirit: a chunky hand-lettered display face (Chewy, subset to these letters, Apache 2.0),
    big white with a black outline like the Chisme wordmark; no pill behind it, no subtitle (the "AI" note is in the footer) */
 @font-face{font-family:"Chisme Display";src:url("/static/fonts/chewy-tia.woff2") format("woff2");font-weight:400;font-style:normal;font-display:swap}
-.tia-name{position:absolute;right:12px;bottom:6px;left:12px;z-index:1;margin:0;text-align:right;font-family:"Chisme Display","Arial Rounded MT Bold",system-ui,sans-serif;
+.tia-name{position:absolute;right:12px;bottom:6px;left:12px;z-index:1;margin:0;text-align:right;font-family:"Chisme Display","Arial Rounded MT Bold",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   font-weight:400;font-size:2.35rem;line-height:1;letter-spacing:.5px;color:#fff;-webkit-text-stroke:7px #000;paint-order:stroke fill;
   text-shadow:0 3px 0 #000;background:none;padding:0;pointer-events:none}
 @media (max-width:360px){.tia-name{font-size:2rem;-webkit-text-stroke-width:6px}}
@@ -2069,7 +2071,7 @@ dialog.reel-share[open]{animation:rs-up .22s ease-out}
 .tia-gate { margin: 10px 14px 16px; padding: 18px 16px; border-radius: 18px; background: var(--card); color: var(--ink); text-align: center;
   border: 2px solid var(--fb-turq, #00C9CD); box-shadow: 0 5px 0 var(--fb-pink, #FF1A7F); }
 .tia-gate[hidden] { display: none; }
-.tia-gate-badge { display: inline-grid; place-items: center; width: 64px; height: 64px; margin: 0 auto 6px; border-radius: 50%; font: 900 1.3rem/1 system-ui, sans-serif;
+.tia-gate-badge { display: inline-grid; place-items: center; width: 64px; height: 64px; margin: 0 auto 6px; border-radius: 50%; font: 900 1.3rem/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   color: #fff; background: linear-gradient(135deg, var(--fb-pink, #FF1A7F), var(--fb-orange, #FF6A0B)); box-shadow: 0 0 0 4px var(--card), 0 0 0 6px #C0C0C0; }
 .tia-gate-t { margin: 4px 0 6px; font-size: 1.25rem; }
 .tia-gate-p { margin: 0 0 12px; font-weight: 600; }
