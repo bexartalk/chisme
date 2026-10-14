@@ -96,16 +96,22 @@ async def run(p, b, dev, opts):
             if await pg.evaluate("document.getElementById('player').open"):
                 await audit(pg, dev, "story-player", None); await pg.click("#player-close"); await pg.wait_for_timeout(500)
         except Exception as ex: note(dev, f"story tap: {type(ex).__name__}")
-    # Tía: menu → chat → a message; menu → Settings
-    await pg.click("#tia-btn"); await pg.wait_for_timeout(500)
-    await audit(pg, dev, "tia-menu")
-    await pg.click("#tia-menu-chat"); await pg.wait_for_timeout(600)
-    await pg.fill("#tia-in", "¿Qué hay de nuevo?"); await pg.click("#tia-send")
-    try: await pg.wait_for_function("document.querySelectorAll('#tia-log .from-tia:not(.typing)').length > 0 && !document.querySelector('#tia-log .typing')", timeout=40000)
-    except Exception: note(dev, "Tía never answered")
-    await audit(pg, dev, "tia-chat")
+    # Tía (v49.23: a bottom tab now, #tab-tia opens her chat straight away; the old floating #tia-btn is gone) → a message;
+    # ☰ Menu → Settings
+    await pg.evaluate("document.querySelectorAll('dialog[open]').forEach(d => d.close())"); await pg.wait_for_timeout(300)   # #tab-tia does nothing while a sheet is up
+    await pg.click("#tab-tia"); await pg.wait_for_selector("#tia", state="visible", timeout=15000); await pg.wait_for_timeout(1500)
+    if await pg.evaluate("!document.getElementById('tia-gate').hidden"):   # v49.23: signed out, her chat asks you to sign in first
+        await audit(pg, dev, "tia-gate")
+    else:
+        await pg.fill("#tia-in", "¿Qué hay de nuevo?"); await pg.click("#tia-send")
+        try: await pg.wait_for_function("document.querySelectorAll('#tia-log .from-tia:not(.typing)').length > 0 && !document.querySelector('#tia-log .typing')", timeout=40000)
+        except Exception: note(dev, "Tía never answered")
+        await audit(pg, dev, "tia-chat")
     await pg.click("#tia-close"); await pg.wait_for_timeout(400)
-    await pg.click("#tia-btn"); await pg.wait_for_timeout(400); await pg.click("#tia-menu-settings"); await pg.wait_for_timeout(800)
+    await pg.evaluate("window.__chismeMenu.open()"); await pg.wait_for_timeout(500)
+    if await pg.evaluate("document.getElementById('menu').open"):
+        await pg.click("#menu-settings")
+    await pg.wait_for_timeout(800)
     await audit(pg, dev, "settings")
     await pg.evaluate("document.querySelector('#settings .set-alerts, #settings [class*=alert]') && document.querySelector('#settings .set-alerts, #settings [class*=alert]').scrollIntoView({block:'center'})"); await pg.wait_for_timeout(300)
     await audit(pg, dev, "settings-notifications")
