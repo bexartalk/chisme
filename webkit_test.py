@@ -6,14 +6,14 @@
   * no console errors or page errors
 Writes screenshots/location-first-run.png, home-no-location.png, sports-fixed.png, weather-fixed.png, header-logo.png
 
-    ./venv/bin/python webkit_test.py [url]      (default http://localhost:8211/)
+    ./venv/bin/python webkit_test.py [url]      (default $URL, else http://localhost:8486/)
 """
 import asyncio, json, os, sys
 from playwright.async_api import async_playwright
 import os as _os, sys as _sys; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__))); import pw_csp  # noqa: E401,F401  (v49.11: CSP-safe wait_for_function)
 from popup_quiet import QUIET   # v49: the notifications card + Settings tip have their own tests
 
-URL = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8211/"
+URL = sys.argv[1] if len(sys.argv) > 1 else os.environ.get("URL", "http://localhost:8486/")
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "screenshots")
 fails = []
 def check(ok, what):
@@ -35,29 +35,48 @@ async def new(p, b, width=None, grant=None, init=None):
     pg.on("console", lambda m: errs.append(f"console: {m.text}") if m.type == "error" else None)
     return ctx, pg, errs
 
+async def goto(pg):
+    # wait for the DOM, not the 'load' event: under parallel load (several suites on one server) every image on the
+    # home screen has to arrive before 'load', which blew past goto's 30 s default. ready() then waits for the app itself.
+    await pg.goto(URL, wait_until="domcontentloaded", timeout=90000)
+
 async def ready(pg):
     await pg.wait_for_function("() => window.__chisme && window.__chisme.ready", timeout=90000)
-    await pg.wait_for_timeout(800)
+    await idle(pg)   # was a fixed 800 ms: under parallel load the first API calls were still in flight
+
+async def dialog(pg, sel, open_=True):
+    """wait for a <dialog> to really be open/closed (was a fixed 400-500 ms after the tap)"""
+    await pg.wait_for_function(f"() => !!document.querySelector('{sel}').open === {'true' if open_ else 'false'}", timeout=15000)
 
 async def idle(pg):
     """Wait for in-flight API requests to finish (a reload mid-fetch makes WebKit log cancelled loads)."""
     try: await pg.wait_for_function("() => window.__chisme && window.__chisme.sync.busy.length === 0", timeout=60000)
     except Exception: pass
-    await pg.wait_for_timeout(300)
+    await frames(pg)
+
+async def frames(pg, n=2):
+    await pg.evaluate("(n) => new Promise((ok) => { const f = () => (--n <= 0 ? ok() : requestAnimationFrame(f)); requestAnimationFrame(f); })", n)
+
+async def no_anims(pg, sel):
+    """the view slide (CSS transition) has finished: WebKit under load read getBoundingClientRect mid-slide before"""
+    await pg.wait_for_function(f"() => {{ const e = document.querySelector('{sel}'); return e && !e.getAnimations({{ subtree: true }}).some((a) => a.playState === 'running' && a.effect && a.effect.getComputedTiming().iterations !== Infinity); }}", timeout=15000)
+    await frames(pg)
 
 async def settle(pg):
     try: await pg.wait_for_function("document.querySelector('#sync').dataset.state === 'done'", timeout=10000)
     except Exception: pass
-    await pg.wait_for_timeout(400)
+    await frames(pg)
 
 async def view_ok(pg, v):
     if v in ("news", "sports", "events", "weather"):   # v49.12: one Chisme tab, then its chip (v49.16: Weather too)
-        await pg.click('#tabs [data-view="chisme"]'); await pg.wait_for_timeout(600)
+        await pg.click('#tabs [data-view="chisme"]')
+        await pg.wait_for_selector(f'.view.active .mq-chip[data-go="{v}"]', state="visible", timeout=15000)
         await pg.click(f'.view.active .mq-chip[data-go="{v}"]')
     else: await pg.click(f'#tabs [data-view="{v}"]')
     sel = {"sports": "#sports-body .sp-photo, #sports-body .error", "weather": "#view-weather .now-temp, #view-weather .notice, #view-weather .error"}[v]
     await pg.wait_for_selector(sel, timeout=60000)
-    await pg.wait_for_timeout(700)
+    await pg.wait_for_function(f"() => window.__chisme.view === '{v}'", timeout=15000)
+    await no_anims(pg, "#view-" + v)
     return await pg.evaluate(f"""() => {{ const el = document.querySelector('#view-{v}'), r = el.getBoundingClientRect();
         return {{ view: window.__chisme.view, onScreen: r.left > -5 && r.left < 20, chars: el.innerText.trim().length,
                  error: !!el.querySelector('.error') }}; }}""")
@@ -68,7 +87,7 @@ async def main():
 
         print("== first launch (location permission not granted yet)")
         ctx, pg, errs = await new(p, b)
-        await pg.goto(URL); await ready(pg)
+        await goto(pg); await ready(pg)
         card = await pg.evaluate("() => ({ shown: !document.querySelector('#loc-panel').hidden, mode: document.querySelector('#loc-panel').dataset.mode, pill: !!document.querySelector('#loc-btn, .loc-pill') })")
         check(card["shown"] and card["mode"] == "ask" and not card["pill"], f"one-time location card on the home screen, no location pill ({card})")
         await pg.evaluate("window.scrollTo(0, 0)"); await settle(pg)
@@ -77,12 +96,12 @@ async def main():
         await pg.wait_for_function("() => document.querySelector('#loc-panel').hidden && /78211|San Antonio/.test(document.querySelector('#set-loc-now').textContent) && window.__chisme.loc.source === 'manual'", timeout=60000)
         check(True, "picking a ZIP on the card sets the location and hides the card")
         for i in range(2):
-            await idle(pg); await pg.reload(); await ready(pg)
+            await idle(pg); await pg.reload(wait_until="domcontentloaded", timeout=90000); await ready(pg)
             st = await pg.evaluate("() => ({ card: !document.querySelector('#loc-panel').hidden, pill: !!document.querySelector('#loc-btn, .loc-pill'), now: document.querySelector('#set-loc-now').textContent })")
             check(not st["card"] and not st["pill"], f"reload {i + 1}: no location UI on the home screen ({st})")
         await pg.evaluate("window.scrollTo(0, 0)"); await settle(pg)
         await pg.screenshot(path=os.path.join(OUT, "home-no-location.png"))
-        await pg.click("#settings-btn"); await pg.wait_for_timeout(500)
+        await pg.click("#settings-btn"); await dialog(pg, "#settings")
         st = await pg.evaluate("() => ({ now: document.querySelector('#set-loc-now').textContent, gps: !!document.querySelector('#set-gps'), form: !!document.querySelector('#set-loc-form') })")
         check("San Antonio" in st["now"] and st["gps"] and st["form"], f"Settings shows the current location + Use my location + city/ZIP ({st})")
         await pg.click("#settings-close")
@@ -91,14 +110,14 @@ async def main():
 
         print("== returning user who says 'Not now'")
         ctx, pg, errs = await new(p, b)
-        await pg.goto(URL); await ready(pg)
-        await pg.click("#loc-close"); await idle(pg); await pg.reload(); await ready(pg)
+        await goto(pg); await ready(pg)
+        await pg.click("#loc-close"); await idle(pg); await pg.reload(wait_until="domcontentloaded", timeout=90000); await ready(pg)
         check(await pg.is_hidden("#loc-panel"), "'Not now' hides the card for good (still San Antonio)")
         await ctx.close()
 
         print("== location granted (South Side SA): Sports + Weather, screenshots")
         ctx, pg, errs = await new(p, b, grant=(29.36, -98.52))
-        await pg.goto(URL); await ready(pg)
+        await goto(pg); await ready(pg)
         await pg.wait_for_function("() => window.__chisme.loc.source === 'gps'", timeout=30000)
         check(await pg.is_hidden("#loc-panel"), "granted permission: no card, location set automatically")
         await pg.evaluate("document.activeElement && document.activeElement.blur()")
@@ -112,7 +131,7 @@ async def main():
         logo = await pg.evaluate("""() => { const b = document.querySelector('#settings-btn'), s = getComputedStyle(b);
             return { bg: s.backgroundColor, border: s.borderTopWidth, pad: s.paddingTop, appearance: s.appearance || s.webkitAppearance }; }""")
         check(logo["bg"] in ("rgba(0, 0, 0, 0)", "transparent") and logo["border"] == "0px" and logo["pad"] == "0px" and logo["appearance"] == "none", f"logo button has no background/border/padding ({logo})")
-        await pg.click("#settings-btn"); await pg.wait_for_timeout(400)
+        await pg.click("#settings-btn"); await dialog(pg, "#settings")
         check(await pg.evaluate("document.querySelector('#settings').open"), "tapping the logo still opens Settings")
         await pg.click("#settings-close")
         check(not errs, f"no console/page errors ({errs[:3]})")
@@ -122,7 +141,7 @@ async def main():
         for name, init in [("denied", "navigator.geolocation.getCurrentPosition = (ok, err) => setTimeout(() => err({ code: 1, message: 'denied' }), 50); navigator.geolocation.watchPosition = (ok, err) => { setTimeout(() => err({ code: 1 }), 50); return 1; };"),
                            ("hanging", "navigator.geolocation.getCurrentPosition = () => {}; navigator.geolocation.watchPosition = () => 1;")]:
             ctx, pg, errs = await new(p, b, init=init)
-            await pg.goto(URL); await ready(pg)
+            await goto(pg); await ready(pg)
             if name == "denied":
                 await pg.click("#loc-gps")
                 await pg.wait_for_selector("#loc-panel[data-mode=denied]", timeout=15000)
@@ -133,14 +152,14 @@ async def main():
 
         print("== narrow phone (320 px) + default tab")
         ctx, pg, errs = await new(p, b, width=320, init="if (!localStorage.getItem('chisme-location-setup')) { localStorage.setItem('chisme-location-setup', '1'); localStorage.setItem('chisme-default-tab', 'weather'); }")
-        await pg.goto(URL); await ready(pg); await pg.wait_for_timeout(800)
+        await goto(pg); await ready(pg)
         check(await pg.evaluate("() => window.__chisme.view") == "weather", "default tab 'Weather' opens on Weather")
         wide = await pg.evaluate("() => ({ doc: document.documentElement.scrollWidth, tabs: [...document.querySelectorAll('#tabs .tab')].map(t => Math.round(t.getBoundingClientRect().right)) })")
         check(wide["doc"] <= 320 and max(wide["tabs"]) <= 320, f"320 px: no sideways overflow, all 5 tabs fit (v49.22: Homies · ¿Y la dieta? · Chisme · Juegos · Tía) ({wide})")
         for v in ("sports", "weather"):
             r = await view_ok(pg, v)
             check(r["view"] == v and r["onScreen"] and r["chars"] > 300, f"320 px: {v} renders ({r})")
-        await pg.evaluate("localStorage.setItem('chisme-default-tab', 'sports')"); await idle(pg); await pg.reload(); await ready(pg); await pg.wait_for_timeout(800)
+        await pg.evaluate("localStorage.setItem('chisme-default-tab', 'sports')"); await idle(pg); await pg.reload(wait_until="domcontentloaded", timeout=90000); await ready(pg)
         check(await pg.evaluate("() => window.__chisme.view") == "sports", "default tab 'Sports' opens on Sports")
         check(not errs, f"no console/page errors ({errs[:3]})")
         await ctx.close()

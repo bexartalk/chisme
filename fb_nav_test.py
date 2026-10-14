@@ -59,8 +59,19 @@ async def scroll_to(pg, y, step=None):
     while abs(y - cur) > 0:
         cur = cur + max(-step, min(step, y - cur))
         await pg.evaluate("(y) => new Promise((ok) => { window.scrollTo({ top: y, behavior: 'instant' }); requestAnimationFrame(() => requestAnimationFrame(ok)); })", cur)
-    await pg.wait_for_timeout(SETTLE)
+    await bars_settled(pg)
     return await pg.evaluate(BARS)
+
+# The bars slide on CSS transitions (280 ms). A fixed wait flaked under parallel load (WebKit especially: the slide hadn't
+# started/finished when BARS was read). Wait for the real thing: two frames (so the nav has read the scroll and set its
+# class), then no running transitions/animations on the bars, then one more frame. SETTLE is only the floor.
+BARS_IDLE = """() => new Promise((ok) => { const els = ['#fbtop', '#tabs', '#view-chisme .mq-chips'].map((q) => document.querySelector(q)).filter(Boolean);
+  const t0 = performance.now(), busy = () => els.some((e) => e.getAnimations().some((a) => a.playState === 'running' || a.playState === 'pending'));
+  const tick = () => (!busy() || performance.now() - t0 > 5000) ? requestAnimationFrame(() => ok(!busy())) : requestAnimationFrame(tick);
+  requestAnimationFrame(() => requestAnimationFrame(tick)); })"""
+async def bars_settled(pg):
+    await pg.wait_for_timeout(SETTLE)   # floor: the nav's own scroll debounce
+    await pg.evaluate(BARS_IDLE)
 
 async def new_page(b, w, h, theme="light", season="off", tab="chisme", dev=None, reduced=None):
     ctx = await b.new_context(viewport={"width": w, "height": h}, color_scheme=theme, reduced_motion=reduced or "no-preference", **(dev or {}))
@@ -72,7 +83,7 @@ async def new_page(b, w, h, theme="light", season="off", tab="chisme", dev=None,
     return ctx, pg
 
 async def ready(pg, url=URL):
-    await pg.goto(url); await pg.wait_for_function("() => window.__chisme && window.__chisme.ready", timeout=90000)
+    await pg.goto(url, wait_until="domcontentloaded", timeout=90000); await pg.wait_for_function("() => window.__chisme && window.__chisme.ready", timeout=90000)   # not "load": under parallel load images held it past 30 s
     await pg.wait_for_function("() => document.querySelectorAll('#mix-list .mix-item, #near-list .story').length >= 6", timeout=90000)
     await pg.evaluate("() => { const s = document.querySelector('#sync'); if (s) s.dataset.state = 'done'; }")   # the 'Updated' toast, out of the pictures
     await pg.wait_for_timeout(900)
@@ -169,7 +180,7 @@ async def motion(b, bname, dev, shots):
     SAMPLE = """(n) => new Promise((ok) => { const out = []; const f = () => { const R = (q) => { const e = document.querySelector(q), r = e.getBoundingClientRect(); return [r.top, r.bottom, +getComputedStyle(e).opacity]; };
       out.push({ top: R('#fbtop'), tabs: R('#tabs'), chips: R('#view-chisme .mq-chips') }); if (out.length < n) requestAnimationFrame(f); else ok(out); }; requestAnimationFrame(f); })"""
     for flip in (60, 120, 200):
-        await pg.evaluate("window.__chismeNav.show()"); await pg.wait_for_timeout(SETTLE)
+        await pg.evaluate("window.__chismeNav.show()"); await bars_settled(pg)
         await pg.evaluate("window.__chismeNav.hide()"); await pg.wait_for_timeout(flip)
         await pg.evaluate("window.__chismeNav.show()")
         fr = await pg.evaluate(SAMPLE, 26)
@@ -180,7 +191,7 @@ async def motion(b, bname, dev, shots):
         check(mono and jump < 45 and glued and tops[-1] == 0 and ops[-1] == 1,
               f"{bname}: hide then show again after {flip} ms: they turn around smoothly (only towards shown, biggest step {jump:.0f} px, the chip row stays glued, ends fully in)")
     # fast flicking: down/up/down/up a few px at a time must not leave them half-way or blinking
-    await pg.evaluate("window.__chismeNav.show()"); await pg.wait_for_timeout(SETTLE)
+    await pg.evaluate("window.__chismeNav.show()"); await bars_settled(pg)
     y0 = await pg.evaluate("scrollY")
     for k in range(6):
         await pg.evaluate("(y) => new Promise((ok) => { scrollTo({ top: y, behavior: 'instant' }); requestAnimationFrame(() => ok()); })", y0 + (40 if k % 2 == 0 else 0))
@@ -189,7 +200,7 @@ async def motion(b, bname, dev, shots):
     end = await pg.evaluate(FRAME)
     check(r["hide"] and end["top"]["b"] <= 0.5 and end["top"]["o"] == 0, f"{bname}: after flicking up and down fast, they settle cleanly (hidden after the last scroll down, nothing left half-way) {end['top']}")
     # the new-stories pill rides along
-    await pg.evaluate("window.__chismeNav.show()"); await pg.wait_for_timeout(SETTLE)
+    await pg.evaluate("window.__chismeNav.show()"); await bars_settled(pg)
     pill = await pg.evaluate("""async () => { const p = document.querySelector('#news-pill'), h = document.documentElement; p.hidden = false; p.style.transition = 'none';   // (the end values, not mid-slide)
       const shown = getComputedStyle(p).translate; h.classList.add('fb-hide'); const hid = getComputedStyle(p).translate, tr = getComputedStyle(p, null).getPropertyValue('top');
       h.classList.remove('fb-hide'); p.style.transition = ''; p.hidden = true; return { shown, hid }; }""")
@@ -246,7 +257,7 @@ async def phone(b, bname, dev, shots):
     check(r["hide"] and not r2["hide"] and r2["topShown"], f"{bname}: hidden mid-page, then back at the top they show")
     # the very bottom: nothing hides under the tab bar (bars shown at the end of the page)
     await scroll_to(pg, await pg.evaluate("document.documentElement.scrollHeight - innerHeight"), 400)
-    await pg.evaluate("window.__chismeNav.show()"); await pg.wait_for_timeout(SETTLE)
+    await pg.evaluate("window.__chismeNav.show()"); await bars_settled(pg)
     end = await pg.evaluate("""() => { const t = document.querySelector('#tabs').getBoundingClientRect();
       const low = Math.max(...[...document.body.children].filter((e) => e.getClientRects().length && !['fixed', 'absolute'].includes(getComputedStyle(e).position) && e.tagName !== 'DIALOG' && e.tagName !== 'SCRIPT').map((e) => e.getBoundingClientRect().bottom));
       return { vb: low, tt: t.top }; }""")

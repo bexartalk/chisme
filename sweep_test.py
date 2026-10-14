@@ -3,14 +3,14 @@ calls), Tía menu + chat, Settings, a story in the player, the donate buttons, o
 tall 3.75x) and iPhone WebKit. Collects: CSP violations, console errors / page errors, page wider than the screen,
 broken images, loading spinners still up after 25 s, tiny tap targets, cut-off button text. Visits only (the anonymous
 stats beacon is blocked so the owner's numbers aren't touched).
-BASE=http://localhost:8212 (default) or the live site. SLOW=1: Android pass on "slow 3G" (Chromium network throttle).
+BASE / URL / argv[1] (default http://localhost:8486) or the live site. SLOW=1: Android pass on "slow 3G" (Chromium network throttle).
 Screens: /tmp/sweep/<device>-<what>.png"""
 import asyncio, json, os, sys
 from playwright.async_api import async_playwright
 import os as _os, sys as _sys; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__))); import pw_csp  # noqa: E401,F401  (v49.11: CSP-safe wait_for_function)
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 from popup_quiet import QUIET
-BASE = os.environ.get("BASE", "http://localhost:8212").rstrip("/")
+BASE = (sys.argv[1] if len(sys.argv) > 1 else os.environ.get("BASE") or os.environ.get("URL") or "http://localhost:8486").rstrip("/")
 SLOW = os.environ.get("SLOW") == "1"
 OUT = os.environ.get("SWEEP_OUT", "/tmp/sweep"); os.makedirs(OUT, exist_ok=True)
 ONLY = os.environ.get("ONLY", "")
@@ -56,7 +56,9 @@ async def run(p, b, dev, opts):
     await ctx.add_init_script(SETUP); await ctx.add_init_script(QUIET); await ctx.add_init_script(CSPV)
     await ctx.route("**/api/stats", lambda r: r.fulfill(status=204))
     pg = await ctx.new_page(); errs, bad = [], []
-    pg.on("console", lambda m: errs.append(m.text[:220]) if m.type == "error" else None)
+    # Chromium logs "Permissions policy violation: compute-pressure ..." for embedded third-party frames at
+    # random; it's the browser enforcing *our* policy on someone else's iframe, not an app error (flaked sweep run 2/3).
+    pg.on("console", lambda m: errs.append(m.text[:220]) if m.type == "error" and not m.text.startswith("Permissions policy violation") else None)
     pg.on("pageerror", lambda e: errs.append("pageerror: " + str(e)[:220]))
     pg.on("response", lambda r: bad.append(f"{r.status} {r.url[:110]}") if r.status >= 400 and r.url.startswith(BASE) and "/api/reader" not in r.url else None)
     if SLOW and "android" in dev:

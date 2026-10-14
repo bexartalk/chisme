@@ -1,13 +1,13 @@
 """Phone (390x844): Events category chips filter the list; swiping the chip row doesn't switch views;
 The 🌮 ¿Y la dieta? tab (was the Food chip) shows real food reviews (local creators + food desks) with thumbnails and outbound links; works offline.
 Usage: ./venv/bin/python events_food_test.py [url]"""
-import asyncio, json, sys
+import asyncio, json, os, sys
 from pathlib import Path
 from urllib.parse import urlparse
 from playwright.async_api import async_playwright
 import os as _os, sys as _sys; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__))); import pw_csp  # noqa: E401,F401  (v49.11: CSP-safe wait_for_function)
 
-URL = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8211/"
+URL = sys.argv[1] if len(sys.argv) > 1 else os.environ.get("URL", "http://localhost:8486/")
 OUT = Path(__file__).parent / "screenshots"
 STATE_JS = """() => { const vis = [...document.querySelectorAll('#events-list .ev')];
   return { view: window.__chisme.view, cat: window.__chisme.evCat,
