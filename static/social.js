@@ -583,16 +583,24 @@
 
   // ------------------------------------------------ photo + video squeeze on the phone (the server cleans them again)
   async function squeezePhoto(file, edge = 2048) {
-    let bmp;
+    // v49.23: decode on the phone (incl. iPhone HEIC when the browser can) → JPEG so the server always gets a photo it can read.
+    const heic = /heic|heif/i.test(file.type || "") || /\.hei[cf]$/i.test(file.name || "");
+    let bmp = null, url = null;
     try { bmp = await createImageBitmap(file, { imageOrientation: "from-image" }); }
     catch (e) {
-      bmp = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error("bad")); i.src = URL.createObjectURL(file); })
-        .catch(() => null);
+      try {
+        url = URL.createObjectURL(file);
+        bmp = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error("bad")); i.src = url; });
+      } catch (e2) { bmp = null; }
     }
-    if (!bmp) throw new Error("That photo can't be read. Try a JPEG or PNG.");
+    if (!bmp) throw new Error(heic
+      ? "That HEIC photo can't be read here. On iPhone: Settings → Camera → Formats → Most Compatible, then pick it again — or send a JPEG / PNG."
+      : "That photo can't be read. Try a JPEG or PNG.");
     const w = bmp.width, h = bmp.height, k = Math.min(1, edge / Math.max(w, h));
     const cv = document.createElement("canvas"); cv.width = Math.round(w * k); cv.height = Math.round(h * k);
     cv.getContext("2d").drawImage(bmp, 0, 0, cv.width, cv.height);   // redrawn pixels only: EXIF / GPS never leave the phone
+    if (url) URL.revokeObjectURL(url);
+    if (bmp.close) try { bmp.close(); } catch (e) {}
     const blob = await new Promise((res) => cv.toBlob(res, "image/jpeg", 0.85));
     if (!blob) throw new Error("That photo can't be read.");
     if (blob.size > 8 * 1024 * 1024) throw new Error("That photo is too big (8 MB max).");
@@ -638,20 +646,24 @@
     if (!needMe()) return;
     const st = { photo: undefined, banner: undefined, accent: ME.accent };
     const prevBanner = profileHeader({ ...ME, relation: "me" }, { after: editView });
+    // v49.23: Photo auto-saves like the header (Goonie's pending avatar never got attached because Save wasn't hit).
     const prevAv = el("div", { class: "av-edit" }, avatar(ME, 96), el("button", { type: "button", class: "chip-btn", text: "📷 Photo", onclick: gated(() => $("#pick-avatar").click()) }));
-    const wire = (inputId, kind, key, apply) => {
-      const inp = $(inputId);
-      inp.onchange = async () => {
-        const f = inp.files[0]; inp.value = ""; if (!f) return;
-        toast("Uploading...");
-        try {
-          const d = await upload(await squeezePhoto(f, kind === "avatar" ? 1024 : 2048), kind);
-          if (!d.ok) { toast(d.error, 4000); return; }
-          st[key] = d.name; apply(d.url); toast("Looking good 😎");
-        } catch (e) { toast(e.message); }
-      };
+    const setPhoto = async (name) => {
+      const d = await api("/api/social/profile", { method: "PATCH", body: { photo: name } });
+      if (!d.ok) { toast(d.error, 4000); return false; }
+      await loadMe(); return true;
     };
-    wire("#pick-avatar", "avatar", "photo", (u) => { const a = prevAv.querySelector(".av"); clear(a).append(el("img", { src: u, alt: "" })); });
+    $("#pick-avatar").onchange = async () => {
+      const f = $("#pick-avatar").files[0]; $("#pick-avatar").value = ""; if (!f) return;
+      toast("Uploading...");
+      try {
+        const d = await upload(await squeezePhoto(f, 1024), "avatar");
+        if (!d.ok) { toast(d.error, 4000); return; }
+        st.photo = d.name;
+        const a = prevAv.querySelector(".av"); clear(a).append(el("img", { src: d.url, alt: "" }));
+        if (await setPhoto(d.name)) toast("Photo saved 😎");
+      } catch (e) { toast(e.message, 5000); }
+    };
     const [fn, name] = field("Display name", { maxlength: "40", value: ME.name });
     const [fu, user] = field("@username", { maxlength: "20", value: ME.username, autocapitalize: "none" });
     const [fb, bio] = field("Bio", { tag: "textarea", maxlength: "160", rows: "3" }); bio.value = ME.bio || "";
