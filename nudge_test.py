@@ -1,5 +1,5 @@
-"""v49.22 the sign-up nudge ("Join the Chisme"): signed-out phones get a sheet after NUDGE.first ms of active use, 'Not
-now' lets them browse, a 2nd after NUDGE.again more, never a 3rd that visit, and later visits the same day get none.
+"""v49.22 the sign-up nudge ("Join the Chisme"): signed-out phones get a sheet after NUDGE.first ms of active use (v49.23:
+2 minutes), 'Not now' lets them browse, a 2nd NUDGE.again after they close it (v49.23: 3 minutes), never a 3rd that visit, and later visits the same day get none.
 It waits while a video / the feed / a game is up, doesn't count hidden time, never shows on the sign-in screens, to
 signed-in people, on desktop, or when sign-ups are closed (SIGNUPS_PUBLIC unset). Timings shortened via window.__CHISME_NUDGE.
 Starts its own servers on PORT (default 8481, sign-ups open) and PORT+1 (sign-ups closed).
@@ -10,7 +10,7 @@ import pw_csp  # noqa: F401
 from playwright.async_api import async_playwright
 
 PORT = int(os.environ.get("PORT", "8481"))
-SHOTS = os.environ.get("SHOTS", "/workspace/chisme-navswap-shots"); os.makedirs(SHOTS, exist_ok=True)
+SHOTS = os.environ.get("SHOTS", "/workspace/chisme-v49-23-shots"); os.makedirs(SHOTS, exist_ok=True)
 fails = 0
 def check(ok, what):
     global fails
@@ -53,6 +53,12 @@ async def main():
     try:
         async with async_playwright() as p:
             b = await p.chromium.launch()
+            # ---- v49.23 real timings: 2 minutes, then 3 minutes after they close it
+            ctx0 = await b.new_context(**PHONE); await ctx0.add_init_script(INIT); pg0 = await ctx0.new_page()
+            await pg0.goto(url + "#chisme"); await pg0.wait_for_function("window.__chismeNudge", timeout=30000)
+            c0 = await pg0.evaluate("window.__chismeNudge.cfg")
+            check(c0["first"] == 120000 and c0["again"] == 180000 and c0["perSession"] == 2, f"default timings: first 2 min, again 3 min after closing {c0}")
+            await ctx0.close()
             # ---- the happy path: 1st nudge, Not now, 2nd nudge, then no more this visit
             ctx, pg, errs = await ctx_page(b, url)
             st = await pg.evaluate("[window.__chismeNudge.state().active, !document.querySelector('#sheet').hidden]")
@@ -95,6 +101,9 @@ async def main():
               Object.defineProperty(v, 'paused', { get: () => !!window.__pausedV }); document.body.append(v); }""")
             await pg.wait_for_timeout(1500); check(not await pg.evaluate(SHOWN), "never while a video plays")
             await pg.evaluate("window.__pausedV = true"); await pg.wait_for_function(SHOWN, timeout=5000); check(True, "…it shows once the video is paused")
+            await pg.evaluate("window.__pausedV = false"); await pg.wait_for_timeout(800)
+            check(not await pg.evaluate(SHOWN), "v49.23: a video that starts playing while it's up closes it (never covers a playing video)")
+            await pg.evaluate("window.__pausedV = true; window.__chismeNudge.state()"); await pg.wait_for_function(SHOWN, timeout=8000)
             await pg.click("#nudge-join"); await pg.wait_for_timeout(1200)
             j = await pg.evaluate("[location.hash, !!document.querySelector('#sx-view input[type=password]'), document.querySelector('#sheet').hidden]")
             check(j[0] == "#s/signup" and j[1] and j[2], f"'Join Chisme' opens the join form {j}")

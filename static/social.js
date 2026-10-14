@@ -1065,12 +1065,12 @@
     });
     const ml = $("#mix-list"); if (ml) new MutationObserver(() => mixIn()).observe(ml, { childList: true });
   }
-  // v49.22 the sign-up nudge ("Join the Chisme"): signed-out phones only. After NUDGE.first ms of ACTIVE use (the page
-  // visible) a sheet pitches an account; "Not now" lets them browse. Again after NUDGE.again more active ms, at most
+  // v49.22 the sign-up nudge ("Join the Chisme"): signed-out phones only. v49.23: after 2 minutes (NUDGE.first) of ACTIVE use
+  // (the page visible) a sheet pitches an account; "Not now" lets them browse. Again 3 minutes (NUDGE.again) after they close it, at most
   // NUDGE.perSession a visit, and on later visits at most once a day (localStorage chisme-nudge = { day }). Never while a
   // video / reel / game / dialog is up (it waits), never on legal pages or the sign-in screens, never when sign-ups are
   // closed for this visitor. Tests shorten the timings with window.__CHISME_NUDGE = { first, again, tick }.
-  const NUDGE = Object.assign({ first: 3 * 60e3, again: 10 * 60e3, tick: 1000, perSession: 2 }, window.__CHISME_NUDGE || {});
+  const NUDGE = Object.assign({ first: 2 * 60e3, again: 3 * 60e3, tick: 1000, perSession: 2 }, window.__CHISME_NUDGE || {});
   const nudge = { active: 0, due: NUDGE.first, shown: 0 };
   const today = () => new Date().toLocaleDateString("en-CA");
   function nudgeStore(v) { try { if (v) localStorage.setItem("chisme-nudge", JSON.stringify(v)); return JSON.parse(localStorage.getItem("chisme-nudge") || "{}") || {}; } catch (e) { return {}; } }
@@ -1102,10 +1102,12 @@
   }
   if (IN_APP && MODE === "app") setInterval(() => {
     if (document.visibilityState !== "visible") return;
+    // v49.23: never over a video. If one starts playing while the nudge is up, the nudge steps aside (the next wait starts then)
+    if (!$("#sheet").hidden && $("#sheet").classList.contains("is-nudge") && [...document.querySelectorAll("video")].some((v) => !v.paused && !v.ended)) closeSheet();
     nudge.active += NUDGE.tick;
     if (nudge.active >= nudge.due && nudgeAllowed() && !nudgeBusy()) showNudge();   // busy: try again next tick
   }, NUDGE.tick);
-  window.__chismeNudge = { state: () => ({ ...nudge, allowed: nudgeAllowed(), busy: nudgeBusy() }) };
+  window.__chismeNudge = { cfg: { ...NUDGE }, state: () => ({ ...nudge, allowed: nudgeAllowed(), busy: nudgeBusy() }) };
   window.addEventListener("hashchange", route);
   (async () => {
     const c = await api("/api/social/config");
