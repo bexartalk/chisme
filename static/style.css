@@ -2153,3 +2153,7 @@ html[data-season="muertos"] .mq-viewer{background:radial-gradient(70vw 50vh at 1
 .ev-l-fig figcaption{padding:4px 12px 0;font-size:.78rem}
 .ev-links{margin:0 0 10px}
 .ev-l-when{margin:2px 0;font-weight:900;color:var(--ink)}.ev-launch .ev-t{margin:0}
+/* v49.23: text that sits right on the Día de Muertos night sky (the page footer, the weather disclaimer) reads white-on-night */
+html[data-season="muertos"] .foot > p,html[data-season="muertos"] .foot > p > span,html[data-season="muertos"] .wx-disclaimer{color:#f3e8ff}
+html[data-season="muertos"] .foot a,html[data-season="muertos"] .wx-disclaimer a{color:#5fe0ec}
+html[data-season="muertos"] .wx-disclaimer .wx-x{color:#fff;border-color:rgba(255,255,255,.7)}

@@ -650,7 +650,7 @@ check("#FF6A0B" in _gold and "#C0C0C0" in _gold and not _re.search(r"#FF(D|E|F)[
 # theme: social colors come from the app's variables, so switching seasons switches them
 _rules = _re.sub(r"/\*.*?\*/", "", _sc2[:_sc2.index("/* v49.19 the profile header")], flags=_re.S)   # v49.19's header keeps the icon's fixed Fiesta colors
 _bg = _re.findall(r"background(?:-color)?:\s*(#[0-9A-Fa-f]{3,6})\b", _rules)
-check(set(_bg) <= {"#000", "#111", "#222", "#c4135f"}, f"no hard-coded light backgrounds in social.css (theme vars only): {set(_bg)}")
+check(set(_bg) <= {"#000", "#111", "#222", "#c4135f", "#d1005f"}, f"no hard-coded light backgrounds in social.css (theme vars only; v49.23: the AA-contrast pink for the ➕ CHISME pill): {set(_bg)}")
 check("var(--card)" in _rules and 'html[data-season="muertos"] .sx {' in _rules and "--sx-banner" in _rules, "the Muertos season restyles the social screens through the theme variables")
 _m4 = open(f"{HERE}/supabase/migrations/20261013000000_social_golden_taco_goonie.sql").read()
 check(all(k in _m4 for k in ("golden_taco boolean not null default false", "social_profiles_goonie_reserved", "social_username_skeleton", "social_admin_audit",
