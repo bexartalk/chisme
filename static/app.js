@@ -2669,7 +2669,7 @@ window.CHISME_APP_BUILD = "49.23";
     apply: (n, { saved }) => {
       clearTimeout(evRetry);
       if (!saved) rendered.events = evKey();
-      const where = shortPlace();
+      const where = evCity && n.place && n.place.city ? n.place.city : shortPlace();
       const list = n.events || [], ongoing = n.ongoing || [];
       $("#events-title").textContent = n.place && n.place.city ? `What's happening in ${n.place.city}` : "What's happening";
       $("#events-intro").textContent = list.length
@@ -2707,7 +2707,7 @@ window.CHISME_APP_BUILD = "49.23";
           l.photo ? el("figure", { class: "ev-l-fig" }, el("img", { src: l.photo.thumb, alt: l.photo.title, width: l.photo.tw, height: l.photo.th, loading: "lazy" }),
             el("figcaption", { class: "art-credit" }, "Photo: ", el("b", { text: l.photo.photographer }), " / ", ext(l.photo.license_url, l.photo.license), " / ", ext(l.photo.source_url, "Wikimedia Commons"), " (resized)")) : null,
           el("div", { class: "ev-body" }, el("h4", { class: "ev-t", text: l.name }),
-            el("p", { class: "ev-when", text: (l.confirmed ? "" : "Not confirmed yet · no earlier than ") + fmt(l.net) }),
+            el("p", { class: "ev-l-when", text: (l.confirmed ? "" : "Not confirmed yet · no earlier than ") + fmt(l.net) }),
             el("p", { class: "small", text: `${l.status} · ${l.pad}, ${l.location}` }),
             l.mission ? el("p", { class: "small", text: l.mission }) : null,
             el("p", { class: "ev-src" }, "Schedule: ", ext(d.source_url, d.source), " · ", ext(l.url, "spacex.com")))))
