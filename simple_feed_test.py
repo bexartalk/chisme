@@ -13,7 +13,7 @@ async def run(bt, dev, name):
     b = await bt.launch(**({"executable_path": "/usr/bin/google-chrome", "args": ["--no-sandbox"]} if bt.name == "chromium" else {}))
     ctx = await b.new_context(**dev, timezone_id="America/Chicago", geolocation={"latitude": 29.35, "longitude": -98.56}, permissions=["geolocation"])
     await ctx.add_init_script(INIT); pg = await ctx.new_page(); errs = []
-    pg.on("pageerror", lambda e: errs.append((str(e) + " @ " + (getattr(e, "stack", "") or "").replace("\n", " | "))[:300]))
+    pg.on("pageerror", lambda e: None if "tiktokcdn" in (getattr(e, "stack", "") or "") else errs.append((str(e) + " @ " + (getattr(e, "stack", "") or "").replace("\n", " | "))[:300]))   # (not the TikTok player's own)
     pg.on("console", lambda m: errs.append("console: " + m.text[:200]) if m.type == "error" and "Failed to load resource" not in m.text
           and (m.location or {}).get("url", "").startswith(URL) and "report-only" not in m.text else None)   # Chisme's own errors (not the TikTok / YouTube players')
     print("—", name)

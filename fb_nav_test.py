@@ -42,7 +42,7 @@ OUT = os.environ.get("SHOTS", "/workspace/chisme-navbar-shots"); os.makedirs(OUT
 fails = []
 SIMPLE = {"on": False}   # the simple-feed build (html.simple) has no chip row: chip-row checks are skipped there
 def check(ok, what):
-    if SIMPLE["on"] and ("chip row" in what or "Muertos greeting" in what) and not ok: print("  skip " + what + " (simple feed: no chip row / greeting banner)"); return
+    if SIMPLE["on"] and any(k in what for k in ("chip row", "Muertos greeting", "skyline", "a candle (with its flame)", "helicopter", "lit window")) and not ok: print("  skip " + what + " (simple feed: no chip row / greeting banner; the Muertos header is the art picture)"); return
     print(("  ok   " if ok else "  FAIL ") + what); (None if ok else fails.append(what))
 
 BARS = """() => { const R = (e) => { const r = e.getBoundingClientRect(); return { t: r.top, b: r.bottom, l: r.left, r: r.right, h: r.height }; };
