@@ -105,7 +105,9 @@ window.CHISME_APP_BUILD = "49.23";
   const DEVICE_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
   let TZ = DEVICE_TZ;
   let lastWeather = null;
-  const rendered = { weather: null, news: null, events: null };  // which location each section is showing
+  const rendered = { weather: null, news: null, events: null };
+  var evCity = (() => { try { return localStorage.getItem("chisme-ev-city") || ""; } catch (e) { return ""; } })();   // v49.23 events city filter
+  const evKey = () => evCity ? "city:" + evCity : q();  // which location each section is showing
   const tzAbbr = (d = new Date()) => {
     try { return new Intl.DateTimeFormat("en-US", { timeZone: TZ, timeZoneName: "short" }).formatToParts(d).find((p) => p.type === "timeZoneName").value; }
     catch { return ""; }
@@ -2661,12 +2663,12 @@ window.CHISME_APP_BUILD = "49.23";
 
   let evRetry = null, evRetries = 0;
   section("events", {
-    url: () => `/api/events?${q()}`,
+    url: () => evCity ? `/api/events?city=${encodeURIComponent(evCity)}` : `/api/events?${q()}`,
     loading: () => $("#events-list").replaceChildren(el("p", { class: "loading", text: `Rounding up the parties near ${shortPlace()}…` })),
     fail: (e) => $("#events-list").replaceChildren(el("p", { class: "error", text: "Oops! Couldn't reach the event calendars (" + e.message + "). We'll keep trying." })),
     apply: (n, { saved }) => {
       clearTimeout(evRetry);
-      if (!saved) rendered.events = q();
+      if (!saved) rendered.events = evKey();
       const where = shortPlace();
       const list = n.events || [], ongoing = n.ongoing || [];
       $("#events-title").textContent = n.place && n.place.city ? `What's happening in ${n.place.city}` : "What's happening";
@@ -2681,6 +2683,8 @@ window.CHISME_APP_BUILD = "49.23";
       renderEventList();
       mixSoon();
       $("#events-updated").textContent = stampFor(saved, n);
+      const lk = $("#ev-links");   // v49.23: cities without a feed: their official calendar as a link-out
+      if (lk) { lk.hidden = !(n.links || []).length; lk.replaceChildren(...(n.links || []).flatMap((x, i) => [i ? " · " : "More events: ", ext(x.url, x.name)])); }
       $("#event-sources").replaceChildren(...(n.sources || []).map((f) => el("li", { class: f.ok ? "" : "bad" },
         ext(f.url, f.name), f.ok ? `: ${f.count} listings` : `: unavailable (${f.error})`)));
       // prices/venues are still being looked up in the background: check back shortly
@@ -2690,6 +2694,34 @@ window.CHISME_APP_BUILD = "49.23";
     },
   });
   function loadEvents() { loadFood(); return load("events"); }
+  // v49.23 the events city filter (remembered on this phone) + SpaceX Starship launches from Starbase / Boca Chica
+  function renderLaunches() {
+    const box = $("#ev-launches"); if (!box) return;
+    if (evCity !== "starbase" && evCity !== "south-padre-island") { box.hidden = true; return; }
+    box.hidden = false; box.replaceChildren(el("p", { class: "loading", text: "Checking the Starship launch schedule…" }));
+    fetch("/api/launches").then((r) => r.json()).then((d) => {
+      const ls = d.launches || [];
+      const fmt = (iso) => new Date(iso).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric", timeZone: "America/Chicago" });
+      box.replaceChildren(el("h3", { class: "ev-l-h", text: "🚀 SpaceX launches from Starbase" }),
+        ...(ls.length ? ls.map((l) => el("article", { class: "ev ev-launch" },
+          l.photo ? el("figure", { class: "ev-l-fig" }, el("img", { src: l.photo.thumb, alt: l.photo.title, width: l.photo.tw, height: l.photo.th, loading: "lazy" }),
+            el("figcaption", { class: "art-credit" }, "Photo: ", el("b", { text: l.photo.photographer }), " / ", ext(l.photo.license_url, l.photo.license), " / ", ext(l.photo.source_url, "Wikimedia Commons"), " (resized)")) : null,
+          el("div", { class: "ev-body" }, el("h4", { class: "ev-t", text: l.name }),
+            el("p", { class: "ev-when", text: (l.confirmed ? "" : "Not confirmed yet · no earlier than ") + fmt(l.net) }),
+            el("p", { class: "small", text: `${l.status} · ${l.pad}, ${l.location}` }),
+            l.mission ? el("p", { class: "small", text: l.mission }) : null,
+            el("p", { class: "ev-src" }, "Schedule: ", ext(d.source_url, d.source), " · ", ext(l.url, "spacex.com")))))
+          : [el("p", { class: "hint", text: "No upcoming Starbase launches are listed right now." })]));
+    }).catch(() => box.replaceChildren(el("p", { class: "error", text: "Couldn't reach the launch schedule. Try again in a bit." })));
+  }
+  {
+    const sel = $("#ev-city");
+    if (sel) {
+      sel.value = evCity;
+      sel.onchange = () => { evCity = sel.value; try { localStorage.setItem("chisme-ev-city", evCity); } catch (e) {} renderLaunches(); load("events"); };
+      renderLaunches();
+    }
+  }
 
   // ---------- sports: Spurs · NBA · Cowboys · NFL · MLB · San Antonio Missions (v47: team pages + league pages)
   // Photos: freely licensed Wikimedia Commons images (credited) + the thumbnails ESPN publishes
@@ -3189,7 +3221,7 @@ window.CHISME_APP_BUILD = "49.23";
     if (VIEWS[i] === "weather" && map) map.invalidateSize();
     updateNewsPill();
     if (CHISME_GROUP.includes(VIEWS[i])) { try { sessionStorage.setItem(CHIP_KEY, VIEWS[i]); } catch (e) {} }
-    if (VIEWS[i] === "chisme") { if (!rendered.sports) loadSports(); if (rendered.events !== q()) loadEvents(); if (mixPending) mixRender(); }
+    if (VIEWS[i] === "chisme") { if (!rendered.sports) loadSports(); if (rendered.events !== evKey()) loadEvents(); if (mixPending) mixRender(); }
     if (VIEWS[i] === "events" && rendered.events !== q()) loadEvents();
     if (VIEWS[i] === "juegos") juegosOpen(juegosWant); else juegosLeave();
     juegosWant = null;

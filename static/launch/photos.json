@@ -1,0 +1,45 @@
+{
+ "about": "Starship / Starbase photos for the launch cards: Wikipedia lead photos, freely licensed on Wikimedia Commons, resized by Chisme.",
+ "photos": [
+  {
+   "id": "starbase",
+   "title": "Starbase",
+   "area": "Boca Chica, Texas",
+   "history": "Starbase, formerly Boca Chica Village or Kopernik Shores, is a city in Cameron County, Texas, United States, near the mouth of the Rio Grande and immediately adjacent to the Mexico - United States border.",
+   "history_source": "Wikipedia",
+   "history_url": "https://en.wikipedia.org/wiki/Starbase%2C_Texas",
+   "photographer": "Jenny Hautmann",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Starbase.jpg",
+   "commons_title": "Starbase.jpg",
+   "file": "/static/launch/starbase.webp",
+   "w": 1200,
+   "h": 800,
+   "thumb": "/static/launch/starbase-s.webp",
+   "tw": 520,
+   "th": 347,
+   "resized": true
+  },
+  {
+   "id": "super-heavy",
+   "title": "Super Heavy booster",
+   "area": "Starbase, Texas",
+   "history": "Super Heavy is the reusable first stage of the SpaceX Starship super heavy-lift launch vehicle, which it composes in combination with the Starship second stage.",
+   "history_source": "Wikipedia",
+   "history_url": "https://en.wikipedia.org/wiki/SpaceX_Super_Heavy",
+   "photographer": "Steve Jurvetson",
+   "license": "CC BY 2.0",
+   "license_url": "https://creativecommons.org/licenses/by/2.0",
+   "source_url": "https://commons.wikimedia.org/wiki/File:Starship_Booster_Return_on_Final_Approach_(54063904149).jpg",
+   "commons_title": "Starship_Booster_Return_on_Final_Approach_(54063904149).jpg",
+   "file": "/static/launch/super-heavy.webp",
+   "w": 862,
+   "h": 1200,
+   "thumb": "/static/launch/super-heavy-s.webp",
+   "tw": 374,
+   "th": 520,
+   "resized": true
+  }
+ ]
+}

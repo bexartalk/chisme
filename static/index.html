@@ -544,6 +544,15 @@
         <section id="events" class="card">
           <div class="sec-head"><h2 id="events-title">What's happening</h2><span class="stamp" id="events-updated"></span></div>
           <p class="blurb" id="events-intro">Here's what's going on around town.</p>
+          <!-- v49.23 city filter: Near me + the Texas cities Chisme follows (official visitor-bureau feeds; link-outs where there's no feed) -->
+          <div class="ev-city-row"><label for="ev-city" class="ev-city-l">📍 City</label>
+            <select id="ev-city">
+              <option value="">Near me</option><option value="san-antonio">San Antonio</option><option value="austin">Austin</option>
+              <option value="corpus-christi">Corpus Christi</option><option value="rockport">Rockport</option><option value="port-aransas">Port Aransas</option>
+              <option value="south-padre-island">South Padre Island</option><option value="starbase">🚀 Starbase (SpaceX launches)</option>
+            </select></div>
+          <div id="ev-launches" class="ev-launches" hidden></div>
+          <p id="ev-links" class="hint ev-links" hidden></p>
           <!-- Category filter chips (scroll sideways on small screens; swiping here never switches views) -->
           <div id="ev-chips" class="chips" role="group" aria-label="Show event category">
             <button type="button" class="chip" data-cat="all" aria-pressed="true">All <span class="n" id="n-all"></span></button>

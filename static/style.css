@@ -2141,3 +2141,14 @@ html[data-season="muertos"] #mq-gallery a{color:#5fe0ec}
 html[data-season="muertos"] .mb-inner{border-color:var(--coco-marigold);box-shadow:0 0 14px rgba(255,96,0,.55);background:radial-gradient(80px 60px at 92% 80%,rgba(252,185,1,.35),transparent 70%),linear-gradient(135deg,#3E1160,#01063B 75%)}
 html[data-season="muertos"] .mb-art{flex:none;width:58px;height:58px;border-radius:14px;box-shadow:0 0 0 2px var(--coco-marigold)}
 html[data-season="muertos"] .mq-viewer{background:radial-gradient(70vw 50vh at 100% 0%,rgba(247,7,132,.3),transparent 70%),linear-gradient(180deg,#01063B,#3E1160)}
+
+/* v49.23 events city filter + Starship launch cards */
+.ev-city-row{display:flex;align-items:center;gap:8px;margin:0 0 10px}
+.ev-city-l{font-weight:800}
+#ev-city{flex:1;min-width:0;min-height:44px;padding:0 10px;border-radius:12px;border:2px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-weight:700}
+.ev-launches{margin:0 0 12px;display:flex;flex-direction:column;gap:10px}
+.ev-l-h{margin:4px 0 0}
+.ev-launch{border:2px solid var(--line);border-radius:14px;overflow:hidden}
+.ev-l-fig{margin:0}.ev-l-fig img{display:block;width:100%;height:auto;max-height:220px;object-fit:cover}
+.ev-l-fig figcaption{padding:4px 12px 0;font-size:.78rem}
+.ev-links{margin:0 0 10px}

@@ -1085,8 +1085,23 @@ def base_event(**kw) -> dict:
 
 
 # --- Visit San Antonio
-async def fetch_vsa() -> list[dict]:
-    r = await client().get(VSA_RSS)
+# v49.23: the same Simpleview "/event/rss/" feed the official visitor bureaus of Corpus Christi, Austin, Port Aransas and
+# South Padre Island publish too. (slug, name, lat, lon, feeds [(source_id, source name, rss)], link-outs [(name, url)])
+REGION_CITIES = [
+    ("san-antonio", "San Antonio", 29.4241, -98.4936, [("vsa", "Visit San Antonio", VSA_RSS)], []),
+    ("corpus-christi", "Corpus Christi", 27.8006, -97.3964, [("visitcc", "Visit Corpus Christi", "https://www.visitcorpuschristi.com/event/rss/")], []),
+    ("rockport", "Rockport", 28.0206, -97.0544, [], [("Rockport-Fulton Chamber events", "https://www.rockport-fulton.org/events/")]),
+    ("port-aransas", "Port Aransas", 27.8339, -97.0611, [("visitpa", "Port Aransas & Mustang Island", "https://www.portaransas.org/event/rss/")], []),
+    ("austin", "Austin", 30.2672, -97.7431, [("visitaustin", "Visit Austin", "https://www.austintexas.org/event/rss/")], []),
+    ("south-padre-island", "South Padre Island", 26.1118, -97.1681, [("visitspi", "Visit South Padre Island", "https://visitsouthpadreisland.com/event/rss/")], []),
+    ("starbase", "Starbase (Boca Chica)", 25.9971, -97.1554, [], [("Starship updates on spacex.com", "https://www.spacex.com/vehicles/starship/")]),
+]
+REGION = {c[0]: c for c in REGION_CITIES}
+SIMPLEVIEW_HOSTS = ("visitsanantonio", "visitcorpuschristi", "austintexas.org", "portaransas.org", "visitsouthpadreisland")
+
+
+async def fetch_vsa(url: str = None, source: str = "Visit San Antonio", sid: str = "vsa", city: str = "San Antonio") -> list[dict]:
+    r = await client().get(url or VSA_RSS)
     r.raise_for_status()
     parsed = feedparser.parse(r.content)
     tz = _tz("America/Chicago")
@@ -1103,10 +1118,10 @@ async def fetch_vsa() -> list[dict]:
         start = datetime.combine(dates[0], dtime(0, 0), tz) if dates else None
         end = datetime.combine(dates[-1], dtime(0, 0), tz) if dates else None
         out.append(base_event(
-            id="vsa:" + link, title=title, url=link, source="Visit San Antonio", source_id="vsa",
+            id=f"{sid}:" + link, title=title, url=link, source=source, source_id=sid,
             image=html.unescape(img.group(1)) if img else None, start=start, end=end,
             summary=clean_text(text, 260), categories=[t.get("term", "").strip() for t in x.get("tags") or []][:4],
-            city="San Antonio"))
+            city=city))
     return out
 
 
@@ -1312,7 +1327,7 @@ def queue_detail(url: str) -> None:
 
 async def _detail_worker(host: str) -> None:
     q = _detail_queues[host]
-    parser = parse_vsa_detail if "visitsanantonio" in host else parse_eventbrite_detail
+    parser = parse_vsa_detail if any(h in host for h in SIMPLEVIEW_HOSTS) else parse_eventbrite_detail
     while q:
         url = q.pop(0)
         try:
@@ -1364,7 +1379,7 @@ def _merge_detail(ev: dict) -> dict:
     for k, v in d.items():
         if k.startswith("_") or v in (None, "", []):
             continue
-        if k == "image" and ev.get("image") and "visitsanantonio" not in ev["url"]:
+        if k == "image" and ev.get("image") and not any(h in ev["url"] for h in SIMPLEVIEW_HOSTS):
             continue
         ev[k] = v
     return ev
@@ -1446,10 +1461,11 @@ def event_tags(e: dict) -> tuple[list[str], bool]:
 async def build_events(lat: float, lon: float) -> dict:
     place = dict(await get_place(lat, lon))
     now = datetime.now(timezone.utc)
-    near_sa = km_between(lat, lon, *SA_CENTER) <= 60
     jobs = []
-    if near_sa:
-        jobs.append(event_source("vsa", "Visit San Antonio", VSA_RSS, fetch_vsa))
+    for slug, cname, clat, clon, feeds, _links in REGION_CITIES:   # v49.23: each nearby city's official visitor-bureau feed
+        if km_between(lat, lon, clat, clon) <= 60:
+            for sid, sname, rss in feeds:
+                jobs.append(event_source(sid, sname, rss, lambda rss=rss, sname=sname, sid=sid, cname=cname: fetch_vsa(rss, sname, sid, cname)))
     for pg in (1, 2):
         u = eventbrite_url(place, pg)
         if u:
@@ -1487,7 +1503,7 @@ async def build_events(lat: float, lon: float) -> dict:
             [e for e in events if e["start"] < now - timedelta(hours=12)]
     pending = 0
     for e in shown:
-        if e["source_id"] == "vsa" or (e["source_id"] == "eventbrite" and not e.get("price")):
+        if any(h in (e["url"] or "") for h in SIMPLEVIEW_HOSTS) or (e["source_id"] == "eventbrite" and not e.get("price")):
             if detail_cached(e["url"]) is None:
                 queue_detail(e["url"])
                 pending += 1
@@ -1529,6 +1545,7 @@ async def build_events(lat: float, lon: float) -> dict:
         "radius_km": EVENT_RADIUS_KM, "days": EVENT_DAYS,
         "message": None if jobs else "Event listings are only available for U.S. cities for now.",
         "sources": [r["status"] for r in results],
+        "links": [{"name": n, "url": u} for c in REGION_CITIES if km_between(lat, lon, c[2], c[3]) <= 60 for n, u in c[5]],
     }
 
 
@@ -2455,8 +2472,57 @@ async def api_news(lat: float | None = Query(None), lon: float | None = Query(No
         return _err(ex)
 
 
+# v49.23 SpaceX Starship launches from Starbase / Boca Chica: The Space Devs' public Launch Library 2 API (upcoming launches
+# at the Starbase location). Their images aren't clearly licensed, so each card uses our own credited Commons photo
+# (static/launch/photos.json). Dates marked TBD / "net" are shown as not confirmed. Never made up: no feed → no cards.
+LL2_UPCOMING = "https://ll.thespacedevs.com/2.3.0/launches/upcoming/?location__ids=143&limit=10&mode=normal"
+LAUNCH_TTL = 30 * 60
+
+
+async def fetch_launches() -> list[dict]:
+    r = await client().get(LL2_UPCOMING, headers={"Accept": "application/json"})
+    r.raise_for_status()
+    try:
+        photos = json.loads((BASE / "static" / "launch" / "photos.json").read_text())["photos"]
+    except Exception:
+        photos = []
+    out = []
+    for i, x in enumerate(r.json().get("results") or []):
+        st = (x.get("status") or {})
+        pad = x.get("pad") or {}
+        ph = photos[i % len(photos)] if photos else None
+        out.append({"id": x.get("id"), "name": clean_text(x.get("name"), 160), "net": x.get("net"),
+                    "status": clean_text(st.get("name"), 60), "confirmed": st.get("abbrev") == "Go",
+                    "window_start": x.get("window_start"), "pad": clean_text(pad.get("name"), 80),
+                    "location": clean_text((pad.get("location") or {}).get("name"), 80),
+                    "mission": clean_text(((x.get("mission") or {}).get("description")), 300),
+                    "url": "https://www.spacex.com/vehicles/starship/", "source": "Launch Library 2 (The Space Devs)",
+                    "source_url": "https://thespacedevs.com/llapi", "photo": ph})
+    return out
+
+
+@app.get("/api/launches")
+async def api_launches():
+    try:
+        items = await cached("launches:starbase", LAUNCH_TTL, fetch_launches, stale=6 * 3600)
+        return {"launches": items, "source": "Launch Library 2 (The Space Devs)", "source_url": "https://thespacedevs.com/llapi"}
+    except Exception as ex:
+        return _err(ex)
+
+
+@app.get("/api/events/cities")
+async def api_event_cities():
+    """v49.23 the city filter: Near me + the Texas cities Chisme follows (official feeds, else link-outs)."""
+    return {"cities": [{"id": c[0], "name": c[1], "feeds": [f[1] for f in c[4]], "links": [{"name": n, "url": u} for n, u in c[5]]} for c in REGION_CITIES]}
+
+
 @app.get("/api/events")
-async def api_events(lat: float | None = Query(None), lon: float | None = Query(None)):
+async def api_events(lat: float | None = Query(None), lon: float | None = Query(None), city: str | None = Query(None, max_length=40)):
+    if city:
+        c = REGION.get(city)
+        if not c:
+            return _err(ValueError("Unknown city."), 400)
+        lat, lon = c[2], c[3]
     try:
         la, lo = _coords(lat, lon)
     except ValueError as ex:
