@@ -2109,3 +2109,35 @@ dialog.tia-menu.menu-sheet .tia-menu-in{max-height:calc(100dvh - 146px)}
 /* v49.23 Our places & history gallery (reuses the Día de Muertos strip + viewer) */
 .pl-hist{margin:4px 0 0;font-size:.86rem;line-height:1.4;color:var(--ink2)}
 .pl-v-hist{font-weight:600}
+/* ================= v49.23 Día de Muertos, Coco-style (Goonie: "the background is too white"). In season, light mode gets a
+   night-sky page: midnight blue → deep purple → magenta glow, a papel picado band under the header, scattered marigold
+   petals (orange, never yellow); cards become a soft lilac with a magenta / turquoise / marigold edge. Dark mode keeps its
+   midnight purple and gets the same night sky. Text stays dark-on-lilac or white-on-night (WCAG AA). */
+/* v49.23 palette sampled from Goonie's Día de los Muertos art (static/season/coco-ref.png): night #01063B, indigo/purple #3E1160,
+   marigold #FF6000, hot pink #F70784, turquoise #19C3D9, candle #FCB901 (candle yellow: Día de Muertos screens only, flames/highlights) */
+html[data-season="muertos"]{--coco-night:#01063B;--coco-purple:#3E1160;--coco-plum:#5a1470;--coco-magenta:#F70784;--coco-marigold:#FF6000;--coco-turq:#19C3D9;--coco-candle:#FCB901;--coco-lilac:#f7eefe;--coco-lilac2:#efe0fb}
+html[data-season="muertos"] body{background-color:var(--coco-night);
+  background-image:url(/static/season/papel-picado.svg),radial-gradient(60vw 40vh at 100% 0%,rgba(247,7,132,.35),transparent 70%),
+    radial-gradient(70vw 50vh at 0% 100%,rgba(255,96,0,.22),transparent 70%),url(/static/season/coco-petals.svg),
+    linear-gradient(180deg,var(--coco-night) 0%,var(--coco-purple) 45%,var(--coco-plum) 100%);
+  background-repeat:repeat-x,no-repeat,no-repeat,repeat,no-repeat;background-size:214px 40px,auto,auto,260px 260px,100% 100%;
+  background-position:0 var(--tabs-h,66px),0 0,0 0,0 0,0 0;background-attachment:scroll,fixed,fixed,scroll,fixed}
+html[data-season="muertos"][data-theme="light"]{--card:var(--coco-lilac);--near:#fde8f4;--line:#cdb3e6;--link:#5b1a9e}
+html[data-season="muertos"][data-theme="light"] .card{background:var(--coco-lilac);border-color:#cdb3e6;border-top-color:var(--marigold)}
+html[data-season="muertos"] .card{box-shadow:0 4px 0 rgba(247,7,132,.55),0 8px 18px rgba(4,6,30,.45)}
+html[data-season="muertos"] .mix-hi,html[data-season="muertos"] .view > .hint,html[data-season="muertos"] .view > p.hint{color:#f3e8ff}
+html[data-season="muertos"] .mix-hi b{color:var(--coco-turq)}
+html[data-season="muertos"] .mq-chips{background:linear-gradient(180deg,var(--coco-night),rgba(11,20,56,.96));box-shadow:0 6px 10px -8px rgba(0,0,0,.6)}
+html[data-season="muertos"][data-theme="light"] .mq-chip:not([aria-current="true"]){background:var(--coco-lilac);color:#1a0b30;border-color:#cdb3e6}
+html[data-season="muertos"][data-theme="light"] .greet{background:linear-gradient(135deg,#ffd9ec,var(--coco-lilac) 65%);border-color:var(--marigold)}
+html[data-season="muertos"][data-theme="light"] .story{background:#fffaff}
+/* the Día de Muertos photo gallery card itself: night purple with papel picado along the top */
+html[data-season="muertos"] .mq-gallery#mq-gallery{background:linear-gradient(180deg,#3E1160,#01063B);color:#fff;border-color:#4b2a80;border-top-color:var(--marigold);
+  background-image:url(/static/season/papel-picado.svg),linear-gradient(180deg,#3E1160,#01063B);background-repeat:repeat-x,no-repeat;background-size:214px 40px,100% 100%;padding-top:46px}
+html[data-season="muertos"] #mq-gallery .mq-gal-sub,html[data-season="muertos"] #mq-gallery .mq-gal-note{color:#e6dcf7}
+html[data-season="muertos"] #mq-gallery .mq-gal-place,html[data-season="muertos"] #mq-gallery .art-credit{color:#d9c9f2}
+html[data-season="muertos"] #mq-gallery h2,html[data-season="muertos"] #mq-gallery .mq-gal-cap{color:#fff}
+html[data-season="muertos"] #mq-gallery a{color:#5fe0ec}
+html[data-season="muertos"] .mb-inner{border-color:var(--coco-marigold);box-shadow:0 0 14px rgba(255,96,0,.55);background:radial-gradient(80px 60px at 92% 80%,rgba(252,185,1,.35),transparent 70%),linear-gradient(135deg,#3E1160,#01063B 75%)}
+html[data-season="muertos"] .mb-art{flex:none;width:58px;height:58px;border-radius:14px;box-shadow:0 0 0 2px var(--coco-marigold)}
+html[data-season="muertos"] .mq-viewer{background:radial-gradient(70vw 50vh at 100% 0%,rgba(247,7,132,.3),transparent 70%),linear-gradient(180deg,#01063B,#3E1160)}

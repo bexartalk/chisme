@@ -31,7 +31,7 @@ body.sx-locked { overflow: hidden; }
 .sx-lbl { margin: 0 0 6px; font-size: .78rem; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; color: var(--ink2); }
 .sx-compose { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 10px 12px; min-height: 64px; cursor: pointer; font-weight: 700; }
 .sx-compose .sx-q { flex: 1; color: var(--muted); font-weight: 800; }
-.sx-compose .sx-plus { flex: none; border-radius: 999px; background: var(--pink); color: #fff; padding: .35em .8em; font-weight: 900; font-size: .85rem; }
+.sx-compose .sx-plus { flex: none; border-radius: 999px; background: #d1005f; color: #fff;   /* v49.23: AA contrast (white on #FF1A7F was 3.7:1) */ padding: .35em .8em; font-weight: 900; font-size: .85rem; }
 .sx-compose .av { border: 3px solid var(--sx-acc); }
 .sx-face { width: 40px; height: 40px; border-radius: 50%; flex: none; display: inline-flex; align-items: center; justify-content: center; background: var(--near); font-size: 1.1rem; }
 #view-chisme.sx-on > :not(.mq-chips):not(.sx-top):not(#sx-view) { display: none !important; }
