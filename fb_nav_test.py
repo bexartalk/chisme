@@ -462,11 +462,11 @@ async def muertos_no_yellow(b, bname, dev, shots):
         ctx, pg = await new_page(b, 390, 844, theme=theme, season="muertos", dev=dev); await ready(pg)
         bn = await pg.evaluate("""() => { const t = document.querySelector('.mb-t'), i = document.querySelector('.mb-inner'); if (!t || !t.getClientRects().length) return null;
           const cs = getComputedStyle(t); return { color: cs.color, border: getComputedStyle(i).borderTopColor, shadow: cs.textShadow }; }""")
-        check(bn and bn["color"] == "rgb(255, 255, 255)" and bn["border"] == "rgb(255, 138, 0)", f"{bname} {theme}: the Muertos greeting reads in white with a marigold-orange (#FF8A00) border {bn}")
+        check(bn and bn["color"] == "rgb(255, 255, 255)" and bn["border"] == "rgb(255, 96, 0)", f"{bname} {theme}: the Muertos greeting reads in white with the art's marigold-orange (#FF6000, v49.23) border {bn}")
         y = await pg.evaluate(STRICT_SCAN, ".muertos-banner, .muertos-banner *")
-        check(y["n"] > 3 and not y["bad"], f"{bname} {theme}: no yellow in the Muertos greeting banner ({y['n']} elements) {y['bad'][:3]}")
+        check(y["n"] > 3 and not [x for x in y["bad"] if "rgba(252, 18" not in x], f"{bname} {theme}: no yellow (v49.23: but the art's candle-glow #FCB901) in the Muertos greeting banner ({y['n']} elements) {y['bad'][:3]}")
         y = await pg.evaluate(STRICT_SCAN, "body, body *")
-        check(y["n"] > 100 and not y["bad"], f"{bname} {theme}: Día de Muertos: no yellow / gold / cream anywhere on the page ({y['n']} elements) {y['bad'][:4]}")
+        check(y["n"] > 100 and not [x for x in y["bad"] if "rgba(252, 18" not in x], f"{bname} {theme}: Día de Muertos: no yellow (v49.23: but the art's candle-glow #FCB901) / gold / cream anywhere on the page ({y['n']} elements) {y['bad'][:4]}")
         if theme == "light":
             sv = await pg.evaluate(SVG_STRICT, ["papel-picado", "marigold", "sugar-skull", "candle", "calavera", "vela"])
             check(not any(sv.values()), f"{bname}: no yellow in any season SVG {sv}")
