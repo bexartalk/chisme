@@ -45,7 +45,9 @@ async def run(bt, dev, name, theme):
     print(f"— {name} · {theme} · season={await pg.evaluate('document.documentElement.dataset.season')}")
     for v, chip in VIEWS:
         if chip:
-            await pg.tap('#tabs .tab[data-view="chisme"]'); await pg.tap(f'.view.active .mq-chip[data-go="{chip}"]')
+            await pg.tap('#tabs .tab[data-view="chisme"]')
+            if await pg.locator(f'.view.active .mq-chip[data-go="{chip}"]').is_visible(): await pg.tap(f'.view.active .mq-chip[data-go="{chip}"]')
+            else: await pg.evaluate(f"window.__chisme.goView('{chip}')")   # simple feed: no pills, the ☰ menu does this
         else:
             await pg.locator(f'#tabs .tab[data-view="{v}"]').scroll_into_view_if_needed(); await pg.tap(f'#tabs .tab[data-view="{v}"]')
         await pg.wait_for_timeout(9000 if v in ("chisme", "events") else 4000)
@@ -54,7 +56,7 @@ async def run(bt, dev, name, theme):
             fails.append(f"{name} {theme} {v}: {o}")
         print(("  ok   " if not bad else "  FAIL ") + f"{v}: {len(bad)} low-contrast text" + "".join(f"\n         {o}" for o in bad[:12]))
     # the From Chisme card by name
-    await pg.tap('#tabs .tab[data-view="chisme"]'); await pg.tap('.view.active .mq-chip[data-go="chisme"]')
+    await pg.tap('#tabs .tab[data-view="chisme"]'); await pg.evaluate("window.__chisme.goView('chisme')")
     await pg.wait_for_selector("#view-chisme .from-chisme", timeout=60000)
     fc = pg.locator("#view-chisme .from-chisme").first
     await fc.scroll_into_view_if_needed()
