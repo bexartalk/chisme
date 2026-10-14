@@ -1199,7 +1199,7 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
 .juan-hs-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
 .juan-hs-row{display:flex;align-items:center;gap:.55em;min-height:44px;padding:.25em .6em .25em .3em;border:2px solid #e3e6ea;border-radius:12px;font-size:1.12rem;font-weight:900;line-height:1.1}
 .juan-hs-row .rk{flex:none;width:1.9em;height:1.9em;display:grid;place-items:center;border-radius:50%;border:2px solid #000;background:#fff;font-size:.95rem;font-variant-numeric:tabular-nums}
-.juan-hs-row .rk1{background:var(--turq)} .juan-hs-row .rk2{background:var(--pink);color:#fff} .juan-hs-row .rk3{background:var(--orange)}
+.juan-hs-row .rk1{background:var(--turq)} .juan-hs-row .rk2{background:var(--pink);color:#000} .juan-hs-row .rk3{background:var(--orange)}
 .juan-hs-row .nm{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .juan-hs-row .nm small{font-size:.7em;font-weight:800;opacity:.75}
 .juan-hs-row .sc{flex:none;font-variant-numeric:tabular-nums;font-size:1.05em}
@@ -1210,7 +1210,7 @@ body{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
 [data-theme="dark"] .juan-hs{background:#12161a;color:#fff;border-color:var(--turq);box-shadow:0 4px 0 #007f82}
 [data-theme="dark"] .juan-hs-row{border-color:#2c3a3e}
 [data-theme="dark"] .juan-hs-row .rk{border-color:#fff;background:#12161a;color:#fff}
-[data-theme="dark"] .juan-hs-row .rk1{background:var(--turq);color:#000;border-color:#000} [data-theme="dark"] .juan-hs-row .rk2{background:var(--pink);color:#fff;border-color:#000} [data-theme="dark"] .juan-hs-row .rk3{background:var(--orange);color:#000;border-color:#000}
+[data-theme="dark"] .juan-hs-row .rk1{background:var(--turq);color:#000;border-color:#000} [data-theme="dark"] .juan-hs-row .rk2{background:var(--pink);color:#000;border-color:#000} [data-theme="dark"] .juan-hs-row .rk3{background:var(--orange);color:#000;border-color:#000}
 [data-theme="dark"] .juan-hs-row.me{background:#0d4446;border-color:var(--pink)}
 @keyframes hs-glow-d{50%{background:#136466}}
 [data-theme="dark"] .juan-hs-row.me{animation-name:hs-glow-d}
@@ -2156,4 +2156,10 @@ html[data-season="muertos"] .mq-viewer{background:radial-gradient(70vw 50vh at 1
 /* v49.23: text that sits right on the Día de Muertos night sky (the page footer, the weather disclaimer) reads white-on-night */
 html[data-season="muertos"] .foot > p,html[data-season="muertos"] .foot > p > span,html[data-season="muertos"] .wx-disclaimer{color:#f3e8ff}
 html[data-season="muertos"] .foot a,html[data-season="muertos"] .wx-disclaimer a{color:#5fe0ec}
-html[data-season="muertos"] .wx-disclaimer .wx-x{color:#fff;border-color:rgba(255,255,255,.7)}
+html[data-season="muertos"] .wx-disclaimer .wx-x{background:#01063B;color:#fff;border-color:rgba(255,255,255,.7)}
+/* v49.23: Muertos light theme puts the From Chisme card on the light lilac card background, so its words go dark purple
+   (#3E1160 on #f7eefe ≈ 12:1, WCAG AA+). Dark theme keeps the night-purple card with white text. */
+html[data-season="muertos"][data-theme="light"] .from-chisme{color:#3E1160}
+html[data-season="muertos"][data-theme="light"] .from-chisme .fc-t,html[data-season="muertos"][data-theme="light"] .from-chisme .fc-p,
+html[data-season="muertos"][data-theme="light"] .from-chisme .fc-jefa-t{color:#3E1160}
+html[data-season="muertos"][data-theme="light"] .from-chisme .bubble-edge{fill:#f7eefe}

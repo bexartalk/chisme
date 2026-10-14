@@ -344,3 +344,8 @@ html[data-season="muertos"] .sx .profile .p-hdr { box-shadow: none; }
 .sx-nudge .nudge-btns { display: grid; gap: 10px; }
 .sx-nudge .btn { min-height: 48px; display: flex; align-items: center; justify-content: center; font-size: 1.05rem; }
 .sx.sheet.is-nudge h2 { color: var(--pk, #FF1A7F); }
+/* v49.23 (audit): readable on the Día de Muertos night sky + the hot-pink buttons. "‹ Back to the chisme" was dark teal on
+   navy (1.1:1): light turquoise #5fe0ec on #01063B is ≈11:1. Pink buttons (Sign in, Join Chisme) carried the light lilac
+   card colour (3.3:1): black bold on #FF1A7F is ≈5.8:1. */
+html[data-season="muertos"] .sx-back { color: #5fe0ec; }
+.btn.pink, .sx .btn.pink, html[data-season="muertos"] .btn.pink { color: #000; font-weight: 900; }
