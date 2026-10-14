@@ -12,8 +12,8 @@
     "standalone",
     "minimal-ui"
   ],
-  "background_color": "#00C9CD",
-  "theme_color": "#00C9CD",
+  "background_color": "#3E1160",
+  "theme_color": "#3E1160",
   "categories": [
     "news",
     "weather",
