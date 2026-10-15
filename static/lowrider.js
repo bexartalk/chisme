@@ -944,7 +944,7 @@
       const bw = Math.round(cssW * dpr), bh = Math.round(cssH * dpr);
       if (cv.width !== bw || cv.height !== bh) { cv.width = bw; cv.height = bh; }
       cv.style.width = cssW + "px"; cv.style.height = cssH + "px";
-      S = Math.min(cssW / 430, cssH / 600); LW = cssW / S; LH = cssH / S; GY = LH - Math.max(150, Math.min(210, (LH - 640) * 0.4 + 150)); K = dpr * S; wrap.style.setProperty("--lr-toast-top", `${120 * S}px`); carSX = 18 + Math.max(0, LW - 430) * 0.18;
+      S = Math.min(cssW / 430, cssH / 600); LW = cssW / S; LH = cssH / S; GY = LH - Math.max(150, Math.min(210, (LH - 640) * 0.4 + 150)); K = dpr * S; wrap.style.setProperty("--lr-toast-top", `${104 * S}px`); carSX = 18 + Math.max(0, LW - 430) * 0.18;
       buildBack(); lotCache.clear(); bbCache.clear(); camX = car.x - carSX; draw();
     }
     function buildBack() {
@@ -1496,7 +1496,7 @@
       }
       // v49.26: reserve measured rectangles every frame, big awards first (maximum two).
       popList = []; finishTitle = !!(ev && ev.type === "party" && ev.phase === "party" && (mode === "run" || mode === "paused" || mode === "crash"));
-      const boxes = [];
+      const boxes = bubbleList.map((b) => ({ ...b }));   // v49.26: pops also steer clear of the speech bubble
       if (finishTitle) { const y = ((SX && SX.bannerY) || 150) + 82;
         txt("¡LLEGASTE!", LW / 2, y, 40, "#FF1A7F", "center", "#000");
         boxes.push({ x: 8, y: y - 28, w: LW - 16, h: 56 }); }
