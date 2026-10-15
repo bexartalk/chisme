@@ -104,8 +104,10 @@ async def main():
             viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True, timezone_id="America/Chicago",
             geolocation={"latitude": 29.35, "longitude": -98.56}, permissions=["geolocation"])
         pg = ctx.pages[0]
-        await pg.goto(URL + "#food", wait_until="networkidle", timeout=120000)
-        await pg.reload(wait_until="networkidle", timeout=120000)  # now controlled by the service worker, which saves the API responses
+        await pg.goto(URL + "#food", wait_until="domcontentloaded", timeout=120000)   # (not networkidle: the feed keeps fetching, so it never idles under load)
+        await pg.wait_for_function("() => navigator.serviceWorker && navigator.serviceWorker.ready.then(() => true)", timeout=120000)
+        await pg.reload(wait_until="domcontentloaded", timeout=120000)  # now controlled by the service worker, which saves the API responses
+        await pg.wait_for_function("() => !!navigator.serviceWorker.controller", timeout=60000)
         await pg.wait_for_function("() => window.__chisme.eventsReady && window.__chisme.foodReady", timeout=120000)
         await pg.wait_for_timeout(1500)
         await ctx.set_offline(True)

@@ -7,7 +7,7 @@ import asyncio, json, os, re, sys
 from playwright.async_api import async_playwright
 import os as _os, sys as _sys; _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__))); import pw_csp  # noqa: E401,F401  (v49.11: CSP-safe wait_for_function)
 
-URL = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8211/"
+URL = sys.argv[1] if len(sys.argv) > 1 else os.environ.get("URL", "http://localhost:8486/")
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "screenshots"); os.makedirs("/tmp/wk", exist_ok=True)
 fails = []
 def check(ok, msg):
@@ -21,6 +21,13 @@ FULL = {  # query -> (city, skyline, NBA chip, MiLB chip or None, food city, scr
     "Austin": ("Austin", "austin", "Spurs", "Express", "location-austin.png"),
 }
 QUICK = {"Houston, TX": "Houston", "Houston": "Houston", "77002": "Houston", "33101": "Miami"}
+
+
+async def go_chip(pg, v, tap=False):   # simple feed (html.simple) hides the chip row: fire the same chip's handler instead
+    sel = f'.view.active .mq-chip[data-go="{v}"]'
+    if await pg.evaluate("() => document.documentElement.classList.contains('simple')"):
+        await pg.evaluate(f"document.querySelector('.mq-chip[data-go=\"{v}\"]').click()"); await pg.wait_for_function(f"() => document.querySelector('#view-{v}.active, .view.active#view-{v}')", timeout=15000); return
+    await pg.wait_for_selector(sel, state="visible", timeout=15000); await (pg.tap(sel) if tap else pg.click(sel))
 
 async def set_place(pg, q):
     await pg.evaluate("window.scrollTo(0, 0)")
@@ -81,7 +88,7 @@ async def main():
             st = ((wx.get("current") or {}).get("station_name") or "") + " " + json.dumps(wx.get("location") or wx.get("point") or "")[:80]
             check(city.split()[0] in st or (wx.get("periods") or wx.get("forecast")), f"Weather: NWS for {city} ({st.strip()[:70]})")
             # Events
-            await pg.tap('#tabs [data-view="chisme"]'); await pg.tap('.view.active .mq-chip[data-go="events"]')
+            await pg.tap('#tabs [data-view="chisme"]'); await go_chip(pg, 'events', tap=True)
             await pg.select_option('#ev-city', '')   # v49.23: the feed defaults to all cities mixed; this checks Near me
             await pg.wait_for_function("() => window.__chisme.eventsReady", timeout=150000); await pg.wait_for_timeout(1500)
             ev = await pg.evaluate("({ intro: document.querySelector('#events-intro').textContent, n: document.querySelectorAll('#events-list .ev').length, src: [...document.querySelectorAll('#event-sources li, #ev-sources li')].map(l => l.textContent.slice(0, 40)) })")
@@ -99,7 +106,7 @@ async def main():
             await pg.evaluate("window.scrollTo(0, document.querySelector('#antojos').getBoundingClientRect().top + scrollY - 110)"); await pg.wait_for_timeout(500)
             await pg.screenshot(path=f"/tmp/wk/food-{city.lower()}.png")
             # Sports
-            await pg.tap('#tabs [data-view="chisme"]'); await pg.tap('.view.active .mq-chip[data-go="sports"]')
+            await pg.tap('#tabs [data-view="chisme"]'); await go_chip(pg, 'sports', tap=True)
             await pg.wait_for_function(f"() => /{nba}/.test(document.querySelector('#sp-chips [data-lg=nba]').textContent)", timeout=150000)
             spt = await pg.evaluate("""() => ({ nba: document.querySelector('#sp-chips [data-lg=nba]').textContent.trim(), milb: document.querySelector('#sp-chips [data-lg=missions]').hidden ? null : document.querySelector('#sp-chips [data-lg=missions]').textContent.trim(),
                 intro: document.querySelector('#sports-intro').textContent, kicker: (document.querySelector('.spurs-card .kicker') || {}).textContent })""")
@@ -107,7 +114,7 @@ async def main():
             await pg.wait_for_function("() => window.__chisme.view === 'sports' && window.__chisme.sportsReady", timeout=60000); await pg.wait_for_timeout(1200)
             await pg.evaluate("window.scrollTo(0, document.querySelector('#sports').getBoundingClientRect().top + scrollY - 110)"); await pg.wait_for_timeout(500)
             await pg.screenshot(path=f"/tmp/wk/sports-{city.lower()}.png")
-            await pg.tap('#tabs [data-view="chisme"]'); await pg.tap('.view.active .mq-chip[data-go="news"]'); await pg.wait_for_timeout(600)
+            await pg.tap('#tabs [data-view="chisme"]'); await go_chip(pg, 'news', tap=True); await pg.wait_for_timeout(600)
         # back home: "Use my location" returns to GPS in San Antonio
         await pg.evaluate("window.scrollTo(0, 0)"); await pg.tap("#settings-btn"); await pg.tap("#set-gps")
         await pg.wait_for_function("() => JSON.parse(localStorage.getItem('chisme-location')).source === 'gps'", timeout=30000)

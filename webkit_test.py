@@ -20,6 +20,13 @@ def check(ok, what):
     print(("  ok   " if ok else "  FAIL ") + what)
     if not ok: fails.append(what)
 
+
+async def go_chip(pg, v, tap=False):   # simple feed (html.simple) hides the chip row: fire the same chip's handler instead
+    sel = f'.view.active .mq-chip[data-go="{v}"]'
+    if await pg.evaluate("() => document.documentElement.classList.contains('simple')"):
+        await pg.evaluate(f"document.querySelector('.mq-chip[data-go=\"{v}\"]').click()"); await pg.wait_for_function(f"() => document.querySelector('#view-{v}.active, .view.active#view-{v}')", timeout=15000); return
+    await pg.wait_for_selector(sel, state="visible", timeout=15000); await (pg.tap(sel) if tap else pg.click(sel))
+
 async def new(p, b, width=None, grant=None, init=None):
     dev = dict(p.devices["iPhone 13"]); dev.pop("default_browser_type", None)
     if width: dev["viewport"] = {"width": width, "height": 700}; dev["screen"] = {"width": width, "height": 700}
@@ -70,8 +77,7 @@ async def settle(pg):
 async def view_ok(pg, v):
     if v in ("news", "sports", "events", "weather"):   # v49.12: one Chisme tab, then its chip (v49.16: Weather too)
         await pg.click('#tabs [data-view="chisme"]')
-        await pg.wait_for_selector(f'.view.active .mq-chip[data-go="{v}"]', state="visible", timeout=15000)
-        await pg.click(f'.view.active .mq-chip[data-go="{v}"]')
+        await go_chip(pg, v)
     else: await pg.click(f'#tabs [data-view="{v}"]')
     sel = {"sports": "#sports-body .sp-photo, #sports-body .error", "weather": "#view-weather .now-temp, #view-weather .notice, #view-weather .error"}[v]
     await pg.wait_for_selector(sel, timeout=60000)
@@ -126,7 +132,7 @@ async def main():
             check(r["view"] == v and r["onScreen"] and r["chars"] > 300 and not r["error"], f"{v} tab shows {v} ({r})")
             await pg.evaluate("document.activeElement && document.activeElement.blur(); window.scrollTo(0, 0)"); await settle(pg)
             await pg.screenshot(path=os.path.join(OUT, f"{v}-fixed.png"))
-        await pg.click('#tabs [data-view="chisme"]'); await pg.click('.view.active .mq-chip[data-go="news"]'); await pg.evaluate("document.activeElement && document.activeElement.blur(); window.scrollTo(0, 0)"); await settle(pg)
+        await pg.click('#tabs [data-view="chisme"]'); await go_chip(pg, 'news'); await pg.evaluate("document.activeElement && document.activeElement.blur(); window.scrollTo(0, 0)"); await settle(pg)
         await pg.screenshot(path=os.path.join(OUT, "header-logo.png"), clip={"x": 0, "y": 0, "width": 390, "height": 170})
         logo = await pg.evaluate("""() => { const b = document.querySelector('#settings-btn'), s = getComputedStyle(b);
             return { bg: s.backgroundColor, border: s.borderTopWidth, pad: s.paddingTop, appearance: s.appearance || s.webkitAppearance }; }""")
