@@ -2122,15 +2122,38 @@ html[data-season="muertos"] body{background-color:var(--coco-night);
     linear-gradient(180deg,var(--coco-night) 0%,var(--coco-purple) 45%,var(--coco-plum) 100%);
   background-repeat:repeat-x,no-repeat,no-repeat,repeat,no-repeat;background-size:214px 40px,auto,auto,260px 260px,100% 100%;
   background-position:0 var(--tabs-h,66px),0 0,0 0,0 0,0 0;background-attachment:scroll,fixed,fixed,scroll,fixed}
+/* v49.25.1 (Goonie: the off-white cards were too bright for Muertos): light mode's cards turn a soft night-sky purple with
+   light text. Scoped to html[data-season="muertos"] only, so the Nov 3 season end / Fiesta revert keeps the normal off-white. */
 html[data-season="muertos"][data-theme="light"]{--card:var(--coco-lilac);--near:#fde8f4;--line:#cdb3e6;--link:#5b1a9e}
-html[data-season="muertos"][data-theme="light"] .card{background:var(--coco-lilac);border-color:#cdb3e6;border-top-color:var(--marigold)}
+html[data-season="muertos"][data-theme="light"] :is(.card,.mix-item,.story,.greet,.from-chisme){--card:#33205c;--near:#3d2468;--line:#5b4590;--link:#7fe6f0;--ink:#f8f3ff;--ink2:#e6dcf7;--muted:#cdbde8}
+html[data-season="muertos"][data-theme="light"] .card{background:#33205c;color:#f8f3ff;border-color:#5b4590;border-top-color:var(--marigold)}
+/* v49.25.1: inside the purple light-mode Muertos cards, the light-only white surfaces go night purple too */
+html[data-season="muertos"][data-theme="light"] :is(.card,.mix-item) button,html[data-season="muertos"][data-theme="light"] :is(.card,.mix-item) .chip,html[data-season="muertos"][data-theme="light"] :is(.card,.mix-item) .fr-save,html[data-season="muertos"][data-theme="light"] :is(.card,.mix-item) a.btnlink,html[data-season="muertos"][data-theme="light"] :is(.card,.mix-item) .dig a.btnlink,html[data-season="muertos"][data-theme="light"] :is(.card,.mix-item) .ev-links a{background:#2b1a4f;color:#f8f3ff;border-color:#e6dcf7}
+html[data-season="muertos"][data-theme="light"] :is(.card,.mix-item) button.primary,html[data-season="muertos"][data-theme="light"] :is(.card,.mix-item) .ev-links a.primary,html[data-season="muertos"][data-theme="light"] :is(.card,.mix-item) .dig a.btnlink.primary{background:#1fd1d6;color:#130827;border-color:#1fd1d6}
+html[data-season="muertos"][data-theme="light"] :is(.card,.mix-item) .chip[aria-pressed="true"],html[data-season="muertos"][data-theme="light"] :is(.card,.mix-item) .fr-save[aria-pressed="true"]{background:#1fd1d6;color:#130827;border-color:#1fd1d6;box-shadow:inset 0 -4px 0 #130827}
+html[data-season="muertos"][data-theme="light"] :is(.card,.mix-item) .story,html[data-season="muertos"][data-theme="light"] :is(.card,.mix-item) .ev,html[data-season="muertos"][data-theme="light"] :is(.card,.mix-item) .fr,html[data-season="muertos"][data-theme="light"] :is(.card,.mix-item) .sn,html[data-season="muertos"][data-theme="light"] :is(.card,.mix-item) .sched li,html[data-season="muertos"][data-theme="light"] :is(.card,.mix-item) .trend,html[data-season="muertos"][data-theme="light"] :is(.card,.mix-item) .game,html[data-season="muertos"][data-theme="light"] :is(.card,.mix-item) .hour,html[data-season="muertos"][data-theme="light"] :is(.card,.mix-item) .day,html[data-season="muertos"][data-theme="light"] :is(.card,.mix-item) .art,html[data-season="muertos"][data-theme="light"] :is(.card,.mix-item) .sp-photo{background:#2b1a4f;border-color:#5b4590}
+html[data-season="muertos"][data-theme="light"] :is(.card,.mix-item) .day[aria-expanded="true"]{background:#3d2468;border-color:#1fd1d6}
+html[data-season="muertos"][data-theme="light"] :is(.card,.mix-item) .day .temps .lo{color:#e6dcf7}
+html[data-season="muertos"][data-theme="light"] :is(.card,.mix-item) .hour .p,html[data-season="muertos"][data-theme="light"] :is(.card,.mix-item) .day .pop{color:#9fd8ff}
+html[data-season="muertos"][data-theme="light"] :is(.card,.mix-item) .day .pop.dry{color:#cdbde8}
+html[data-season="muertos"][data-theme="light"] :is(.card,.mix-item) .ev-media,html[data-season="muertos"][data-theme="light"] :is(.card,.mix-item) .fr-thumb{background:#3d2468;border-color:#5b4590}
+html[data-season="muertos"][data-theme="light"] :is(.card,.mix-item) .ev-ph{background:repeating-linear-gradient(135deg,#3d2468 0 18px,#2b1a4f 18px 36px);color:#fff}
+html[data-season="muertos"][data-theme="light"] :is(.card,.mix-item) .ev-ph span{background:#2b1a4f;color:#f8f3ff;border-color:#f8f3ff}
+html[data-season="muertos"][data-theme="light"] :is(.card,.mix-item) .ev-wx{background:#1b1a4a;border-color:#7aa8f0;color:#dce9ff}
+html[data-season="muertos"][data-theme="light"] :is(.card,.mix-item) .ev-wx.na{background:#2b1a4f;border-color:#5b4590;color:#cdbde8}
+html[data-season="muertos"][data-theme="light"] :is(.card,.mix-item) .price.check{background:transparent;color:#7fe6f0;border-color:#7fe6f0}
+html[data-season="muertos"][data-theme="light"] :is(.card,.mix-item) .crew-uses{background:#123f52;color:#e5fbfb}
+html[data-season="muertos"][data-theme="light"] :is(.card,.mix-item) .crew-uses.ig{background:#5a1440;color:#ffe3ec}
+html[data-season="muertos"][data-theme="light"] :is(.card,.mix-item) .src,html[data-season="muertos"][data-theme="light"] :is(.card,.mix-item) .rsrc{color:#ffb37a}
+html[data-season="muertos"][data-theme="light"] :is(.card,.mix-item) .bad{color:#ffb4ab}
+html[data-season="muertos"][data-theme="light"] :is(.card,.mix-item) .tag{background:#4a2f7a;color:#fff}
 html[data-season="muertos"] .card{box-shadow:0 4px 0 rgba(247,7,132,.55),0 8px 18px rgba(4,6,30,.45)}
 html[data-season="muertos"] .mix-hi,html[data-season="muertos"] .view > .hint,html[data-season="muertos"] .view > p.hint{color:#f3e8ff}
 html[data-season="muertos"] .mix-hi b{color:var(--coco-turq)}
 html[data-season="muertos"] .mq-chips{background:linear-gradient(180deg,var(--coco-night),rgba(11,20,56,.96));box-shadow:0 6px 10px -8px rgba(0,0,0,.6)}
-html[data-season="muertos"][data-theme="light"] .mq-chip:not([aria-current="true"]){background:var(--coco-lilac);color:#1a0b30;border-color:#cdb3e6}
-html[data-season="muertos"][data-theme="light"] .greet{background:linear-gradient(135deg,#ffd9ec,var(--coco-lilac) 65%);border-color:var(--marigold)}
-html[data-season="muertos"][data-theme="light"] .story{background:#fffaff}
+html[data-season="muertos"][data-theme="light"] .mq-chip:not([aria-current="true"]){background:#33205c;color:#f8f3ff;border-color:#5b4590}
+html[data-season="muertos"][data-theme="light"] .greet{background:linear-gradient(135deg,#4a1f6e,#33205c 65%);border-color:var(--marigold)}
+html[data-season="muertos"][data-theme="light"] .story{background:#2b1a4f}
 /* the Día de Muertos photo gallery card itself: night purple with papel picado along the top */
 html[data-season="muertos"] .mq-gallery#mq-gallery{background:linear-gradient(180deg,#3E1160,#01063B);color:#fff;border-color:#4b2a80;border-top-color:var(--marigold);
   background-image:url(/static/season/papel-picado.svg),linear-gradient(180deg,#3E1160,#01063B);background-repeat:repeat-x,no-repeat;background-size:214px 40px,100% 100%;padding-top:46px}
@@ -2159,7 +2182,7 @@ html[data-season="muertos"] .foot a,html[data-season="muertos"] .wx-disclaimer a
 html[data-season="muertos"] .wx-disclaimer .wx-x{background:#01063B;color:#fff;border-color:rgba(255,255,255,.7)}
 /* v49.23: Muertos light theme puts the From Chisme card on the light lilac card background, so its words go dark purple
    (#3E1160 on #f7eefe ≈ 12:1, WCAG AA+). Dark theme keeps the night-purple card with white text. */
-html[data-season="muertos"][data-theme="light"] .from-chisme{color:#3E1160}
+html[data-season="muertos"][data-theme="light"] .from-chisme{color:#f8f3ff}
 html[data-season="muertos"][data-theme="light"] .from-chisme .fc-t,html[data-season="muertos"][data-theme="light"] .from-chisme .fc-p,
-html[data-season="muertos"][data-theme="light"] .from-chisme .fc-jefa-t{color:#3E1160}
-html[data-season="muertos"][data-theme="light"] .from-chisme .bubble-edge{fill:#f7eefe}
+html[data-season="muertos"][data-theme="light"] .from-chisme .fc-jefa-t{color:#f8f3ff}
+html[data-season="muertos"][data-theme="light"] .from-chisme .bubble-edge{fill:#33205c}

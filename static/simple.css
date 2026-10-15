@@ -38,6 +38,9 @@ html.simple[data-season="muertos"] .tv-row-all{color:#19C3D9}
 /* Softer posts: warm off-white cards with dark purple text in light mode; dark purple cards with light text in dark mode
    (data-theme="dark" follows the app's setting, and "system" follows prefers-color-scheme). The night sky stays. */
 html.simple:not([data-theme="dark"]){--sf-card:#FAF6F0;--sf-ink:#2A0F45;--sf-muted:#5B4470;--sf-line:#E6DCEB;--sf-link:#5b1a9e}
+/* v49.25.1 (Goonie): in the Día de Muertos season the off-white was too bright on the night sky, so light-mode posts go a soft
+   night-sky purple with light text. Scoped to data-season="muertos": after Nov 3 / THEME_OVERRIDE=off the off-white returns. */
+html.simple[data-season="muertos"]:not([data-theme="dark"]){--sf-card:#2E1D52;--sf-ink:#F6EEFF;--sf-muted:#D4C2EC;--sf-line:#4A3375;--sf-link:#7FE3EE}
 html.simple[data-theme="dark"]{--sf-card:#1E0F33;--sf-ink:#F3E8FF;--sf-muted:#CDB8E6;--sf-line:#3B2560;--sf-link:#7FE3EE}
 html.simple .mix-item,html.simple[data-season][data-theme] .mix-item,html.simple .sx-compose,html.simple[data-season][data-theme] .sx-compose{background:var(--sf-card)!important;color:var(--sf-ink)!important;border-color:var(--sf-line)!important}
 html.simple .mix-item :is(h3,h3 a,h4,h4 a),html.simple .mix-item p:not([class*="price"]),html.simple .sx-compose .sx-q{color:var(--sf-ink)}
