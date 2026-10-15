@@ -754,7 +754,7 @@
     function lead() { const c = K.run && K.run.chase; return c && c.n ? c.cars[c.n - 1] : null; }
     function tailSay(text) {
       const c = K.run.chase, p = { get x() { return K.camX + 30; }, y: K.GY - 22, s: 1 };
-      const B = K.bubbles; B.push({ p, text, t: 0, life: 1.8 }); if (B.length > 3) B.shift();
+      const B = K.bubbles; B.push({ p, text, t: 0, life: 1.8 }); if (B.length > 8) B.pop();
     }
     function party() {   // the finish: the car pulls in, the party, the cops give up and dance, then the ending card
       const car = K.car, run = K.run, x = car.x + 200 + Math.max(320, car.v * 2.2) + 120, keep = (c) => c.x < car.x + 200;
@@ -768,10 +768,11 @@
         update(dt) {
           if (ev.phase === "arrive" && (K.car.v < 25 || ev.t > 6)) { ev.phase = "party"; ev.pt = 0; K.run.chase.party = "party";
             fxx("cheer"); K.burst(ev.x - 120, K.GY - 220, 26, "confetti", { sp: 240, life: 1.4 });
-            K.pop(CHASE.finish.title, { x: K.LW / 2, y: Math.max(150, K.GY - 330), col: Hk.COL.pink, size: 40, big: true, life: 2, rise: 8 }); K.sayLine("¡Llegaste!", "es-MX", { rate: 1, gap: 3000 }); }
+            // v49.26: the core HUD keeps the finish title visible throughout the party.
+            K.sayLine("¡Llegaste!", "es-MX", { rate: 1, gap: 3000 }); }
           if (ev.phase !== "party") return; ev.pt += dt;
           for (const c of ev.cops) { const go = ev.pt - c.at; if (go <= 0) continue; c.sx = Math.min(c.i === 0 ? 228 : c.i === 1 ? 336 : c.i === 2 ? -40 : 440, -220 + go * 520);
-            if (!c.said && go > 0.6) { c.said = true; const L = CHASE.give[c.i % CHASE.give.length], o = c, p = { get x() { return K.camX + o.sx + 60; }, y: K.GY - 4, s: 1 }; K.bubbles.push({ p, text: L, t: 0, life: 2 }); if (K.bubbles.length > 3) K.bubbles.shift(); fxx("chirp"); } }
+            if (!c.said && go > 0.6) { c.said = true; const L = CHASE.give[c.i % CHASE.give.length], o = c, p = { get x() { return K.camX + o.sx + 60; }, y: K.GY - 4, s: 1 }; K.bubbles.push({ p, text: L, t: 0, life: 2 }); if (K.bubbles.length > 8) K.bubbles.pop(); fxx("chirp"); } }
           if (!partyLights && ev.pt > 3) { partyLights = true; fxx("cheer"); K.crowd(1, 0.8, "¡Ándale!"); }
           if (ev.pt > P.secs && ev.phase === "party") { ev.phase = "done"; done(ev); }
         },
@@ -906,7 +907,7 @@
     function say(o, when) {   // a comic line from the driver (data: T.lines.near / over / hit)
       const L = o.T.lines && o.T.lines[when]; if (!L || !L.length) return;
       const off = (o.T.mouth != null ? o.T.mouth : o.T.w * 0.4) - (o.dx || 0), p = { get x() { return o.x + off; }, y: K.GY - (o.T.mouthY || o.h + 4) + 46, s: 1 };
-      const B = K.bubbles; B.push({ p, text: L[(rand() * L.length) | 0], t: 0, life: 1.5 }); if (B.length > 3) B.shift();
+      const B = K.bubbles; B.push({ p, text: L[(rand() * L.length) | 0], t: 0, life: 1.5 }); if (B.length > 8) B.pop();
     }
     // the Trail Ride: the riders cross at a crossing ahead; the car always stops before it (never near a horse); every hop while
     // they cross is a salute (+YEEHAW), and the trail boss hollers back

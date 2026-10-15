@@ -573,15 +573,18 @@
     if (cheering) { g.fillStyle = "#3a0d16"; g.beginPath(); g.ellipse(3.4, -41.6, 1.4, 1.2, 0, 0, 6.2832); g.fill(); }
     g.restore();
   }
-  function bubble(g, x, y, text, t0, maxX) {
-    const pop = clamp(t0 * 6, 0, 1), sc = 0.6 + 0.4 * (1 - Math.pow(1 - pop, 3)) + (pop >= 1 ? 0 : 0.08 * Math.sin(pop * 3.14));
-    g.save(); g.font = `900 13px ${FONT}`; const w = g.measureText(text).width + 16, h = 22;
-    let bx = clamp(x - w / 2, 4, maxX - w - 4); g.translate(bx + w / 2, y - h); g.scale(sc, sc);
-    g.fillStyle = "#ffffff"; g.strokeStyle = "#000"; g.lineWidth = 2.2; rr(g, -w / 2, -h / 2, w, h, 9); g.fill(); g.stroke();
-    const tx = clamp(x - (bx + w / 2), -w / 2 + 8, w / 2 - 8); g.beginPath(); g.moveTo(tx - 4, h / 2 - 1); g.lineTo(tx + 1, h / 2 + 7); g.lineTo(tx + 4, h / 2 - 1); g.fillStyle = "#fff"; g.fill(); g.stroke();
-    g.fillRect(tx - 4.5, h / 2 - 2.6, 9.5, 2.6);
-    g.fillStyle = "#000"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(text, 0, 1);
-    g.restore();
+  // v49.26: one wrapped, edge-safe speech card; return the bounds used for drawing.
+  function bubble(g, x, y, text, t0, maxX, maxW = 170) {
+    g.save(); let size = 13, lines, limit = Math.min(maxW, maxX - 20) - 16;
+    const wrap = () => { const out = []; let line = ""; for (const word of text.split(/\s+/)) { for (const ch of (line ? " " : "") + word) { if (g.measureText(line + ch).width > limit && line) { out.push(line.trim()); line = ""; } line += ch; } } if (line.trim()) out.push(line.trim()); return out; };
+    do { g.font = `900 ${size}px ${FONT}`; lines = wrap(); if (lines.length <= 2) break; size -= 0.5; } while (size > 1);
+    const w = Math.max(...lines.map((l) => g.measureText(l).width)) + 16, h = lines.length * (size + 3) + 10;
+    const bx = clamp(x - w / 2, 8, maxX - w - 8), by = Math.max(8, y - h - 8);
+    g.fillStyle = "#fff"; g.strokeStyle = "#000"; g.lineWidth = 2.2; rr(g, bx, by, w, h, 9); g.fill(); g.stroke();
+    const tx = clamp(x, bx + 8, bx + w - 8); g.beginPath(); g.moveTo(tx - 4, by + h - 1); g.lineTo(tx, by + h + 6); g.lineTo(tx + 4, by + h - 1); g.fill(); g.stroke();
+    g.fillStyle = "#000"; g.textAlign = "center"; g.textBaseline = "middle";
+    lines.forEach((l, i) => g.fillText(l, bx + w / 2, by + 5 + (i + 0.5) * (size + 3))); g.restore();
+    return { x: bx - 2, y: by - 2, w: w + 4, h: h + 10, lines };
   }
 
   // ---------------------------------------------------------------- Abuela + La Chancla
@@ -941,7 +944,7 @@
       const bw = Math.round(cssW * dpr), bh = Math.round(cssH * dpr);
       if (cv.width !== bw || cv.height !== bh) { cv.width = bw; cv.height = bh; }
       cv.style.width = cssW + "px"; cv.style.height = cssH + "px";
-      S = Math.min(cssW / 430, cssH / 600); LW = cssW / S; LH = cssH / S; GY = LH - Math.max(150, Math.min(210, (LH - 640) * 0.4 + 150)); K = dpr * S; carSX = 18 + Math.max(0, LW - 430) * 0.18;
+      S = Math.min(cssW / 430, cssH / 600); LW = cssW / S; LH = cssH / S; GY = LH - Math.max(150, Math.min(210, (LH - 640) * 0.4 + 150)); K = dpr * S; wrap.style.setProperty("--lr-toast-top", `${120 * S}px`); carSX = 18 + Math.max(0, LW - 430) * 0.18;
       buildBack(); lotCache.clear(); bbCache.clear(); camX = car.x - carSX; draw();
     }
     function buildBack() {
@@ -979,6 +982,7 @@
     const P = () => { if (garage.open) { const c = gCar(); return paintFor(c, garage.preview || st.carPaint[c.id] || c.paint); } return paintFor(curCar(), st.equip.paint); };
     const garage = { open: false, preview: null, car: null, t: 0 };
     let evOn = true, mode = "title", T = 0, camX = 0, run = null, ev = null, shake = 0, frozen = false, auto = true, zoom = 1, lastGrade = null, gradeCounts = { perfect: 0, puro: 0, ay: 0, scraped: 0 };
+    let popList = [], bubbleList = [], finishTitle = false; // v49.26: drawn screen bounds for tests
     let obs = [], coins = [], picks = [], people = [], dogs = [], props = [], lots = [], bbs = [], parts = [], pops = [], bubbles = [];
     let nextObs = 0, lotEnd = -400, bbEnd = -300, houseIn = 2, signI = { shop: 0, billboard: 0 }, lotI = 0, hold = 0, lastCheer = -9, events = { abuela: 0, chancla: 0 };
     const rand = Math.random;
@@ -1056,16 +1060,16 @@
       }
     }
     const shakeIt = (a) => { if (!reduced()) shake = Math.max(shake, a); };
-    function pop(text, o = {}) { pops.push({ text, x: o.x, y: o.y, t: 0, life: o.life || 1.1, col: o.col || "#fff", size: o.size || 22, big: !!o.big, icon: o.icon || null, rise: o.rise == null ? 40 : o.rise, edge: o.edge || "#000" }); if (pops.length > 14) pops.shift(); }
+    function pop(text, o = {}) { if (o.big && pops.filter((p) => p.big).length >= 2) pops.splice(pops.findIndex((p) => p.big), 1); pops.push({ text, x: o.x, y: o.y, t: 0, life: o.life || 1.1, col: o.col || "#fff", size: o.size || 22, big: !!o.big, icon: o.icon || null, rise: o.rise == null ? 40 : o.rise, edge: o.edge || "#000" }); if (pops.length > 14) pops.splice(pops.findIndex((p) => !p.big), 1); }
     function crowd(mood, power, text) {
       const vis = people.filter((p) => p.x - camX > 0 && p.x - camX < LW);
       for (const p of vis) { p.react = 0.9 + power * 0.5; p.mood = mood; }
-      if (text && vis.length) { const p = vis[(rand() * vis.length) | 0]; bubbles.push({ p, text, t: 0, life: 1.6 }); if (bubbles.length > 3) bubbles.shift(); }
+      if (text && vis.length) { const p = vis[(rand() * vis.length) | 0]; bubbles.push({ p, text, t: 0, life: 1.6 }); if (bubbles.length > 8) bubbles.pop(); }
     }
     function toast(title, sub) {
       const d = document.createElement("div"); d.className = "lr-toast"; d.setAttribute("role", "status");
       d.innerHTML = `<span class="lr-toast-ic" aria-hidden="true"></span><span><b>${esc(title)}</b><small>${esc(sub)}</small></span>`;
-      toasts.append(d); setTimeout(() => d.classList.add("out"), 2800); setTimeout(() => d.remove(), 3300);
+      toasts.replaceChildren(d); d.title = sub; d.setAttribute("aria-label", title + ". " + sub); setTimeout(() => d.classList.add("out"), 1700); setTimeout(() => d.remove(), 2000); // v49.26: compact, short trophy notice
     }
     function unlock(id) {
       if (st.ach[id]) return; const a = ACH.find((x) => x.id === id); if (!a) return;
@@ -1330,7 +1334,8 @@
       for (const p of parts) { p.life += dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += (p.kind === "dust" ? -10 : p.kind === "confetti" ? 140 : 520) * dt; if (p.kind === "confetti") p.vx *= 1 - dt * 1.5; p.a += p.va * dt; }
       parts = parts.filter((p) => p.life < p.max);
       for (const p of pops) p.t += dt; pops = pops.filter((p) => p.t < p.life);
-      for (const b of bubbles) b.t += dt; bubbles = bubbles.filter((b) => b.t < b.life);
+      // v49.26: only the head ages; waiting speech keeps its full short turn.
+      if (bubbles.length) { const b = bubbles[0]; b.t += dt; if (b.t >= Math.min(b.life, 1.6)) bubbles.shift(); }
       shake = Math.max(0, shake - dt * 30);
       spawnAhead();
     }
@@ -1342,6 +1347,7 @@
     }
     function draw() {
       const t = T;
+      popList = []; bubbleList = []; finishTitle = false; // v49.26: clear geometry when the HUD is hidden.
       g.setTransform(dpr * S, 0, 0, dpr * S, 0, 0);
       g.save();
       if (shake > 0) g.translate((rand() - 0.5) * shake, (rand() - 0.5) * shake);
@@ -1405,7 +1411,8 @@
         else if (p.kind === "dust") { g.fillStyle = `rgba(200,180,220,${a * 0.35})`; g.beginPath(); g.arc(sx, p.y, 4 + (1 - a) * 10 * p.s, 0, 6.2832); g.fill(); }
         else if (p.kind === "star") { g.save(); g.translate(sx, p.y); g.rotate(p.a); g.fillStyle = a > 0.5 ? "#ffffff" : COL.turq; g.globalAlpha = a; star(g, 5); g.restore(); }
         else { g.save(); g.translate(sx, p.y); g.rotate(p.a); g.globalAlpha = Math.min(1, a * 2); g.fillStyle = p.col; g.fillRect(-3, -1.5, 6, 3); g.restore(); } }
-      for (const b of bubbles) { const sx = b.p.x - camX; if (sx > -40 && sx < LW + 40) bubble(g, sx, b.p.y - 46 * b.p.s, b.text, b.t, LW); }
+      bubbleList = []; // v49.26: queued speakers remain visible even as their car leaves.
+      if (bubbles.length) { const b = bubbles[0]; bubbleList.push(bubble(g, b.p.x - camX, Math.min(LH - 12, b.p.y - 46 * b.p.s), b.text, b.t, LW, 170 / S)); }
       g.restore();
       hud(t);
     }
@@ -1487,13 +1494,23 @@
           txt(car.air ? (car.tapped ? "Nice. Now stick it." : "TAP when the rings meet!") : "HOLD to charge · LET GO to hop", LW / 2, my + 10, 13, "#fff", "center", "#000", SANS, "900");
         }
       }
-      // pops (screen space)
-      for (const p of pops) {
-        const k = p.t / p.life, a = k > 0.75 ? 1 - (k - 0.75) / 0.25 : 1, sc = p.big ? (k < 0.12 ? 0.5 + (k / 0.12) * 0.7 : k < 0.2 ? 1.2 - ((k - 0.12) / 0.08) * 0.2 : 1) : 1;
-        const x = p.x == null ? LW / 2 : p.x, y = (p.y == null ? GY - 200 : p.y) - p.rise * k;
-        g.save(); g.globalAlpha = a; g.translate(x, y); g.scale(sc, sc);
-        if (p.icon) { g.font = `900 ${p.size}px ${FONT}`; const w = g.measureText(p.text).width; icon(g, p.icon, -w / 2 - 16, 0, p.size / 22); }
-        txt(p.text, 0, 0, p.size, p.col, "center", p.edge); g.restore();
+      // v49.26: reserve measured rectangles every frame, big awards first (maximum two).
+      popList = []; finishTitle = !!(ev && ev.type === "party" && ev.phase === "party" && (mode === "run" || mode === "paused" || mode === "crash"));
+      const boxes = [];
+      if (finishTitle) { const y = ((SX && SX.bannerY) || 150) + 82;
+        txt("¡LLEGASTE!", LW / 2, y, 40, "#FF1A7F", "center", "#000");
+        boxes.push({ x: 8, y: y - 28, w: LW - 16, h: 56 }); }
+      for (const p of [...pops].sort((a, b) => Number(b.big) - Number(a.big))) {
+        const k = p.t / p.life, a = k > 0.75 ? 1 - (k - 0.75) / 0.25 : 1;
+        g.font = `900 ${p.size}px ${FONT}`; const tw = g.measureText(p.text).width, pad = p.size / 5 + 4, iw = p.icon ? 32 : 0;
+        const w = tw + pad * 2 + iw, h = p.size * 1.4 + pad * 2, x = clamp((p.x == null ? LW / 2 : p.x) - w / 2, 8, Math.max(8, LW - w - 8));
+        let y = Math.max(64, (p.y == null ? GY - 200 : p.y) - p.rise * k - h / 2), hit;
+        do { hit = boxes.find((b) => x < b.x + b.w + 6 && x + w + 6 > b.x && y < b.y + b.h + 6 && y + h + 6 > b.y); if (hit) y = hit.y + hit.h + 6; } while (hit);
+        if (y + h > LH - 8) continue;
+        const box = { text: p.text, x, y, w, h }; boxes.push(box); popList.push(box);
+        g.save(); g.globalAlpha = a; const cx = x + iw + (w - iw) / 2, cy = y + h / 2;
+        if (p.icon) icon(g, p.icon, cx - tw / 2 - 16, cy, p.size / 22);
+        txt(p.text, cx, cy, p.size, p.col, "center", p.edge); g.restore();
       }
       if (paused()) { g.fillStyle = "rgba(10,4,24,.35)"; g.fillRect(0, 0, LW, LH); }
     }
@@ -1749,6 +1766,7 @@
           fuel: run ? run.fuel : null, outOfGas: run ? run.out : false, picks: run ? { ...run.picks } : null, cops: run ? run.cops : 0, trafficCleared: run ? run.traffic : 0, salutes: run ? run.salutes : 0, trails: run ? run.trails : 0, chase: SX && SX.state ? SX.state() : null, laps: { ...st.laps }, lap: run ? run.lap : null, boost: run ? run.boost || 0 : 0,
           traffic: obs.filter((o) => o.T).map((o) => ({ id: o.T.id, name: o.T.name, x: Math.round(o.x - car.x), vx: Math.round(o.vx), hit: o.hit, cleared: o.cleared })), bubbles: bubbles.map((b) => b.text),
           tags: lots.filter((L) => L.tag).map((L) => L.tag), lotKinds: lots.map((L) => L.kind), pickList: picks.filter((c) => !c.got).map((c) => ({ kind: c.kind, x: Math.round(c.x - car.x), h: Math.round(c.h) })), event: ev ? { type: ev.type, phase: ev.phase, high: !!ev.high } : null, overlay: ovKind, overlayText: ov.textContent.replace(/\s+/g, " ").trim(),
+          pops: popList.map((p) => ({ ...p })), bubbleList: bubbleList.map((b) => ({ ...b, lines: [...b.lines] })), finishTitle, // v49.26
           fullscreen: !!fs.on, LW, LH, GY, dpr, backing: [cv.width, cv.height], css: [cssW, cssH], muted, audio: audio.state, music: audio.playing, spoken: [...spoken], ach: Object.keys(st.ach),
           lastShare, garage: garage.open ? garage.preview : null, obstacles: obs.map((o) => ({ kind: o.kind, x: Math.round(o.x - car.x), hit: o.hit, cleared: o.cleared })),
           signs: { lots: lots.filter((L) => L.sign).map((L) => L.sign.name), billboards: bbs.map((b) => b.s.name), log: [...bbLog] }, season, carPos: { x: car.x, front: car.x + 200, v: car.v }, crosswalk: ev && (ev.type === "abuela" || ev.stop) ? ev.x : null };

@@ -2170,11 +2170,12 @@ dialog.reel-share[open]{animation:rs-up .22s ease-out}
 .lr-chip{width:30px;height:30px;border-radius:50%;border:2px solid #000;box-shadow:0 0 0 2px #fff}
 .lr-swn{font-size:.66rem;font-weight:800;line-height:1.1}
 .lr-swp{font-size:.62rem;color:#c9ced6;font-weight:800}
+/* v49.26: short single-line notices below the canvas HUD. */
 .lr-has-ov .lr-toasts{top:10px;bottom:auto}
-.lr-toasts{position:absolute;z-index:2;left:0;right:0;bottom:14px;display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none}
-.lr-toast{display:flex;align-items:center;gap:8px;padding:8px 12px;border:2px solid #000;border-radius:14px;background:#fff;color:#000;box-shadow:0 3px 0 #FF1A7F;max-width:86%;transition:opacity .4s,transform .4s;animation:lr-in .35s ease-out}
-.lr-toast b{display:block;font-size:.9rem}.lr-toast small{display:block;font-size:.76rem;color:#333}
-.lr-toast-ic{width:20px;height:20px;flex:none;border-radius:6px;background:#00C9CD;box-shadow:inset 0 0 0 3px #000}
+.lr-toasts{position:absolute;z-index:2;left:0;right:0;top:var(--lr-toast-top,120px);bottom:auto;display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none}
+.lr-toast{display:flex;align-items:center;gap:5px;padding:3px 8px;border:2px solid #000;border-radius:9px;background:#fff;color:#000;box-shadow:0 2px 0 #FF1A7F;max-width:86%;transition:opacity .4s,transform .4s;animation:lr-in .35s ease-out}
+.lr-toast>span:last-child{min-width:0}.lr-toast b{display:block;font-size:.7rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.lr-toast small{display:none}
+.lr-toast-ic{width:12px;height:12px;flex:none;border-radius:6px;background:#00C9CD;box-shadow:inset 0 0 0 3px #000}
 .lr-toast.out{opacity:0;transform:translateY(-8px)}
 @keyframes lr-in{from{opacity:0;transform:translateY(-10px)}}
 .lr-controls{display:flex;justify-content:flex-end;gap:8px;margin:8px 0 0}
