@@ -33,11 +33,14 @@ async def run(bt, dev, name):
     check(st["fc"] <= 1 and st["tv"] >= 1 and st["clips"] > 0, f"From Chisme ≤ 1 ({st['fc']}), ChismeTV rows {st['tv']} with {st['clips']} clips")
     check(st["ev"] > 0, f"events in the feed ({st['ev']})")
     cards = await pg.evaluate("""() => [...document.querySelectorAll('#mix-list > .mix-item')].map(c => ({
-      media: !!c.querySelector('.feed-media img[loading="lazy"][alt]:not([alt=""]), .feed-placeholder[role="img"]'),
+      media: !!c.querySelector('.feed-media img[loading="lazy"][alt]:not([alt=""]), .feed-media img.feed-fallback-art, .feed-placeholder[role="img"]'),
+      fallback: c.querySelector("img.feed-fallback-art")?.getAttribute("src") || null,
       share: !!c.querySelector('button.feed-share[aria-label]'),
       ratio: (() => { const r = c.querySelector('.feed-media')?.getBoundingClientRect(); return !!r && Math.abs(r.width / r.height - 16 / 9) < .03; })()
     }))""")
     check(bool(cards) and all(c["media"] and c["share"] and c["ratio"] for c in cards), f"all {len(cards)} cards have 16:9 media, alt text and a share button")
+    fallback_srcs = [c["fallback"] for c in cards if c["fallback"]]
+    check(len(fallback_srcs) < 2 or len(set(fallback_srcs)) >= 2, f"fallback art rotates ({len(fallback_srcs)} cards, {len(set(fallback_srcs))} different images)")
     await pg.evaluate("""() => {
       Object.defineProperty(navigator, 'share', {configurable:true, value:undefined});
       window.__copiedLink = null;

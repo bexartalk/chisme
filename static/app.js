@@ -3101,17 +3101,24 @@ window.CHISME_APP_BUILD = "49.25";
     return { news, sports, events };
   }
   let mixPending = false, mixShown = MIX_FIRST, mixKey = "";
+  let feedFallbackIndex = 0;
   // Shared by the mixed feed and the public user posts inserted by social.js.
   function feedMedia(item, category) {
     const title = item.title || "Chisme post", url = item.link || item.url;
     const ph = el("div", { class: "feed-placeholder", role: "img", "aria-label": `Chisme · ${category}` },
       el("strong", { text: "Chisme" }), el("span", { text: category }));
     const frame = el("div", { class: "feed-media" }, ph);
-    const show = (src) => {
-      if (!src) return;
-      try { if (!/^https?:$/.test(new URL(src, location.href).protocol)) return; } catch { return; }
-      const img = el("img", { src, alt: title, loading: "lazy", referrerpolicy: "no-referrer" });
+    const showFallback = () => {
+      const src = `/static/season/fallback/muertos-${feedFallbackIndex++ % 6 + 1}.webp`;
+      const img = el("img", { class: "feed-fallback-art", src, loading: "lazy", alt: `Chisme Día de Muertos art · ${category}` });
       img.onerror = () => frame.replaceChildren(ph);
+      frame.replaceChildren(img);
+    };
+    const show = (src) => {
+      if (!src) { showFallback(); return; }
+      try { if (!/^https?:$/.test(new URL(src, location.href).protocol)) { showFallback(); return; } } catch { showFallback(); return; }
+      const img = el("img", { src, alt: title, loading: "lazy", referrerpolicy: "no-referrer" });
+      img.onerror = showFallback;
       frame.replaceChildren(img);
     };
     if (item.image) show(item.image);
@@ -3119,8 +3126,8 @@ window.CHISME_APP_BUILD = "49.25";
       const loadPreview = async () => {
         try {
           const r = await fetch(`/api/preview-image?url=${encodeURIComponent(new URL(url, location.href).href)}`);
-          if (r.ok) show((await r.json()).image);
-        } catch {} // the branded frame remains offline or when no preview is available
+          show(r.ok ? (await r.json()).image : null);
+        } catch { showFallback(); }
       };
       if ("IntersectionObserver" in window) {
         const io = new IntersectionObserver((entries) => {
@@ -3128,7 +3135,7 @@ window.CHISME_APP_BUILD = "49.25";
         }, { rootMargin: "200px" });
         io.observe(frame);
       } else loadPreview();
-    }
+    } else showFallback();
     return frame;
   }
   async function sharePost(title, url) {

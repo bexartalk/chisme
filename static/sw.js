@@ -33,6 +33,8 @@ const SHELL = [
 ];
 // Texas art & landmark photos shown between stories (~2 MB): precached best-effort so they work offline.
 const ART = ["/static/art/art.json", ...Array.from({ length: 13 }, (_, i) => `/static/art/${String(i + 1).padStart(2, "0")}.webp`)];
+// No-photo feed cards, cached best-effort with the other art.
+ART.push(...Array.from({ length: 6 }, (_, i) => `/static/season/fallback/muertos-${i + 1}.webp`));
 // Freely licensed Commons photos on the Sports tab (~290 KB).
 ART.push(...["spurs-arena", "spurs-bluehour", "missions-wolff", "missions-game", "missions-2026"].map((n) => `/static/sports/${n}.webp`));
 // Tía Chismosa's avatar + chat header (~85 KB), so her button shows offline too.
