@@ -2636,6 +2636,59 @@ READER_LIMIT = RateLimit(90, 600)   # link checks per phone per 10 minutes (each
 READER_TTL, FRAME_TTL = 6 * 3600, 12 * 3600
 
 
+# Preview fetches reuse the reader's DNS-pinned transport (including redirect checks).
+PREVIEW_BYTES = 256 * 1024
+PREVIEW_TTL = 6 * 3600
+
+
+async def _fetch_preview_image(url: str) -> str | None:
+    cur = url
+    for _ in range(6):
+        u = rdr._check_url(cur)
+        await rdr._public(u.hostname)
+        async with rdr.safe_client(UA) as client, client.stream("GET", cur, follow_redirects=False,
+                timeout=httpx.Timeout(3.0), headers={"Accept": "text/html,application/rss+xml,application/xml"}) as resp:
+            if resp.is_redirect and resp.headers.get("location"):
+                cur = urllib.parse.urljoin(cur, resp.headers["location"])
+                continue
+            if resp.status_code >= 400:
+                return None
+            body = bytearray()
+            async for chunk in resp.aiter_bytes(chunk_size=8192):
+                body.extend(chunk[:PREVIEW_BYTES - len(body)])
+                if len(body) >= PREVIEW_BYTES:
+                    break
+            doc = body.decode("utf-8", errors="replace")
+            meta = rdr._meta(doc)
+            image = meta.get("og:image") or meta.get("twitter:image") or meta.get("twitter:image:src")
+            if not image and ("xml" in resp.headers.get("content-type", "") or doc.lstrip().startswith("<?xml")):
+                feed = feedparser.parse(bytes(body))
+                for entry in feed.entries:
+                    media = entry.get("media_content", []) + entry.get("media_thumbnail", [])
+                    media += [e for e in entry.get("enclosures", []) if e.get("type", "").startswith("image/")]
+                    image = next((m.get("url") or m.get("href") for m in media
+                                  if m.get("url") or m.get("href")), None)
+                    if image:
+                        break
+            if image:
+                image = urllib.parse.urljoin(cur, image)
+                iu = rdr._check_url(image)
+                await rdr._public(iu.hostname)
+                return image
+            return None
+    return None
+
+
+@app.get("/api/preview-image")
+async def api_preview_image(url: str = Query(..., min_length=8, max_length=2000)):
+    async def fetch():
+        try:
+            return await asyncio.wait_for(_fetch_preview_image(url), timeout=3.0)
+        except (rdr.Blocked, ValueError, OSError, httpx.HTTPError, asyncio.TimeoutError):
+            return None
+    return {"image": await cached("preview:" + url, PREVIEW_TTL, fetch)}
+
+
 @app.get("/api/reader")
 async def api_reader(request: Request, url: str = Query(..., min_length=8, max_length=2000)):
     """In-app reader: may this page be framed inside Chisme, plus its headline card (title, site's own short

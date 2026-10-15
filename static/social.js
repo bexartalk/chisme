@@ -330,6 +330,14 @@
       if (d.ok) { art.replaceWith(card(d.chisme, opts)); toast(d.chisme.mine.saved ? "Saved 🔖" : "Unsaved"); }
     } }, el("span", { "aria-hidden": "true", text: "🔖" })));
     art.append(bar);
+    if (opts.feedCategory && document.documentElement.classList.contains("simple") && window.ChismeFeedCards) {
+      const post = { title: c.text || "Chisme post", url: "/c/" + c.id, image: c.photos[0]?.url || c.videos[0]?.poster || null };
+      art.querySelector(".photos")?.remove();
+      art.prepend(window.ChismeFeedCards.media(post, opts.feedCategory));
+      const shareButton = bar.querySelector('button[aria-label="Share"]');
+      shareButton.classList.add("feed-share");
+      shareButton.onclick = () => window.ChismeFeedCards.share(post.title, post.url);
+    }
     return art;
   }
   function clipCard(clip) {
@@ -1053,7 +1061,7 @@
       }));
       const items = [...list.children].filter((n) => n.classList.contains("mix-item"));
       d.forEach(([c, emo, tag], i) => {
-        const w = el("div", { class: "mix-item mix-people sx sx-mix" }, el("span", { class: "mix-tag" }, el("span", { "aria-hidden": "true", text: emo }), tag), card(c));
+        const w = el("div", { class: "mix-item mix-people sx sx-mix" }, el("span", { class: "mix-tag" }, el("span", { "aria-hidden": "true", text: emo }), tag), card(c, { feedCategory: tag }));
         const at = items[2 + i * 3]; at ? at.after(w) : list.append(w);
       });
     } finally { mixIn.busy = false; }

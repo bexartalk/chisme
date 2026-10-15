@@ -1,7 +1,7 @@
 /* Chisme — frontend (location-aware) */
 // Build of this file. Must equal the number in sw.js VERSION ("chisme-v22"); the page compares it
 // with the build the HTML was served for and reloads once if an old cached app.js got mixed in.
-window.CHISME_APP_BUILD = "49.24";
+window.CHISME_APP_BUILD = "49.25";
 (() => {
   "use strict";
   // v49.13: Chisme's public address for share links + the promo text: one setting on the server (PUBLIC_BASE_URL, else the
@@ -3101,9 +3101,58 @@ window.CHISME_APP_BUILD = "49.24";
     return { news, sports, events };
   }
   let mixPending = false, mixShown = MIX_FIRST, mixKey = "";
+  // Shared by the mixed feed and the public user posts inserted by social.js.
+  function feedMedia(item, category) {
+    const title = item.title || "Chisme post", url = item.link || item.url;
+    const ph = el("div", { class: "feed-placeholder", role: "img", "aria-label": `Chisme · ${category}` },
+      el("strong", { text: "Chisme" }), el("span", { text: category }));
+    const frame = el("div", { class: "feed-media" }, ph);
+    const show = (src) => {
+      if (!src) return;
+      try { if (!/^https?:$/.test(new URL(src, location.href).protocol)) return; } catch { return; }
+      const img = el("img", { src, alt: title, loading: "lazy", referrerpolicy: "no-referrer" });
+      img.onerror = () => frame.replaceChildren(ph);
+      frame.replaceChildren(img);
+    };
+    if (item.image) show(item.image);
+    else if (url) {
+      const loadPreview = async () => {
+        try {
+          const r = await fetch(`/api/preview-image?url=${encodeURIComponent(new URL(url, location.href).href)}`);
+          if (r.ok) show((await r.json()).image);
+        } catch {} // the branded frame remains offline or when no preview is available
+      };
+      if ("IntersectionObserver" in window) {
+        const io = new IntersectionObserver((entries) => {
+          if (entries.some((e) => e.isIntersecting)) { io.disconnect(); loadPreview(); }
+        }, { rootMargin: "200px" });
+        io.observe(frame);
+      } else loadPreview();
+    }
+    return frame;
+  }
+  async function sharePost(title, url) {
+    const data = { title, text: "via Chisme", url: new URL(url, location.href).href };
+    if (navigator.share) {
+      try { await navigator.share(data); return; }
+      catch (e) { if (e.name === "AbortError") return; }
+    }
+    shareToast(await copyLink(data.url) ? "Link copied" : "Copy this link: " + data.url);
+  }
+  function feedShare(item) {
+    const b = el("button", { type: "button", class: "feed-share", "aria-label": `Share ${item.title || "post"}`, text: "Share" });
+    b.onclick = () => sharePost(item.title || "Chisme", item.link || item.url);
+    return b;
+  }
+  window.ChismeFeedCards = { media: feedMedia, share: sharePost };
   function mixCard({ cat, item }) {
     const card = cat === "news" ? story(item, false) : cat === "sports" ? spNews(item) : eventCard(item);
     const [emo, name] = MIX_TAG[cat];
+    if (document.documentElement.classList.contains("simple")) {
+      card.querySelectorAll(":scope > img, :scope > .ev-media, :scope > .sn-thumb").forEach((n) => n.remove());
+      return el("div", { class: "mix-item mix-" + cat, "data-cat": cat },
+        el("span", { class: "mix-tag", text: name }), feedMedia(item, name), card, feedShare(item));
+    }
     return el("div", { class: "mix-item mix-" + cat, "data-cat": cat },
       el("span", { class: "mix-tag" }, el("span", { "aria-hidden": "true", text: emo + " " }), name), card);
   }

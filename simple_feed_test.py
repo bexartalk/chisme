@@ -5,7 +5,7 @@ Usage: URL=http://localhost:8484/ ./venv/bin/python simple_feed_test.py"""
 import asyncio, os, sys, urllib.request
 from playwright.async_api import async_playwright
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))); import pw_csp  # noqa: E401,F401
-URL = os.environ.get("URL", "http://localhost:8211/"); fails = []
+URL = os.environ.get("URL", "http://localhost:8484/"); fails = []
 def check(ok, what): print(("  ok   " if ok else "  FAIL ") + what); (None if ok else fails.append(what))
 INIT = "localStorage.removeItem('chisme-default-tab'); localStorage.setItem('chisme-location-setup','1'); localStorage.setItem('chisme-terms-ok', String(Date.now())); localStorage.setItem('chisme-notif', JSON.stringify({n:2,shows:1}))"
 CLOSE = "document.querySelectorAll('dialog[open]').forEach(d => d.close())"
@@ -32,6 +32,20 @@ async def run(bt, dev, name):
     check(not st["pills"] and st["banners"] == 0, f"no pills, no extra banners ({st['pills']}, {st['banners']})")
     check(st["fc"] <= 1 and st["tv"] >= 1 and st["clips"] > 0, f"From Chisme ≤ 1 ({st['fc']}), ChismeTV rows {st['tv']} with {st['clips']} clips")
     check(st["ev"] > 0, f"events in the feed ({st['ev']})")
+    cards = await pg.evaluate("""() => [...document.querySelectorAll('#mix-list > .mix-item')].map(c => ({
+      media: !!c.querySelector('.feed-media img[loading="lazy"][alt]:not([alt=""]), .feed-placeholder[role="img"]'),
+      share: !!c.querySelector('button.feed-share[aria-label]'),
+      ratio: (() => { const r = c.querySelector('.feed-media')?.getBoundingClientRect(); return !!r && Math.abs(r.width / r.height - 16 / 9) < .03; })()
+    }))""")
+    check(bool(cards) and all(c["media"] and c["share"] and c["ratio"] for c in cards), f"all {len(cards)} cards have 16:9 media, alt text and a share button")
+    await pg.evaluate("""() => {
+      Object.defineProperty(navigator, 'share', {configurable:true, value:undefined});
+      window.__copiedLink = null;
+      Object.defineProperty(navigator, 'clipboard', {configurable:true, value:{writeText:async u => { window.__copiedLink = u; }}});
+    }""")
+    await pg.locator('#mix-list .feed-share').first.click()
+    await pg.wait_for_function("() => !document.querySelector('#share-toast').hidden && document.querySelector('#share-toast').textContent === 'Link copied'")
+    check(await pg.evaluate("/^https?:/.test(window.__copiedLink)"), "share fallback copies the story link and shows Link copied")
     # links in the feed: well-formed http(s), no javascript:, not this server's 404s
     bad = [h for h in st["links"] if not h.startswith(("http://", "https://"))]
     loc = [h for h in st["links"] if h.startswith(URL)]
