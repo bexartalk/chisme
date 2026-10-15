@@ -332,7 +332,7 @@ def about_body() -> str:
 <li><b>📰 Chisme</b>: local news, sports and events mixed into one feed, closest to you first. Stories open inside Chisme, credited to the outlet that reported them.</li>
 <li><b>🌤️ Weather</b>: National Weather Service forecasts and alerts, plus live rain radar.</li>
 <li><b>🌮 ¿Y la dieta?</b>{" (Ofrendas during Día de Muertos)" if d == "Ofrendas" else ""}: Food creators (San Antonio first, then beyond) taste-test so you don't have to guess. Swipe through their videos on 📺 ChismeTV and save the spots worth the drive.</li>
-<li><b>🎲 Juegos</b>: Chismería, our take on Lotería, and The Juan That Got Away. They work offline.</li>
+<li><b>🎲 Juegos</b>: Chismería, our take on Lotería, The Juan That Got Away, and Puro Pinche Lowrider. They work offline.</li>
 <li><b>☕ Tía Chismosa</b>: the app's mascot. Ask her what's going on and she answers from what's in Chisme, with the source.</li>
 </ul>
 <h2>How Chisme works</h2>

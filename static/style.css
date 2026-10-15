@@ -2067,6 +2067,134 @@ dialog.reel-share[open]{animation:rs-up .22s ease-out}
   .from-chisme .fc-p{display:none} .from-chisme .fc-jefa{gap:8px} .from-chisme .fc-jefa-img{width:44px;height:44px} .from-chisme .fc-jefa-t{font-size:.72rem;line-height:1.2}
   .from-chisme .fc-bmc,.from-chisme .fc-share{flex-basis:100px;font-size:.88rem} }   /* 320 px: the headline carries it, so the card stays square */
 
+/* ---------- v49.16 Juegos game 3: Puro Pinche Lowrider (static/lowrider.js + lowrider-sa.js). Fiesta colors only (turquoise, pink, orange, black, white, silver,
+   purple at night); no yellow. Inline: a phone-shaped stage; full screen: the canvas fills the space under the bar. */
+@font-face{font-family:"Lowrider Display";src:url("/static/fonts/chewy-site.woff") format("woff");font-display:swap}
+.game-pick .gp-thumb{display:grid;place-items:center;width:40px;height:40px;font-size:1em}
+.game-pick .gp-thumb svg{display:block;width:40px;height:40px}
+.game-pick .gp-thumb:has(img){width:66px;height:44px}
+.game-pick .gp-thumb img{display:block;width:66px;height:44px;border:2px solid #000;border-radius:10px;object-fit:cover;box-sizing:border-box}
+.lr-loading{display:flex;align-items:center;justify-content:center;gap:.6em;min-height:320px;border:3px solid #000;border-radius:12px;background:#14072B;color:#fff;font-weight:900}
+.lr-spin{width:22px;height:22px;border:3px solid rgba(255,255,255,.25);border-top-color:#00C9CD;border-radius:50%;animation:lr-spin .8s linear infinite}
+@keyframes lr-spin{to{transform:rotate(360deg)}}
+.lr-wrap{position:relative;width:100%;aspect-ratio:390/620;max-height:78vh;border:3px solid #000;border-radius:12px;overflow:hidden;background:#14072B;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+.lr-cv{position:absolute;left:0;top:0;display:block;width:100%;height:100%}
+.lr-ov{position:absolute;inset:0;display:none;align-items:center;justify-content:center;padding:14px;box-sizing:border-box;overflow-y:auto;background:rgba(14,4,36,.38)}
+.lr-ov.on{display:flex}
+.lr-card{width:min(100%,360px);margin:auto;box-sizing:border-box;padding:16px 16px 14px;border:3px solid #000;border-radius:18px;background:rgba(20,7,43,.94);color:#fff;text-align:center;box-shadow:0 5px 0 #FF1A7F,0 0 0 2px #00C9CD inset;display:flex;flex-direction:column;gap:9px}
+.lr-ov[data-kind="title"]{align-items:flex-start;background:linear-gradient(rgba(14,4,36,.6),rgba(14,4,36,.25) 55%,rgba(14,4,36,0) 75%)}
+.lr-title{background:none;border:0;box-shadow:none;padding:4px 6px;gap:6px;margin-top:0}
+.lr-title .lr-row .lr-btn{font-size:.92rem;padding:.35em .4em;min-height:42px}
+.lr-title .lr-tag,.lr-title .lr-meta,.lr-title .lr-link{align-self:center;padding:.2em .8em;border-radius:999px;background:rgba(14,4,36,.72)}
+.lr-title .lr-link{min-height:32px}
+.lr-title .lr-tag{font-size:.86rem;padding:.15em .8em}
+.lr-title .lr-stg{min-height:40px;padding:4px 6px}
+.lr-title .lr-stg small{font-size:.64rem}
+.lr-title .lr-big{min-height:50px;font-size:1.2rem}
+.lr-title .lr-row .lr-btn{font-size:.84rem;min-height:40px;padding:.3em .3em}
+/* v49.16 title: Goonie's key art (static/lowrider/title.webp, its own lettering taken off) under live blackletter lettering (an SVG in the
+   art's 1536×1024 frame): chrome fill, heavy black outline, a bronze rim, the crown between Puro and Pinche, a sparkle. */
+@font-face{font-family:"PPL Display";src:url("/static/fonts/ppl-display.woff2") format("woff2");font-weight:700;font-style:normal;font-display:swap}
+.lr-hero{position:relative;width:calc(100% + 12px);margin:-4px -6px 0;aspect-ratio:3/2;border:3px solid #000;border-radius:14px;overflow:hidden;background:#33287a;box-shadow:0 4px 0 #000}
+.lr-hero-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.lr-logo-svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.lr-spark{animation:lr-spark 2.4s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+.lr-spark2{animation-delay:1.2s}
+@keyframes lr-spark{0%,100%{opacity:.25}50%{opacity:1}}
+.lr-sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.lr-stages{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.lr-stg,.lr-car{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;min-height:46px;padding:5px 6px;border:2px solid #000;border-radius:12px;background:#1d0b3a;color:#fff;font:inherit;cursor:pointer;text-align:center;box-shadow:0 3px 0 #000}
+.lr-stg b,.lr-car b{font-size:.9rem;font-weight:900;line-height:1.1}
+.lr-stg small,.lr-car small{font-size:.68rem;font-weight:800;color:#c9ced6;line-height:1.15}
+.lr-stg.on,.lr-car.on{border-color:#00C9CD;background:#00353a;box-shadow:0 3px 0 #000,inset 0 0 0 2px #00C9CD}
+.lr-stg.on small,.lr-car.on small{color:#9ef0ec}
+.lr-stg.busy{opacity:.6}
+.lr-cars{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.lr-car.locked{background:rgba(42,20,80,.8)}
+.lr-car.locked b{color:#c9ced6}
+.lr-car.locked small{color:#FF8FBF}
+.lr-stg:focus-visible,.lr-car:focus-visible,.lr-donate:focus-visible{outline:4px solid #00C9CD;outline-offset:2px}
+.lr-blurb{min-height:2.6em}
+.lr-sws.lr-sws6{grid-template-columns:repeat(6,1fr)}
+.lr-donate{display:flex;flex-direction:column;align-items:center;gap:1px;padding:.5em .8em;border:2px solid #000;border-radius:14px;background:#000;color:#fff;font-weight:900;font-size:.88rem;text-decoration:none;box-shadow:0 3px 0 #FF1A7F}
+.lr-donate small{font-size:.72rem;font-weight:800;color:#FF8FBF}
+.lr-tag{margin:0;font-weight:900;color:#FF8FBF;font-size:.98rem}
+.lr-h{margin:0;font-family:"Lowrider Display","Chisme Display",system-ui,sans-serif;font-weight:400;font-size:1.7rem;color:#fff;text-shadow:2px 2px 0 #FF1A7F}
+.lr-sub{margin:0;font-size:.92rem;line-height:1.35;color:#e9e3f5}
+.lr-small{font-size:.8rem;color:#c9ced6}
+.lr-row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.lr-row .lr-btn{flex:1 1 0;min-width:0}
+.lr-btn{min-height:46px;padding:.45em .9em;border:3px solid #000;border-radius:14px;background:#fff;color:#000;font:inherit;font-weight:900;font-size:1rem;cursor:pointer;box-shadow:0 4px 0 #000;touch-action:manipulation}
+.lr-btn:active{transform:translateY(2px);box-shadow:0 2px 0 #000}
+.lr-btn:disabled{opacity:.5;cursor:default;transform:none}
+.lr-btn:focus-visible,.lr-sw:focus-visible,.lr-link:focus-visible,.lr-cbtn:focus-visible{outline:4px solid #00C9CD;outline-offset:2px}
+.lr-go{background:#FF1A7F;color:#fff}
+.lr-big{font-size:1.3rem;min-height:56px}
+.lr-turq{background:#00C9CD;color:#000}
+.lr-pink{background:#FF6A0B;color:#000}
+.lr-ghost{background:#2a1450;color:#fff;border-color:#000}
+.lr-link{background:none;border:0;color:#9ef0ec;font:inherit;font-weight:800;text-decoration:underline;cursor:pointer;padding:.3em;min-height:36px}
+.lr-meta{margin:0;font-size:.95rem;color:#fff;display:flex;justify-content:center;align-items:center;gap:.4em;flex-wrap:wrap}
+.lr-fbal{display:inline-flex;align-items:center;gap:.25em}
+.lr-f{width:18px;height:18px;flex:none}
+.lr-steps{margin:0;padding:0 0 0 1.3em;text-align:left;display:flex;flex-direction:column;gap:.45em;font-size:.95rem;line-height:1.35}
+.lr-steps b{color:#00C9CD}
+.lr-score{display:flex;flex-direction:column;align-items:center;gap:2px}
+.lr-score small{text-transform:uppercase;letter-spacing:.1em;font-weight:900;color:#c9ced6;font-size:.72rem}
+.lr-score b{font-family:"Lowrider Display","Chisme Display",system-ui,sans-serif;font-weight:400;font-size:2.6rem;line-height:1;color:#fff;text-shadow:3px 3px 0 #FF1A7F}
+.lr-new{display:inline-block;margin-top:4px;padding:.15em .6em;border-radius:999px;background:#00C9CD;color:#000;font-weight:900;font-size:.85rem;animation:lr-pulse 1s ease-in-out infinite alternate}
+@keyframes lr-pulse{to{transform:scale(1.08)}}
+.lr-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:0}
+.lr-stats div{padding:6px 4px;border-radius:10px;background:rgba(255,255,255,.07)}
+.lr-stats dt{font-size:.68rem;color:#c9ced6;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
+.lr-stats dd{margin:2px 0 0;font-weight:900;font-size:1.02rem}
+.lr-runs,.lr-trophies{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;text-align:left;max-height:46vh;overflow-y:auto}
+.lr-runs li,.lr-trophies li{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:12px;background:rgba(255,255,255,.07)}
+.lr-rk{width:26px;height:26px;flex:none;display:grid;place-items:center;border-radius:50%;background:#FF1A7F;font-weight:900;font-size:.85rem}
+.lr-rs{flex:1;min-width:0;display:flex;flex-direction:column}
+.lr-rs small,.lr-trophies small{color:#c9ced6;font-size:.78rem}
+.lr-rd{font-size:.78rem;color:#c9ced6}
+.lr-trophies li>span:nth-child(2){flex:1;display:flex;flex-direction:column;min-width:0}
+.lr-tic{width:26px;height:26px;flex:none;border-radius:8px;background:#3a2a55;border:2px solid #000;box-sizing:border-box}
+.lr-trophies li.got .lr-tic{background:#00C9CD;box-shadow:inset 0 0 0 4px #000,inset 0 0 0 7px #FF1A7F}
+.lr-tst{font-size:.72rem;font-weight:900;color:#c9ced6}
+.lr-trophies li.got .lr-tst{color:#00C9CD}
+.lr-empty{margin:.5em 0;color:#c9ced6}
+.lr-garage{gap:8px}
+.lr-ghead{display:flex;align-items:center;justify-content:space-between}
+.lr-gcv{display:block;width:100%;border:2px solid #000;border-radius:12px;background:#1a0a2e}
+.lr-gname{margin:0;font-weight:800}
+.lr-sws{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.lr-sw{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 2px;min-height:44px;border:2px solid transparent;border-radius:12px;background:rgba(255,255,255,.06);color:#fff;font:inherit;cursor:pointer}
+.lr-sw.on{border-color:#00C9CD;background:rgba(0,201,205,.14)}
+.lr-chip{width:30px;height:30px;border-radius:50%;border:2px solid #000;box-shadow:0 0 0 2px #fff}
+.lr-swn{font-size:.66rem;font-weight:800;line-height:1.1}
+.lr-swp{font-size:.62rem;color:#c9ced6;font-weight:800}
+.lr-has-ov .lr-toasts{top:10px;bottom:auto}
+.lr-toasts{position:absolute;z-index:2;left:0;right:0;bottom:14px;display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none}
+.lr-toast{display:flex;align-items:center;gap:8px;padding:8px 12px;border:2px solid #000;border-radius:14px;background:#fff;color:#000;box-shadow:0 3px 0 #FF1A7F;max-width:86%;transition:opacity .4s,transform .4s;animation:lr-in .35s ease-out}
+.lr-toast b{display:block;font-size:.9rem}.lr-toast small{display:block;font-size:.76rem;color:#333}
+.lr-toast-ic{width:20px;height:20px;flex:none;border-radius:6px;background:#00C9CD;box-shadow:inset 0 0 0 3px #000}
+.lr-toast.out{opacity:0;transform:translateY(-8px)}
+@keyframes lr-in{from{opacity:0;transform:translateY(-10px)}}
+.lr-controls{display:flex;justify-content:flex-end;gap:8px;margin:8px 0 0}
+.lr-cbtn{width:44px;height:44px;display:grid;place-items:center;padding:0;border:2px solid #000;border-radius:50%;background:#14072B;color:#fff;font:inherit;font-size:1.05rem;font-weight:900;cursor:pointer}
+.lr-cbtn:disabled{opacity:.45;cursor:default}
+.lr-note,.lr-credit{margin:.5em 0 0;font-size:.85rem;line-height:1.4;opacity:.85}
+.lr-credit{font-size:.78rem}
+.gfs-lr{display:flex;align-items:center;gap:.4em;padding:.2em .8em .25em .55em;border:2px solid #00C9CD;border-radius:999px;background:#000;color:#fff;box-shadow:0 3px 0 #FF1A7F;white-space:nowrap}
+.gfs-lr-car{width:30px;height:12px;flex:none}
+.gfs-lr-t{font-family:"PPL Display","UnifrakturCook",serif;font-weight:700;font-size:clamp(.96rem,4.4vw,1.14rem);letter-spacing:.01em}
+.gfs-lr-t b{color:#000;background:#00C9CD;border-radius:6px;padding:0 .3em;margin-left:.1em}
+.game-stage.gfs:has(.lr-wrap){background:#14072B}
+.gfs .lr-wrap{flex:1 1 0;min-height:0;aspect-ratio:auto;max-height:none;border:0;border-radius:0}
+.gfs .lr-note,.gfs .lr-credit,.gfs .lr-controls{display:none}
+.gfs-bar .lr-cbtn{width:40px;height:40px;border-color:#fff;background:#000}
+.gfs-bar-x .gfs-extra{justify-content:flex-end}
+@media (max-width:360px){ .gfs-lr-car{display:none} .gfs-lr-t{font-size:.78rem} .lr-card{padding:12px 12px 10px;gap:7px} .lr-swn{font-size:.6rem} }
+@media (max-height:640px){ .lr-card{gap:6px;padding:12px} .lr-big{min-height:48px;font-size:1.15rem} .lr-stg,.lr-car{min-height:40px} }
+@media (prefers-reduced-motion:reduce){ .lr-spin,.lr-new,.lr-toast,.lr-spark{animation:none} }
+
 /* Tía's 18+ gate (inside her chat sheet, index.html #tia-gate). App theme vars; no yellow. */
 .tia-gate { margin: 10px 14px 16px; padding: 18px 16px; border-radius: 18px; background: var(--card); color: var(--ink); text-align: center;
   border: 2px solid var(--fb-turq, #00C9CD); box-shadow: 0 5px 0 var(--fb-pink, #FF1A7F); }

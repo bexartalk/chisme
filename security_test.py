@@ -7,7 +7,7 @@
   • rate limits in Upstash (SharedLimit): counted across "restarts", per IP, fall back to memory when storage is down;
     Tía 32 KB cap; push sign-ups per IP + only real push services; high scores: the real client IP, per-minute + per-day,
     a double post isn't a second row, names lose invisible/bidi characters
-  • innerHTML lint: in app.js / juan.js / juegos.js every ${…} that goes into innerHTML is escaped, a number, or our own text
+  • innerHTML lint: in app.js / juan.js / juegos.js / lowrider.js / lowrider-sa.js every ${…} that goes into innerHTML is escaped, a number, or our own text
   • owner posts: visitors / forged cookies get 401 on every /stats/posts endpoint, cross-site → 403, http(s) source links,
     ownerposts.js builds no HTML from strings
   • /api/refresh: a weak ETag (W/"r…", what Render's proxy sends back) still gets 304
@@ -161,11 +161,11 @@ check(post("4.4.4.4", {"name": "z", "score": 999999, "level": 1}).status_code ==
 os.environ.pop("RENDER")
 
 print("== innerHTML lint")
-SAFE = re.compile(r"^(esc|escH|num|fmt|cardHTML|listHTML|howList|skinBtn|skinHint)\(|^\+[\w.]+ \|\| 0$|"
-                  r"^(BEAN_DEFS|OVER|VW|cont|line|name|id|L\(\)\.done|LEVELS\[level\]\.name|oopsMsg|level \+ 1)$|"
+SAFE = re.compile(r"^(esc|escH|num|fmt|cardHTML|listHTML|howList|skinBtn|skinHint|lrRows|lrTrophies|lrSwatches|lrAction|lrCars|lrStages|donateBtn|lapBtn|overEnd)\(|^\+[\w.]+ \|\| 0$|"
+                  r"^(BEAN_DEFS|OVER|VW|cont|line|name|id|L\(\)\.done|LEVELS\[level\]\.name|oopsMsg|level \+ 1|SVGF|ART|LOGO|TITLE)$|^\w+ \? esc\([\w.]+\) : \"[^\"]*\"$|"
                   r"^[^`]*\?\s*(\"[^\"]*\"|'[^']*'|`[^`]*`)\s*:\s*(\"[^\"]*\"|'[^']*'|`[^`]*`)\s*$|^(id === cur|lock)")
 bad = []
-for f in ("static/app.js", "static/juan.js", "static/juegos.js"):
+for f in ("static/app.js", "static/juan.js", "static/juegos.js", "static/lowrider.js", "static/lowrider-sa.js"):
     s = open(os.path.join(HERE, f)).read()
     for m in re.finditer(r"(innerHTML\s*=|overlay\()\s*`", s):
         i, depth, j = m.end(), 0, m.end()
@@ -178,7 +178,7 @@ for f in ("static/app.js", "static/juan.js", "static/juegos.js"):
             j += 1
         for ex in re.findall(r"\$\{((?:[^{}]|\{[^{}]*\})*)\}", s[i:j]):
             if not SAFE.search(ex.strip()): bad.append(f"{f}:{s[:m.start()].count(chr(10)) + 1} ${{{ex.strip()[:60]}}}")
-check(not bad, f"every interpolation into innerHTML is escaped / a number / our own text {bad[:8]}")
+check(not bad, f"every interpolation into innerHTML is escaped / a number / our own text {bad[:12]}")
 js = open(os.path.join(HERE, "static/juan.js")).read()
 check("escH(r.name)" in js and "escH(lsGet(HS_NAME" in js, "high score names go in through escH()")
 

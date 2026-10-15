@@ -3395,7 +3395,8 @@ window.CHISME_APP_BUILD = "49.26";
   const HASH_VIEW = { "#weather": ["weather"], "#forecast-sec": ["weather", "forecast-sec"], "#radar-sec": ["weather", "radar-sec"], "#radar": ["weather", "radar-sec"],
     "#alerts": ["weather", "alerts"], "#events": ["events"], "#antojos": ["antojos"], "#cual-dieta": ["antojos"], "#y-la-dieta": ["antojos"], "#dieta": ["antojos"], "#food": ["antojos"], "#near": ["news", "near"], "#city": ["news", "city"],
     "#sports": ["sports"], "#spurs": ["sports"], "#nba": ["sports"], "#cowboys": ["sports"], "#nfl": ["sports"], "#mlb": ["sports"], "#missions": ["sports"], "#news": ["news"], "#chisme": ["chisme"], "#all": ["chisme"],
-    "#juegos": ["juegos"], "#juegitos": ["juegos"], "#games": ["juegos"], "#loteria": ["juegos", null, "loteria"], "#chismeria": ["juegos", null, "loteria"], "#juan": ["juegos", null, "juan"], "#juans-long-day": ["juegos", null, "juan"], "#juan-that-got-away": ["juegos", null, "juan"] };
+    "#juegos": ["juegos"], "#juegitos": ["juegos"], "#games": ["juegos"], "#loteria": ["juegos", null, "loteria"], "#chismeria": ["juegos", null, "loteria"], "#juan": ["juegos", null, "juan"], "#juans-long-day": ["juegos", null, "juan"], "#juan-that-got-away": ["juegos", null, "juan"],
+    "#lowrider": ["juegos", null, "lowrider"], "#lowrider-hop": ["juegos", null, "lowrider"], "#puro-pinche-lowrider": ["juegos", null, "lowrider"] };   // v49.16
   pos(0); updateTabs();
 
   // ---------- settings sheet (tap the Chisme icon in the header)
@@ -4459,6 +4460,11 @@ window.CHISME_APP_BUILD = "49.26";
     shareToast(ok ? "Link copied!" : "Copy this link: " + data.url); return ok ? "copied" : "shown";
   }
   $("#share-btn").onclick = () => shareChisme(SHARE);
+  window.__chismeShare = { share: (d) => shareChisme(d), base: PUBLIC_BASE };   // v49.16: games (Puro Pinche Lowrider) share through the same sheet / copy-link toast
+  // v49.16: the same App Store goal as the From Chisme card, for Puro Pinche Lowrider's San Antonio billboards + its pause / game-over button.
+  // It opens the same way (the in-app reader) and counts as the same "donate" stat; the store app (window.ChismeNative) never shows it.
+  window.__chismeGoal = { title: FC_GOAL.title, amount: FC_GOAL.amount, url: FC_GOAL.url, line: FC_GOAL.line, get native() { return fcNative(); },
+    open(a) { Stats.ev("donate", "lr-bb"); Stats.send(); openReader({ url: FC_GOAL.url, title: `${FC_GOAL.title}, $${FC_GOAL.amount}`, source: "Buy Me a Coffee", summary: FC_GOAL.line }, a); } };
   // v46: 📣 Share Chisme on the every-7 donate cards: the same helper, with a line of Tía's
   const SHARE_E7 = { title: "Chisme", text: "Tía found the best chisme in town and she can't keep it to herself. ☕", url: PUBLIC_BASE + "/" };
   document.addEventListener("click", (e) => { const b = e.target.closest && e.target.closest(".share-chisme"); if (b) { e.preventDefault(); shareChisme(SHARE_E7).then((r) => { lastShare = r; }); } });

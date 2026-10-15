@@ -259,7 +259,7 @@
     return spBox;
   }
   // 4c. Juegos (the games juegos.js / juan.js list)
-  var GAME_HASH = { juan: "#juan", loteria: "#chismeria" };
+  var GAME_HASH = { juan: "#juan", loteria: "#chismeria", lowrider: "#puro-pinche-lowrider" };   // v49.16: #lowrider still works (app.js HASH_VIEW)
   function openGame(id) {
     var hsh = GAME_HASH[id] || "#juegos";
     if (location.hash === hsh) window.dispatchEvent(new HashChangeEvent("hashchange"));

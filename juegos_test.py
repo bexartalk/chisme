@@ -178,7 +178,7 @@ async def webkit(p):
     check(fit, "all 4 tabs fit on an iPhone 13 (no sideways scroll)")
     check(await pg.evaluate("__chisme.view") == "juegos" and await pg.evaluate("__chisme.juegos.id") == "loteria", "#loteria opens Juegos → Chismería")
     games = await pg.evaluate("[...document.querySelectorAll('.game-pick b')].map(b => b.textContent)")
-    check(games == ["The Juan That Got Away", "Chismería"], f"a list of games, The Juan That Got Away first (v47) ({games})")
+    check(games == ["The Juan That Got Away", "Chismería", "Puro Pinche Lowrider"], f"a list of games, The Juan That Got Away first (v47), v49.16 + Puro Pinche Lowrider ({games})")
     watch["on"] = True
     check(await pg.evaluate("document.querySelectorAll('#lot-tabla .lot-cell').length") == 16, "a 4×4 tabla")
     await pg.evaluate("() => window.scrollTo(0, document.querySelector('#juegos').getBoundingClientRect().top + scrollY - 70)"); await pg.wait_for_timeout(400)
@@ -463,7 +463,7 @@ async def webkit(p):
     check(await pg.evaluate("localStorage.getItem('chisme-default-tab')") == "juegos", "Settings → Default opening tab has 🎲 Juegos")
     await pg.keyboard.press("Escape")
     await pg.goto(BASE + "/"); await pg.wait_for_function("window.__chisme && __chisme.ready", timeout=120000); await pg.wait_for_timeout(500)
-    check(await pg.evaluate("__chisme.view") == "juegos" and await pg.evaluate("document.querySelectorAll('.game-pick').length") == 2, "Settings → default tab: Juegos opens first")
+    check(await pg.evaluate("__chisme.view") == "juegos" and await pg.evaluate("document.querySelectorAll('.game-pick').length") == 3, "Settings → default tab: Juegos opens first")
     check(not errs, f"no page errors ({errs[:3]})")
     await ctx.close()
     # reduce motion

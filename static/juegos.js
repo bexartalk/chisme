@@ -337,6 +337,35 @@
 
   const GAMES = [{ id: "loteria", name: "Chismería", emoji: "🎴", blurb: "Tía calls the cards; fill a line and shout ¡Órale!", mount: mountLoteria }];
 
+  // ---- v49.16 game 3: Puro Pinche Lowrider (static/lowrider.js; its San Antonio stage, static/lowrider-sa.js, loads the first time that stage is picked).
+  // Loaded the first time it's opened, then cached by the service worker.
+  const BUILD = (() => { try { const m = /[?&]v=([^&]+)/.exec((document.currentScript && document.currentScript.src) || ""); return m ? m[1] : ""; } catch (e) { return ""; } })();
+  let lowriderLoad = null;
+  function loadLowrider() {
+    if (root.ChismeLowrider) return Promise.resolve(root.ChismeLowrider);
+    if (lowriderLoad) return lowriderLoad;
+    lowriderLoad = new Promise((ok, no) => {
+      const s = document.createElement("script"); s.src = "/static/lowrider.js" + (BUILD ? "?v=" + encodeURIComponent(BUILD) : ""); s.async = true;
+      s.onload = () => (root.ChismeLowrider ? ok(root.ChismeLowrider) : no(new Error("lowrider"))); s.onerror = () => no(new Error("lowrider"));
+      document.head.appendChild(s);
+    }).catch((e) => { lowriderLoad = null; throw e; });
+    return lowriderLoad;
+  }
+  function mountLowrider(el, ctx) {   // a stand-in until the game file arrives (instant once cached)
+    let inner = null, dead = false, paused = false;
+    const go = () => {
+      el.innerHTML = `<div class="lr-loading" role="status"><span class="lr-spin" aria-hidden="true"></span> Warming up the '64…</div>`;
+      loadLowrider().then((L) => { if (dead) return; el.innerHTML = ""; inner = L.mount(el, ctx); if (paused) inner.pause(); })
+        .catch(() => { if (dead) return; el.innerHTML = `<button type="button" class="game-broken" style="position:static;width:100%;height:auto;min-height:320px"><span><span aria-hidden="true">😬</span> Puro Pinche Lowrider didn't load. Check your connection.</span><b>🔄 Tap to try again</b></button>`;
+          el.querySelector(".game-broken").onclick = go; });
+    };
+    go();
+    return { pause() { paused = true; if (inner) inner.pause(); }, destroy() { dead = true; if (inner) inner.destroy(); inner = null; },
+      exitFullscreen(q) { if (inner) inner.exitFullscreen(q); }, get inner() { return inner; }, get loaded() { return !!inner; } };
+  }
+  const LR_THUMB = `<img src="/static/lowrider/thumb.webp${BUILD ? "?v=" + encodeURIComponent(BUILD) : ""}" width="66" height="44" alt="" decoding="async">`;   // the key art (cleaned), 3:2
+  GAMES.push({ id: "lowrider", name: "Puro Pinche Lowrider", emoji: "🚘", thumb: LR_THUMB, blurb: "Hop the boulevard or cruise San Antonio. Don't scrape the '64.", mount: mountLowrider });
+
   // ---- the Juegos tab: list the games, mount the chosen one (GAMES[0] by default: v47 The Juan That Got Away, unshifted by juan.js) ----
   function mountTab(listEl, stageEl, ctx) {
     let active = null, activeId = null;
@@ -355,7 +384,7 @@
       for (const b of listEl.querySelectorAll(".game-pick")) b.setAttribute("aria-pressed", b.dataset.game === g.id ? "true" : "false");
       return active;
     };
-    listEl.innerHTML = GAMES.map((g) => `<button type="button" class="game-pick" data-game="${g.id}" aria-pressed="false"><span class="gp-emo" aria-hidden="true">${g.emoji}</span><span><b>${esc(g.name)}</b><small>${esc(g.blurb)}</small></span></button>`).join("")
+    listEl.innerHTML = GAMES.map((g) => `<button type="button" class="game-pick" data-game="${g.id}" aria-pressed="false"><span class="gp-emo${g.thumb ? " gp-thumb" : ""}" aria-hidden="true">${g.thumb || g.emoji}</span><span><b>${esc(g.name)}</b><small>${esc(g.blurb)}</small></span></button>`).join("")
       + `<p class="game-more">More games coming soon.</p>`;
     listEl.addEventListener("click", (e) => { const b = e.target.closest(".game-pick"); if (b) open(b.dataset.game); });
     open(GAMES[0].id);

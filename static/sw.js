@@ -16,6 +16,11 @@ const SHELL = [
   `/static/loteria_cards.js?v=${BUILD}`,
   `/static/juegos.js?v=${BUILD}`,
   `/static/juan.js?v=${BUILD}`,
+  `/static/lowrider-sa.js?v=${BUILD}`,   // v49.16: Puro Pinche Lowrider's San Antonio stage (+ its title art, thumb and lettering font below)
+  `/static/lowrider/title.webp?v=${BUILD}`,
+  `/static/lowrider/thumb.webp?v=${BUILD}`,
+  "/static/fonts/ppl-display.woff2",
+  `/static/lowrider.js?v=${BUILD}`,
   `/static/app.js?v=${BUILD}`,
   `/static/ownerposts.js?v=${BUILD}`,   // the owner's own posts ("From Chisme") in the feed
   `/static/ownerposts.css?v=${BUILD}`,

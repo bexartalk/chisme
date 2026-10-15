@@ -24,7 +24,7 @@ import os as _os, sys as _sys; _sys.path.insert(0, _os.path.dirname(_os.path.abs
 from popup_quiet import QUIET
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-BASE = os.environ.get("CHISME_URL", "http://localhost:8211")
+BASE = os.environ.get("CHISME_URL", "http://localhost:8485")
 OUT = os.environ.get("LOWRIDER_SHOTS", os.path.join(HERE, "screenshots")); os.makedirs(OUT, exist_ok=True)
 INIT = ("localStorage.setItem('chisme-location-setup','1'); localStorage.setItem('chisme-ios-hint-dismissed','1'); localStorage.setItem('chisme-swiped','1');"
         " localStorage.setItem('chisme-a2hs', JSON.stringify({ done: true })); localStorage.setItem('chisme-opens', '1');")
