@@ -2646,7 +2646,8 @@ async def _fetch_preview_image(url: str) -> str | None:
     for _ in range(6):
         u = rdr._check_url(cur)
         await rdr._public(u.hostname)
-        async with rdr.safe_client(UA) as client, client.stream("GET", cur, follow_redirects=False,
+        client = rdr.safe_client(UA)
+        async with client.stream("GET", cur, follow_redirects=False,
                 timeout=httpx.Timeout(3.0), headers={"Accept": "text/html,application/rss+xml,application/xml"}) as resp:
             if resp.is_redirect and resp.headers.get("location"):
                 cur = urllib.parse.urljoin(cur, resp.headers["location"])
@@ -2685,6 +2686,8 @@ async def api_preview_image(url: str = Query(..., min_length=8, max_length=2000)
         try:
             return await asyncio.wait_for(_fetch_preview_image(url), timeout=3.0)
         except (rdr.Blocked, ValueError, OSError, httpx.HTTPError, asyncio.TimeoutError):
+            return None
+        except Exception:
             return None
     return {"image": await cached("preview:" + url, PREVIEW_TTL, fetch)}
 
