@@ -68,7 +68,7 @@
         const d = document.documentElement;
         if (opts.native !== false && d.requestFullscreen && !document.fullscreenElement && matchMedia("(pointer: coarse)").matches
           && !matchMedia("(display-mode: standalone)").matches)
-          d.requestFullscreen({ navigationUI: "hide" }).then(() => { try { screen.orientation.lock("portrait").catch(() => {}); } catch (e) {} }).catch(() => {});
+          d.requestFullscreen({ navigationUI: "hide" }).then(() => { if (!on) { try { if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {}); } catch (e) {} return; } try { screen.orientation.lock("portrait").catch(() => {}); } catch (e) {} }).catch(() => {}); // v49.26: an exit may beat the native fullscreen promise
       } catch (e) {}
       if (opts.onEnter) opts.onEnter();
     }
@@ -81,6 +81,7 @@
       stageEl.classList.remove("gfs", "no-swipe"); stageEl.setAttribute("aria-label", "Game");
       document.documentElement.classList.remove("game-fs");
       document.removeEventListener("keydown", onKey); window.removeEventListener("resize", onResize);
+      try { if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch (e) {} // v49.26: release the game's portrait lock
       try { if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {}); } catch (e) {}
       if (quiet === true) { if (opts.onLeave) opts.onLeave(); return; }
       if (opts.onExit) opts.onExit();

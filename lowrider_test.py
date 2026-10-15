@@ -58,43 +58,44 @@ CANVAS_SCAN = r"""() => { """ + YELLOW_JS + r"""
   for (let i = 0; i < d.length; i += 16) { all++; if (yellow([d[i], d[i + 1], d[i + 2]])) { n++; if (ex.size < 5) ex.add('#' + [d[i], d[i + 1], d[i + 2]].map((v) => v.toString(16).padStart(2, '0')).join('')); } }
   return { n, all, ex: [...ex] }; }"""
 
-GAME_FILES = ["static/lowrider.js", "static/lowrider-sa.js"]
+GAME_FILES = ["static/lowrider.js", "static/lowrider-sa.js", "static/lowrider-sa-chase.js"]
 BANNED = ["impala", "chevy", "chevrolet", "bowtie", "altima", "nissan", "walmart", "wal-mart", "coca-cola", "coca cola", "home depot", "hotbox", "dave's not here", "daves not here",
           "here everything's better", "here everything’s better", "save money. live better", "more saving. more doing"]
 def static():
     print("== static")
     js = open(os.path.join(HERE, "static/lowrider.js"), encoding="utf-8").read()
     sa = open(os.path.join(HERE, "static/lowrider-sa.js"), encoding="utf-8").read()
+    chase = open(os.path.join(HERE, "static/lowrider-sa-chase.js"), encoding="utf-8").read()
     jg = open(os.path.join(HERE, "static/juegos.js"), encoding="utf-8").read()
     app = open(os.path.join(HERE, "static/app.js"), encoding="utf-8").read()
     css = open(os.path.join(HERE, "static/style.css"), encoding="utf-8").read(); lcss = css[css.index("Juegos game 3: Puro Pinche Lowrider"):]
     stub = jg[jg.index("game 3: Puro Pinche Lowrider"):jg.index("GAMES.push({ id: \"lowrider\"")]
     for word in BANNED:
-        check(not any(word in t.lower() for t in (js, sa, stub, lcss)), f"no '{word}' in the game files")
-    check(not any(re.search(r"\bH-E-B\b|\bHEB\b|\bGM\b|\bCoke\b", t) for t in (js, sa)), "no H-E-B / HEB / GM / Coke (H-E-Bae, Gualmart, Hon Dipo are our own parodies)")
+        check(not any(word in t.lower() for t in (js, sa, chase, stub, lcss)), f"no '{word}' in the game files")
+    check(not any(re.search(r"\bH-E-B\b|\bHEB\b|\bGM\b|\bCoke\b", t) for t in (js, sa, chase)), "no H-E-B / HEB / GM / Coke (H-E-Bae, Gualmart, Hon Dipo are our own parodies)")
     kb = len(js.encode()) // 1024, len(sa.encode()) // 1024
-    check(len(js.encode()) < 200_000 and len(sa.encode()) < 80_000, f"lowrider.js {kb[0]} KB, the San Antonio stage its own file ({kb[1]} KB), the art in static/lowrider/")
+    check(len(js.encode()) < 200_000 and len(sa.encode()) < 80_000 and len(chase.encode()) < 80_000, f"lowrider.js {kb[0]} KB, the San Antonio stage its own file ({kb[1]} KB), the art in static/lowrider/")
     for f in ("title.webp", "thumb.webp"): check(os.path.getsize(os.path.join(HERE, "static/lowrider", f)) < 200_000, f"static/lowrider/{f} ({os.path.getsize(os.path.join(HERE, 'static/lowrider', f)) // 1024} KB)")
     check(os.path.getsize(os.path.join(HERE, "static/fonts/ppl-display.woff2")) < 20_000 and os.path.exists(os.path.join(HERE, "static/fonts/LICENSE-UnifrakturCook-OFL.txt")), "the title font is a subset with its OFL license")
-    for name, t in (("lowrider.js", js), ("lowrider-sa.js", sa)):
+    for name, t in (("lowrider.js", js), ("lowrider-sa.js", sa), ("lowrider-sa-chase.js", chase)):
         check(not re.search(r"\$\s?\d|USD|in-app purchase|checkout|\bstripe\b|cash ?app|paypal|venmo", t, re.I), f"{name}: no money (Feria is earned only by playing; the only $ is Chisme's own goal, from app.js)")
         check(not re.search(r"https?://", t), f"{name}: no outside links or requests")
     check("window.__chismeGoal" in app and "FC_GOAL.url" in app[app.index("window.__chismeGoal"):app.index("window.__chismeGoal") + 900], "the App Store goal (amount + link) comes from app.js's From Chisme card")
     check("Feria is earned only by playing" in js and "Nothing here costs real money" in js and "More rides coming." not in js, "the Garage: unlock rides with Feria only, nothing costs real money")
-    check(not re.search(r"coming soon", js + sa, re.I), "no 'coming soon' clutter")
+    check(not re.search(r"coming soon", js + sa + chase, re.I), "no 'coming soon' clutter")
     sw = open(os.path.join(HERE, "static/sw.js")).read()
-    check(all(x in sw for x in ("/static/lowrider.js?v=${BUILD}", "/static/lowrider-sa.js?v=${BUILD}", "/static/lowrider/title.webp?v=${BUILD}", "/static/fonts/ppl-display.woff2")), "the service worker caches the game, the SA stage, the art + font (offline)")
+    check(all(x in sw for x in ("/static/lowrider.js?v=${BUILD}", "/static/lowrider-sa.js?v=${BUILD}", "/static/lowrider-sa-chase.js?v=${BUILD}", "/static/lowrider/title.webp?v=${BUILD}", "/static/fonts/ppl-display.woff2")), "the service worker caches the game, the SA stage, the art + font (offline)")
     dk = open(os.path.join(HERE, "static/desktop.js")).read()
     check('"#lowrider"' in app and '"#puro-pinche-lowrider"' in app and 'lowrider: "#puro-pinche-lowrider"' in dk, "#puro-pinche-lowrider deep link (app + desktop site); #lowrider still works")
     check("Puro Pinche Lowrider" in open(os.path.join(HERE, "website.py"), encoding="utf-8").read(), "the website names it Puro Pinche Lowrider")
     node = r"""
       global.window = { addEventListener() {}, removeEventListener() {} }; global.localStorage = { _d: {}, getItem(k) { return this._d[k] ?? null; }, setItem(k, v) { this._d[k] = String(v); }, removeItem(k) { delete this._d[k]; } };
-      require(process.argv[1]); require(process.argv[2]); const L = window.ChismeLowrider, SA = L.stages.sa;
+      require(process.argv[1]); require(process.argv[2]); require(process.argv[3]); const L = window.ChismeLowrider, SA = L.stages.sa;
       const hue = (h) => { const n = parseInt(h.slice(1), 16), r = (n >> 16) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn, l = (mx + mn) / 2;
         if (d < 0.05) return false; const s = d / (1 - Math.abs(2 * l - 1)); if (s < 0.3) return false; let H = mx === r ? 60 * (((g - b) / d) % 6) : mx === g ? 60 * ((b - r) / d + 2) : 60 * ((r - g) / d + 4); if (H < 0) H += 360;
         return (H >= 38 && H <= 70) || (H >= 25 && H < 38 && (l >= 0.85 || l <= 0.2)); };
       const hexes = (o) => JSON.stringify(o).match(/#[0-9a-fA-F]{6}\b/g) || [];
-      const fs = require("fs"), saHex = (fs.readFileSync(process.argv[2], "utf8").match(/#[0-9a-fA-F]{6}\b/g) || []).filter(hue);
+      const fs = require("fs"), saHex = ((fs.readFileSync(process.argv[2], "utf8") + fs.readFileSync(process.argv[3], "utf8")).match(/#[0-9a-fA-F]{6}\b/g) || []).filter(hue);
       const t = L.migrate({ v: 1, feria: 50, owned: { paint: ["turq", "gold", "x"] }, equip: { paint: "turq" }, runs: [{ score: 9, at: 1 }] }), f = L.fresh();
       const runs = { runs: [] }; L.BOARD.submit(runs, { score: 5, at: 2 }); L.BOARD.submit(runs, { score: 50, at: 3 }); const rank = L.BOARD.submit(runs, { score: 20, at: 4 });
       const bb = (n) => SA.billboards(n).map((s) => s && s.name);
@@ -107,7 +108,7 @@ def static():
         mig: { feria: t.feria, owned: t.owned.paint, cars: t.owned.car, car: t.equip.car, equip: t.equip.paint, runs: t.runs.length }, rank, key: L.SAVE_KEY, week: L.isoWeek(Date.UTC(2026, 9, 3, 12)),
         sa: { landmarks: SA.LANDMARKS.map((l) => l.name || l.tag || l.id), stores: SA.STORES.map((s) => s.name || s.id), taqs: SA.TAQS.map((s) => s.name || s.id), traffic: SA.traffic.map((x) => [x.id, x.lines.near.length, x.lines.over.length, x.lines.hit.length]),
           picks: Object.keys(SA.picks), coats: SA.COATS.map((c) => c.id), coatHex: SA.COATS.flatMap((c) => hexes(c)), fuel: SA.fuel, bbWeb: bb(false).slice(0, 8), bbNative: bb(true).slice(0, 8) } })); """
-    r = json.loads(subprocess.run(["node", "-e", node, os.path.join(HERE, "static/lowrider.js"), os.path.join(HERE, "static/lowrider-sa.js")], capture_output=True, text=True, check=True).stdout)
+    r = json.loads(subprocess.run(["node", "-e", node, os.path.join(HERE, "static/lowrider.js"), os.path.join(HERE, "static/lowrider-sa.js"), os.path.join(HERE, "static/lowrider-sa-chase.js")], capture_output=True, text=True, check=True).stdout)
     check(r["cars"] == [["primer", "The '64 (Primer)", 0], ["64", "The '64 (Candy)", 900], ["jefe", "El Jefe '76", 2400]], f"3 rides: the Primer is free, the rest unlock with Feria {r['cars']}")
     check(r["fresh"] == {"cars": ["primer"], "car": "primer"}, "a new player starts in The '64 (Primer)")
     check(r["bronze"][1] == "#c47a4e" and not r["carYellow"], f"the Primer's bronze wheels (no gold / yellow in any ride, wheel or patch) {r['carYellow']}")

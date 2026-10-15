@@ -165,7 +165,7 @@ SAFE = re.compile(r"^(esc|escH|num|fmt|cardHTML|listHTML|howList|skinBtn|skinHin
                   r"^(BEAN_DEFS|OVER|VW|cont|line|name|id|L\(\)\.done|LEVELS\[level\]\.name|oopsMsg|level \+ 1|SVGF|ART|LOGO|TITLE)$|^\w+ \? esc\([\w.]+\) : \"[^\"]*\"$|"
                   r"^[^`]*\?\s*(\"[^\"]*\"|'[^']*'|`[^`]*`)\s*:\s*(\"[^\"]*\"|'[^']*'|`[^`]*`)\s*$|^(id === cur|lock)")
 bad = []
-for f in ("static/app.js", "static/juan.js", "static/juegos.js", "static/lowrider.js", "static/lowrider-sa.js"):
+for f in ("static/app.js", "static/juan.js", "static/juegos.js", "static/lowrider.js", "static/lowrider-sa.js", "static/lowrider-sa-chase.js"):
     s = open(os.path.join(HERE, f)).read()
     for m in re.finditer(r"(innerHTML\s*=|overlay\()\s*`", s):
         i, depth, j = m.end(), 0, m.end()

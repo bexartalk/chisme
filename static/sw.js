@@ -16,6 +16,7 @@ const SHELL = [
   `/static/loteria_cards.js?v=${BUILD}`,
   `/static/juegos.js?v=${BUILD}`,
   `/static/juan.js?v=${BUILD}`,
+  `/static/lowrider-sa-chase.js?v=${BUILD}`, // v49.26: SA chase + party
   `/static/lowrider-sa.js?v=${BUILD}`,   // v49.16: Puro Pinche Lowrider's San Antonio stage (+ its title art, thumb and lettering font below)
   `/static/lowrider/title.webp?v=${BUILD}`,
   `/static/lowrider/thumb.webp?v=${BUILD}`,
