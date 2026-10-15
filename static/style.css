@@ -2110,7 +2110,7 @@ dialog.reel-share[open]{animation:rs-up .22s ease-out}
 .lr-stg.on small,.lr-car.on small{color:#9ef0ec}
 .lr-stg.busy{opacity:.6}
 .lr-cars{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px} /* v49.26: let narrow columns shrink below text width */
-.lr-car,.lr-sw{min-width:0;overflow-wrap:anywhere} /* v49.26: wrap long ride/paint names at 320px */
+.lr-car,.lr-sw{min-width:0;overflow-wrap:normal;word-break:normal;hyphens:manual}.lr-sw .lr-swn{font-size:.6rem;letter-spacing:-.01em} /* v49.26: wrap long ride/paint names at 320px */
 .lr-car.locked{background:rgba(42,20,80,.8)}
 .lr-car.locked b{color:#c9ced6}
 .lr-car.locked small{color:#FF8FBF}

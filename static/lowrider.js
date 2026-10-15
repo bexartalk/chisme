@@ -578,7 +578,7 @@
   // v49.26: one wrapped, edge-safe speech card; return the bounds used for drawing.
   function bubble(g, x, y, text, t0, maxX, maxW = 170) {
     g.save(); let size = 13, lines, limit = Math.min(maxW, maxX - 20) - 16;
-    const wrap = () => { const out = []; let line = ""; for (const word of text.split(/\s+/)) { for (const ch of (line ? " " : "") + word) { if (g.measureText(line + ch).width > limit && line) { out.push(line.trim()); line = ""; } line += ch; } } if (line.trim()) out.push(line.trim()); return out; };
+    const wrap = () => { const out = []; let line = ""; for (const word of text.split(/\s+/)) { const tryL = line ? line + " " + word : word; if (g.measureText(tryL).width <= limit || !line) line = tryL; else { out.push(line); line = word; } } if (line) out.push(line); return out; };   // v49.26: wrap on spaces only (no mid-word breaks)
     do { g.font = `900 ${size}px ${FONT}`; lines = wrap(); if (lines.length <= 2) break; size -= 0.5; } while (size > 1);
     const w = Math.max(...lines.map((l) => g.measureText(l).width)) + 16, h = lines.length * (size + 3) + 10;
     const bx = clamp(x - w / 2, 8, maxX - w - 8), by = Math.max(8, y - h - 8);
