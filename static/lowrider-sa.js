@@ -564,7 +564,7 @@
         // pickups: gas fills the tank, a glass-bottle soda = Feria, a taco = points + combo
         for (const c of K.picks) if (!c.got && c.x > car.x - 4 && c.x < car.x + 204 && c.h > car.y - 4 && c.h < car.y + 80) {
           const P = PICKS[c.kind] || {}; c.got = true; run.picks[c.kind] = (run.picks[c.kind] || 0) + 1;
-          if (P.fuel) run.fuel = Math.min(1, run.fuel + P.fuel);
+          if (P.fuel) { run.fuel = Math.min(1, run.fuel + P.fuel); run.out = false; } // v49.26: a can collected while coasting restarts the engine
           if (P.feria) run.feria += P.feria;
           if (P.pts) run.score += P.pts * K.TIERS[run.tier].x;
           if (P.streak) { run.streak += P.streak; run.tier = K.tierOf(run.streak); run.bestTier = Math.max(run.bestTier, run.tier); run.maxStreak = Math.max(run.maxStreak, run.streak); }

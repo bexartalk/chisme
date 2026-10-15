@@ -2109,13 +2109,14 @@ dialog.reel-share[open]{animation:rs-up .22s ease-out}
 .lr-stg.on,.lr-car.on{border-color:#00C9CD;background:#00353a;box-shadow:0 3px 0 #000,inset 0 0 0 2px #00C9CD}
 .lr-stg.on small,.lr-car.on small{color:#9ef0ec}
 .lr-stg.busy{opacity:.6}
-.lr-cars{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.lr-cars{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px} /* v49.26: let narrow columns shrink below text width */
+.lr-car,.lr-sw{min-width:0;overflow-wrap:anywhere} /* v49.26: wrap long ride/paint names at 320px */
 .lr-car.locked{background:rgba(42,20,80,.8)}
 .lr-car.locked b{color:#c9ced6}
 .lr-car.locked small{color:#FF8FBF}
 .lr-stg:focus-visible,.lr-car:focus-visible,.lr-donate:focus-visible{outline:4px solid #00C9CD;outline-offset:2px}
 .lr-blurb{min-height:2.6em}
-.lr-sws.lr-sws6{grid-template-columns:repeat(6,1fr)}
+.lr-sws.lr-sws6{grid-template-columns:repeat(6,minmax(0,1fr))}
 .lr-donate{display:flex;flex-direction:column;align-items:center;gap:1px;padding:.5em .8em;border:2px solid #000;border-radius:14px;background:#000;color:#fff;font-weight:900;font-size:.88rem;text-decoration:none;box-shadow:0 3px 0 #FF1A7F}
 .lr-donate small{font-size:.72rem;font-weight:800;color:#FF8FBF}
 .lr-tag{margin:0;font-weight:900;color:#FF8FBF;font-size:.98rem}

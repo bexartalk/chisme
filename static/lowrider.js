@@ -127,8 +127,9 @@
     d.howto = !!o.howto; d.muted = typeof o.muted === "boolean" ? o.muted : null;
     return d;
   }
-  function load() { try { return migrate(JSON.parse(localStorage.getItem(SAVE_KEY) || "null")); } catch (e) { return fresh(); } }
-  function save(s) { try { localStorage.setItem(SAVE_KEY, JSON.stringify(s)); } catch (e) {} }
+  const walletSaved = new WeakMap(); // v49.26: retain unsaved earnings if storage writes fail
+  function load() { let s; try { s = migrate(JSON.parse(localStorage.getItem(SAVE_KEY) || "null")); } catch (e) { s = fresh(); } walletSaved.set(s, s.feria); return s; }
+  function save(s) { try { localStorage.setItem(SAVE_KEY, JSON.stringify(s)); walletSaved.set(s, s.feria); } catch (e) {} }
   function reset() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
   // ISO week ("2026-W40"): what a later weekly board would group runs by
   function isoWeek(ms) { const d = new Date(ms); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7)); const w1 = new Date(d.getFullYear(), 0, 4);
@@ -274,9 +275,10 @@
     const pickV = () => { try { voices = speechSynthesis.getVoices() || []; } catch (e) { voices = []; } };
     if (hasVoice()) { pickV(); try { speechSynthesis.addEventListener && speechSynthesis.addEventListener("voiceschanged", pickV); } catch (e) {} }
     function say(text, lang = "en-US", o = {}) {
-      if (muted || !hasVoice()) return false; const now = clock(); if (!o.force && now - lastSay < (o.gap == null ? 1800 : o.gap)) return false; lastSay = now;
+      if (muted || !hasVoice() || (!o.force && speechSynthesis.speaking)) return false; const now = clock(); // v49.26: let the current line finish without queuing chatter
+ if (!o.force && now - lastSay < (o.gap == null ? 1800 : o.gap)) return false; lastSay = now;
       try { const u = new SpeechSynthesisUtterance(text); u.lang = lang; const v = voices.find((x) => x.lang && x.lang.replace("_", "-").toLowerCase().startsWith(lang.toLowerCase())) || voices.find((x) => x.lang && x.lang.slice(0, 2) === lang.slice(0, 2));
-        if (v) u.voice = v; u.pitch = o.pitch || 1; u.rate = o.rate || 1; u.volume = o.volume == null ? 0.9 : o.volume; speechSynthesis.cancel(); speechSynthesis.speak(u); return true; } catch (e) { return false; }
+        if (v) u.voice = v; u.pitch = o.pitch || 1; u.rate = o.rate || 1; u.volume = o.volume == null ? 0.9 : o.volume; if (o.force) speechSynthesis.cancel(); speechSynthesis.speak(u); return true; } catch (e) { return false; }
     }
     return {
       fx, say, synth: { osc, nz, get on() { return !muted && !!ctx(); }, get ac() { return ac; }, get out() { return sfx; } },   // a stage adds its own sounds (lowrider-sa.js: honks, clops)
@@ -1005,7 +1007,7 @@
       clearLater(); toasts.replaceChildren(); lotCache.clear(); bbCache.clear(); // v49.26: discard callbacks and cached canvases from the previous world
       car.x = 0; car.y = 0; car.vy = 0; car.v = 260; car.sR = car.sF = car.vR = car.vF = 0; car.ang = 0; car.charge = 0; car.charging = false; car.air = false; car.tapped = false; car.pend = null; car.hurt = 0; car.scrape = 0;
       obs = []; coins = []; picks = []; people = []; dogs = []; props = []; lots = []; bbs = []; parts = []; pops = []; bubbles = []; ev = null; hold = 0;
-      lotEnd = -carSX - 300; bbEnd = -carSX * 0.45 - 200; nextObs = 900; camX = car.x - carSX; T = 0;
+      lotEnd = -carSX - 300; bbEnd = -carSX * 0.45 - 200; nextObs = 900; camX = car.x - carSX; T = 0; lastCheer = -9; // v49.26: cheers use the reset world clock
     }
     resetWorld();
 
@@ -1613,7 +1615,7 @@
 
     // ---- the App Store goal (San Antonio's billboards): the same Buy Me a Coffee goal + in-app reader as the feed's From Chisme card
     // (app.js window.__chismeGoal). Never in the store app (Apple's rules): there the boards are Chisme's own house ad.
-    function lapBtn() { return SM && SM.lapLabel && st.laps[stage.id] ? `<button type="button" class="lr-btn lr-pink lr-lap" data-act="lap">${esc(SM.lapLabel)}</button>` : ""; }   // unlocked by finishing the stage
+    function lapBtn() { return stage.id === "sa" && st.laps[stage.id] ? `<button type="button" class="lr-btn lr-pink lr-lap" data-act="lap">${esc(SM ? SM.lapLabel : "🔁 Otra vuelta (harder)")}</button>` : ""; } // v49.26: show saved unlocks before the lazy stage loads
     function donateOn() { return !!(SM && SM.billboards && !native()); }
     function donateBtn() { const G = root.__chismeGoal; if (!donateOn() || !G || G.native) return "";   // the goal + its link come from app.js (the From Chisme card's), never from the game
       return `<a class="lr-donate" href="${esc(G.url)}" data-act="donate" target="_blank" rel="noopener noreferrer"><span aria-hidden="true">☕</span> ${esc(G.title)}, $${num(G.amount)}<small>Buy Me a Coffee</small></a>`; }
@@ -1695,16 +1697,16 @@
     }
     function setRide(c, pid) { st.carPaint[c.id] = pid; if (st.equip.car === c.id) st.equip.paint = pid; }
     // v49.26: another mounted tab may have spent or earned Feria since this mount.
-    function syncWallet() { try { const raw = localStorage.getItem(SAVE_KEY); if (!raw) return; const o = migrate(JSON.parse(raw)); st.feria = o.feria;
+    function syncWallet() { try { const raw = localStorage.getItem(SAVE_KEY); if (!raw) return; const o = migrate(JSON.parse(raw)), previous = walletSaved.get(st); if (previous != null) st.feria = Math.max(0, st.feria + o.feria - previous); walletSaved.set(st, o.feria); // v49.26: apply external changes without discarding unsaved local Feria
       st.owned.car = [...new Set([...st.owned.car, ...o.owned.car])]; st.owned.paint = [...new Set([...st.owned.paint, ...o.owned.paint])]; } catch (e) {} }
     function buy() {
       syncWallet();
-      const c = gCar(), p = PAINTS.find((x) => x.id === garage.preview); if (!p || !ownsCar(c.id) || st.owned.paint.includes(p.id) || st.feria < p.price) return;
+      const c = gCar(), p = PAINTS.find((x) => x.id === garage.preview); if (!p || !ownsCar(c.id) || st.owned.paint.includes(p.id) || st.feria < p.price) { showGarage(); return; } // v49.26: refresh stale purchase button states
       st.feria -= p.price; st.owned.paint.push(p.id); setRide(c, p.id); st.equip.car = c.id; st.equip.paint = p.id; save(st); audio.fx.coin(); audio.fx.tier(2); toast("Fresh paint", p.name + " on " + c.name + "."); showGarage();
     }
     function buyCar() {
       syncWallet();
-      const c = gCar(); if (ownsCar(c.id) || st.feria < c.price) return;
+      const c = gCar(); if (ownsCar(c.id) || st.feria < c.price) { showGarage(); return; } // v49.26
       st.feria -= c.price; st.owned.car.push(c.id); st.equip.car = c.id; st.equip.paint = st.carPaint[c.id] || c.paint; garage.preview = null; save(st);
       audio.fx.coin(); audio.fx.tier(3); toast("New ride unlocked", c.name + " is in the garage."); showGarage();
     }
@@ -1723,11 +1725,11 @@
       else if (a === "buy") buy();
       else if (a === "buycar") buyCar();
       else if (a === "equip") { const c = gCar(), pid = garage.preview || st.carPaint[c.id] || c.paint; if (ownsCar(c.id) && (pid === "orig" || st.owned.paint.includes(pid))) { setRide(c, pid); st.equip.car = c.id; st.equip.paint = pid; garage.preview = null; save(st); showGarage(); } }
-      else if (a === "stage") { const id = btn.dataset.id; if (id !== stage.id || stageLoading) { const s = STAGES.find((x) => x.id === id); if (s && s.file && !lib.stages[s.id]) { btn.classList.add("busy"); } useStage(id).then((s) => { if (alive && s && mode === "title") showTitle(); }, () => { if (!alive) return; toast("Couldn't load " + (s ? s.name : id), "Check your connection and try again."); if (mode === "title") showTitle(); }); } }
+      else if (a === "stage") { const id = btn.dataset.id; if (id !== stage.id || stageLoading || (stage.file && !SM)) { const s = STAGES.find((x) => x.id === id); if (s && s.file && !lib.stages[s.id]) { btn.classList.add("busy"); } useStage(id).then((s) => { if (alive && s && mode === "title") showTitle(); }, () => { if (!alive) return; toast("Couldn't load " + (s ? s.name : id), "Check your connection and try again."); if (mode === "title") showTitle(); }); } } // v49.26: allow loading the saved selection on a fresh mount
       else if (a === "donate") donate(btn);
       else if (a === "share") share();
       else if (a === "resume") resume();
-      else if (a === "restart") { endRunQuiet(); startRun(); }
+      else if (a === "restart") { const lap = run && run.lap; endRunQuiet(); startRun({ lap }); } // v49.26: preserve Otra vuelta difficulty
       else if (a === "quit") endRun("quit");
       else if (a === "pause") { mode === "paused" ? resume() : pause(); }
       else if (a === "sound") setMute(!muted, true);
