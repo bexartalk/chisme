@@ -1333,7 +1333,7 @@ html.game-fs .views{position:relative}
   display:flex;flex-direction:column;overflow:hidden;background:#0d0f1a;color:#fff;overscroll-behavior:none;touch-action:manipulation}
 .gfs-bar{flex:none;display:grid;grid-template-columns:44px 1fr 44px;align-items:center;gap:6px;padding:6px 10px;min-height:52px;box-sizing:border-box}
 .gfs-badge{justify-self:center;display:flex;align-items:center;gap:.35em;min-width:0;max-width:100%}
-.gfs-x{width:44px;height:44px;min-height:0;padding:0;display:grid;place-items:center;border:2px solid #fff;border-radius:50%;background:#000;color:#fff;font:inherit;font-size:1.2rem;font-weight:900;line-height:1;cursor:pointer}
+.gfs-x{width:44px;height:44px;min-width:44px;min-height:44px;padding:0;display:grid;place-items:center;border:2px solid #fff;border-radius:50%;background:#000;color:#fff;box-shadow:0 0 0 2px #000,0 2px 8px rgba(0,0,0,.5);touch-action:manipulation;font:inherit;font-size:1.2rem;font-weight:900;line-height:1;cursor:pointer}
 .gfs-x:focus-visible{outline:4px solid var(--focus);outline-offset:2px}
 .gfs-juan{display:flex;align-items:center;gap:.4em;padding:.2em .8em .25em .55em;border:2px solid #00b8b0;border-radius:999px;background:#000;color:#fff;box-shadow:0 3px 0 #ff3d8b;white-space:nowrap}
 .gfs-juan-hat{width:26px;height:16px;flex:none}

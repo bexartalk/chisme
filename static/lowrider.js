@@ -49,8 +49,9 @@
     { id: "sa", name: "San Antonio", blurb: "The Alamo, the Missions, traffic. Watch your gas.", file: "lowrider-sa.js" },
   ];
   // Obstacles: w × h in world units; pit = only a wheel on the ground drops in; soft = a jolt, no wheel lost.
-  const OBST = {
-    bump: { w: 30, h: 7, soft: true, min: 0 }, hump: { w: 64, h: 13, min: 0 }, pothole: { w: 50, h: 0, pit: true, min: 0 },
+  const OBST = { // v49.27: low road hazards and jumpable cartoon patrol
+    pallet: { w: 62, h: 18, min: 0.05 }, copcar: { w: 116, h: 38, min: 0.1 },
+    bump: { w: 54, h: 9, min: 0 }, hump: { w: 64, h: 13, min: 0 }, pothole: { w: 50, h: 0, pit: true, min: 0 },
     cone: { w: 18, h: 30, min: 0 }, cones: { w: 64, h: 30, min: 0.12 }, rails: { w: 56, h: 9, min: 0.1 },
     tires: { w: 36, h: 34, min: 0.18 }, cooler: { w: 32, h: 24, min: 0.08 }, mattress: { w: 72, h: 20, min: 0.25 },
     couch: { w: 74, h: 40, min: 0.35 }, pinata: { w: 40, h: 34, min: 0.2 }, barricade: { w: 36, h: 52, min: 0.5 },
@@ -80,6 +81,18 @@
     { name: "Tortillería Doña Metiche", tagline: "Hot off the comal. Hotter gossip.", colors: ["#FF6A0B", "#FFFFFF", "#000000"], slot: "billboard", kind: "", sponsor: false },
     { name: "YOUR BUSINESS HERE", tagline: "Ask Chisme", colors: ["#000000", "#FFFFFF", "#00C9CD"], slot: "billboard", kind: "", sponsor: false, house: true },
   ];
+  // v49.27: text-only sponsor inventory; the house rotation always stays available.
+  const SPONSOR_SLOTS = SIGNS.map((s, i) => ({ id: "slot-" + i, name: s.name, line: s.tagline, colors: [...s.colors], art: "text", sponsor: false, house: !!s.house }));
+  let sponsors = SPONSOR_SLOTS;
+  function setSponsors(list) {
+    const text = (v, n) => typeof v === "string" && v.length > 0 && v.length <= n && !/[<>\x00-\x1f]|(?:https?:|www\.|[a-z0-9-]+\.[a-z]{2,}(?:\b|\/)|data:|javascript:|\/\/)/i.test(v);
+    if (!Array.isArray(list) || list.length > 40 || list.some((s) => !s || !text(s.id, 40) || !text(s.name, 64) || !text(s.line, 100) || (s.art != null && s.art !== "text") || !Array.isArray(s.colors) || s.colors.length !== 3 || s.colors.some((c) => !["#000000", "#FFFFFF", "#00C9CD", "#FF1A7F", "#7B2CBF", "#FF6A0B"].includes(c)))) return false;
+    if (new Set(list.map((s) => s.id)).size !== list.length) return false;
+    sponsors = list.map((s) => ({ id: s.id, name: s.name, line: s.line, colors: [...s.colors], art: "text", sponsor: s.sponsor === true }));
+    if (!sponsors.length) sponsors = SPONSOR_SLOTS;
+    if (lib.current) lib.current.debug.refreshSponsors(); return true;
+  }
+  const godSaves = new WeakSet(); // v49.27: sandbox every save path during an owner run
   const ACH = [
     { id: "first", name: "First Hop", desc: "Land your first hop." },
     { id: "puro", name: "Puro Pinche Style", desc: "10 PERFECT HOPs in a row." },
@@ -129,7 +142,7 @@
   }
   const walletSaved = new WeakMap(); // v49.26: retain unsaved earnings if storage writes fail
   function load() { let s; try { s = migrate(JSON.parse(localStorage.getItem(SAVE_KEY) || "null")); } catch (e) { s = fresh(); } walletSaved.set(s, s.feria); return s; }
-  function save(s) { try { localStorage.setItem(SAVE_KEY, JSON.stringify(s)); walletSaved.set(s, s.feria); } catch (e) {} }
+  function save(s) { if (godSaves.has(s)) return; try { localStorage.setItem(SAVE_KEY, JSON.stringify(s)); walletSaved.set(s, s.feria); } catch (e) {} }
   function reset() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
   // ISO week ("2026-W40"): what a later weekly board would group runs by
   function isoWeek(ms) { const d = new Date(ms); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7)); const w1 = new Date(d.getFullYear(), 0, 4);
@@ -627,7 +640,10 @@
     const k = o.kind, w = o.w;
     g.save();
     if (o.knock) { g.translate(o.knock.x, -o.knock.y); g.translate(sx + w / 2, gy - o.h / 2); g.rotate(o.knock.a); g.translate(-(sx + w / 2), -(gy - o.h / 2)); g.globalAlpha = clamp(1 - o.knock.t / 1.2, 0, 1); }
-    if (k === "bump") { g.fillStyle = "#3d3946"; g.beginPath(); g.ellipse(sx + w / 2, gy, w / 2, o.h, 0, 3.14, 6.28); g.fill(); g.strokeStyle = "rgba(255,255,255,.18)"; g.lineWidth = 1; g.beginPath(); g.ellipse(sx + w / 2, gy, w / 2 - 2, o.h - 1.5, 0, 3.4, 6.0); g.stroke(); }
+    // v49.27: no badges or real logos; low bodies leave a generous hop window.
+    if (k === "pallet") { g.fillStyle = "#8d5267"; g.fillRect(sx, gy - 5, w, 5); for (let i = 0; i < 4; i++) { g.fillStyle = i % 2 ? "#b47e8e" : "#744057"; g.fillRect(sx + i * w / 4, gy - 18, w / 4 - 3, 10); } }
+    else if (k === "copcar") { g.fillStyle = "#171b30"; rr(g, sx, gy - 26, w, 23, 7); g.fill(); g.fillStyle = "#f4efff"; g.fillRect(sx + 28, gy - 25, 48, 21); g.fillStyle = "#748bab"; rr(g, sx + 23, gy - 35, 65, 16, 5); g.fill(); for (let i = 0; i < 2; i++) { g.fillStyle = i ? "#467dff" : "#ff287f"; g.fillRect(sx + 48 + i * 13, gy - 39, 12, 5); g.fillStyle = "#11121d"; g.beginPath(); g.arc(sx + 22 + i * 72, gy - 5, 10, 0, 6.2832); g.fill(); } }
+    else if (k === "bump") { g.fillStyle = "#3d3946"; g.beginPath(); g.ellipse(sx + w / 2, gy, w / 2, o.h, 0, 3.14, 6.28); g.fill(); g.strokeStyle = "rgba(255,255,255,.18)"; g.lineWidth = 1; g.beginPath(); g.ellipse(sx + w / 2, gy, w / 2 - 2, o.h - 1.5, 0, 3.4, 6.0); g.stroke(); }
     else if (k === "hump") {
       g.fillStyle = "#34303d"; g.beginPath(); g.ellipse(sx + w / 2, gy, w / 2, o.h, 0, 3.14, 6.28); g.fill();
       g.save(); g.beginPath(); g.ellipse(sx + w / 2, gy, w / 2, o.h, 0, 3.14, 6.28); g.clip();
@@ -880,8 +896,12 @@
       g.fillStyle = "#000"; g.fillText(s.tagline, bw / 2, bh * 0.715);
     } else {
       g.fillStyle = s.colors[2]; g.fillRect(x + 3, bh * 0.72, bw - 6, bh * 0.28 - 3);
-      const sz = fitText(g, s.name, bw - 20, bh * 0.34); outlined(g, s.name, bw / 2, bh * 0.38, s.colors[1], s.colors[0] === "#000000" ? null : "rgba(0,0,0,.3)", 2.4);
-      fitText(g, s.tagline, bw - 22, Math.min(sz * 0.6, bh * 0.18), "800", SANS); g.fillStyle = s.colors[2] === "#FFFFFF" || s.colors[2] === "#ffffff" ? "#000" : "#ffffff"; g.fillText(s.tagline, bw / 2, bh * 0.86);
+      // v49.27: two high-contrast lines beat shrinking a long business name to tiny type.
+      const lines = (text) => { const words = text.split(/\s+/); let a = "", b = ""; for (const w of words) { if (a.length < text.length / 2) a += (a ? " " : "") + w; else b += (b ? " " : "") + w; } return b ? [a, b] : [a]; };
+      g.fillStyle = "#100c1c"; g.fillRect(5, 8, bw - 10, bh - 16);
+      const names = lines(s.name), tag = lines(s.tagline); g.fillStyle = "#ffffff";
+      names.forEach((line, i) => { fitText(g, line, bw - 22, 23); g.fillText(line, bw / 2, bh * 0.25 + i * 25); });
+      tag.forEach((line, i) => { fitText(g, line, bw - 22, 15, "800", SANS); g.fillText(line, bw / 2, bh * 0.72 + i * 17); });
     }
     for (let i = 0; i < 3; i++) drawGlow(g, bw * (0.2 + i * 0.3) + 1, 0, 26, "#ffffff", 0.22);
   }
@@ -998,6 +1018,7 @@
     const car = { x: 0, y: 0, vy: 0, v: 260, sR: 0, sF: 0, vR: 0, vF: 0, ang: 0, rot: 0, charge: 0, charging: false, air: false, tapped: false, tapT: 0, launchC: 0, pend: null, hurt: 0, scrape: 0, bob: 0 };
     const P = () => { if (garage.open) { const c = gCar(); return paintFor(c, garage.preview || st.carPaint[c.id] || c.paint); } return paintFor(curCar(), st.equip.paint); };
     const garage = { open: false, preview: null, car: null, t: 0 };
+    let inputLagMs = 0, inputDownAt = 0, held = false, bufferedAt = -9, groundedAt = 0, prevCam = 0, prevX = 0, prevY = 0, god = null, godUi = null, godSnapshot = null; // v49.27
     let evOn = true, mode = "title", T = 0, camX = 0, run = null, ev = null, shake = 0, frozen = false, auto = true, zoom = 1, lastGrade = null, gradeCounts = { perfect: 0, puro: 0, ay: 0, scraped: 0 };
     let popList = [], bubbleList = [], finishTitle = false; // v49.26: drawn screen bounds for tests
     let obs = [], coins = [], picks = [], people = [], dogs = [], props = [], lots = [], bbs = [], parts = [], pops = [], bubbles = [];
@@ -1005,9 +1026,10 @@
     const rand = Math.random;
     function resetWorld() {
       clearLater(); toasts.replaceChildren(); lotCache.clear(); bbCache.clear(); // v49.26: discard callbacks and cached canvases from the previous world
+      held = false; bufferedAt = -9; groundedAt = 0;
       car.x = 0; car.y = 0; car.vy = 0; car.v = 260; car.sR = car.sF = car.vR = car.vF = 0; car.ang = 0; car.charge = 0; car.charging = false; car.air = false; car.tapped = false; car.pend = null; car.hurt = 0; car.scrape = 0;
       obs = []; coins = []; picks = []; people = []; dogs = []; props = []; lots = []; bbs = []; parts = []; pops = []; bubbles = []; ev = null; hold = 0;
-      lotEnd = -carSX - 300; bbEnd = -carSX * 0.45 - 200; nextObs = 900; camX = car.x - carSX; T = 0; lastCheer = -9; // v49.26: cheers use the reset world clock
+      lotEnd = -carSX - 300; bbEnd = -carSX * 0.35 - 200; nextObs = 900; camX = car.x - carSX; T = 0; lastCheer = -9; // v49.26: cheers use the reset world clock
     }
     resetWorld();
 
@@ -1037,35 +1059,35 @@
     function addBillboard() {
       const x = bbEnd + 330 + rand() * 260;
       let s;
-      const own = SM && SM.billboards ? SM.billboards(native()) : null;   // a stage's own boards (San Antonio: Chisme's App Store goal; none in the store app)
+      const own = sponsors !== SPONSOR_SLOTS ? sponsors.map((q) => ({ ...q, tagline: q.line })) : SM && SM.billboards ? SM.billboards(native()) : null;   // a stage's own boards (San Antonio: Chisme's App Store goal; none in the store app)
       if (--houseIn <= 0 || (own && !own.length)) { s = SIGNS.find((q) => q.house); houseIn = 3 + (rand() < 0.5 ? 1 : 0); }
-      else { const list = own || [...SIGNS.filter((q) => !q.house && q.slot === "billboard"), ...SIGNS.filter((q) => !q.house && q.slot === "store")]; s = list[signI.billboard++ % list.length]; }
+      else { const list = own || SPONSOR_SLOTS.filter((q) => !q.house).map((q) => ({ ...q, tagline: q.line })); s = list[signI.billboard++ % list.length]; }
       bbs.push({ x, s, w: 196, h: 236 }); bbEnd = x + 196; bbLog.push(s.name); if (bbLog.length > 60) bbLog.shift();
     }
     const difficulty = () => (run ? clamp(run.meters / 1900 + (run.boost || 0), 0, 1) : 0.08);   // boost: a harder lap (Otra vuelta)
     const cruise = (d) => 262 + 215 * d;
     function addObstacles() {
       const d = difficulty();
+      if (ev && (ev.stop || ev.type === "abuela" || ev.type === "party")) { nextObs += cruise(d) * 3.5; return; } // v49.27
       if (SX && SX.obstacle && SX.obstacle(d)) return;   // a stage's own (San Antonio: oncoming traffic)
       const kinds = Object.keys(OBST).filter((k) => OBST[k].min <= d + 0.001);
       const kind = kinds[(rand() * kinds.length) | 0], O = OBST[kind];
-      const o = { kind, x: nextObs, w: O.w, h: O.h, pit: !!O.pit, soft: !!O.soft, hit: false, cleared: false, knock: null };
+      const o = { kind, vx: kind === "copcar" && rand() < 0.5 ? -40 - rand() * 40 : 0, x: nextObs, w: O.w, h: O.h, pit: !!O.pit, soft: !!O.soft, hit: false, cleared: false, knock: null };
       obs.push(o);
       if (kind === "rails") props.push({ kind: "xing", x: nextObs + 10 });
       if (run && SX && SX.afterObstacle && SX.afterObstacle(o)) {}
       else if (run && rand() < 0.38) { const apex = 120 + rand() * 70; for (let i = 0; i < 5; i++) { const u = (i - 2) / 2.4; coins.push({ x: o.x + o.w / 2 + (i - 2) * 40, h: apex * (1 - u * u) + 40, got: false }); } }
-      if (d > 0.35 && rand() < 0.22 * d) { const k2 = rand() < 0.5 ? "cone" : "bump", O2 = OBST[k2]; obs.push({ kind: k2, x: o.x + o.w + 24 + rand() * 30, w: O2.w, h: O2.h, pit: false, soft: !!O2.soft, hit: false, cleared: false, knock: null }); }
-      const gapT = lerp(2.55, 1.6, d) + rand() * lerp(1.3, 0.7, d);
+      const gapT = 3.1 + rand() * 1.2; // v49.27: never pair hard obstacles inside a hop
       nextObs += cruise(d) * gapT + o.w + (run ? 0 : 120);
     }
     function spawnAhead() {
-      while (lotEnd < camX + LW + 300) addLot();
-      while (bbEnd < camX * 0.45 + LW + 300) addBillboard();
+      while (lotEnd < camX * 0.6 + LW + 300) addLot();
+      while (bbEnd < camX * 0.35 + LW + 300) addBillboard();
       if (mode === "run" || mode === "title") while (nextObs < camX + LW + 320) { if (hold && nextObs < hold) { nextObs = hold; continue; } addObstacles(); }
       if (SX && SX.ahead) SX.ahead();
       const gone = camX - 320;
-      lots = lots.filter((L) => { const keep = L.x + L.w > gone; if (!keep) lotCache.delete(L); return keep; });
-      bbs = bbs.filter((b) => { const keep = b.x + b.w > camX * 0.45 - 60; if (!keep) bbCache.delete(b); return keep; });
+      lots = lots.filter((L) => { const keep = L.x + L.w > camX * 0.6 - 320; if (!keep) lotCache.delete(L); return keep; });
+      bbs = bbs.filter((b) => { const keep = b.x + b.w > camX * 0.35 - 60; if (!keep) bbCache.delete(b); return keep; });
       obs = obs.filter((o) => o.x + o.w > gone); coins = coins.filter((c) => c.x > gone && !c.got); picks = picks.filter((c) => c.x > gone && !c.got); people = people.filter((p) => p.x > gone); dogs = dogs.filter((d) => d.x > gone - 200); props = props.filter((p) => p.x > gone - 400);
     }
 
@@ -1104,6 +1126,7 @@
       mode = "run"; auto = false; resetWorld(); garage.open = false; garage.preview = null;
       run = { score: 0, meters: 0, feria: 0, streak: 0, tier: 0, bestTier: 0, perfects: 0, perfectRow: 0, hops: 0, lives: 3, cleanFrom: 0, t: 0, abuelas: 0, dodges: 0, clears: 0, maxStreak: 0, nextAbuela: EVENTS.abuela.first + rand() * 6, nextChancla: EVENTS.chancla.first + rand() * 6, over: false,
         stage: stage.id, lap: (opt && opt.lap) || 1, boost: 0, fuel: 1, out: false, nextGas: 1e12, nextTrail: 1e9, trails: 0, salutes: 0, cops: 0, traffic: 0, picks: { gas: 0, soda: 0, taco: 0 } };
+      run.cleared = {}; run.god = !!(god && god.on); if (run.god) sandboxGod(); // v49.27
       if (SX && SX.runStart) SX.runStart(run);
       gradeCounts = { perfect: 0, puro: 0, ay: 0, scraped: 0 }; lastGrade = null;
       overlay(""); audio.intensity(0); audio.tempo(1); audio.muffle(false); if (!muted) audio.startMusic();
@@ -1115,10 +1138,12 @@
       if (!run || run.over) return; run.over = true;
       car.charging = false; audio.fx.pumpStop();
       const bonus = Math.floor(run.meters / 100); run.feria += bonus;
-      syncWallet(); st.feria += run.feria; st.totals.runs++; st.totals.meters += Math.round(run.meters); st.totals.feria += run.feria;
-      const newBest = run.score > st.best; if (newBest) st.best = Math.round(run.score);
+      if (!run.god) { syncWallet(); st.feria += run.feria; st.totals.runs++; st.totals.meters += Math.round(run.meters); st.totals.feria += run.feria;
+      }
+      const newBest = !run.god && run.score > st.best; if (newBest) st.best = Math.round(run.score);
       const rec = { score: Math.round(run.score), meters: Math.round(run.meters), fin: reason === "finish", lap: run.lap, feria: run.feria, perfects: run.perfects, combo: TIERS[run.bestTier].x, car: st.equip.car, paint: st.equip.paint, stage: run.stage, at: Date.now(), week: isoWeek(Date.now()) };
-      const rank = BOARD.submit(st, rec);
+      const rank = run.god ? null : BOARD.submit(st, rec);
+      restoreGod();
       save(st);
       mode = "over"; audio.stopMusic(); audio.muffle(false); audio.tempo(1);
       showOver(rec, newBest, rank, bonus, reason);
@@ -1139,15 +1164,16 @@
     function press() {
       if (mode !== "run") return;
       audio.unlock();
-      if (car.pend) { resolve(gradeFor(T - car.pend.T, true)); return; }
-      if (car.air) { if (!car.tapped) { car.tapped = true; car.tapT = T; audio.fx.click(); } return; }
-      if (!car.charging) { car.charging = true; car.charge = 0; audio.fx.pumpStart(); }
+      held = true; // v49.27: landing taps are consumed once, including the 150ms pre-landing buffer
+      if (car.pend) { resolve(gradeFor(T - car.pend.T, true)); if (T - groundedAt > 0.1 || !held) return; }
+      if (car.air && T - groundedAt > 0.1) { if (tLand() <= 0.15) bufferedAt = T; if (!car.tapped) { car.tapped = true; car.tapT = T; audio.fx.click(); } return; }
+      if (!car.charging) { car.charging = true; car.charge = 0; inputLagMs = inputDownAt ? Math.max(0, performance.now() - inputDownAt) : 0; audio.fx.pumpStart(); }
     }
-    function release() { if (mode !== "run" || !car.charging) return; launch(); }
+    function release() { held = false; if (mode !== "run" || !car.charging) return; launch(); }
     function launch() {
       const ph = curCar().phys, c = Math.max(0.12, car.charge);
       car.charging = false; audio.fx.pumpStop();
-      car.air = true; car.tapped = false; car.pend = null; car.launchC = c; car.vy = ph.vMin + (ph.vMax - ph.vMin) * c; car.y = 0.5;
+      car.air = true; groundedAt = -9; car.tapped = false; car.pend = null; car.launchC = c; car.vy = ph.vMin + (ph.vMax - ph.vMin) * c; car.y = 0.5;
       car.vF += 260 + 380 * c; car.vR += 120 + 160 * c;
       audio.fx.pssh(c);
       if (run) { run.hops++; st.totals.hops++; if (st.totals.hops >= 1000) unlock("addict"); }
@@ -1157,11 +1183,13 @@
     }
     const tLand = () => (car.air ? (car.vy + Math.sqrt(Math.max(0, car.vy * car.vy + 2 * curCar().phys.g * car.y))) / curCar().phys.g : 0);
     function land() {
+      groundedAt = T; // v49.27: 100ms grace after touchdown
       const imp = -car.vy; car.vy = 0; car.air = false; car.y = 0;
       car.vF -= imp * 0.16; car.vR -= imp * 0.2;
       shakeIt(clamp(imp / 90, 1.5, 9)); audio.fx.thunk(clamp(imp / 900, 0.3, 1));
       burst(car.x + R64.rear, GY - 2, 6, "dust", { a: -2.8, spread: 1.6, sp: 90, life: 0.8, s: 1.4 }); burst(car.x + R64.front, GY - 2, 6, "dust", { a: -0.4, spread: 1.6, sp: 90, life: 0.8, s: 1.4 });
       if (!run) { if (auto) resolveAuto(); return; }
+      if (bufferedAt >= T - 0.15) { car.tapped = true; car.tapT = bufferedAt; } bufferedAt = -9;
       if (car.tapped) resolve(gradeFor(T - car.tapT, false)); else car.pend = { T, until: T + WIN.late };
     }
     function resolveAuto() { car.pend = null; if (car.launchC > 0.6 && rand() < 0.6) { audio.fx.ding(); crowd(1, 0.6, rand() < 0.4 ? "¡ÓRALE!" : null); } }
@@ -1206,7 +1234,7 @@
       pop("Damn.", { x: car.x - camX + 40, y: GY + 30, col: "#c9ced6", size: 13, life: 1.6, rise: 6 });
     }
     function hurt(why, o) {
-      if (!run || car.hurt > 0 || mode !== "run") return;
+      if ((god && god.on && god.invincible) || !run || car.hurt > 0 || mode !== "run") return;
       run.streak = 0; run.perfectRow = 0; run.tier = 0; audio.intensity(0); run.cleanFrom = run.meters;
       car.hurt = 1.1; shakeIt(10); burst(o ? o.x + o.w / 2 : car.x + 190, GY - 12, 18, "spark", { a: -1.2, spread: 2, sp: 260, life: 0.5 });
       if (why === "soft") { audio.fx.bonk(); pop("BONK!", { x: car.x - camX + 170, y: GY - 80, col: COL.orange, size: 20 }); car.vF -= 160; car.hurt = 0.5; return; }
@@ -1295,6 +1323,9 @@
 
     // ---- simulation
     function step(dt) {
+      if (!car.air && !car.pend) groundedAt = T; // v49.27: last road contact, 100ms coyote grace
+      prevCam = camX; prevX = car.x; prevY = car.y; // v49.27: fixed-step render snapshots
+      if (god && god.on) { if (run) { run.god = true; if (god.gas) { run.fuel = 1; run.out = false; } } dt *= god.speed || 1; }
       const ph = CARS[0].phys;
       if (ev && ev.type === "abuela" && ev.phase === "cross") dt *= 0.7;
       T += dt; voiceT += dt;
@@ -1302,11 +1333,13 @@
       if (mode === "run" || mode === "title" || mode === "crash") {
         let target = mode === "crash" || (run && run.out) ? 0 : cruise(difficulty());
         if (ev && (ev.type === "abuela" || ev.stop) && ev.phase !== "done") { const left = ev.x - 22 - (car.x + 200); target = Math.min(target, Math.max(0, left * 1.7)); }
+        if (obs.some((o) => o.kind === "bump" && !o.hit && car.v < 150 && o.x < car.x + 210 && o.x + o.w > car.x)) target = Math.min(target, 100); // v49.27: creep over a speed bump
         car.v += clamp(target - car.v, -520 * dt, 140 * dt);
         car.x += car.v * dt;
         if (ev && (ev.type === "abuela" || ev.stop) && ev.phase !== "done") car.x = Math.min(car.x, ev.x - 22 - 200);   // never hits her (or a horse)
         car.rot += (car.v * dt) / R64.r;
       }
+      for (const o of obs) if (o.kind === "copcar" && !o.hit) o.x += (o.vx || 0) * dt; // v49.27: parked or oncoming
       if (auto || mode === "title") autopilot();
       if (car.charging) { car.charge = Math.min(1, car.charge + dt / ph.chargeT); audio.fx.pumpLevel(car.charge); if (car.charge >= 1 && rand() < dt * 30) burst(car.x + rand() * 200, GY - 4, 1, "spark", { a: -1.57, spread: 2.4, sp: 120, life: 0.3 }); }
       // body on its springs (hydraulics squat while charging, sag a little when hurt)
@@ -1322,7 +1355,7 @@
       if (car.pend && T > car.pend.until) { if (inRun) resolve("scraped"); else car.pend = null; }
       car.hurt = Math.max(0, car.hurt - dt); car.scrape = Math.max(0, car.scrape - dt);
       if (car.scrape > 0 && rand() < dt * 50) burst(car.x + 196, GY - 3, 1, "spark", { a: -0.3, spread: 0.8, sp: 220, life: 0.35 });
-      camX = car.x - carSX;
+      camX = lerp(camX, car.x - carSX, 1 - Math.exp(-18 * dt)); // v49.27: subpixel camera
       if (inRun) {
         run.t += dt; run.meters = car.x / UPM;
         // obstacles
@@ -1333,13 +1366,16 @@
           if (o.pit) hit = car.y < 2 && W.some(([a, b]) => (a + b) / 2 > o.x + 6 && (a + b) / 2 < o.x + o.w - 6);
           else if (o.h > 20) hit = car.x + 6 < o.x + o.w && car.x + 194 > o.x && car.y + 6 < o.h;
           else hit = W.some(([a, b]) => a < o.x + o.w && b > o.x) && car.y < o.h;
+          if (car.air && car.x + 194 > o.x && car.x < o.x + o.w) o.jumped = true; // v49.27
+          if (o.kind === "bump" && car.v < 150) hit = false;
           if (hit) { o.hit = true; if (o.T && SX) SX.say(o, "hit"); if (!o.pit && !o.noKnock) o.knock = { x: 0, y: 0, a: 0, vx: car.v * 0.7 + 80, vy: 260, va: (rand() - 0.5) * 9, t: 0 }; hurt(o.soft ? "soft" : "hit", o); continue; }
-          if (o.x + o.w < car.x) { o.cleared = true; run.clears++; const p = (o.T ? o.T.pts || 80 : 40) * TIERS[run.tier].x; run.score += p; pop("+" + p, { x: o.x - camX + o.w / 2, y: GY - 40, col: "#fff", size: 13, life: 0.7, rise: 26 });
+          if (o.x + o.w < car.x) { o.cleared = true; run.clears++; const kind = o.T && o.T.cop ? "copcar" : o.kind; run.cleared[kind] = (run.cleared[kind] || 0) + 1; const clean = !!o.jumped && ["pothole", "bump", "pallet", "copcar"].includes(kind); const p = (clean ? kind === "copcar" ? 150 : 50 : o.T ? o.T.pts || 80 : 40) * TIERS[run.tier].x; run.score += p; pop((clean ? kind === "copcar" ? "+COP HOP " : "+CLEAN " : "+") + p, { x: o.x - camX + o.w / 2, y: GY - 40, col: "#fff", size: 13, life: 0.7, rise: 26 });
             if (o.T && SX) SX.over(o); }
         }
         for (const c of coins) if (!c.got && c.x > car.x && c.x < car.x + 200 && c.h > car.y && c.h < car.y + 76) { c.got = true; run.feria++; run.score += 10; audio.fx.coin(); burst(c.x, GY - c.h, 5, "star", { sp: 90, life: 0.4 }); }
-        if (SX && SX.run) SX.run(dt);   // a stage's own (San Antonio: pickups, the gas tank, the Trail Ride)
-        if (run.out && car.v < 4 && mode === "run") { mode = "crash"; later(() => { if (mode === "crash") endRun("gas"); }, 900); ctrl(); }
+        if (SX && SX.run) SX.run(dt);
+        if (god && god.on && god.gas) { run.fuel = 1; run.out = false; }   // a stage's own (San Antonio: pickups, the gas tank, the Trail Ride)
+        if (run.out && car.v < 4 && mode === "run" && !(god && god.on && god.invincible)) { mode = "crash"; later(() => { if (mode === "crash") endRun("gas"); }, 900); ctrl(); }
         if (run.meters - run.cleanFrom >= MILE) unlock("scratch");
         // events
         if (!evOn) {} else if (!ev && run.t > run.nextAbuela) { if (startEvent("abuela")) { const E = EVENTS.abuela.every; run.nextAbuela = run.t + E[0] + rand() * (E[1] - E[0]); if (run.nextChancla < run.t + 6) run.nextChancla = run.t + 6; } }
@@ -1376,19 +1412,19 @@
       // sky + far layers
       if (skyC) g.drawImage(skyC, 0, 0, LW, skyH);
       g.fillStyle = "#22092f"; g.fillRect(0, skyH - 2, LW, GY - skyH);
-      if (skylineC) tileX(skylineC, 0.06, GY - 70 - 260, 1000);
-      if (midC) tileX(midC, 0.22, GY - 60 - 170, 1000);
+      if (skylineC) tileX(skylineC, 0.035, GY - 70 - 260, 1000);
+      if (midC) tileX(midC, 0.13, GY - 60 - 170, 1000);
       // back billboards (parallax 0.45; the house ad is Chisme's own spot)
-      for (const b of bbs) { const sx = b.x - camX * 0.45; if (sx > LW + 10 || sx + b.w < -10) continue;
+      for (const b of bbs) { const sx = b.x - camX * 0.35; if (sx > LW + 10 || sx + b.w < -10) continue;
         g.drawImage(cached(bbCache, b, b.w + 20, b.h + 20, 10, 10, (x) => drawBillboard(x, b.s, b.w, b.h)), sx - 10, GY - 374 - 10, b.w + 20, b.h + 20); }
       // the boulevard's far side: lots on the sidewalk
-      for (const L of lots) { const sx = L.x - camX; if (sx > LW + 10 || sx + L.w < -10) continue; const top = L.top || 240;
+      for (const L of lots) { const sx = L.x - camX * 0.6; if (sx > LW + 10 || sx + L.w < -10) continue; const top = L.top || 240;
         g.drawImage(cached(lotCache, L, L.w + 40, top + 20, 20, top, (x) => (L.draw ? L.draw(x, L, season, H) : drawLot(x, L, season))), sx - 20, GY - 62 - top, L.w + 40, top + 20); }
       g.fillStyle = lg(g, 0, GY - 62, 0, GY - 46, [[0, "#4a3b5a"], [1, "#3a2d4a"]]); g.fillRect(0, GY - 62, LW, 16);
       g.fillStyle = "#6a5a7c"; g.fillRect(0, GY - 47, LW, 2);
       if (SX && SX.draw) SX.draw(g, t, "lot");
       for (const p of props) { const sx = p.x - camX; if (sx < -60 || sx > LW + 60) continue; drawProp(p, sx, t); }
-      for (const L of lots) if (L.tag) { const sx = L.x - camX; if (sx < LW && sx + L.w > 0) nameTag(L.tag, sx, sx + L.w, Math.max(84, GY - 62 - (L.tagY || L.top || 200) - 10)); }   // landmark name tags ride over the poles
+      for (const L of lots) if (L.tag) { const sx = L.x - camX * 0.6; if (sx < LW && sx + L.w > 0) nameTag(L.tag, sx, sx + L.w, Math.max(84, GY - 62 - (L.tagY || L.top || 200) - 10)); }   // landmark name tags ride over the poles
       for (const d of dogs) { const sx = d.x - camX; if (sx > -30 && sx < LW + 30) dog(g, sx, d.y, t, d.run, d.col); }
       for (const p of people) { const sx = p.x - camX; if (sx > -30 && sx < LW + 30) drawPerson(g, p, sx, t); }
       // road
@@ -1734,11 +1770,15 @@
       else if (a === "pause") { mode === "paused" ? resume() : pause(); }
       else if (a === "sound") setMute(!muted, true);
     }
-    function endRunQuiet() { if (run && !run.over) { run.over = true; syncWallet(); st.feria += run.feria; st.totals.runs++; st.totals.meters += Math.round(run.meters); st.totals.feria += run.feria; save(st); } run = null; }
+    function endRunQuiet() { if (run && !run.over && !run.god) { run.over = true; syncWallet(); st.feria += run.feria; st.totals.runs++; st.totals.meters += Math.round(run.meters); st.totals.feria += run.feria; save(st); } restoreGod(); run = null; }
     const onClick = (e) => { const b = e.target.closest("[data-act]"); if (!b || b.disabled) return; e.preventDefault(); e.stopPropagation(); act(b.dataset.act, b); };
     ov.addEventListener("click", onClick); pauseBtn.addEventListener("click", onClick); soundBtn.addEventListener("click", onClick);
-    const onDown = (e) => { if (e.target.closest("button,a,.lr-card")) return; if (mode !== "run") return; e.preventDefault(); try { wrap.setPointerCapture(e.pointerId); } catch (x) {} press(); };
+    const onDown = (e) => { if (e.target.closest("button,a,.lr-card,.lr-god")) return; if (mode !== "run") return; e.preventDefault(); inputDownAt = performance.now(); try { wrap.setPointerCapture(e.pointerId); } catch (x) {} press(); };
     const onUp = (e) => { if (mode !== "run") return; release(); };
+    // v49.27: cancel touch scrolling at contact; pointer browsers must not double-press.
+    wrap.style.touchAction = "none"; wrap.style.userSelect = "none"; wrap.style.webkitUserSelect = "none";
+    const onTouch = (e) => { if (e.target.closest("button,a,.lr-card,.lr-god")) return; e.preventDefault(); if (!root.PointerEvent) { if (e.type === "touchstart") { inputDownAt = performance.now(); press(); } else release(); } };
+    for (const type of ["touchstart", "touchend", "touchcancel"]) wrap.addEventListener(type, onTouch, { passive: false });
     wrap.addEventListener("pointerdown", onDown); wrap.addEventListener("pointerup", onUp); wrap.addEventListener("pointercancel", onUp);
     const onContext = (e) => e.preventDefault(); wrap.addEventListener("contextmenu", onContext);
     const keyOk = () => el.isConnected && (fs.on || el.getBoundingClientRect().top < innerHeight) && !/INPUT|TEXTAREA|SELECT/.test((document.activeElement || {}).tagName || "");
@@ -1765,7 +1805,10 @@
       if (visible && !frozen && mode !== "paused" && mode !== "over") { acc += dt; while (acc >= 1 / 120) { step(1 / 120); acc -= 1 / 120; } }
       else if (visible && mode === "over" && !frozen) { acc += dt; while (acc >= 1 / 120) { step(1 / 120); acc -= 1 / 120; } }
       if (garage.open) { garage.t += dt; drawGarage(garage.t); }
-      draw();
+      // v49.27: interpolate drawing only; collision and gameplay stay at 120Hz.
+      const snap = [camX, car.x, car.y], a = frozen ? 1 : acc * 120;
+      camX = lerp(prevCam, camX, a); car.x = lerp(prevX, car.x, a); car.y = lerp(prevY, car.y, a); draw();
+      [camX, car.x, car.y] = snap;
       if (visible) kick();
     }
     function kick() { if (!raf && alive) raf = requestAnimationFrame(frame); } // v49.26: retain frame timestamps
@@ -1779,6 +1822,21 @@
       for (const n in v) Object.defineProperty(K, n, { get: v[n] }); for (const n in w) Object.defineProperty(K, n, { get: w[n][0], set: w[n][1] });
       return K;
     }
+    // v49.27: only the authenticated private script receives these closures.
+    function sandboxGod() { if (!godSnapshot) godSnapshot = JSON.stringify(st); godSaves.add(st); if (run) run.god = true; }
+    function restoreGod() { if (godSnapshot) { const old = JSON.parse(godSnapshot); for (const k of Object.keys(st)) delete st[k]; Object.assign(st, old); godSnapshot = null; } godSaves.delete(st); }
+    const godHooks = { el: wrap, get: () => ({ ...god }), set(o) { god = { ...god, ...o }; if (![0.5, 1, 2, 3].includes(god.speed)) god.speed = 1; if (god.on) sandboxGod(); },
+      async skip(to) { sandboxGod(); if (stage.id !== "sa") { endRunQuiet(); mode = "title"; await useStage("sa"); } if (!alive) return; if (!run || mode !== "run") startRun(); if (!run) return; run.god = true;
+        if (to === "lap") { const lap = run.lap + 1; endRunQuiet(); startRun({ lap }); sandboxGod(); }
+        else if (to === "party") { ev = null; startEvent("party"); }
+        else { car.x = Math.max(car.x, run.goal * 0.25 * UPM); run.meters = car.x / UPM; } }, };
+    let godLoading = false, godButton = null;
+    const godFlag = () => /(?:[?&#])god=1(?:[&#]|$)/.test(location.search + location.hash);
+    function loadGod() { if (native() || godLoading || !/(?:^|;\s*)chisme_admin=1(?:;|$)/.test(document.cookie)) return; godLoading = true;
+      const script = document.createElement("script"); script.src = "/stats/lowrider/god.js"; script.async = true;
+      script.onload = () => { if (alive && !native() && root.ChismeLowriderGod) godUi = root.ChismeLowriderGod.attach(godHooks, godFlag()); script.remove(); };
+      script.onerror = () => { godLoading = false; script.remove(); }; document.head.appendChild(script); }
+    if (!native() && /(?:^|;\s*)chisme_admin=1(?:;|$)/.test(document.cookie)) { godButton = document.createElement("button"); godButton.type = "button"; godButton.textContent = "Owner controls"; godButton.onclick = loadGod; el.appendChild(godButton); if (godFlag()) loadGod(); }
     const api = {
       pause() { pause(); },
       exitFullscreen() { fs.exit(true); },
@@ -1786,13 +1844,15 @@
         if (!alive) return; alive = false; ++stageRequest; for (const cancel of stageCancels) cancel(); clearLater(); if (raf) cancelAnimationFrame(raf); raf = 0; if (run && !run.over && mode !== "over") endRunQuiet();
         removeEventListener("keydown", onKey); removeEventListener("keyup", onKey); document.removeEventListener("visibilitychange", onVis); document.removeEventListener("fullscreenchange", onFullscreen); removeEventListener("storage", onStorage);
         ov.removeEventListener("click", onClick); pauseBtn.removeEventListener("click", onClick); soundBtn.removeEventListener("click", onClick);
+        for (const type of ["touchstart", "touchend", "touchcancel"]) wrap.removeEventListener(type, onTouch);
+        if (godUi) godUi.destroy(); if (godButton) godButton.remove(); restoreGod();
         wrap.removeEventListener("pointerdown", onDown); wrap.removeEventListener("pointerup", onUp); wrap.removeEventListener("pointercancel", onUp); wrap.removeEventListener("contextmenu", onContext);
         if (ro) ro.disconnect(); audio.close(); try { fs.exit(true); } catch (e) {}
         if (lib.current === api) lib.current = null; el.innerHTML = "";
       },
       get state() {
         return { mode, score: run ? Math.round(run.score) : 0, meters: run ? run.meters : 0, runFeria: run ? run.feria : 0, feria: st.feria, best: st.best, streak: run ? run.streak : 0, mult: run ? TIERS[run.tier].x : 1,
-          lives: run ? run.lives : 3, air: car.air, charging: car.charging, charge: car.charge, y: car.y, tLand: tLand(), tapped: car.tapped, pend: !!car.pend, lastGrade, grades: { ...gradeCounts }, hops: st.totals.hops,
+          god: !!(god && god.on), godRun: !!(run && run.god), inputLagMs, cleared: { ...(run && run.cleared) }, sponsorSlots: sponsors.map((s) => ({ ...s, colors: [...s.colors] })), lives: run ? run.lives : 3, air: car.air, charging: car.charging, charge: car.charge, y: car.y, tLand: tLand(), tapped: car.tapped, pend: !!car.pend, lastGrade, grades: { ...gradeCounts }, hops: st.totals.hops,
           paint: st.equip.paint, owned: [...st.owned.paint], car: st.equip.car, cars: [...st.owned.car], carPaint: { ...st.carPaint }, stage: stage.id, stageLoaded: !!SM, native: native(),
           fuel: run ? run.fuel : null, outOfGas: run ? run.out : false, picks: run ? { ...run.picks } : null, cops: run ? run.cops : 0, trafficCleared: run ? run.traffic : 0, salutes: run ? run.salutes : 0, trails: run ? run.trails : 0, chase: SX && SX.state ? SX.state() : null, laps: { ...st.laps }, lap: run ? run.lap : null, boost: run ? run.boost || 0 : 0,
           traffic: obs.filter((o) => o.T).map((o) => ({ id: o.T.id, name: o.T.name, x: Math.round(o.x - car.x), vx: Math.round(o.vx), hit: o.hit, cleared: o.cleared })), bubbles: bubbles.map((b) => b.text),
@@ -1803,14 +1863,15 @@
           signs: { lots: lots.filter((L) => L.sign).map((L) => L.sign.name), billboards: bbs.map((b) => b.s.name), log: [...bbLog] }, season, carPos: { x: car.x, front: car.x + 200, v: car.v }, crosswalk: ev && (ev.type === "abuela" || ev.stop) ? ev.x : null };
       },
       debug: {
+        refreshSponsors() { bbs = []; bbCache.clear(); bbEnd = camX * 0.35; houseIn = 2; spawnAhead(); draw(); },
         auto(on) { auto = !!on; }, events(on) { evOn = !!on; }, freeze(on) { frozen = !!on; if (!on) kick(); }, zoom(z) { zoom = z || 1; draw(); }, draw() { draw(); }, step(sec = 0.1) { const n = Math.round(sec * 120); for (let i = 0; i < n; i++) step(1 / 120); draw(); },
         clear() { obs = []; coins = []; bubbles = []; pops = []; nextObs = car.x + 99999; hold = 0; }, spawn(kind, dx = 360) { const O = OBST[kind]; obs.push({ kind, x: car.x + 200 + dx, w: O.w, h: O.h, pit: !!O.pit, soft: !!O.soft, hit: false, cleared: false, knock: null }); },
         hold(on) { hold = on ? car.x + 1e9 : 0; nextObs = on ? car.x + 1e9 : car.x + 600; }, event(type, opt) { ev = null; return startEvent(type, opt || {}); },
         set(o) { if (o.feria != null) st.feria = o.feria; if (o.best != null) st.best = o.best; if (run && o.streak != null) { run.streak = o.streak; run.tier = tierOf(o.streak); } if (run && o.score != null) run.score = o.score; if (run && o.meters != null) { car.x = o.meters * UPM; run.meters = o.meters; } if (run && o.lives != null) run.lives = o.lives; if (o.y != null) car.y = o.y; save(st); },
         feria(n) { st.feria = n; save(st); }, end(reason) { endRun(reason || "wrecked"); }, press, release, launch(c) { car.charging = true; car.charge = c; launch(); },
         crowd(mood, text) { crowd(mood, 1, text); }, pop(grade) { resolve(grade); },
-        billboards(names) { bbs = []; bbCache.clear(); let x = camX * 0.45 + 12; for (const n of names) { const s = SIGNS.find((q) => q.name === n) || (SM && SM.billboards ? SM.billboards(native()).find((q) => q && q.name === n) : null); if (s) { bbs.push({ x, s, w: 196, h: 236 }); x += 222; } } bbEnd = x + 9999; draw(); },
-        lots(kinds, dx = -10) { lots = []; lotCache.clear(); people = []; dogs = []; props = []; let x = camX + dx; for (const k of kinds) { if (!SM) lotI = LOT_BAG.indexOf(k); lotEnd = x; addLot(SM ? k : undefined); if (SM) lots[lots.length - 1].gap = 0; x = lotEnd; } lotEnd = x + 99999; draw(); },
+        billboards(names) { bbs = []; bbCache.clear(); let x = camX * 0.35 + 12; for (const n of names) { const s = SIGNS.find((q) => q.name === n) || (SM && SM.billboards ? SM.billboards(native()).find((q) => q && q.name === n) : null); if (s) { bbs.push({ x, s, w: 196, h: 236 }); x += 222; } } bbEnd = x + 9999; draw(); },
+        lots(kinds, dx = -10) { lots = []; lotCache.clear(); people = []; dogs = []; props = []; let x = camX * 0.6 + dx; for (const k of kinds) { if (!SM) lotI = LOT_BAG.indexOf(k); lotEnd = x; addLot(SM ? k : undefined); if (SM) lots[lots.length - 1].gap = 0; x = lotEnd; } lotEnd = x + 99999; draw(); },
         stage(id) { return useStage(id); }, traffic(id, dx = 360, vx) { const T = SM && SM.traffic.find((q) => q.id === id); if (!T || !SX) return false; const o = SX.addTraffic(T, car.x + 200 + dx, difficulty()); o.x = car.x + 200 + dx; if (vx != null) o.vx = vx; return true; },
         pick(kind, dx = 300, h = 30) { if (SX) SX.addPick(kind, car.x + 200 + dx, h); }, fuel(f) { if (run) { run.fuel = f; if (f > 0) run.out = false; } }, picksClear(noGas) { picks = []; if (run && noGas) run.nextGas = 1e12; },
         unlockAll() { st.owned.car = CARS.map((c) => c.id); save(st); }, ride(id, paint) { const c = carById(id); st.equip.car = c.id; st.equip.paint = paint || st.carPaint[c.id] || c.paint; st.carPaint[c.id] = st.equip.paint; save(st); draw(); },
@@ -1824,6 +1885,6 @@
     return api;
   }
 
-  const lib = { mount, TITLE, STAGES, stages: {}, carById, PAINTS, CARS, WHEELS: { chrome: WHEEL_CHROME, bronze: WHEEL_BRONZE }, PATCH, OBST, EVENTS, SIGNS, ACH, GRADES, TIERS, WIN, SAVE_KEY, load, save, reset, migrate, fresh, BOARD, isoWeek, gradeFor, tierOf, current: null };
+  const lib = { mount, TITLE, STAGES, stages: {}, carById, PAINTS, CARS, WHEELS: { chrome: WHEEL_CHROME, bronze: WHEEL_BRONZE }, PATCH, OBST, EVENTS, SIGNS, SPONSOR_SLOTS, setSponsors, ACH, GRADES, TIERS, WIN, SAVE_KEY, load, save, reset, migrate, fresh, BOARD, isoWeek, gradeFor, tierOf, current: null };
   root.ChismeLowrider = lib;
 })(window);

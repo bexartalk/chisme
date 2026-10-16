@@ -88,8 +88,12 @@
       const list = document.querySelector("#juegos");   // back to the list of games
       if (list) { const top = parseFloat(getComputedStyle(document.body).paddingTop) || 70; window.scrollTo(0, Math.max(0, list.getBoundingClientRect().top + window.scrollY - top - 8)); }
     }
-    return { enter, exit, get on() { return on; } };
+    const ctl = { enter, exit, get on() { return on; } };
+    // v49.27: every game opens full screen when it's picked; a game that builds its controller later (lazy Lowrider) enters on creation
+    if (fsWant && (fsWant === stageEl || (fsWant.contains && fsWant.contains(stageEl)))) { fsWant = null; Promise.resolve().then(enter); }
+    lastFs = ctl; return ctl;
   }
+  let fsWant = null, lastFs = null;   // v49.27: the Juegos stage waiting to go full screen (set by a pick in the list)
 
   // ---- Chismería UI (v49.12: was Lotería Chismosa) ----
   // v41: the marker is a pinto bean (frijolito): a kidney shape, pale pinkish-tan with reddish-brown mottling, the little hilum
@@ -387,9 +391,11 @@
     };
     listEl.innerHTML = GAMES.map((g) => `<button type="button" class="game-pick" data-game="${g.id}" aria-pressed="false"><span class="gp-emo${g.thumb ? " gp-thumb" : ""}" aria-hidden="true">${g.thumb || g.emoji}</span><span><b>${esc(g.name)}</b><small>${esc(g.blurb)}</small></span></button>`).join("")
       + `<p class="game-more">More games coming soon.</p>`;
-    listEl.addEventListener("click", (e) => { const b = e.target.closest(".game-pick"); if (b) open(b.dataset.game); });
+    // v49.27: picking a game opens it full screen (same tap = the user gesture the Fullscreen API needs; the fixed overlay otherwise)
+    const pick = (id) => { const was = activeId; fsWant = stageEl; open(id); if (was === activeId) { fsWant = null; if (lastFs && !lastFs.on) lastFs.enter(); } };
+    listEl.addEventListener("click", (e) => { const b = e.target.closest(".game-pick"); if (b) pick(b.dataset.game); });
     open(GAMES[0].id);
-    return { open, pause() { if (active && active.pause) active.pause(); },
+    return { open, pick, pause() { if (active && active.pause) active.pause(); },
       leave() { if (active && active.exitFullscreen) active.exitFullscreen(true); if (active && active.pause) active.pause(); },   // another tab opened
       get game() { return active; }, get id() { return activeId; } };
   }

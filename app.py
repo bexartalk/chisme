@@ -3215,6 +3215,17 @@ async def juan_scores_all(request: Request):
     return JSONResponse({"ok": True, "scores": await juanscores.everything()}, headers=STATS_HEADERS)
 
 
+# v49.27: same owner/session guard and native exclusion as Juan's private controls.
+@app.get("/stats/lowrider/god.js", include_in_schema=False)
+async def lowrider_god_js(request: Request):
+    if "chismenative" in (request.headers.get("user-agent") or "").lower():
+        return JSONResponse({"ok": False, "error": "not allowed"}, status_code=404, headers=STATS_HEADERS)
+    if not await _juan_admin(request, json_only=False):
+        return _nope()
+    return Response((BASE / "private" / "lowrider_god.js").read_text(encoding="utf-8"), media_type="text/javascript; charset=utf-8",
+                    headers={**STATS_HEADERS, "Cache-Control": "no-store, private"})
+
+
 @app.get("/stats/juan/god.js", include_in_schema=False)
 async def juan_god_js(request: Request):
     """v49.15.x: the owner's god-mode panel for The Juan That Got Away (bug hunting: immortal, fly, noclip, speed, level

@@ -98,6 +98,8 @@ def static():
       const fs = require("fs"), saHex = ((fs.readFileSync(process.argv[2], "utf8") + fs.readFileSync(process.argv[3], "utf8")).match(/#[0-9a-fA-F]{6}\b/g) || []).filter(hue);
       const t = L.migrate({ v: 1, feria: 50, owned: { paint: ["turq", "gold", "x"] }, equip: { paint: "turq" }, runs: [{ score: 9, at: 1 }] }), f = L.fresh();
       const runs = { runs: [] }; L.BOARD.submit(runs, { score: 5, at: 2 }); L.BOARD.submit(runs, { score: 50, at: 3 }); const rank = L.BOARD.submit(runs, { score: 20, at: 4 });
+      const slot = {id:"test",name:"Test",line:"Hello barrio",colors:["#000000","#FFFFFF","#FF1A7F"],art:"text",sponsor:true};
+      if (!L.SPONSOR_SLOTS.every(s=>s.id && s.line && !s.sponsor) || !L.setSponsors([slot]) || L.setSponsors([{...slot,name:"<script>"}]) || L.setSponsors([{...slot,line:"https://example.com"}]) || L.setSponsors([slot,slot]) || !L.setSponsors([])) throw Error("sponsor validation");
       const bb = (n) => SA.billboards(n).map((s) => s && s.name);
       console.log(JSON.stringify({ cars: L.CARS.map((c) => [c.id, c.name, c.price]), paints: L.PAINTS.map((p) => [p.name, p.price]), events: Object.keys(L.EVENTS), trail: L.EVENTS.trail, signs: L.SIGNS,
         stages: L.STAGES.map((s) => s.id), paintYellow: L.PAINTS.flatMap((p) => Object.values(p).filter((v) => typeof v === "string" && v[0] === "#" && v.length === 7 && hue(v))),
@@ -372,10 +374,79 @@ async def chromium(p):
     s = await pg.evaluate(S); check("YOUR BUSINESS HERE" in s["signs"]["billboards"] and len(s["signs"]["billboards"]) == 5, "billboards shot: 4 made-up ads + the house ad")
     await pg.screenshot(path=os.path.join(OUT, "billboards.png")); await b.close()
 
+# v49.27: real DOM input and real HTTP owner gate (never inject a god hook/script).
+async def revision_4927(p):
+    b = await p.chromium.launch()
+    ctx, pg = await phone(p, b)
+    await start(pg)
+    instant = await pg.evaluate("""() => { const cv = document.querySelector('.lr-cv');
+      cv.dispatchEvent(new PointerEvent('pointerdown', { bubbles:true, cancelable:true, pointerId:7, pointerType:'touch' }));
+      const s = ChismeLowrider.current.state; cv.dispatchEvent(new PointerEvent('pointerup', { bubbles:true, pointerId:7 }));
+      return { charging:s.charging, lag:s.inputLagMs, action:getComputedStyle(cv.parentElement).touchAction, select:getComputedStyle(cv.parentElement).userSelect }; }""")
+    check(instant['charging'] and instant['lag'] < 17 and instant['action'] == 'none' and instant['select'] == 'none', f"pointerdown charges synchronously without click {instant}")
+    await pg.evaluate(D + ".step(2); " + D + ".launch(.6)")
+    await land_with_tap(pg, .12)
+    s0 = await pg.evaluate(S)
+    check(s0['lastGrade'] in ('perfect', 'puro') and not s0['pend'], 'a tap 120ms before landing is consumed as the landing tap')
+    coyote = await pg.evaluate("""() => { const g = ChismeLowrider.current, d = g.debug; d.step(1); d.launch(.3);
+      let n=0; while(g.state.air && n++<400) d.sim(1/120); d.sim(.05); d.press(); const charging=g.state.charging; d.release(); return charging && g.state.air; }""")
+    check(coyote, 'a press 50ms after touchdown can grade the landing and start another hop')
+    for stage in ('blvd', 'sa'):
+        await pg.evaluate(D + ".title()")
+        await pg.evaluate(D + f".stage('{stage}')")
+        await start(pg)
+        for kind in ('pothole', 'bump', 'pallet', 'copcar'):
+            result = await pg.evaluate("""kind => { const g = ChismeLowrider.current, d = g.debug;
+              d.clear(); d.auto(false); d.step(2); d.set({lives:3}); d.spawn(kind,0); d.step(.5);
+              const hit = g.state.lives === 2 && d.obs.some(o => o.kind === kind && o.hit);
+              d.clear(); d.step(2); d.set({lives:3}); const before = g.state.cleared[kind] || 0;
+              d.spawn(kind,500); d.auto(true); let n=0; while ((g.state.cleared[kind] || 0) === before && n++ < 720 && g.state.lives === 3) d.sim(1/120);
+              d.auto(false); d.draw(); const s = g.state;
+              return {hit, cleared:(s.cleared[kind] || 0) > before, lives:s.lives, bonus:s.pops.some(p => p.text.includes(kind === 'copcar' ? '+COP HOP ' : '+CLEAN '))}; }""", kind)
+            check(all((result['hit'], result['cleared'], result['lives'] == 3, result['bonus'])), f"{stage} {kind}: penalty, jump, counter and bonus {result}")
+    patrol = await pg.evaluate("""() => { const g=ChismeLowrider.current,d=g.debug; d.clear(); d.step(2); d.set({lives:3}); const before=g.state.cleared.copcar||0;
+      d.traffic('cop',600,-80); d.auto(true); let n=0; while((g.state.cleared.copcar||0)===before && n++<720 && g.state.lives===3) d.sim(1/120);
+      d.auto(false); return g.state.lives===3 && (g.state.cleared.copcar||0)>before; }""")
+    check(patrol, 'San Antonio oncoming cop traffic has a fair jump window')
+    sponsors = await pg.evaluate("""() => { const L = ChismeLowrider, slot = {id:'test',name:'Barrio Test',line:'See you on the boulevard',colors:['#000000','#FFFFFF','#FF1A7F'],art:'text',sponsor:true};
+      const good = L.setSponsors([slot]), names = L.current.state.sponsorSlots.map(s=>s.name);
+      const bad = [null, [{...slot,name:'<img>'}], [{...slot,line:'https://example.com'}], [{...slot,art:'image'}], [{...slot,colors:['yellow']}], [slot,slot]].every(x=>L.setSponsors(x)===false);
+      const unchanged = L.current.state.sponsorSlots[0].name === slot.name; L.setSponsors([]);
+      return {good,bad,unchanged,names,defaults:L.SPONSOR_SLOTS.every(s=>s.id && s.line && s.sponsor===false),house:L.SPONSOR_SLOTS.some(s=>s.name==='YOUR BUSINESS HERE' && s.line==='Ask Chisme')}; }""")
+    check(all(sponsors[k] for k in ('good','bad','unchanged','defaults','house')), f"sponsor inventory and atomic validation {sponsors}")
+    await ctx.close()
+    ctx = await b.new_context(service_workers='block')
+    response = await ctx.request.get(BASE + '/stats/lowrider/god.js')
+    check(response.status in (401,404), f"private Lowrider script rejects unsigned requests ({response.status})")
+    response = await ctx.request.get(BASE + '/stats/lowrider/god.js', headers={'User-Agent':'ChismeNative'})
+    check(response.status == 404, 'private Lowrider script is unavailable in native app')
+    await ctx.add_init_script(INIT + SEASON + QUIET)
+    pg = await ctx.new_page(); requests = []
+    pg.on('request', lambda r: requests.append(r.url) if '/stats/lowrider/god.js' in r.url else None)
+    await pg.goto(BASE + '/?god=1#puro-pinche-lowrider')
+    await pg.wait_for_function('window.ChismeLowrider && ChismeLowrider.current')
+    check(not requests and not await pg.evaluate(S + '.god') and not await pg.locator('.lr-god-badge').count(), '?god=1 alone: no script request, badge or god mode')
+    await ctx.add_cookies([{'name':'chisme_admin','value':'1','url':BASE}])
+    await pg.reload(); await pg.wait_for_function('window.ChismeLowrider && ChismeLowrider.current'); await pg.wait_for_timeout(300)
+    check(bool(requests) and not await pg.evaluate(S + '.god') and not await pg.locator('.lr-god-badge').count(), 'forged marker requests real endpoint but cannot activate god mode')
+    await ctx.clear_cookies()
+    token = os.environ.get('OWNER_TOKEN')
+    if token:
+        await pw_csp.admin_sign_in(pg, BASE, token)
+        await pg.goto(BASE + '/?god=1#puro-pinche-lowrider')
+        await pg.wait_for_function('window.ChismeLowrider && ChismeLowrider.current && ChismeLowrider.current.state.god')
+        check(await pg.locator('.lr-god-badge[data-on="1"]').count() == 1, 'owner loads god mode through the authenticated endpoint')
+        await start(pg)
+        before = await pg.evaluate("localStorage.getItem('lowrider_v1')")
+        await pg.evaluate(D + ".spawn('copcar',0); " + D + ".step(1); " + D + ".set({score:999999}); " + D + ".end()")
+        after = await pg.evaluate("localStorage.getItem('lowrider_v1')")
+        check(await pg.evaluate(S + '.lives') == 3 and before == after, 'owner invincible run leaves scores and Feria storage unchanged')
+    await ctx.close(); await b.close()
+
 async def main():
     static()
     async with async_playwright() as p:
-        await webkit(p); await chromium(p)
+        await webkit(p); await chromium(p); await revision_4927(p)
     print("\n" + ("ALL PASS" if not fails else f"{fails} FAILED"))
     raise SystemExit(1 if fails else 0)
 
