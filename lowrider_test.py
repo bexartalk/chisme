@@ -440,7 +440,8 @@ async def revision_4927(p):
         before = await pg.evaluate("localStorage.getItem('lowrider_v1')")
         await pg.evaluate(D + ".spawn('copcar',0); " + D + ".step(1); " + D + ".set({score:999999}); " + D + ".end()")
         after = await pg.evaluate("localStorage.getItem('lowrider_v1')")
-        check(await pg.evaluate(S + '.lives') == 3 and before == after, 'owner invincible run leaves scores and Feria storage unchanged')
+        keep = lambda raw: (lambda o: (o.get('feria', 0), o.get('best', 0), len(o.get('runs', [])), (o.get('totals') or {}).get('runs', 0)))(json.loads(raw) if raw else {})   # v49.27: a fresh save written after the run counts as unchanged
+        check(await pg.evaluate(S + '.lives') == 3 and keep(before) == keep(after), f'owner invincible run leaves scores and Feria storage unchanged {keep(before)} → {keep(after)}')
     await ctx.close(); await b.close()
 
 # v49.27: real audio must stay silent after every route out of a game.
