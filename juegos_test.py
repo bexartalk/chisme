@@ -445,7 +445,7 @@ async def webkit(p):
     check(all(h.startswith("mailto:") and "Report" in h for h in lk) and len(lk) <= 1, f"no links in the games (v49.12: only the Top 10's Report-a-name email link) ({lk})")
     check(not outside, f"no outside requests while playing (besides other tabs' images) ({outside[:3]})")
     # a fresh The Juan That Got Away (title screen), then News: Space there must not start the game
-    await pg.click('.game-pick[data-game="loteria"]'); await pg.click('.game-pick[data-game="juan"]'); await pg.wait_for_timeout(200)
+    await pg.click('.game-pick[data-game="loteria"]'); await pg.click('.gfs-x'); await pg.click('.game-pick[data-game="juan"]'); await pg.wait_for_timeout(200)   # v49.27: a pick opens full screen
     await pg.evaluate("__chisme.goView('news', { instant: true })"); await pg.wait_for_timeout(200)
     await pg.keyboard.press("Space"); await pg.wait_for_timeout(300)
     check((await st(pg))["mode"] == "title", "Space on another tab doesn't touch the game (and switching games drops the old one)")

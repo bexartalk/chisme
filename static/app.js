@@ -3331,6 +3331,7 @@ window.CHISME_APP_BUILD = "49.27";
   function goView(name, opts = {}) {
     const i = typeof name === "number" ? name : VIEWS.indexOf(name);
     if (i < 0) return;
+    if (VIEWS[i] !== "juegos") juegosLeave();   // v49.27: silence the game the moment you leave, not after the slide
     if (i === cur) { clearTimeout(animT); if (animOff) { animOff(); animOff = null; } unpeek(); track.classList.add("animating"); pos(i); if (opts.scrollTo) finish(i, opts.scrollTo); else updateTabs(); return; }
     if (opts.instant || reducedMotion()) { peek(i); finish(i, opts.scrollTo); return; }
     peek(i);
