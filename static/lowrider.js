@@ -172,7 +172,7 @@
     // v49.27: shared tracking keeps teardown small, including stage-created nodes.
     const sound = root.ChismeJuegos.audio; let spoke = false, blocked = false;
     const contexts = [];
-    const unregister = sound.register({ name: "lowrider", state: () => ({ contexts: contexts.map(a => a.state), speaking: spoke && !!(speechSynthesis.speaking || speechSynthesis.pending), pendingSounds: (timer == null ? 0 : 1) + pending() }) });
+    const unregister = sound.register({ name: "lowrider", state: () => ({ contexts: contexts.map(sound.stateOf), speaking: spoke && !!(speechSynthesis.speaking || speechSynthesis.pending), pendingSounds: (timer == null ? 0 : 1) + pending() }) });
     const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
     function ctx() {
       if (blocked) return null;

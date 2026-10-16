@@ -1401,7 +1401,7 @@
     let ac = null;
     // v49.27: stop scheduled blips on every pause; resume creates fresh sources.
     const sound = root.ChismeJuegos.audio;
-    const unregisterAudio = sound.register({ name: "juan", state: () => ({ contexts: ac ? [ac.state] : [] }) });
+    const unregisterAudio = sound.register({ name: "juan", state: () => ({ contexts: ac ? [sound.stateOf(ac)] : [] }) });
     const audio = () => { if (!ac) { const A = window.AudioContext || window.webkitAudioContext; if (A) try { ac = sound.track(new A()); } catch (e) {} } if (ac && ac.state === "suspended") ac.resume(); return ac; };
     function beep(f, d = 0.08, f2 = null, type = "square", vol = 0.04, at = 0) {
       if (st.muted) return; const a = audio(); if (!a) return;

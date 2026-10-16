@@ -15,10 +15,13 @@
         const make = ac[key].bind(ac);
         ac[key] = (...args) => { const n = make(...args); nodes.add(n); if ("onended" in n) n.addEventListener("ended", () => { nodes.delete(n); try { n.disconnect(); } catch (e) {} }); return n; };
       }
+      const res = ac.resume.bind(ac); ac.resume = () => { ac.__quiet = false; return res(); };
       ac.__hush = () => { for (const n of nodes) { try { if (n.stop) n.stop(); } catch (e) {} try { n.disconnect(); } catch (e) {} } nodes.clear(); };
       return ac;
     },
-    stop(ac, close = false) { if (!ac) return; if (ac.__hush) ac.__hush(); try { const p = close ? ac.close() : ac.suspend(); if (p) p.catch(() => {}); } catch (e) {} }
+    // v49.27: every node is stopped at once; WebKit's suspend() can take ~1 s to flip state, so report it as suspending meanwhile
+    stateOf(ac) { return ac.__quiet && ac.state === "running" ? "suspending" : ac.state; },
+    stop(ac, close = false) { if (!ac) return; ac.__quiet = true; if (ac.__hush) ac.__hush(); try { const p = close ? ac.close() : ac.suspend(); if (p) p.catch(() => {}); } catch (e) {} }
   };
   root.__chismeAudioActive = () => {
     const out = { contexts: [], playingMedia: 0, speaking: false, pendingSounds: 0 };
@@ -182,7 +185,7 @@
     const AUDIO = "/static/loteria/audio/", bad = new Set(), voice = { last: null, clips: 0, fallbacks: 0 };
     const hasVoice = "speechSynthesis" in window && typeof SpeechSynthesisUtterance === "function";
     let esVoice = null, au = null, queue = [], cur = null, spoke = false;
-    const unregisterAudio = audio.register({ name: "loteria", state: () => ({ contexts: actx ? [actx.state] : [], playingMedia: au && !au.paused && !au.ended ? 1 : 0, speaking: spoke && !!(speechSynthesis.speaking || speechSynthesis.pending), pendingSounds: queue.length + (timer != null ? 1 : 0) }) });
+    const unregisterAudio = audio.register({ name: "loteria", state: () => ({ contexts: actx ? [audio.stateOf(actx)] : [], playingMedia: au && !au.paused && !au.ended ? 1 : 0, speaking: spoke && !!(speechSynthesis.speaking || speechSynthesis.pending), pendingSounds: queue.length + (timer != null ? 1 : 0) }) });
     const pickVoice = () => { if (!hasVoice) return; const vs = speechSynthesis.getVoices();
       esVoice = vs.find((v) => /^es[-_]MX/i.test(v.lang)) || vs.find((v) => /^es[-_]US/i.test(v.lang)) || vs.find((v) => /^es/i.test(v.lang)) || null; };
     if (hasVoice) { pickVoice(); speechSynthesis.addEventListener && speechSynthesis.addEventListener("voiceschanged", pickVoice); }
