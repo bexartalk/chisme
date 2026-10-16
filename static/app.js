@@ -3212,6 +3212,7 @@ window.CHISME_APP_BUILD = "49.27";
   // v48: leaving the app also leaves a full-screen game (paused, back in the Juegos page with ▶ Resume), so reopening
   // Chisme never lands on a bare full-screen game with the header and tab bar hidden.
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") juegosLeave(); });
+  window.addEventListener("pagehide", juegosLeave); // v49.27
   const GAP = 24;
   const track = $("#track"), viewsEl = $("#views"), tabsEl = $("#tabs");
   const panes = VIEWS.map((v) => $("#view-" + v));
@@ -3828,6 +3829,7 @@ window.CHISME_APP_BUILD = "49.27";
   if (window.ChismeDonate) midLaunch = window.ChismeDonate.launch();
   if (midLaunch.line) { midTab = VIEWS[cur]; placeMid(); }   // a 5th open: the launch tab gets the one mid-list donate card
   window.addEventListener("hashchange", () => {   // #juegos, #loteria, #ice … typed or tapped while Chisme is open
+    juegosLeave(); // v49.27: even unknown hashes leave game audio silent
     const h = HASH_VIEW[location.hash]; if (!h) return;
     juegosWant = h[2] || null; goView(h[0], { scrollTo: h[1] || undefined });
     if (h[2] && VIEWS[cur] === "juegos") juegosOpen(h[2]);

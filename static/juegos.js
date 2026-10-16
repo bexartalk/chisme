@@ -5,6 +5,26 @@
    v40: the tab is called 🎲 Juegos (the view id stays "juegos"); games play full screen in portrait (fullscreen() below). */
 (function (root) {
   "use strict";
+  // v49.27: game-owned audio, including scheduled sources, stays observable through suspension.
+  const audioEntries = new Set();
+  const audio = {
+    register(entry) { audioEntries.add(entry); return () => audioEntries.delete(entry); },
+    track(ac) {
+      const nodes = new Set();
+      for (const key of ["createOscillator", "createBufferSource", "createGain", "createBiquadFilter"]) {
+        const make = ac[key].bind(ac);
+        ac[key] = (...args) => { const n = make(...args); nodes.add(n); if ("onended" in n) n.addEventListener("ended", () => { nodes.delete(n); try { n.disconnect(); } catch (e) {} }); return n; };
+      }
+      ac.__hush = () => { for (const n of nodes) { try { if (n.stop) n.stop(); } catch (e) {} try { n.disconnect(); } catch (e) {} } nodes.clear(); };
+      return ac;
+    },
+    stop(ac, close = false) { if (!ac) return; if (ac.__hush) ac.__hush(); try { const p = close ? ac.close() : ac.suspend(); if (p) p.catch(() => {}); } catch (e) {} }
+  };
+  root.__chismeAudioActive = () => {
+    const out = { contexts: [], playingMedia: 0, speaking: false, pendingSounds: 0 };
+    for (const entry of audioEntries) { const s = entry.state(); out.contexts.push(...(s.contexts || [])); out.playingMedia += s.playingMedia || 0; out.speaking = out.speaking || !!s.speaking; out.pendingSounds += s.pendingSounds || 0; }
+    return out;
+  };
   const KEY = "chisme-juegos";
   const FIESTA = ["#00b8b0", "#ff3d8b", "#ff8a00", "#111111", "#b9c0c7"];   // turquoise, pink, orange, black, silver
   // v41: the 54 traditional cards (names + folk verses) with our own original SVG art, from static/loteria_cards.js
@@ -56,6 +76,8 @@
     bar.querySelector(".gfs-x").addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); exit(); });
     const onKey = (e) => { if (on && e.key === "Escape" && !document.querySelector("dialog[open]")) { e.preventDefault(); exit(); } };
     const onResize = () => { if (on && opts.onResize) opts.onResize(); };
+    // v49.27: native fullscreen Escape/back also tears down CSS fullscreen audio.
+    const onNativeExit = () => { if (on && !document.fullscreenElement) exit(); };
     function enter() {
       if (on || !stageEl.isConnected) return;
       on = true;
@@ -63,7 +85,7 @@
       for (const h of homes) bar.querySelector(".gfs-extra").append(h.n);
       stageEl.classList.add("gfs", "no-swipe"); stageEl.setAttribute("aria-label", opts.title + ", full screen");
       document.documentElement.classList.add("game-fs");
-      document.addEventListener("keydown", onKey); window.addEventListener("resize", onResize);
+      document.addEventListener("keydown", onKey); window.addEventListener("resize", onResize); document.addEventListener("fullscreenchange", onNativeExit);
       try {   // optional: real browser full screen where it exists (not iPhone); harmless if it's refused
         const d = document.documentElement;
         if (opts.native !== false && d.requestFullscreen && !document.fullscreenElement && matchMedia("(pointer: coarse)").matches
@@ -74,13 +96,13 @@
     }
     // quiet = leaving because the tab changed or the game was swapped (no scrolling, no onExit)
     function exit(quiet) {
-      if (!on) return;
+      if (!on) { if (opts.onLeave) opts.onLeave(); return; }
       on = false;
       bar.remove();
       for (const h of homes) if (h.parent) h.parent.insertBefore(h.n, h.next && h.next.parentNode === h.parent ? h.next : null);
       stageEl.classList.remove("gfs", "no-swipe"); stageEl.setAttribute("aria-label", "Game");
       document.documentElement.classList.remove("game-fs");
-      document.removeEventListener("keydown", onKey); window.removeEventListener("resize", onResize);
+      document.removeEventListener("keydown", onKey); window.removeEventListener("resize", onResize); document.removeEventListener("fullscreenchange", onNativeExit);
       try { if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch (e) {} // v49.26: release the game's portrait lock
       try { if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {}); } catch (e) {}
       if (quiet === true) { if (opts.onLeave) opts.onLeave(); return; }
@@ -151,7 +173,7 @@
     const $ = (s) => el.querySelector(s);
     const fs = fullscreen(el, { title: "Chismería", badgeClass: "gfs-lot", barItems: [el.querySelector("#lot-pick"), el.querySelector("#lot-marked")],
       badge: '<span class="gfs-lot-emo" aria-hidden="true">🎴</span><span class="gfs-lot-t" aria-hidden="true"><b>Chismería</b></span>',
-      onExit: () => { pause(); hush(); speak(started && !over ? "Game paused. Tap Resume when you're back, honey." : "Pull up a chair! Tap Start and I'll call the cards.", null); },
+      onExit: () => { pause(); },
       onLeave: () => { pause(); } });
     // v41: Tía's voice is recorded ahead of time with a natural neural voice (Piper es_MX, tools/make_loteria_audio.py): one short
     // mp3 per card (the verse, then the name) plus the intro, ¡Órale! and the end of the deck, cached offline by the service
@@ -159,7 +181,8 @@
     // rest of the game. A clip that can't load or play falls back to the phone's own Spanish voice (speechSynthesis).
     const AUDIO = "/static/loteria/audio/", bad = new Set(), voice = { last: null, clips: 0, fallbacks: 0 };
     const hasVoice = "speechSynthesis" in window && typeof SpeechSynthesisUtterance === "function";
-    let esVoice = null, au = null, queue = [], cur = null;
+    let esVoice = null, au = null, queue = [], cur = null, spoke = false;
+    const unregisterAudio = audio.register({ name: "loteria", state: () => ({ contexts: actx ? [actx.state] : [], playingMedia: au && !au.paused && !au.ended ? 1 : 0, speaking: spoke && !!(speechSynthesis.speaking || speechSynthesis.pending), pendingSounds: queue.length + (timer != null ? 1 : 0) }) });
     const pickVoice = () => { if (!hasVoice) return; const vs = speechSynthesis.getVoices();
       esVoice = vs.find((v) => /^es[-_]MX/i.test(v.lang)) || vs.find((v) => /^es[-_]US/i.test(v.lang)) || vs.find((v) => /^es/i.test(v.lang)) || null; };
     if (hasVoice) { pickVoice(); speechSynthesis.addEventListener && speechSynthesis.addEventListener("voiceschanged", pickVoice); }
@@ -189,11 +212,11 @@
         const u = new SpeechSynthesisUtterance(it.text);
         u.lang = esVoice ? esVoice.lang : "es-MX"; if (esVoice) u.voice = esVoice; u.rate = st.speed === "fast" ? 1.1 : 0.95;
         u.onend = u.onerror = () => { if (cur === it) { cur = null; nextClip(); } };
-        speechSynthesis.cancel(); speechSynthesis.speak(u);
+        if (spoke) speechSynthesis.cancel(); spoke = true; speechSynthesis.speak(u);
       } catch (e) { cur = null; }
     }
     const talking = () => !!cur || queue.length > 0 || (!!au && !au.paused && !au.ended);
-    const hush = () => { queue = []; cur = null; if (au) try { au.pause(); } catch (e) {} if (hasVoice) try { speechSynthesis.cancel(); } catch (e) {} };
+    const hush = () => { queue = []; cur = null; if (au) try { au.pause(); au.currentTime = 0; au.removeAttribute("src"); au.load(); } catch (e) {} if (spoke && hasVoice) try { speechSynthesis.cancel(); } catch (e) {} spoke = false; };
     function stats() { $("#lot-stats").innerHTML = `🏆 Wins <b>${+st.wins || 0}</b> · 🔥 Streak <b>${+st.streak || 0}</b> · ⭐ Best streak <b>${+st.best || 0}</b>`; }
     function controls() {
       $("#lot-play").textContent = over ? "▶ Play again" : running ? "⏸ Pause" : started ? "▶ Resume" : "▶ Start";
@@ -244,7 +267,7 @@
     function start() { if (!started || over) { try { root.dispatchEvent(new CustomEvent("chisme-game-play", { detail: "loteria" })); } catch (e) {} }   // v42: a new game (not a resume), for the anonymous counts
       if (over) { deal(true); } fs.enter(); started = true; running = true; controls(); clearTimeout(timer); tick(); }
     function stop() { running = false; clearTimeout(timer); timer = null; if (tabla) controls(); }
-    function pause() { if (running) { stop(); hush(); } }
+    function pause() { stop(); hush(); audio.stop(actx); } // v49.27
     function confetti() {
       if (reduced()) return;   // reduce motion: the static "¡Órale!" banner only
       const box = document.createElement("div"); box.className = "lot-confetti"; box.setAttribute("aria-hidden", "true");
@@ -308,7 +331,7 @@
       if (st.muted) return;
       try {
         const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
-        actx = actx || new AC(); if (actx.state === "suspended") actx.resume();
+        actx = actx || audio.track(new AC()); if (actx.state === "suspended") actx.resume();
         const t = actx.currentTime + (on && !reduced() ? 0.2 : 0), o = actx.createOscillator(), g = actx.createGain();   // lands at the end of the drop
         o.type = "triangle"; o.frequency.setValueAtTime(on ? 420 : 300, t); o.frequency.exponentialRampToValueAtTime(on ? 150 : 520, t + 0.07);
         g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(on ? 0.5 : 0.25, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.1);
@@ -331,7 +354,7 @@
     return {
       pause,
       fs, exitFullscreen: (quiet) => fs.exit(quiet),
-      destroy() { fs.exit(true); stop(); hush(); if (au) au.removeAttribute("src"); if (actx) try { actx.close(); } catch (e) {} if (hasVoice && speechSynthesis.removeEventListener) speechSynthesis.removeEventListener("voiceschanged", pickVoice); },
+      destroy() { fs.exit(true); stop(); hush(); if (au) au.removeAttribute("src"); audio.stop(actx, true); unregisterAudio(); if (hasVoice && speechSynthesis.removeEventListener) speechSynthesis.removeEventListener("voiceschanged", pickVoice); },
       reload() { Object.assign(st, load()); stats(); controls(); },
       clearBeans, pick: (id) => { st.pick = id; save(st); deal(false); },
       get state() { return { pick: st.pick || "random", tabla: tabla.slice(), called: [...called], marks: [...marks], running, over, started, stats: { wins: st.wins, streak: st.streak, best: st.best }, muted: st.muted, speed: st.speed, fullscreen: fs.on, plinks,
@@ -400,7 +423,7 @@
       get game() { return active; }, get id() { return activeId; } };
   }
 
-  const api = { KEY, CARDS, PRESETS, GAMES, callText, LINES_ES, LINES, FIESTA, shuffle, newTabla, newDeck, check, load, save, reset, mountTab, fullscreen };
+  const api = { audio, KEY, CARDS, PRESETS, GAMES, callText, LINES_ES, LINES, FIESTA, shuffle, newTabla, newDeck, check, load, save, reset, mountTab, fullscreen };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.ChismeJuegos = api;
 })(typeof window !== "undefined" ? window : this);

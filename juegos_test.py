@@ -630,9 +630,50 @@ async def offline(p):
     check(cached["n"] == 57 and cached["cards"] and cached["status"] == 206 and cached["len"] == 100, f"offline: the service worker has all 57 recorded calls + the card art, and answers a Range request with 206 (for Safari) ({cached})")
     await b.close()
 
+# v49.27: real audio must stay silent after every route out of a game.
+async def audio_exit_regression(p):
+    b = await p.chromium.launch()
+    for game in ['juan', 'loteria']:
+        for way in ("x", "tab", "hash", "escape", "hidden", "pagehide", "swap"):
+            ctx = await b.new_context(service_workers="block")
+            await ctx.add_init_script(INIT + QUIET + ";localStorage.setItem('chisme-feed-sound','1');")
+            await quiet_board(ctx)
+            pg = await ctx.new_page()
+            await pg.goto(BASE + "/#" + game)
+            await pg.wait_for_function("window.__chisme && window.ChismeJuegos && __chisme.juegos.id === '" + game + "'")
+            if game == "lowrider":
+                if await pg.get_attribute('[data-act="sound"]', 'aria-pressed') == 'false':
+                    await pg.click('[data-act="sound"]')
+                await start(pg)
+            elif game == "juan":
+                await pg.click('#juan-ov [data-act="start"]')
+                if await pg.get_attribute('#juan-sound', 'aria-pressed') == 'false':
+                    await pg.click('#juan-sound')
+                await pg.keyboard.press('Space')
+            else:
+                if await pg.get_attribute('#lot-voice', 'aria-pressed') == 'false':
+                    await pg.click('#lot-voice')
+                await pg.click('#lot-play')
+            await pg.wait_for_function("(() => { const s = __chismeAudioActive(); return s.contexts.includes('running') || s.playingMedia > 0 || s.speaking; })()")
+            if way == "x": await pg.click('.gfs-x')
+            elif way == "tab": await pg.locator('.tab[data-view="chisme"]').first.dispatch_event('click')
+            elif way == "hash": await pg.evaluate("location.hash = '#chisme'")
+            elif way == "escape": await pg.keyboard.press('Escape')
+            elif way == "hidden": await pg.evaluate("Object.defineProperty(document, 'hidden', {value:true, configurable:true}); Object.defineProperty(document, 'visibilityState', {value:'hidden', configurable:true}); document.dispatchEvent(new Event('visibilitychange'))")
+            elif way == "pagehide": await pg.evaluate("window.dispatchEvent(new Event('pagehide'))")
+            else: await pg.locator('.game-pick[data-game="' + ('loteria' if game != 'loteria' else 'juan') + '"]').dispatch_event('click')
+            for delay in (500, 2500):
+                await pg.wait_for_timeout(delay)
+                state = await pg.evaluate('__chismeAudioActive()')
+                check('running' not in state['contexts'] and state['playingMedia'] == 0 and not state['speaking'] and state['pendingSounds'] == 0,
+                      f"{game} {way}: silent after {delay} ms ({state})")
+            await ctx.close()
+    await b.close()
+
 async def main():
     unit()
     async with async_playwright() as p:
+        await audio_exit_regression(p)
         await webkit(p); await fullscreen_shots(p); await offline(p)
     print("\n" + ("ALL PASS" if not fails else f"{fails} FAILED"))
     raise SystemExit(1 if fails else 0)

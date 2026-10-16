@@ -166,14 +166,20 @@
   // ---------------------------------------------------------------- sound: everything made on the phone with WebAudio
   // An original laid-back cruising groove (~94 BPM, A minor dorian vamp Am7 → D9): bass line, kick/snare/hats, congas,
   // clave, güiro, cowbell and a light combo organ; it builds with the combo and slows + muffles for Abuela.
-  function makeAudio(clock) {
+  function makeAudio(clock, pending) {
     let ac = null, master, music, musicLP, sfx, organBus, noise, muted = false, playing = false, timer = null;
     let step = 0, nextT = 0, bpm = 94, wantBpm = 94, intensity = 0, bars = 0, pump = null;
+    // v49.27: shared tracking keeps teardown small, including stage-created nodes.
+    const sound = root.ChismeJuegos.audio; let spoke = false, blocked = false;
+    const contexts = [];
+    const unregister = sound.register({ name: "lowrider", state: () => ({ contexts: contexts.map(a => a.state), speaking: spoke && !!(speechSynthesis.speaking || speechSynthesis.pending), pendingSounds: (timer == null ? 0 : 1) + pending() }) });
     const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
     function ctx() {
+      if (blocked) return null;
       if (!ac) {
+        for (const a of contexts) sound.stop(a, true); contexts.length = 0;
         const A = root.AudioContext || root.webkitAudioContext; if (!A) return null;
-        try { ac = new A(); } catch (e) { return null; }
+        try { ac = sound.track(new A()); contexts.push(ac); } catch (e) { return null; }
         master = ac.createGain(); master.gain.value = muted ? 0 : 0.85; master.connect(ac.destination);
         musicLP = ac.createBiquadFilter(); musicLP.type = "lowpass"; musicLP.frequency.value = 18000; musicLP.Q.value = 0.7;
         music = ac.createGain(); music.gain.value = 0.5; music.connect(musicLP); musicLP.connect(master);
@@ -288,22 +294,23 @@
     const pickV = () => { try { voices = speechSynthesis.getVoices() || []; } catch (e) { voices = []; } };
     if (hasVoice()) { pickV(); try { speechSynthesis.addEventListener && speechSynthesis.addEventListener("voiceschanged", pickV); } catch (e) {} }
     function say(text, lang = "en-US", o = {}) {
-      if (muted || !hasVoice() || (!o.force && speechSynthesis.speaking)) return false; const now = clock(); // v49.26: let the current line finish without queuing chatter
+      if (blocked || muted || !hasVoice() || (!o.force && speechSynthesis.speaking)) return false; const now = clock(); // v49.26: let the current line finish without queuing chatter
  if (!o.force && now - lastSay < (o.gap == null ? 1800 : o.gap)) return false; lastSay = now;
       try { const u = new SpeechSynthesisUtterance(text); u.lang = lang; const v = voices.find((x) => x.lang && x.lang.replace("_", "-").toLowerCase().startsWith(lang.toLowerCase())) || voices.find((x) => x.lang && x.lang.slice(0, 2) === lang.slice(0, 2));
-        if (v) u.voice = v; u.pitch = o.pitch || 1; u.rate = o.rate || 1; u.volume = o.volume == null ? 0.9 : o.volume; if (o.force) speechSynthesis.cancel(); speechSynthesis.speak(u); return true; } catch (e) { return false; }
+        if (v) u.voice = v; u.pitch = o.pitch || 1; u.rate = o.rate || 1; u.volume = o.volume == null ? 0.9 : o.volume; if (o.force && spoke) speechSynthesis.cancel(); spoke = true; speechSynthesis.speak(u); return true; } catch (e) { return false; }
     }
     return {
       fx, say, synth: { osc, nz, get on() { return !muted && !!ctx(); }, get ac() { return ac; }, get out() { return sfx; } },   // a stage adds its own sounds (lowrider-sa.js: honks, clops)
-      unlock() { ctx(); },
+      unlock() { blocked = false; ctx(); },
       get ready() { return !!ac; }, get state() { return ac ? ac.state : "none"; }, get playing() { return playing; },
-      setMuted(m) { muted = !!m; if (m) { fx.pumpStop(); try { hasVoice() && speechSynthesis.cancel(); } catch (e) {} } if (ac) master.gain.setTargetAtTime(m ? 0 : 0.85, ac.currentTime, 0.03); if (m) this.stopMusic(); },
-      startMusic() { if (muted || !ctx()) return; if (playing) return; playing = true; step = 0; bars = 0; nextT = ac.currentTime + 0.06; clearInterval(timer); timer = setInterval(tick, 25); tick(); },
+      setMuted(m) { muted = !!m; if (m) { fx.pumpStop(); try { spoke && hasVoice() && speechSynthesis.cancel(); } catch (e) {} } if (ac) master.gain.setTargetAtTime(m ? 0 : 0.85, ac.currentTime, 0.03); if (m) this.stopMusic(); },
+      startMusic() { blocked = false; if (muted || !ctx()) return; if (playing) return; playing = true; step = 0; bars = 0; nextT = ac.currentTime + 0.06; clearInterval(timer); timer = setInterval(tick, 25); tick(); },
       stopMusic() { playing = false; clearInterval(timer); timer = null; },
       intensity(n) { intensity = n; },
       muffle(on) { if (!ac) return; musicLP.frequency.setTargetAtTime(on ? 520 : 18000, ac.currentTime, on ? 0.15 : 0.3); },
       tempo(f) { wantBpm = 94 * f; },
-      close() { this.setMuted(true); this.stopMusic(); fx.pumpStop(); if (ac) try { const closing = ac.close(); if (closing && closing.catch) closing.catch(() => {}); } catch (e) {} ac = null; if (hasVoice() && speechSynthesis.removeEventListener) try { speechSynthesis.removeEventListener("voiceschanged", pickV); } catch (e) {} },
+      stop() { blocked = true; this.stopMusic(); fx.pumpStop(); if (spoke && hasVoice()) speechSynthesis.cancel(); spoke = false; sound.stop(ac); ac = null; },
+      close() { this.stop(); for (const a of contexts) sound.stop(a, true); unregister(); this.setMuted(true); this.stopMusic(); fx.pumpStop(); if (ac) try { const closing = ac.close(); if (closing && closing.catch) closing.catch(() => {}); } catch (e) {} ac = null; if (hasVoice() && speechSynthesis.removeEventListener) try { speechSynthesis.removeEventListener("voiceschanged", pickV); } catch (e) {} },
     };
   }
 
@@ -915,7 +922,7 @@
     const appMuted = () => { try { return localStorage.getItem("chisme-feed-sound") === "off"; } catch (e) { return false; } };   // Settings → ChismeTV sound, the app's one sound switch
     let muted = st.muted === null ? appMuted() : st.muted;
     let voiceT = 0; // v49.26: monotonic sim clock (world T resets between runs)
-    const audio = makeAudio(() => voiceT * 1000); audio.setMuted(muted);
+    const audio = makeAudio(() => voiceT * 1000, () => timers.size); audio.setMuted(muted);
     const timers = new Set(); // v49.26: mount-owned delayed effects
     function later(fn, ms) { const id = setTimeout(() => { timers.delete(id); if (alive) fn(); }, ms); timers.add(id); return id; }
     function clearLater() { for (const id of timers) clearTimeout(id); timers.clear(); }
@@ -939,7 +946,7 @@
     const BADGE = `<svg class="gfs-lr-car" viewBox="0 0 40 16" aria-hidden="true" focusable="false"><path d="M2 11 Q1 7 4 6.5 L12 6 L16 2.5 L27 2.5 L30 6 L37 6.5 Q39.5 7 39 11 Z" fill="#FF1A7F"/><circle cx="9" cy="12" r="3" fill="#000"/><circle cx="9" cy="12" r="1.6" fill="#fff"/><circle cx="32" cy="12" r="3" fill="#000"/><circle cx="32" cy="12" r="1.6" fill="#fff"/></svg>`;
     const FS = root.ChismeJuegos && root.ChismeJuegos.fullscreen;
     const fs = FS ? FS(el, { title: TITLE, badgeClass: "gfs-lr", badge: `${BADGE}<span class="gfs-lr-t" aria-hidden="true">Puro Pinche <b>Lowrider</b></span>`, barItems: [pauseBtn, soundBtn],
-      onEnter: () => fit(), onResize: () => fit(), onExit: () => { if (!alive) return; if (ovKind === "loading") { ++stageRequest; showTitle(); } if (mode === "run" || mode === "paused" || mode === "crash") endRun("quit"); fit(); }, onLeave: () => { if (!alive) return; if (ovKind === "loading") { ++stageRequest; showTitle(); } pause(); fit(); } }) : { enter() {}, exit() {}, on: false };
+      onEnter: () => fit(), onResize: () => fit(), onExit: () => { if (!alive) return; if (ovKind === "loading") { ++stageRequest; showTitle(); } if (mode === "run" || mode === "paused" || mode === "crash") endRun("quit"); pause(); fit(); }, onLeave: () => { if (!alive) return; if (ovKind === "loading") { ++stageRequest; showTitle(); } pause(); fit(); } }) : { enter() {}, exit() {}, on: false };
 
     // ---- stages (STAGES; a stage file registers lib.stages[id] = { back, lot, billboards, traffic, picks, … })
     const native = () => !!root.ChismeNative || /ChismeNative/i.test((root.navigator && root.navigator.userAgent) || "");   // the store app: no donation asks (Apple's rules)
@@ -1150,7 +1157,7 @@
       ctrl();
     }
     function pause() {
-      try { if (root.speechSynthesis) speechSynthesis.cancel(); } catch (e) {} // v49.26
+      clearLater(); audio.stop(); // v49.27
       if (mode !== "run") { if (mode === "title" || mode === "over") audio.stopMusic(); return; }
       mode = "paused"; car.charging = false; audio.fx.pumpStop(); audio.stopMusic();
       overlay(`<div class="lr-card lr-pausecard"><h3 class="lr-h">Paused</h3><p class="lr-sub">${esc(curCar().name)} is idling. Take your time.</p>

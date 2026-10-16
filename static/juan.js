@@ -1399,7 +1399,10 @@
       onEnter: () => fit(), onResize: () => fit(), onExit: () => { const m = mode, sc = score, lv = level; pause(); fit(); if (["run", "oops", "paused", "clear", "win"].includes(m) && sc > 0) offer(sc, lv); }, onLeave: () => { pause(); fit(); } }) : { enter() {}, exit() {}, on: false };
     // ---- sound: small WebAudio blips (🔇 mutes)
     let ac = null;
-    const audio = () => { if (!ac) { const A = window.AudioContext || window.webkitAudioContext; if (A) try { ac = new A(); } catch (e) {} } if (ac && ac.state === "suspended") ac.resume(); return ac; };
+    // v49.27: stop scheduled blips on every pause; resume creates fresh sources.
+    const sound = root.ChismeJuegos.audio;
+    const unregisterAudio = sound.register({ name: "juan", state: () => ({ contexts: ac ? [ac.state] : [] }) });
+    const audio = () => { if (!ac) { const A = window.AudioContext || window.webkitAudioContext; if (A) try { ac = sound.track(new A()); } catch (e) {} } if (ac && ac.state === "suspended") ac.resume(); return ac; };
     function beep(f, d = 0.08, f2 = null, type = "square", vol = 0.04, at = 0) {
       if (st.muted) return; const a = audio(); if (!a) return;
       try { const o = a.createOscillator(), v = a.createGain(), t0 = a.currentTime + at;
@@ -1871,6 +1874,7 @@
       raf = requestAnimationFrame(step);
     }
     function pause() {
+      sound.stop(ac);
       if ((mode === "run" || mode === "oops") && !paused) {
         if (mode === "oops") spawn(ck);
         paused = true; mode = "paused"; cancelAnimationFrame(raf); raf = null; draw();
@@ -2112,7 +2116,7 @@
     return {
       pause, resume, jump,
       fs, exitFullscreen: (quiet) => fs.exit(quiet),
-      destroy() { fs.exit(true); cancelAnimationFrame(raf); clearTimeout(hcT); if (brokeEl) brokeEl.remove(); document.removeEventListener("keydown", onKey); document.removeEventListener("keyup", onKeyUp); root.removeEventListener("resize", onWin); if (ro) ro.disconnect(); if (vv) vv.removeEventListener("resize", onWin); root.removeEventListener("orientationchange", onWin); root.removeEventListener("pageshow", onWin); document.removeEventListener("visibilitychange", onVis); clearTimeout(refitT); el.removeEventListener("click", onAct);
+      destroy() { fs.exit(true); sound.stop(ac, true); unregisterAudio(); cancelAnimationFrame(raf); clearTimeout(hcT); if (brokeEl) brokeEl.remove(); document.removeEventListener("keydown", onKey); document.removeEventListener("keyup", onKeyUp); root.removeEventListener("resize", onWin); if (ro) ro.disconnect(); if (vv) vv.removeEventListener("resize", onWin); root.removeEventListener("orientationchange", onWin); root.removeEventListener("pageshow", onWin); document.removeEventListener("visibilitychange", onVis); clearTimeout(refitT); el.removeEventListener("click", onAct);
         document.removeEventListener("visibilitychange", onShow); root.removeEventListener("pageshow", repaint); root.removeEventListener("online", onOnline); if (hsDlg) hsDlg.remove(); if (skDlg) skDlg.remove(); if (godUi && godUi.destroy) godUi.destroy(); godUi = null; god = null; cache = {}; },
       skins: { open: openSkins, get now() { return skinNow(); }, get unlocked() { return skinsOpen(); }, get owner() { return owner; }, list: JSKINS.map((k) => k[0]) },   // v49.5 (tests)
       hs: { loadBoard, offer, flushPending, get rows() { return merged(); }, get live() { return boardLive; }, get hi() { return hiId; }, get run() { return { ...run }; } },   // v49.5 (tests)
