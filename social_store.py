@@ -356,7 +356,7 @@ class SupabaseMedia:
     name = "supabase"
 
     def __init__(self, url: str, key: str, bucket: str, public: bool = True, client: httpx.AsyncClient | None = None):
-        self.url, self.key, self.bucket, self.public = url, key, bucket, public
+        self.base, self.key, self.bucket, self.public = url, key, bucket, public
         self.http = client or httpx.AsyncClient(timeout=20)
 
     def _h(self, extra=None):
@@ -366,23 +366,23 @@ class SupabaseMedia:
         return {**h, **(extra or {})}
 
     async def put(self, name, data):
-        r = await self.http.post(f"{self.url}/storage/v1/object/{self.bucket}/{name}", content=data,
+        r = await self.http.post(f"{self.base}/storage/v1/object/{self.bucket}/{name}", content=data,
                                  headers=self._h({"Content-Type": ctype(name), "Cache-Control": "max-age=31536000", "x-upsert": "false"}))
         if r.status_code >= 400:
             raise StorageError(f"Supabase Storage {r.status_code}")
 
     async def get(self, name):
-        r = await self.http.get(f"{self.url}/storage/v1/object/{self.bucket}/{name}", headers=self._h())
+        r = await self.http.get(f"{self.base}/storage/v1/object/{self.bucket}/{name}", headers=self._h())
         return r.content if r.status_code == 200 else None
 
     async def delete(self, names):
         if names:
-            r = await self.http.request("DELETE", f"{self.url}/storage/v1/object/{self.bucket}", json={"prefixes": names}, headers=self._h())
+            r = await self.http.request("DELETE", f"{self.base}/storage/v1/object/{self.bucket}", json={"prefixes": names}, headers=self._h())
             if r.status_code >= 400:
                 raise StorageError(f"Supabase Storage {r.status_code}")
 
     def url(self, name):
-        return f"{self.url}/storage/v1/object/public/{self.bucket}/{name}"
+        return f"{self.base}/storage/v1/object/public/{self.bucket}/{name}"
 
     def local_path(self, name):
         return None

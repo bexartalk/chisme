@@ -16,6 +16,7 @@ import secrets
 import shutil
 import subprocess
 import tempfile
+import traceback
 from datetime import datetime
 from pathlib import Path
 from typing import Awaitable, Callable
@@ -311,6 +312,10 @@ def wrap(fn):
         except (S.StorageError, OSError) as ex:
             print("social storage:", type(ex).__name__, str(ex)[:120])
             return bad("Chisme's storage is having a moment. Try again in a minute.", 503)
+        except Exception:
+            print("social error in", fn.__name__)
+            traceback.print_exc()
+            return bad("Chisme hit a snag on our end. Try again in a minute.", 500)
     inner.__name__ = fn.__name__
     inner.__signature__ = inspect.signature(fn)
     return inner

@@ -36,7 +36,13 @@
     let r, d = {};
     try { r = await fetch(path, o); d = await r.json().catch(() => ({})); }
     catch (e) { return { ok: false, error: "You look offline. Try again when you're back." }; }
-    if (!r.ok && !d.error) d.error = "Something went wrong. Try again.";
+    if (!r.ok && !d.error) {
+      if (r.status === 413) d.error = "That's too big to send. Try a smaller photo or a shorter video.";
+      else if (r.status === 429) d.error = "Slow down a little, cuh. Try again in a bit.";
+      else if (r.status === 401) d.error = "You got signed out. Sign in and try again.";
+      else if (r.status >= 500) d.error = "Chisme hit a snag on our end. Try again in a minute.";
+      else d.error = "Something went wrong. Try again.";
+    }
     d.status = r.status;
     return d;
   }
