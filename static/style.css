@@ -2617,6 +2617,13 @@ html[data-season="muertos"][data-theme="light"] .from-chisme .bubble-edge{fill:#
   .juan-hs-sheet{font-size:var(--legacy-rem);font-weight:500;line-height:1.4}
   .juan-skins{font-size:var(--legacy-rem);font-weight:500;line-height:1.4}
   .tab-l{font-size:var(--t-xs)!important;line-height:1.25;font-weight:600}
+  /* Keep narrow tabs readable, including the seasonal food label and enlarged text. */
+  .tabs .tab .tab-l,.tabs .tab b.tl{max-width:100%;font-weight:600}
+  html.text-large .tabs .tab .tab-l,html.text-large .tabs .tab b.tl{overflow-wrap:anywhere}
+  @media(max-width:360px){
+    .tabs .tab{padding-left:0;padding-right:0}
+    .tabs .tab .tab-l,.tabs .tab b.tl{font-size:max(12px,calc(.75rem * var(--t-scale)))!important;letter-spacing:-.01em}
+  }
 }
 /* Respect iOS Dynamic Type unless the user chose an explicit text size. */
 @supports (font: -apple-system-body) and (-webkit-touch-callout: none){
