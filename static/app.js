@@ -1,7 +1,7 @@
 /* Chisme — frontend (location-aware) */
 // Build of this file. Must equal the number in sw.js VERSION ("chisme-v22"); the page compares it
 // with the build the HTML was served for and reloads once if an old cached app.js got mixed in.
-window.CHISME_APP_BUILD = "49.27";
+window.CHISME_APP_BUILD = "49.27.1";
 (() => {
   "use strict";
   // v49.13: Chisme's public address for share links + the promo text: one setting on the server (PUBLIC_BASE_URL, else the
@@ -254,12 +254,12 @@ window.CHISME_APP_BUILD = "49.27";
 
   // ---------- text size
   const FS_KEY = "chisme-font-px";
-  const applyFs = (px) => document.documentElement.style.setProperty("--fs", px + "px");
+  const applyFs = (px) => (document.documentElement.style.fontSize = innerWidth >= 1024 ? "" : px + "px", document.documentElement.style.setProperty("--fs", Math.round(px * 19 / 16) + "px"), document.documentElement.style.setProperty("--t-scale", "1"), document.documentElement.classList.toggle("text-large", px >= 20));
   const savedFs = +localStorage.getItem(FS_KEY);
   if (savedFs) applyFs(savedFs);
   const curFs = () => parseFloat(getComputedStyle(document.documentElement).fontSize);
-  const showFs = () => { const px = Math.round(curFs()); $("#font-now").textContent = `${px} px${px === 19 || px === 21 ? " (default)" : ""}`; };
-  const bump = (d) => { const px = Math.min(30, Math.max(16, Math.round(curFs() + d))); applyFs(px); localStorage.setItem(FS_KEY, px); showFs(); map && map.invalidateSize(); };
+  const showFs = () => { const px = Math.round(curFs()); $("#font-now").textContent = `${px} px${px === 16 ? " (default)" : ""}`; };
+  const bump = (d) => { const px = Math.min(26, Math.max(14, Math.round(curFs() + d))); applyFs(px); localStorage.setItem(FS_KEY, px); showFs(); map && map.invalidateSize(); };
   $("#font-up").onclick = () => bump(2);
   $("#font-down").onclick = () => bump(-2);
 

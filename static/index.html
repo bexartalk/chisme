@@ -52,7 +52,13 @@
       try { pref = localStorage.getItem("chisme-theme") || "system"; fs = +localStorage.getItem("chisme-font-px"); rm = localStorage.getItem("chisme-reduce-motion"); } catch (e) {}
       var dark = pref === "dark" || (pref === "system" && window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches);
       d.dataset.theme = dark ? "dark" : "light";
-      if (fs) d.style.setProperty("--fs", fs + "px");
+      try {
+        if (localStorage.getItem("chisme-font-version") !== "2") {
+          if (fs) { fs = Math.min(26, Math.max(14, Math.round(fs * 16 / 19))); localStorage.setItem("chisme-font-px", fs); }
+          localStorage.setItem("chisme-font-version", "2");
+        }
+      } catch (e) {}
+      if (fs) { if (innerWidth < 1024) d.style.fontSize = fs + "px"; d.style.setProperty("--fs", Math.round(fs * 19 / 16) + "px"); d.style.setProperty("--t-scale", "1"); d.classList.toggle("text-large", fs >= 20); }
       if (rm === "1") d.classList.add("reduce-motion");
     })();
     /* v49.12: the Día de los Muertos season theme. On from 2026-10-03 00:00 to 2026-11-03 23:59:59 Chicago time, then

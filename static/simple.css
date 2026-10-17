@@ -80,4 +80,18 @@ html.simple .feed-placeholder{height:100%;display:flex;flex-direction:column;ali
 html.simple .feed-placeholder strong{font-size:clamp(1.8rem,7vw,3rem);font-weight:900;color:#fff}
 html.simple .feed-placeholder span{color:#fff;font-weight:700}
 html.simple .feed-share,html.simple .sx .feed-share{min-height:44px;padding:8px 18px;margin-top:10px;border:2px solid #19C3D9;border-radius:9px;background:#01063B;color:#fff;font-weight:700;cursor:pointer}
+html.simple .sx .react .feed-share{margin:0;padding:6px 10px;min-height:40px;border-radius:999px;white-space:nowrap;align-self:center}
 html.simple .feed-share:focus-visible{outline:3px solid var(--sf-link);outline-offset:3px}
+
+/* v49.27.1 type scale (phones) */
+@media (max-width:1023px){
+  html.simple .mix-item h3{font-size:var(--t-lg);line-height:1.25}
+  .tv-row-t{font-size:var(--t-md)}
+  .tv-row-all{font-size:var(--t-sm)}
+  .tv-play{font-size:var(--t-xs)}
+  .tv-by{font-size:var(--t-xs)}
+  html.simple .feed-placeholder strong{font-size:var(--t-xl)}
+  html.simple .mix-item .sum{font-size:var(--t-md);font-weight:400;line-height:var(--lh-body);overflow-wrap:anywhere}
+  html.simple .mix-item p{font-size:var(--t-md);font-weight:400;line-height:var(--lh-body);overflow-wrap:anywhere}
+  html.simple .mix-item>*{min-width:0;overflow-wrap:anywhere}
+}

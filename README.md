@@ -1,5 +1,7 @@
 # Chisme
 
+- **v49.27.1 — typography:** shared phone type scale, system UI fonts, Dynamic Type and migrated text-size preferences; desktop and game artwork preserved.
+
 **Chisme** (Spanish slang for gossip, or the neighborhood news) is a local news + weather app for **wherever you are**. It uses your phone's location (e.g. South San, San Antonio) to rank nearby stories and fetch your weather. The home screen stays clean: the place is shown and changed in **Settings** (tap the Chisme logo).
 It uses large, bold, high-contrast text, and it's an **installable phone app (PWA)** that opens full-screen and still works offline.
 

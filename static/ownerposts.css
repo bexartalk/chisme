@@ -81,3 +81,29 @@ body.site.op-page-news{background:#e9eef0}
   .op-card:has(>.op-cimg)>:not(.op-cimg){grid-column:2}
   .op-news .op-h{font-size:1.35rem}
 }
+
+/* v49.27.1 type scale (phones) */
+@media (max-width:1023px){
+  .op-badge{font-size:var(--t-sm)}
+  .op-cat{font-size:var(--t-sm)}
+  .op-pin{font-size:var(--t-xs)}
+  .op-spon{font-size:var(--t-xs)}
+  .op-draft{font-size:var(--t-xs)}
+  .op-cimg figcaption{font-size:var(--t-xs)}
+  .op-fig figcaption{font-size:var(--t-xs)}
+  .op-h{font-size:var(--t-lg)}
+  .op-sum{font-size:var(--t-md);line-height:var(--lh-body);overflow-wrap:anywhere}
+  .op-meta{font-size:var(--t-xs);font-weight:500}
+  .op-acts button{font-size:var(--t-sm)}
+  .op-x{font-size:calc(1.6 * 1.1875rem)}
+  .op-sh{font-size:var(--t-xl)}
+  .op-h1{font-size:var(--t-xl)}
+  .op-time{font-size:var(--t-xs);font-weight:500}
+  .op-body{font-size:var(--t-md);line-height:var(--lh-body);overflow-wrap:anywhere}
+  .op-mapc{font-size:var(--t-xs)}
+  .op-src{font-size:var(--t-md);line-height:var(--lh-body);overflow-wrap:anywhere}
+  .op-page .op-article{font-size:var(--t-md)}
+  .op-page .op-h1{font-size:var(--t-xl)}
+  .op-news .op-h{font-size:var(--t-lg)}
+  .op-card>*{min-width:0;overflow-wrap:anywhere}
+}

@@ -56,7 +56,7 @@ body.sx-locked { overflow: hidden; }
 .sx .empty { text-align: center; color: var(--muted); padding: 28px 16px; }
 .sx .loading { text-align: center; color: var(--muted); padding: 28px; }
 .sx .list { display: flex; flex-direction: column; gap: 10px; padding: 0 8px; }
-.sx .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 0; border-radius: 12px; padding: 11px 16px; font: 700 .95rem/1.1 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; text-decoration: none; cursor: pointer; min-height: 44px; color: var(--card); background: var(--ink); }
+.sx .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 0; border-radius: 12px; padding: 11px 16px; font: 700 .95rem/1.1 var(--font-ui); text-decoration: none; cursor: pointer; min-height: 44px; color: var(--card); background: var(--ink); }
 .sx .btn.pink { background: var(--pk); }
 .sx .btn.acc { background: var(--sx-acc); color: #fff; }
 .sx .btn.ghost { background: var(--sx-surf); color: var(--ink); border: 1.5px solid var(--line); }
@@ -115,7 +115,7 @@ body.sx-locked { overflow: hidden; }
 .sx .clip iframe { width: 100%; aspect-ratio: 9 / 16; max-height: 70vh; border: 0; display: block; }
 .sx .clip-t { margin: 0; padding: 8px 10px; font-size: .9rem; }
 .sx .react { display: flex; gap: 0; margin-top: 6px; border-top: 1px solid var(--line); padding-top: 6px; }
-.sx .rx { display: inline-flex; align-items: center; gap: 4px; background: none; border: 0; border-radius: 999px; padding: 6px 7px; font: 600 .9rem/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: var(--muted); cursor: pointer; min-height: 40px; text-decoration: none; }
+.sx .rx { display: inline-flex; align-items: center; gap: 4px; background: none; border: 0; border-radius: 999px; padding: 6px 7px; font: 600 .9rem/1 var(--font-ui); color: var(--muted); cursor: pointer; min-height: 40px; text-decoration: none; }
 .sx .rx span:first-child { font-size: 1.15rem; }
 .sx .rx.on { background: var(--sx-note-bg); color: var(--sx-hot); }
 .sx .rx.save { margin-left: auto; }
@@ -157,7 +157,7 @@ body.sx-locked { overflow: hidden; }
 .sx .x { position: absolute; top: 8px; right: 8px; width: 44px; height: 44px; border: 0; background: var(--bg); border-radius: 50%; font-size: 1rem; cursor: pointer; }
 .sx .menu { display: flex; flex-direction: column; gap: 4px; }
 .sx .menu.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.sx .item { text-align: left; background: var(--bg); border: 0; border-radius: 12px; padding: 13px 12px; font: 600 .98rem/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; cursor: pointer; min-height: 48px; color: var(--ink); }
+.sx .item { text-align: left; background: var(--bg); border: 0; border-radius: 12px; padding: 13px 12px; font: 600 .98rem/1.2 var(--font-ui); cursor: pointer; min-height: 48px; color: var(--ink); }
 .sx .item.sx-big span { font-size: 1.35rem; }
 .sx .item.danger { color: var(--sx-hot); }
 .sx .reasons { display: flex; flex-direction: column; gap: 4px; }
@@ -183,7 +183,7 @@ body.sx-locked { overflow: hidden; }
 .sx .tool:hover { background: var(--bg); }
 .sx .sx-label { font-weight: 800; font-size: .85rem; margin: 6px 0 0; letter-spacing: .04em; }
 .sx .aud-pick { display: flex; gap: 6px; flex-wrap: wrap; }
-.sx .audb { border: 1.5px solid var(--line); background: var(--sx-surf); border-radius: 999px; padding: 9px 12px; font: 600 .9rem/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; min-height: 42px; cursor: pointer; color: var(--ink); }
+.sx .audb { border: 1.5px solid var(--line); background: var(--sx-surf); border-radius: 999px; padding: 9px 12px; font: 600 .9rem/1 var(--font-ui); min-height: 42px; cursor: pointer; color: var(--ink); }
 .sx .audb.on { background: var(--tq); border-color: var(--tq); color: #fff; }
 .sx .clips { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
 .sx .clip-row { display: grid; grid-template-columns: 96px 1fr; gap: 10px; text-align: left; align-items: center; background: var(--bg); border: 0; border-radius: 12px; padding: 6px; cursor: pointer; font: inherit; color: var(--ink); }
@@ -321,8 +321,8 @@ html.reduce-motion .sx .p-hdr-air { animation: none; }
 .sx .p-hdr-tools { position: absolute; z-index: 4; top: 8px; left: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
 .sx .p-hdr-tools .chip-btn { background: rgba(0, 0, 0, .78); color: #fff; box-shadow: 0 0 0 1.5px #C0C0C0; }
 html[data-season="muertos"] .sx .profile .p-hdr { box-shadow: none; }
-.sx .p-name { font-family: "Chisme Profile Display", "Arial Rounded MT Bold", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-weight: 400; font-size: 2rem; line-height: 1.05; letter-spacing: .3px; margin: 10px 0 2px; }
-.sx .p-name .sx-bdg { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: .7em; }
+.sx .p-name { font-family: "Chisme Profile Display", "Arial Rounded MT Bold", var(--font-ui); font-weight: 400; font-size: 2rem; line-height: 1.05; letter-spacing: .3px; margin: 10px 0 2px; }
+.sx .p-name .sx-bdg { font-family: var(--font-ui); font-size: .7em; }
 
 /* v49.20 Homies in account setup: the featured step and the highlight on your own profile (turquoise + pink, no yellow) */
 .sx .sx-hl { border: 3px solid #00C9CD; background: linear-gradient(135deg, rgba(0,201,205,.16), rgba(255,26,127,.10)); box-shadow: 0 4px 0 #FF1A7F; }
@@ -349,3 +349,99 @@ html[data-season="muertos"] .sx .profile .p-hdr { box-shadow: none; }
    card colour (3.3:1): black bold on #FF1A7F is ≈5.8:1. */
 html[data-season="muertos"] .sx-back { color: #5fe0ec; }
 .btn.pink, .sx .btn.pink, html[data-season="muertos"] .btn.pink { color: #000; font-weight: 900; }
+
+/* v49.27.1 type scale (phones) */
+@media (max-width:1023px){
+  .sx-chip{font-size:var(--t-xs)}
+  .sx-lbl{font-size:var(--t-xs);font-weight:600}
+  .sx-compose .sx-plus{font-size:var(--t-xs)}
+  .sx-face{font-size:calc(1.1 * var(--legacy-rem))}
+  .sx h1:not(.p-name){font-size:var(--t-xl)}
+  .sx .h2{font-size:var(--t-lg)}
+  .sx .small{font-size:var(--t-xs);font-weight:500}
+  .sx .note{font-size:var(--t-sm)}
+  /* Social posts, comments and profile */
+  .sx .btn.sx-big{font-size:var(--t-md)}
+  .sx .fld{font-size:var(--t-sm);font-weight:600}
+  .sx .chk{font-size:var(--t-sm)}
+  .sx .links{font-size:var(--t-sm)}
+  .sx .new{font-size:var(--t-xs)}
+  .sx .av-i{font-size:calc(1.1 * var(--legacy-rem))}
+  .sx .more{font-size:calc(1.3 * var(--legacy-rem))}
+  .sx .sx-pin{font-size:var(--t-xs)}
+  .sx .aud{font-size:var(--t-xs)}
+  .sx .meme-badge{font-size:var(--t-xs)}
+  .sx .clip-tag{font-size:var(--t-xs)}
+  .sx .clip-tt{font-size:calc(3 * var(--legacy-rem))}
+  .sx .sx-play{font-size:calc(1.5 * var(--legacy-rem))}
+  .sx .clip-t{font-size:var(--t-sm)}
+  .sx .rx span:first-child{font-size:calc(1.15 * var(--legacy-rem))}
+  /* Profile and sheets */
+  .sx .p-counts b{font-size:var(--t-md)}
+  .sx .ptabs a{font-size:var(--t-sm);min-height:44px;font-weight:600}
+  .sx .sheet-card h2{font-size:var(--t-lg)}
+  .sx.sheet-card h2{font-size:var(--t-lg)}
+  .sx .x{font-size:var(--t-md)}
+  .sx .item.sx-big span{font-size:var(--t-lg)}
+  .sx .big-txt{font-size:var(--t-md)!important}
+  .sx .thumb figcaption{font-size:var(--t-xs)}
+  .sx .tool{font-size:calc(1.4 * var(--legacy-rem))}
+  .sx .sx-label{font-size:var(--t-xs)}
+  .sx .pill{font-size:var(--t-xs)}
+  .sx .legal .form label{font-size:var(--t-sm)}
+  .sx .rm{font-size:var(--t-xs)}
+  .sx .rx{justify-content:center;font-size:var(--t-sm);min-height:40px;line-height:1.25;font-weight:600;flex:0 1 auto;width:40px;min-width:max-content;padding:6px 0;gap:2px;white-space:nowrap}
+  /* Settings and legal */
+  .sx .sx-legal-nav a{font-size:var(--t-xs)}
+  .sx .sx-legal-body{font-size:var(--t-xs)}
+  .sx .sx-legal-body h1{font-size:var(--t-xl)}
+  .sx .sx-legal-body h2{font-size:var(--t-md)}
+  .sx .sx-legal-body h3{font-size:var(--t-sm)}
+  .sx .sx-legal-foot{font-size:var(--t-xs)}
+  .sx .taco-h{font-size:var(--t-md)}
+  .sx .held-note{font-size:var(--t-sm)}
+  .sx .adm-tabs a{font-size:var(--t-xs)}
+  .sx .adm-stat b{font-size:calc(1.5 * var(--legacy-rem))}
+  .sx .menu .adm-h{font-size:var(--t-xs)}
+  .sx .sx-step{font-size:var(--t-xs)}
+  .sx .p-homies-t{font-size:var(--t-md)}
+  .sx-nudge .nudge-pitch{font-size:var(--t-md)}
+  .sx-nudge .btn{font-size:var(--t-md)}
+  .sx{font-size:var(--t-md);line-height:var(--lh-body)}
+  .sx .sx-txt{font-size:var(--t-md);font-weight:400}
+  .sx .comment .sx-txt{font-size:var(--t-sm)}
+  /* Post and comment layout */
+  .sx .who b{font-size:var(--t-md);font-weight:600}
+  .sx .who small{font-size:var(--t-xs);font-weight:500}
+  .sx time{font-size:var(--t-xs);font-weight:500}
+  .sx .btn{font-size:var(--t-sm);min-height:44px;font-weight:600}
+  .sx .who>*{min-width:0;overflow-wrap:anywhere}
+  .sx .by>*{min-width:0;overflow-wrap:anywhere}
+  .sx .comment>*{min-width:0;overflow-wrap:anywhere}
+  .sx .profile>*{min-width:0;overflow-wrap:anywhere}
+  .sx .comment{grid-template-columns:32px minmax(0,1fr);padding:10px}
+  .sx .p-name{font-size:calc(2 * var(--legacy-rem));overflow-wrap:anywhere}
+  .sx h2{font-size:var(--t-lg)}
+  .sx p{overflow-wrap:anywhere}
+  .sx label{overflow-wrap:anywhere}
+  .sx a{overflow-wrap:anywhere}
+  .sx b{overflow-wrap:anywhere}
+  .sx .comment b{font-size:var(--t-md);font-weight:600}
+  .sx .card{padding:14px}
+  .sx .card.comment{padding:10px}
+  /* Content-sized targets wrap as units; Share keeps its accessible label. */
+  @media(max-width:399px){   /* the full row only fits with the Share label from 400 px up */
+    .sx .rx[aria-label="Share"] > span:last-child{display:none}
+  }
+  html.text-large .sx .rx[aria-label="Share"] > span:last-child{display:none}
+  .sx .sx-feed .list{padding:0}
+  .sx .react{gap:8px 0;margin-left:0;margin-right:0;flex-wrap:wrap;justify-content:space-between}
+  .sx .rx{max-width:100%;overflow-wrap:anywhere}
+  .sx .profile :is(.p-btns,.p-top,.p-user,.p-name,.ptabs,.ptabs a,.p-homies,.p-homies > *){min-width:0;overflow-wrap:anywhere}
+  .sx .p-btns{flex-wrap:wrap;justify-content:flex-end}
+  .sx code{font-size:max(13px,var(--t-xs));overflow-wrap:anywhere}
+  .sx input:not([type=checkbox]),.sx textarea,.sx select{font-size:max(16px,var(--t-md))!important}
+  .sx .p-homies .small{font-size:var(--t-md);font-weight:400}
+  .sx .p-top .av-i{font-size:calc(2.6 * var(--legacy-rem))}
+  html[data-season="muertos"] .sx .h2{color:#f3e8ff}
+}
