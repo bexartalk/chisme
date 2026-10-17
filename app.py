@@ -23,6 +23,7 @@ import re
 import secrets
 import time
 import urllib.parse
+import unicodedata
 from calendar import timegm
 from datetime import date, datetime, time as dtime, timedelta, timezone
 from pathlib import Path
@@ -417,6 +418,103 @@ def clean_text(s: str | None, limit: int = 240) -> str:
     return t
 
 
+# Single-character tokens only: ordinary words, initials and Q & A stay intact.
+LETTER_SPACED_RX = re.compile(r"(?<![\w.])[A-Za-z0-9](?: [A-Za-z0-9]){2,}(?![\w.])")
+SPAM_DROPPED: dict[str, int] = {}
+# Newsrooms whose "how to watch / TV channel / streaming" sports explainers are real (Google News source names).
+TRUSTED_SOURCE_RX = re.compile(r"\b(?:ksat|kens ?5?|news 4|woai|fox san antonio|kabb|express-news|expressnews|mysa|san antonio report|"
+                               r"san antonio current|texas public radio|tpr|spectrum news|texas tribune|business journal|telemundo|univision|"
+                               r"espn|cbs sports|fox sports|nbc sports|yahoo sports|usa today|associated press|ap news|maxpreps|nfhs network|"
+                               r"uil|ktsa|the athletic|sports illustrated|houston chronicle|dallas morning news|austin american-statesman)\b", re.I)
+
+
+def _spaced_words(match: re.Match) -> list[str]:
+    # Capitalized words can share the same single-space run ("L i v e S t r e a m").
+    return re.split(r"(?<=[a-z0-9]) (?=[A-Z])", match.group())
+
+
+def clean_title(t: str, limit: int = 160) -> str:
+    """Normalize display headlines without changing ordinary punctuation or initials."""
+    t = unicodedata.normalize("NFKC", t)
+    t = re.sub(r"[\u200b-\u200d\ufeff]", "", t)
+    t = re.sub(r"\s+", " ", t).strip()
+    t = LETTER_SPACED_RX.sub(lambda m: " ".join(w.replace(" ", "") for w in _spaced_words(m)), t)
+    # Remove empty / broadcast tags, then discard unmatched bracket characters.
+    t = re.sub(r"\[([^]\[]*)\]|\(([^()]*)\)",
+               lambda m: "" if not re.search(r"\w", m.group(1) or m.group(2) or "")
+               or re.search(r"nfhs|^(?:tv|hd|live)[!\s]*$", m.group(1) or m.group(2) or "", re.I)
+               else m.group(), t)
+    for opening, closing in (("[", "]"), ("(", ")")):
+        stack, remove = [], set()
+        for i, c in enumerate(t):
+            if c == opening:
+                stack.append(i)
+            elif c == closing:
+                if stack:
+                    stack.pop()
+                else:
+                    remove.add(i)
+        remove.update(stack)
+        t = "".join(c for i, c in enumerate(t) if i not in remove)
+    t = re.sub(r"([!?,;:])\1+", r"\1", t)   # "!!!" → "!" (an ellipsis "..." stays)
+    t = re.sub(r"\s+", " ", t).strip(" \t–—-[]()")
+    t = re.sub(r"^[!?.,;:]+\s*", "", t)   # leftover punctuation in front ("!] Foo"); a closing ? or ! is kept
+    t = re.sub(r"^(?:tv|hd)!+\s+", "", t, flags=re.I)   # what's left of a "[NFHS Network]TV!]" style tag
+    t = re.sub(r"\s+([!?,;:])(?=\s|$)", r"\1", t)     # "Final Score !" → "Final Score!"
+    if limit <= 0:
+        return ""
+    if len(t) > limit:
+        prefix = t[:limit - 1]
+        if t[limit - 1:limit] != " " and " " in prefix:
+            prefix = prefix.rsplit(" ", 1)[0]
+        t = prefix.rstrip() + "…"
+    return t
+
+
+def is_spam_item(title_raw: str, source: str | None, source_url: str | None = None) -> bool:
+    """Detect headline spam and implausible Google News sources (caller scopes sources)."""
+    if len(re.findall(r"[０-９Ａ-Ｚａ-ｚ]", title_raw)) >= 4:
+        return True
+    if sum(len(_spaced_words(m)) for m in LETTER_SPACED_RX.finditer(title_raw)) >= 2:
+        return True
+    t = unicodedata.normalize("NFKC", title_raw).lower()
+    stream = re.search(r"\blive\s*stream(?:ing)?\b", t)
+    # Strong signals: spam whoever "published" it.
+    if (stream and re.search(r"\b(?:free|reddit|crackstreams)\b", t)
+            or re.search(r"\bfree online\b|\bstream(?:ing)? free\b|\bwatch (?:it )?free\b", t)
+            or re.search(r"\[nfhs\b|nfhs network\]", t)):
+        return True
+    src = unicodedata.normalize("NFKC", source or "").lower().replace("’", "'")
+    # Weak signals ("Spurs vs. Lakers: time, TV channel, how to watch online"): real outlets write these too, so they
+    # only count against a Google News source that isn't a known newsroom. Curated feeds pass source=None (trusted).
+    if source and not TRUSTED_SOURCE_RX.search(src) and (
+            stream and re.search(r"\b(?:online|hd|tv channel)\b", t)
+            or re.search(r"\bwatch\b.*\bfree\b", t)
+            or re.search(r"\bvs\.?\b", t) and re.search(r"\blive\s*stream(?:ing)?\b|\bstreaming\b|\bfree\b|\bonline\b|\btv channel\b", t)
+            or re.search(r"\btv channel\b", t)):
+        return True
+    local = re.search(r"\butsa\b|\but san antonio\b|trinity university|st\.? mary's university|university of the incarnate word|\buiw\b|texas a&m university[ -]+san antonio|our lady of the lake university|ut health san antonio|alamo colleges|san antonio college|palo alto college|st\.? philip's college|northwest vista college|northeast lakeview college", src)
+    domain = (urllib.parse.urlparse(source_url or "").hostname or "").lower().rstrip(".")
+    return bool(not local and (re.search(r"\b(?:university|universidad|universidade|université|universität|università|college|colegio|école)\b", src)
+                or re.search(r"\.(?:edu|es|in|pk|bd|ng|ph|id|vn|ru|cn|br|ar|co|it|fr|de|pl|tr|ke|gh|za|lk|np)$", domain)))
+
+
+def _clean_feed_items(feed: dict, items: list[dict]) -> list[dict]:
+    """Also sanitize cached lists in place, so repeated reads do not recount drops."""
+    kept = []
+    for item in items:
+        is_g = feed["kind"].startswith("gnews")
+        if is_spam_item(item.get("title", ""), item.get("source") if is_g else None,
+                        item.get("source_url") if is_g else None):
+            fid = feed["id"]
+            SPAM_DROPPED[fid] = SPAM_DROPPED.get(fid, 0) + 1
+            continue
+        item["title"] = clean_title(item.get("title", ""))
+        kept.append(item)
+    items[:] = kept
+    return items
+
+
 def thumbnail(e: dict) -> str | None:
     for m in e.get("media_thumbnail") or []:
         if m.get("url"):
@@ -460,6 +558,12 @@ async def _fetch_feed(feed: dict, r=None) -> list[dict]:
     is_g = feed["kind"].startswith("gnews")
     items = []
     for e in parsed.entries:
+        # Check the original headline before clipping can hide spam markers.
+        raw_source = e.get("source") or {}
+        if is_spam_item(e.get("title") or "", raw_source.get("title") if is_g else None,
+                        raw_source.get("href") if is_g else None):
+            SPAM_DROPPED[feed["id"]] = SPAM_DROPPED.get(feed["id"], 0) + 1
+            continue
         title = clean_text(e.get("title"), 300)
         link = e.get("link")
         if not title or not link:
@@ -480,17 +584,20 @@ async def _fetch_feed(feed: dict, r=None) -> list[dict]:
             summary = re.sub(r"\s*The post .{0,300}? appeared first on .*$", "", summary, flags=re.S)
             summary = clean_text(summary, SUMMARY_MAX)   # v49.12 (legal L4): headline + a short snippet, never the article
         items.append({"title": title, "link": link, "source": source, "published": entry_time(e),
-                      "summary": summary, "image": None if is_g else thumbnail(e)})
-    return items
+                      "summary": summary, "image": None if is_g else thumbnail(e),
+                      **({"source_url": (e.get("source") or {}).get("href")} if is_g else {})})
+    return _clean_feed_items(feed, items)
 
 
 async def fetch_feed(feed: dict) -> dict:
     t0 = time.time()
     try:
         items = await cached("feed:" + feed["url"], NEWS_TTL, lambda: _fetch_feed(feed))
+        items = _clean_feed_items(feed, items)
         items = [dict(i, feed=feed["id"], kind=feed["kind"], sa=bool(feed.get("sa"))) for i in items]
         return {"items": items, "status": {"id": feed["id"], "name": feed["name"], "ok": True, "count": len(items),
-                                           "ms": int((time.time() - t0) * 1000), "query": feed.get("query")}}
+                                           "ms": int((time.time() - t0) * 1000), "query": feed.get("query"),
+                                           **({"spam_dropped": SPAM_DROPPED[feed["id"]]} if SPAM_DROPPED.get(feed["id"]) else {})}}
     except Exception as ex:  # keep going if one feed fails
         return {"items": [], "status": {"id": feed["id"], "name": feed["name"], "ok": False,
                                         "error": _plain(ex), "query": feed.get("query")}}
@@ -2115,6 +2222,7 @@ async def feed_items(feed: dict) -> list[dict]:
         items = await cached("feed:" + feed["url"], REDDIT_TTL, lambda: _fetch_reddit(feed), stale=24 * 3600)
     else:
         items = await cached("feed:" + feed["url"], 20 * 60, lambda: _fetch_feed(feed), stale=6 * 3600)
+    items = _clean_feed_items(feed, items)
     out = []
     for i in items:
         it = dict(i, id=i["link"], kind=feed["kind"], video="youtube.com" in (i["link"] or ""))
