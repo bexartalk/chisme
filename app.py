@@ -26,6 +26,7 @@ import urllib.parse
 import unicodedata
 from calendar import timegm
 from datetime import date, datetime, time as dtime, timedelta, timezone
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -1822,6 +1823,110 @@ def food_creators() -> list[dict]:
         return []
 
 
+AVATAR_TTL = 7 * 86400
+
+
+def creator_slug(c: dict) -> str:
+    handle = c.get("instagram") or c.get("tiktok")
+    return (handle.lower().lstrip("@") if handle else
+            re.sub(r"[^a-z0-9]+", "-", c["name"].lower()).strip("-"))
+
+
+def _avatar_host_ok(url: str) -> bool:
+    u = urllib.parse.urlsplit(url)
+    return u.scheme == "https" and u.netloc in {"yt3.googleusercontent.com", "yt3.ggpht.com"}
+
+
+async def _yt_avatar_url(channel_url: str) -> str | None:
+    if not channel_url or not channel_url.startswith("https://www.youtube.com/"):
+        return None
+
+    class AvatarMeta(HTMLParser):
+        og = None
+        thumbnail = None
+
+        def handle_starttag(self, tag, attrs):
+            a = dict(attrs)
+            if tag == "meta" and a.get("property") == "og:image":
+                self.og = a.get("content")
+            if tag == "link" and a.get("itemprop") == "thumbnailUrl":
+                self.thumbnail = a.get("href")
+
+    try:
+        r = await client().get(channel_url, timeout=6, follow_redirects=False, headers={
+            "User-Agent": "Mozilla/5.0 (compatible; Chisme)", "Accept-Language": "en-US"})
+        r.raise_for_status()
+        parser = AvatarMeta()
+        parser.feed(r.text)
+        url = parser.og or parser.thumbnail
+        if url and _avatar_host_ok(url):
+            return re.sub(r"=s\d+[^/?#]*$", "=s176-c-k-c0x00ffffff-no-rj", url)
+    except Exception:
+        pass
+    return None
+
+
+async def _cached_yt_avatar(channel_url: str) -> str | None:
+    # cached() stores None too; retry failed lookups sooner than successful ones.
+    key = "ytavatar:" + channel_url
+    hit = _cache.get(key)
+    return await cached(key, 6 * 3600 if hit and hit[1] is None else AVATAR_TTL,
+                        lambda: _yt_avatar_url(channel_url))
+
+
+async def creators_with_avatars() -> list[dict]:
+    creators = [dict(c, slug=creator_slug(c), avatar=None,
+                     initial=next((ch.upper() for ch in c["name"] if ch.isalnum()), "?"))
+                for c in food_creators()]
+
+    async def resolve(c):
+        try:
+            if c.get("youtube") and await _cached_yt_avatar(c["youtube"]):
+                c["avatar"] = "/api/creator-avatar/" + c["slug"]
+        except Exception:
+            pass
+
+    # Wait up to 4 s, but don't cancel slow lookups: they finish in the background and fill the cache for the next load.
+    tasks = [asyncio.create_task(resolve(c)) for c in creators if c.get("youtube")]
+    if tasks:
+        await asyncio.wait(tasks, timeout=4)
+    return creators
+
+
+@app.get("/api/creator-avatar/{slug}")
+async def creator_avatar(slug: str):
+    c = next((c for c in food_creators() if creator_slug(c) == slug), None)
+    if not c or not c.get("youtube"):
+        return Response(status_code=404)
+
+    async def fetch_image():
+        url = await _cached_yt_avatar(c["youtube"])
+        if not url or not _avatar_host_ok(url):
+            return None
+        async with client().stream("GET", url, timeout=6, follow_redirects=False) as r:
+            r.raise_for_status()
+            media = r.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+            if not media.startswith("image/"):
+                return None
+            data = bytearray()
+            async for chunk in r.aiter_bytes():
+                data.extend(chunk)
+                if len(data) > 300 * 1024:
+                    return None
+            return (bytes(data), media) if data else None
+
+    try:
+        key = "ytavatarimg:" + slug
+        hit = _cache.get(key)
+        image = await cached(key, 6 * 3600 if hit and hit[1] is None else AVATAR_TTL, fetch_image)
+        if image:
+            return Response(image[0], media_type=image[1],
+                            headers={"Cache-Control": "public, max-age=604800"})
+    except Exception:
+        pass
+    return Response(status_code=404)
+
+
 def crew_keys() -> dict:
     """Channel name → one key per person (their TikTok/Instagram handle), so For You counts a creator's YouTube
     and TikTok videos (and a show they host) as the same creator when it spreads the feed across people."""
@@ -2050,7 +2155,7 @@ async def build_food(lat: float, lon: float) -> dict:
     except Exception:
         world = []
     return {"generated": time.time(), "items": items, "recipes": recipes, "world": world, "days": FOOD_DAYS, "message": None, "metro": info, "city": info["city"],
-            "creators": food_creators(),
+            "creators": await creators_with_avatars(),
             "sources": [dict(st, elsewhere=src.get("elsewhere")) for (_, st), src in zip(res, sources)]}
 
 

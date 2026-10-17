@@ -1,7 +1,7 @@
 /* Chisme — frontend (location-aware) */
 // Build of this file. Must equal the number in sw.js VERSION ("chisme-v22"); the page compares it
 // with the build the HTML was served for and reloads once if an old cached app.js got mixed in.
-window.CHISME_APP_BUILD = "49.27.2";
+window.CHISME_APP_BUILD = "49.27.3";
 (() => {
   "use strict";
   // v49.13: Chisme's public address for share links + the promo text: one setting on the server (PUBLIC_BASE_URL, else the
@@ -2648,11 +2648,25 @@ window.CHISME_APP_BUILD = "49.27.2";
       if (c.instagram) links.push(ext("https://www.instagram.com/" + c.instagram + "/", (c.youtube || c.tiktok ? "Instagram" : "See their posts on Instagram"), "crew-link" + (c.youtube || c.tiktok ? "" : " primary"), cm("Instagram", c.instagram)));
       for (const l of links) l.setAttribute("aria-label", `${l.textContent.replace(/[▶↗]/g, "").trim()}: ${c.name} (opens in Chisme)`);
       const handle = c.instagram || c.tiktok;
-      return el("li", { class: "crew" },
+      const palette = [["#00C9CD", "#000"], ["#EF426F", "#fff"], ["#FF8200", "#000"], ["#7b3fe4", "#fff"]];
+      let hash = 0;
+      for (const ch of c.name) hash = (hash * 31 + ch.codePointAt(0)) >>> 0;
+      const [background, color] = palette[hash % palette.length];
+      const fallback = () => el("span", { class: "crew-initial", "aria-hidden": "true",
+        style: `background:${background};color:${color}`, text: c.initial || (c.name.match(/[\p{L}\p{N}]/u) || ["?"])[0].toUpperCase() });
+      const avatar = el("span", { class: "crew-av" });
+      if (c.avatar) {
+        const photo = el("img", { src: c.avatar, alt: "", width: "56", height: "56", loading: "lazy",
+          decoding: "async", referrerpolicy: "no-referrer" });
+        photo.onerror = () => avatar.replaceChildren(fallback());
+        avatar.append(photo);
+      } else avatar.append(fallback());
+      return el("li", { class: "crew" }, avatar,
+        el("div", { class: "crew-info" },
         el("p", { class: "crew-name" }, el("b", { text: c.name }), handle ? el("span", { class: "crew-h", text: " @" + handle }) : ""),
         el("p", { class: "crew-by", text: [c.person, sa ? null : c.city].filter(Boolean).join(" · ") }),
         el("p", { class: "crew-uses" + (/only/i.test(c.uses || "") ? " ig" : ""), text: c.uses || "" }),
-        el("div", { class: "crew-links" }, ...links));
+        el("div", { class: "crew-links" }, ...links)));
     }));
   }
   function renderFood() {

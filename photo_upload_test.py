@@ -122,7 +122,9 @@ finally:
 
 js = open(f"{HERE}/static/social.js").read()
 check("That's too big to send. Try a smaller photo or a shorter video." in js, "413 friendly fallback is present")
-check('const VERSION = "chisme-v49.27.2";' in open(f"{HERE}/static/sw.js").read(), "service worker version is 49.27.2")
-check('window.CHISME_APP_BUILD = "49.27.2";' in open(f"{HERE}/static/app.js").read(), "app build is 49.27.2")
+sw_v = re.search(r'const VERSION = "chisme-v([\d.]+)";', open(f"{HERE}/static/sw.js").read())
+app_v = re.search(r'window.CHISME_APP_BUILD = "([\d.]+)";', open(f"{HERE}/static/app.js").read())
+check(sw_v and app_v and sw_v.group(1) == app_v.group(1) and tuple(map(int, sw_v.group(1).split("."))) >= (49, 27, 2),
+      "service worker VERSION and app build match and include the 49.27.2 fix")
 print(f"\n{fails} failure(s)")
 sys.exit(1 if fails else 0)
