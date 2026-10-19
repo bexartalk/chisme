@@ -1574,14 +1574,16 @@ async def build_events(lat: float, lon: float) -> dict:
         if km_between(lat, lon, clat, clon) <= 60:
             for sid, sname, rss in feeds:
                 jobs.append(event_source(sid, sname, rss, lambda rss=rss, sname=sname, sid=sid, cname=cname: fetch_vsa(rss, sname, sid, cname)))
-    for pg in (1, 2):
-        u = eventbrite_url(place, pg)
+    is_starbase = (place.get("city") or "").lower() == "starbase" or cell(lat, lon, 0.02) == cell(*REGION["starbase"][2:4], 0.02)
+    if not is_starbase:
+        for pg in (1, 2):
+            u = eventbrite_url(place, pg)
+            if u:
+                jobs.append(event_source("eventbrite" if pg == 1 else "eventbrite2", f"Eventbrite{'' if pg == 1 else f' (page {pg})'}", u,
+                                         lambda u=u: _eb(u)))
+        u = allevents_url(place)
         if u:
-            jobs.append(event_source("eventbrite" if pg == 1 else "eventbrite2", f"Eventbrite{'' if pg == 1 else f' (page {pg})'}", u,
-                                     lambda u=u: _eb(u)))
-    u = allevents_url(place)
-    if u:
-        jobs.append(event_source("allevents", "AllEvents", u, lambda u=u: _ae(u)))
+            jobs.append(event_source("allevents", "AllEvents", u, lambda u=u: _ae(u)))
     results = await asyncio.gather(*jobs)
     raw = [dict(e, also=[]) for r in results for e in r["items"]]
     horizon = now + timedelta(days=EVENT_DAYS)
@@ -3749,7 +3751,7 @@ app.mount("/static", StaticFiles(directory=BASE / "static"), name="static")
 async def warm():
     async def _w():  # warm caches for the default location
         await asyncio.gather(api_news(DEFAULT_LAT, DEFAULT_LON), api_weather(DEFAULT_LAT, DEFAULT_LON), api_radar(),
-                             api_events(DEFAULT_LAT, DEFAULT_LON),
+                             api_events(DEFAULT_LAT, DEFAULT_LON, city=None),
                              api_food(DEFAULT_LAT, DEFAULT_LON), api_sports(DEFAULT_LAT, DEFAULT_LON),
                              return_exceptions=True)
     asyncio.create_task(_w())
