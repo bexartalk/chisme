@@ -1,4 +1,4 @@
-"""v49.12: the sync status pill ("Updating…", "Waking up the server…", "Couldn't update … Retry now", "Up to date ✓")
+"""v49.12: the sync status pill ("Couldn't update … Retry now", "Up to date ✓")
 is a toast at the bottom, left of Tía. It must never cover the header (tab bar, Chisme bubble, tagline), Tía, or the one-time
 Terms bar (that steps aside while the pill is up), and never clip its text. Android Chromium + iPhone WebKit; 320, 375, 390 and
 430 px wide; light + dark; the Día de Muertos look on and off. Screenshots: /workspace/v49.12-review/sync/ (one per browser).
@@ -12,8 +12,7 @@ OUT = "/workspace/v49.12-review/sync"; os.makedirs(OUT, exist_ok=True)
 fails = []
 def check(ok, what):
     print(("  ok   " if ok else "  FAIL ") + what); (None if ok else fails.append(what))
-STATES = [("busy", "Updating…", False), ("busy", "Waking up the server — this can take up to a minute. Your saved chisme is below.", False),
-          ("fail", "Couldn't update (couldn't reach Chisme). Showing the saved copy; trying again in 30 s.", True), ("ok", "Up to date ✓", False)]   # v49.15.3: the quick ok toast
+STATES = [("fail", "Couldn't update (couldn't reach Chisme). Showing the saved copy; trying again in 30 s.", True), ("ok", "Up to date ✓", False)]
 MEASURE = """([state, text, retry]) => {
   const s = document.querySelector('#sync'); s.hidden = false; s.dataset.state = state; document.querySelector('#sync-msg').textContent = text;
   document.querySelector('#sync-retry').hidden = !retry; s.style.transition = 'none';
@@ -60,9 +59,9 @@ async def main():
                         tag = f"{bname} {w}px {theme}{' muertos' if season == 'muertos' else ''}{' + Terms bar' if terms else ''}"
                         check(not bad, f"{tag}: every sync state clear of the tab bar, header, Chisme bubble, tagline, Tía{' (the Terms bar steps aside while the pill is up, then comes back)' if terms else ''}; on screen, no clipped text {bad}")
                         if w == 390 and theme == "dark" and not terms:
-                            await pg.evaluate(MEASURE, list(STATES[1])); await pg.screenshot(path=f"{OUT}/{bname}-390-dark-waking.png")
+                            await pg.evaluate(MEASURE, list(STATES[1])); await pg.screenshot(path=f"{OUT}/{bname}-390-dark-ok.png")
                         if w == 320 and theme == "light" and terms:
-                            await pg.evaluate(MEASURE, list(STATES[2])); await pg.screenshot(path=f"{OUT}/{bname}-320-light-fail-terms-aside.png")
+                            await pg.evaluate(MEASURE, list(STATES[0])); await pg.screenshot(path=f"{OUT}/{bname}-320-light-fail-terms-aside.png")
                         await ctx.close()
             await b.close()
 asyncio.run(main())

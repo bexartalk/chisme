@@ -1,7 +1,7 @@
 /* Chisme — frontend (location-aware) */
 // Build of this file. Must equal the number in sw.js VERSION ("chisme-v22"); the page compares it
 // with the build the HTML was served for and reloads once if an old cached app.js got mixed in.
-window.CHISME_APP_BUILD = "49.27.4";
+window.CHISME_APP_BUILD = "49.27.5";
 (() => {
   "use strict";
   // v49.13: Chisme's public address for share links + the promo text: one setting on the server (PUBLIC_BASE_URL, else the
@@ -183,29 +183,26 @@ window.CHISME_APP_BUILD = "49.27.4";
   window.addEventListener("online", () => { updateOfflineBanner(); refreshAll(); });
 
   // ---------- sync: show the saved copy right away, refresh in the background, retry with backoff
-  // Status pill under the nav. v49.15.3: nothing while a fetch is quick; only if one is still pending after 3 s, "Waking up
-  // the server…"; when everything has loaded, a quick "Up to date ✓" (1.5 s, then it fades), which also replaces the waking
-  // one. Errors / offline keep "Couldn't update … Retry now". (Settings still says "Updating…" / "Last updated 8:45 AM".)
+  // Pending fetches stay silent; only quick bursts show a brief "Up to date ✓" toast.
+  // Errors / offline keep "Couldn't update … Retry now". Settings still shows refresh progress.
   const BACKOFF = [5e3, 15e3, 30e3, 60e3, 120e3, 300e3];
   const secs = {}, Sync = { busy: new Set(), failed: new Map(), lastOk: 0, okAt: 0, slow: false, slowT: null, hideT: null };
   const clock = (d) => d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
   function syncUI() {
     const box = $("#sync"), msg = $("#sync-msg"), retry = $("#sync-retry");
     const was = box.dataset.state;
-    if (Sync.busy.size && !Sync.slow && was === "ok") {
-      // a quick fetch starting while "Up to date ✓" is up: leave the toast (and its timer) alone, no flicker
-    } else if (Sync.busy.size) {
+    if (Sync.busy.size) {
       clearTimeout(Sync.hideT);
-      box.dataset.state = Sync.slow ? "busy" : "wait"; retry.hidden = true;   // "wait" = the first 3 s: pending, not shown
-      msg.textContent = Sync.slow ? "Waking up the server — this can take up to a minute. Your saved chisme is below." : "Updating…";
+      box.dataset.state = "wait"; retry.hidden = true;
+      msg.textContent = "";
     } else if (Sync.failed.size) {
       clearTimeout(Sync.hideT);
       const f = [...Sync.failed.values()].sort((a, b) => a.at - b.at)[0];
       const s = Math.max(1, Math.round((f.at - Date.now()) / 1000));
       box.dataset.state = "fail"; retry.hidden = false;
       msg.textContent = `Couldn't update (${f.why}). Showing the saved copy; trying again in ${s < 90 ? s + " s" : Math.round(s / 60) + " min"}.`;
-    } else if (Sync.lastOk && (was === "busy" || was === "ok" || Date.now() - Sync.okAt > 10000)) {
-      // "Up to date ✓" for ~1.5 s: after the waking pill, or once per burst of quick fetches (not again for each one)
+    } else if (Sync.lastOk && !Sync.slow && (was === "ok" || Date.now() - Sync.okAt > 10000)) {
+      // "Up to date ✓" for ~1.5 s: once per burst of quick fetches (not again for each one)
       clearTimeout(Sync.hideT);
       if (was !== "ok") Sync.okAt = Date.now();
       box.dataset.state = "ok"; retry.hidden = true;
@@ -218,9 +215,10 @@ window.CHISME_APP_BUILD = "49.27.4";
   }
   function setBusy(name, on) {
     if (on) Sync.busy.add(name); else Sync.busy.delete(name);
-    if (on && !Sync.slowT && !Sync.slow) Sync.slowT = setTimeout(() => { Sync.slowT = null; if (Sync.busy.size) { Sync.slow = true; syncUI(); } }, 3000);   // v49.15.3: the waking pill only after 3 s still pending (cleared when the fetches finish)
-    if (!Sync.busy.size) { clearTimeout(Sync.slowT); Sync.slowT = null; Sync.slow = false; }
+    if (on && !Sync.slowT && !Sync.slow) Sync.slowT = setTimeout(() => { Sync.slowT = null; if (Sync.busy.size) { Sync.slow = true; syncUI(); } }, 3000);   // remember slow fetches so completion stays silent
+    if (!Sync.busy.size) { clearTimeout(Sync.slowT); Sync.slowT = null; }
     syncUI();
+    if (!Sync.busy.size) Sync.slow = false;
   }
   // name → { url(), apply(data, {saved}), loading(), fail(err), key }
   function section(name, o) { secs[name] = { seq: 0, tries: 0, timer: null, shownUrl: null, key: o.key || "/api/" + name, ...o }; }

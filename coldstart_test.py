@@ -2,7 +2,7 @@
 
 Runs a small proxy in front of the local server that can (a) hold every request for ~50 s, like a
 sleeping free Render instance waking up, and (b) answer /api/news with 502 a few times. Checks:
-saved news shows instantly; v49.15.3: no pill while a fetch is pending under 3 s, then "Waking up the server…" → "Up to date ✓";
+saved news shows instantly; pending fetches stay silent and slow fetches complete directly to done;
 a fast server never shows the waking pill, only a quick "Up to date ✓" (~1.5 s, then it fades; screenshots/uptodate-toast.png);
 retry with backoff after 502s, pull-to-refresh, and that a hanging iOS geolocation call times out.
 COLDSTART_PORT (default 8213) = the proxy's port.
@@ -85,21 +85,21 @@ with sync_playwright() as p:
     check(t_news < 4, f"saved news on screen {t_news:.1f}s after opening on a sleeping server")
     check(page.eval_on_selector("#news-updated", "e => e.textContent").startswith("Saved copy from"), "news stamp says 'Saved copy from …' while waking")
     st0, t_st0 = sync_state(page), time.time() - t0
-    check(st0 == "wait" and t_st0 < 3 and page.eval_on_selector("#sync", "e => +getComputedStyle(e).opacity") < 0.05,
+    check(st0 == "wait" and not msg(page) and t_st0 < 3 and page.eval_on_selector("#sync", "e => +getComputedStyle(e).opacity") < 0.05,
           f"pending under 3 s: no pill on screen yet (state {st0!r} at {t_st0:.1f}s)")
-    page.wait_for_function("document.querySelector('#sync').dataset.state === 'busy'", timeout=15000)
-    t_busy = time.time() - t0
-    check(t_busy >= 2.9 and "Waking up" in msg(page), f"still pending after 3 s → the waking pill ({t_busy:.1f}s): {msg(page)!r}")
+    page.wait_for_timeout(3100)
+    check(sync_state(page) == "wait" and not msg(page) and page.eval_on_selector("#sync", "e => +getComputedStyle(e).opacity") < 0.05,
+          "still pending after 3 s: silent hidden wait state")
+    page.evaluate("""() => { window.__slowSyncSeen = []; const s = document.querySelector('#sync');
+      new MutationObserver(() => window.__slowSyncSeen.push(s.dataset.state)).observe(s, { attributes: true, attributeFilter: ['data-state'] }); }""")
     check(page.eval_on_selector("#offline-banner", "e => e.hidden"), "no misleading 'You're offline' banner while the server wakes")
     page.screenshot(path=os.path.join(OUT, "fix-news-loading.png"))
-    page.wait_for_function("document.querySelector('#sync').dataset.state === 'ok'", timeout=(COLD_S + 40) * 1000)
-    t_ok = time.time() - t0
-    check(msg(page) == "Up to date ✓", f"after {t_ok:.0f}s the waking pill turns into {msg(page)!r}")
+    page.wait_for_function("document.querySelector('#sync').dataset.state === 'done'", timeout=(COLD_S + 40) * 1000)
+    check(not msg(page) and "ok" not in page.evaluate("window.__slowSyncSeen"), "slow fetch completes silently straight to done")
     check(page.evaluate("__chisme.fresh"), "fresh news + weather rendered after wake-up")
     check(page.eval_on_selector("#news-updated", "e => e.textContent").startswith("Updated"), "news stamp now 'Updated …'")
     page.screenshot(path=os.path.join(OUT, "fix-news-updated.png"))
     page.wait_for_function("document.querySelector('#sync').dataset.state === 'done'", timeout=5000)
-    check(True, "…and then fades away")
 
     # --- 1b. a fast server (v49.15.3): no waking pill at all, just a quick "Up to date ✓" that fades
     t1 = time.time()
