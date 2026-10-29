@@ -348,7 +348,7 @@ html[data-season="muertos"] .sx .profile .p-hdr { box-shadow: none; }
    navy (1.1:1): light turquoise #5fe0ec on #01063B is ≈11:1. Pink buttons (Sign in, Join Chisme) carried the light lilac
    card colour (3.3:1): black bold on #FF1A7F is ≈5.8:1. */
 html[data-season="muertos"] .sx-back { color: #5fe0ec; }
-.btn.pink, .sx .btn.pink, html[data-season="muertos"] .btn.pink { color: #000; font-weight: 900; }
+.sx .btn.pink, html[data-season="muertos"] .sx .btn.pink { color: #000; font-weight: 900; }   /* v49.28: scoped to .sx */
 
 /* v49.27.1 type scale (phones) */
 @media (max-width:1023px){

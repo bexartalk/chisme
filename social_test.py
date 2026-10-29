@@ -124,7 +124,7 @@ check(page.count('<header id="fbtop"') == 1 and page.count('data-view="chisme"')
 css = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "social.css")).read()
 import re as _re
 _rules = [x.strip() for x in _re.findall(r"(?:^|})\s*([^{}@]+?)\s*\{", _re.sub(r"/\*.*?\*/", "", css, flags=_re.S))]
-_loose = [x for x in _rules for sel in x.split(",") if not _re.match(r"^\s*(\.sx|html|body\.sx|#view-chisme|\.mix-people|\[data-(?:theme|season)=\"\w+\"\] \.(sx|mix-people)|\.fb-menu|from|to|\d+%)", sel)]
+_loose = [x for x in _rules for sel in _re.split(r",(?![^()]*\))", x) if not _re.match(r"^\s*(\.sx|html|body\.sx|#view-chisme|\.mix-people|\[data-(?:theme|season)=\"\w+\"\] \.(sx|mix-people)|\.fb-menu|from|to|\d+%)", sel)]
 check(not _loose, "social.css only styles its own .sx bits (the app's look stays the app's) " + repr(_loose[:3]))
 js = open(f"{HERE}/static/social.js").read()
 check("LIVE" not in js and "Go Live" not in js and "WHO CAN SEE THIS?" in js and "WHAT'S THE CHISME? 👀" in js and "POST CHISME 🌶️" in js,
