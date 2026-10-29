@@ -545,6 +545,7 @@
   function drawGlow(g, x, y, r, col, a) { g.save(); g.globalCompositeOperation = "lighter"; g.globalAlpha = a; g.fillStyle = rg(g, x, y, 0, r, [[0, col], [1, "rgba(0,0,0,0)"]]); g.beginPath(); g.arc(x, y, r, 0, 6.2832); g.fill(); g.restore(); }
   // the whole car in world space. c: { x (rear bumper), gy (ground), y (air), sR, sF, ang, rot, t, P, lights, scrape }
   function drawCar(g, c) {
+    if (c.car && c.car.body === "horse" && c.lights) c = Object.assign({}, c, { lights: false });   // v49.29: no headlights on a horse
     const rwx = c.x + R64.rear, rwy = c.gy - c.y - R64.r;
     const base = Math.atan2(c.sF - c.sR, R64.front - R64.rear), ang = base + c.ang;
     const ca = Math.cos(c.ang), sa = Math.sin(c.ang);
@@ -564,7 +565,7 @@
       const ws = { blur: c.blur, style: c.car ? c.car.wheel : "chrome" }; drawWheel(g, rwx, rwy, c.rot, ws); drawWheel(g, fwx, fwy, c.rot, ws);
       g.restore();
     };
-    (c.car && c.car.body === "76" ? drawBody76 : (root.ChismeLowriderRides && c.car && root.ChismeLowriderRides.draw[c.car.body]) || drawBody64)(g, c.P, { t: c.t, rot: c.rot, lights: c.lights, wheels, driver: c.driver, bob: c.bob, brake: c.brake, lean: c.ang, car: c.car });
+    (c.car && c.car.body === "76" ? drawBody76 : (root.ChismeLowriderRides && c.car && root.ChismeLowriderRides.draw[c.car.body]) || drawBody64)(g, c.P, { t: c.t, rot: c.rot, lights: c.lights, wheels, driver: c.driver, bob: c.bob, brake: c.brake, lean: c.ang, car: c.car, air: c.y > 3, garage: !!c.garage });
     g.restore();
     if (c.lights) { const hx = fwx + 37 * Math.cos(ang), hy = rwy - c.sR - 18 - (R64.front - R64.rear + 37) * Math.sin(ang); drawGlow(g, hx, hy, 16, "#dff6ff", 0.55); drawGlow(g, c.x + 1, rwy - c.sR - 20 + 0 * sa, 10, "#ff2a3a", c.brake ? 0.7 : 0.4); }
     return { rwx, rwy, fwx, fwy, ang, frontX: c.x + 200 * Math.cos(ang), frontY: rwy - c.sR - (200 - R64.rear) * Math.sin(ang) + 2, rearX: c.x - 4, rearY: rwy - c.sR + 4 };
@@ -1754,7 +1755,7 @@
       const reduce = reduced(), d = reduce ? 0 : t;
       const sR = Math.max(0, Math.sin(d * 3.2)) * 7, sF = Math.max(0, Math.sin(d * 3.2 + 1.6)) * 9, bounce = reduce ? 0 : Math.max(0, Math.sin(d * 1.6)) * 6;
       const gc = gCar(), locked = !ownsCar(gc.id);
-      drawCar(gg, { x: 0, gy: 132, y: locked ? 0 : bounce, sR: locked ? 0 : sR, sF: locked ? 0 : sF, ang: 0, rot: 0, t, P: P(), car: gc, lights: !locked, blur: false, brake: false, bob: 0, driver: !locked });
+      drawCar(gg, { x: 0, gy: 132, y: locked ? 0 : bounce, sR: locked ? 0 : sR, sF: locked ? 0 : sF, ang: 0, rot: 0, t, P: P(), car: gc, lights: !locked, blur: false, brake: false, bob: 0, driver: !locked, garage: true });
       gg.restore();
       if (locked) { gg.fillStyle = "rgba(10,4,24,.45)"; gg.fillRect(0, 0, W, H); const lx = W / 2, ly = H * 0.48;
         gg.fillStyle = "rgba(0,0,0,.8)"; rr(gg, lx - 64 * s, ly - 16 * s, 128 * s, 32 * s, 16 * s); gg.fill(); gg.strokeStyle = "#fff"; gg.lineWidth = 2; rr(gg, lx - 64 * s, ly - 16 * s, 128 * s, 32 * s, 16 * s); gg.stroke();
