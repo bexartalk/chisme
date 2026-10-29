@@ -493,11 +493,43 @@
       if(t<state.last) { state.air=false; state.start=-10; }
       if(o.air&&!state.air) state.start=t;
       state.air=!!o.air; state.last=t;
-      o.wheels(); box(g,P.deep,12,-40,182,16); box(g,P.base,18,-64,170,24);
-      line(g,P.trim,3,[[30,-63],[30,-120],[175,-120],[175,-63]]);
-      for(let i=0;i<7;i++) { const x=34+i*20,y=-117+Math.sin(i*Math.PI/6)*8; poly(g,["#ff1a7f","#00c9cd","#7b2cbf"][i%3],[[x,y],[x+16,y+1],[x+15,y+14],[x+8,y+11],[x,y+14]]); box(g,P.deep,x+6,y+4,4,4); }
-      for(let i=0;i<9;i++) oval(g,["#ff6a0b","#ff1a7f","#00c9cd"][i%3],27+i*19,-48,5,5);
-      for(const x of [40,164]) { line(g,P.deep,12,[[x,-61],[x+(x<100?-9:9),-86]]); line(g,P.trim,3,[[x-9,-84],[x+2,-88]]); }
+      o.wheels();
+      cached(g,pkey("fiesta",P),4,-160,200,140,(c)=>{
+        // center mast + two strings of papel picado to the corner poles
+        for(const x of [18,186]) { c.fillStyle=chromeG(c,-118,-40); c.fillRect(x-1.3,-118,2.6,78); c.strokeStyle=OL; c.lineWidth=0.6; c.strokeRect(x-1.3,-118,2.6,78); }
+        c.fillStyle=chromeG(c,-150,-60); c.fillRect(100.7,-150,2.6,90); c.strokeStyle=OL; c.lineWidth=0.6; c.strokeRect(100.7,-150,2.6,90);
+        papel(c,18,102,-118,-0,6,["#ff1a7f","#ffb020","#00c9cd","#8a4bd8"]); papel(c,102,186,-118,0,6,["#20bd80","#ff1a7f","#ffb020","#00c9cd"]);
+        // balloons
+        for(const [x,y,col] of [[34,-136,"#ff1a7f"],[46,-142,"#00c9cd"],[160,-140,"#ffb020"],[172,-134,"#8a4bd8"]]) {
+          line(c,"#f4ecff",0.6,[[x,y+8],[x+(x<100?-10:10)*0+(x<100?-12:12),-118]]);
+          c.beginPath(); c.ellipse(x,y,6,7.5,0,0,TAU); fo(c,rg(c,x,y,1,8,[[0,"#ffffff"],[0.25,col],[1,col]],x-2,y-3),1);
+          poly(c,col,[[x-1.5,y+7.5],[x+1.5,y+7.5],[x,y+5.5]]);
+        }
+        // deck + rainbow fringe skirt
+        rrp(c,10,-42,186,10,2); fo(c,chromeG(c,-42,-32),1.3);
+        const fr=["#ff1a7f","#ffb020","#20bd80","#00c9cd","#8a4bd8"];
+        for(let i=0;i<31;i++){ const x=12+i*6; c.fillStyle=fr[i%5]; c.fillRect(x,-33,6,12); c.fillStyle="rgba(27,16,36,.25)"; for(let k=1;k<6;k+=2) c.fillRect(x+k,-28,0.5,7); }
+        c.strokeStyle=OL; c.lineWidth=1; c.strokeRect(12,-33,186,12);
+        // the float body: painted panel + scallop trim
+        rrp(c,16,-66,174,25,3); fo(c,lg(c,0,-66,0,-41,[[0,P.mid],[0.3,P.base],[1,P.deep]]),1.4);
+        c.fillStyle="#fff6fb"; c.font="bold 11px sans-serif"; c.textAlign="center"; c.fillText("\u00a1FIESTA!",103,-49.5);
+        c.strokeStyle=OL; c.lineWidth=0.6; c.strokeText("\u00a1FIESTA!",103,-49.5);
+        // big paper flowers along the front
+        const fc=["#ff1a7f","#ffb020","#00c9cd","#8a4bd8","#ff6a0b","#20bd80"];
+        for(let i=0;i<6;i++) paperFlower(c,24+i*10,-66+(i%2)*2,4.6,fc[i]); for(let i=0;i<6;i++) paperFlower(c,132+i*10,-66+(i%2)*2,4.6,fc[5-i]);
+        // the star piñata on the mast
+        const sx=102, sy=-88; c.save(); c.translate(sx,sy);
+        for(let i=0;i<7;i++){ const a=i/7*TAU-Math.PI/2; c.beginPath(); c.moveTo(Math.cos(a-0.32)*11,Math.sin(a-0.32)*11); c.lineTo(Math.cos(a)*27,Math.sin(a)*27); c.lineTo(Math.cos(a+0.32)*11,Math.sin(a+0.32)*11); c.closePath();
+          fo(c,lg(c,Math.cos(a)*11,Math.sin(a)*11,Math.cos(a)*27,Math.sin(a)*27,[[0,fc[i%6]],[1,"#fff6fb"]]),1.1);
+          line(c,fc[(i+2)%6],1.6,[[Math.cos(a)*27,Math.sin(a)*27],[Math.cos(a)*29,Math.sin(a)*29+8]]); }
+        circ(c,0,0,13); fo(c,rg(c,0,0,2,13,[[0,"#fff2a8"],[1,"#ffb020"]],-3,-3),1.3);
+        for(let i=0;i<10;i++){ const a=i/10*TAU; c.fillStyle=i%2?"#ff1a7f":"#00c9cd"; circ(c,Math.cos(a)*9,Math.sin(a)*9,1.4); c.fill(); }
+        c.restore();
+      });
+      // confetti cannons (aim outward)
+      for(const x of [40,164]) { const d=x<100?-1:1;
+        g.save(); g.translate(x,-62); g.rotate(d*0.35); rrp(g,-5,-26,10,26,3); fo(g,lg(g,-5,0,5,0,[[0,"#2a2433"],[0.5,"#6b6478"],[1,"#2a2433"]]),1.2);
+        rrp(g,-6,-28,12,4,1.5); fo(g,goldG(g,-28,-24),0.8); for(let k=0;k<3;k++){ g.fillStyle=["#ff1a7f","#00c9cd","#ffb020"][k]; g.fillRect(-5,-20+k*6,10,1.6);} g.restore(); }
       const age=t-state.start;
       if(age>=0&&age<0.6) {
         g.save(); g.globalAlpha=1-age/0.6;
@@ -508,30 +540,41 @@
         }
         g.restore();
       }
+      // the piñata sways a little
     },
     barge(g,P,o) {
-      poly(g,P.deep,[[6,-46],[33,-16],[172,-16],[201,-58],[182,-49],[21,-49]]);
-      poly(g,P.base,[[18,-43],[38,-24],[168,-24],[188,-46]]);
-      line(g,P.hi,3,[[10,-47],[32,-52],[177,-52],[199,-59]]);
-      for(let i=0;i<5;i++) line(g,P.mid,1,[[36+i*28,-43],[43+i*27,-27]]);
-      poly(g,"#143b59",[[26,-20],[179,-20],[172,-5],[32,-5]]);
-      for(const x of [42,160]) {
-        line(g,"#62d9ed",2,[[x-11,-3],[x-5,-5],[x+2,-2],[x+11,-4]]);
-        for(let i=0;i<3;i++) oval(g,"#62d9ed",x-8+i*8,-6-Math.abs(Math.sin(o.t*7+i+x))*5,1.5,2);
-        oval(g,"#23627b",x,-1,12,1);
-      }
-      line(g,"#8a5779",3,[[34,-54],[34,-101],[158,-101],[158,-54]]);
-      poly(g,P.deep,[[22,-102],[40,-116],[149,-116],[174,-102]]);
-      line(g,"#ff1a7f",2,[[25,-103],[171,-103]]);
-      for(const x of [48,73,102,132,158]) {
-        box(g,"#e9ccdf",x-3,-68,6,15); const f=Math.sin(o.t*13+x);
-        oval(g,x%2?"#ff1a7f":"#ff6a0b",x+f,-74,3,5+f); oval(g,"#fff0fa",x,-73,1,2);
-      }
-      oval(g,"#ead9ef",184,-70,13,14); box(g,"#ead9ef",177,-64,14,11);
-      for(const x of [179,189]) { oval(g,"#ff1a7f",x,-73,4,5); oval(g,P.deep,x,-73,2,3); }
-      poly(g,"#00c9cd",[[184,-67],[181,-62],[187,-62]]);
-      line(g,P.deep,1,[[179,-57],[190,-57]]); for(let i=0;i<4;i++) line(g,P.deep,1,[[181+i*2.5,-59],[181+i*2.5,-54]]);
-      oval(g,"#7b2cbf",184,-82,3,3);
+      const t=o.t||0;
+      cached(g,pkey("barge",P),0,-136,208,124,(c)=>{
+        // canopy posts + arched roof with a painted name board
+        for(const x of [34,158]) { rrp(c,x-2,-104,4,52,1); fo(c,lg(c,x-2,0,x+2,0,[[0,"#5a2a4a"],[0.5,"#b4769b"],[1,"#5a2a4a"]]),0.9); }
+        c.beginPath(); c.moveTo(20,-102); c.quadraticCurveTo(96,-132,176,-102); c.lineTo(172,-96); c.quadraticCurveTo(96,-122,24,-96); c.closePath(); fo(c,lg(c,0,-124,0,-96,[[0,P.mid],[1,P.deep]]),1.4);
+        rrp(c,52,-116,88,15,3); fo(c,"#fff3e6",1.2);
+        c.fillStyle="#d81b60"; c.font="bold 10px sans-serif"; c.textAlign="center"; c.fillText("CALAVERA",96,-105);
+        for(const x of [46,146]) paperFlower(c,x,-109,4.2,"#ff1a7f");
+        for(let i=0;i<=12;i++){ const u=i/12, x=24+u*148, y=-96-26*4*u*(1-u)*0.95; marigold(c,x,y,2.8); }
+        // the hull: painted planks, a gunwale, sweeping up to the prow
+        const hull=()=>{ c.beginPath(); c.moveTo(4,-56); c.lineTo(10,-52); c.lineTo(176,-52); c.quadraticCurveTo(190,-54,202,-66); c.quadraticCurveTo(196,-30,170,-14); c.lineTo(34,-14); c.quadraticCurveTo(12,-28,4,-56); c.closePath(); };
+        hull(); fo(c,P.base,1.8); c.save(); hull(); c.clip();
+        const bands=["#ff1a7f","#ffb020","#00c9cd","#20bd80",P.deep]; bands.forEach((col,i)=>{ c.fillStyle=col; c.fillRect(0,-52+i*8,210,8); });
+        c.fillStyle=lg(c,0,-56,0,-14,[[0,"rgba(255,255,255,.25)"],[0.4,"rgba(255,255,255,0)"],[1,"rgba(0,0,0,.35)"]]); c.fillRect(0,-70,210,60);
+        for(let i=0;i<5;i++) line(c,"rgba(27,16,36,.4)",0.6,[[0,-44+i*8],[210,-44+i*8]]);
+        for(let x=24;x<170;x+=24) paperFlower(c,x+8,-40,2.8,"#fff6fb");
+        c.restore(); hull(); c.strokeStyle=OL; c.lineWidth=1.8; c.stroke();
+        rrp(c,6,-58,172,6,2); fo(c,goldG(c,-58,-52),1.1);
+        // the sugar-skull prow
+        sugarSkull(c,188,-74,1.55,"#ff1a7f");
+        for(let i=0;i<5;i++) marigold(c,176+i*5,-58-i*1.5,2.6);
+      });
+      // water: a deep band with moving ripples + sparkles (wheels are under the water line)
+      g.save();
+      g.fillStyle=lg(g,0,-14,0,2,[[0,"rgba(40,140,190,.85)"],[1,"rgba(20,60,110,.9)"]]); g.beginPath(); g.moveTo(-6,-12);
+      for(let x=-6;x<=212;x+=6) g.lineTo(x,-12+Math.sin(x*0.15+t*4)*1.6); g.lineTo(212,1); g.lineTo(-6,1); g.closePath(); g.fill();
+      g.strokeStyle="rgba(190,240,255,.85)"; g.lineWidth=1; g.beginPath(); for(let x=-6;x<=212;x+=6) g.lineTo(x,-12+Math.sin(x*0.15+t*4)*1.6); g.stroke();
+      for(let r=0;r<3;r++){ g.strokeStyle=`rgba(160,230,255,${0.55-r*0.15})`; g.lineWidth=0.8; g.beginPath(); for(let x=0;x<206;x+=12){ const ox=(x+t*30*(r+1))%206; g.moveTo(ox,-8+r*3.2); g.quadraticCurveTo(ox+3,-9.6+r*3.2,ox+6,-8+r*3.2); } g.stroke(); }
+      for(const x of [42,160]) for(let i=0;i<3;i++) oval(g,"#9fe9ff",x-8+i*8,-14-Math.abs(Math.sin(t*7+i+x))*5,1.4,1.8);
+      g.restore();
+      // candles along the gunwale
+      for(const x of [24,58,96,134,166]) candle(g,x,-58,8,t,x);
     },
     lifted(g,P,o) { pickup(g,P,o,true); },
     lowtruck(g,P,o) { pickup(g,P,o,false); },
