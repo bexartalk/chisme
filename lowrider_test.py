@@ -74,7 +74,7 @@ def static():
         check(not any(word in t.lower() for t in (js, sa, chase, stub, lcss)), f"no '{word}' in the game files")
     check(not any(re.search(r"\bH-E-B\b|\bHEB\b|\bGM\b|\bCoke\b", t) for t in (js, sa, chase)), "no H-E-B / HEB / GM / Coke (H-E-Bae, Gualmart, Hon Dipo are our own parodies)")
     kb = len(js.encode()) // 1024, len(sa.encode()) // 1024
-    check(len(js.encode()) < 200_000 and len(sa.encode()) < 80_000 and len(chase.encode()) < 80_000, f"lowrider.js {kb[0]} KB, the San Antonio stage its own file ({kb[1]} KB), the art in static/lowrider/")
+    check(len(js.encode()) < 210_000 and len(sa.encode()) < 80_000 and len(chase.encode()) < 80_000, f"lowrider.js {kb[0]} KB, the San Antonio stage its own file ({kb[1]} KB), the art in static/lowrider/")
     for f in ("title.webp", "thumb.webp"): check(os.path.getsize(os.path.join(HERE, "static/lowrider", f)) < 200_000, f"static/lowrider/{f} ({os.path.getsize(os.path.join(HERE, 'static/lowrider', f)) // 1024} KB)")
     check(os.path.getsize(os.path.join(HERE, "static/fonts/ppl-display.woff2")) < 20_000 and os.path.exists(os.path.join(HERE, "static/fonts/LICENSE-UnifrakturCook-OFL.txt")), "the title font is a subset with its OFL license")
     for name, t in (("lowrider.js", js), ("lowrider-sa.js", sa), ("lowrider-sa-chase.js", chase)):

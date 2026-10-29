@@ -9,7 +9,10 @@
    first time it's picked) without touching the game loop.
    The rides are only inspired by classic lowriders: no real makes, badges, brands, songs or characters.
    Progress lives on this phone in localStorage "lowrider_v1" (versioned). The "Your best runs" board is local; a weekly
-   server board can plug in later through the same { list, submit } shape (see BOARD). */
+   server board can plug in later through the same { list, submit } shape (see BOARD).
+   v49.28: hop dust + an optional hydraulic flame trail (350 Feria, Garage), a Garage synth-groove toggle, combo glow, a richer
+   hop/chime synth, Enter starts/restarts, a 50 ms frame cap; difficulty tightens hazard spacing while the road/sign scroll
+   ramps only gently (max 342, was 477) so storefronts and billboards (future sponsor spots) stay readable. */
 (function (root) {
   "use strict";
   const SAVE_KEY = "lowrider_v1", SAVE_V = 2;   // v2: rides you unlock + paint per ride
@@ -116,7 +119,7 @@
   // ---------------------------------------------------------------- save (localStorage, versioned)
   function fresh() {
     return { v: SAVE_V, feria: 0, best: 0, owned: { car: ["primer"], paint: ["candy"] }, equip: { car: "primer", paint: "orig" }, carPaint: {}, stage: "blvd", ach: {}, runs: [],
-      totals: { hops: 0, perfects: 0, abuelas: 0, runs: 0, meters: 0, feria: 0, chanclas: 0, cops: 0, trails: 0 }, laps: {}, howto: false, muted: null };
+      totals: { hops: 0, perfects: 0, abuelas: 0, runs: 0, meters: 0, feria: 0, chanclas: 0, cops: 0, trails: 0 }, laps: {}, howto: false, muted: null, music: true, flame: false, trail: false };
   }
   function migrate(o) {   // v1 → v2: you keep everything; the v1 ride (the candy '64) stays yours next to the free Primer
     const d = fresh();
@@ -137,6 +140,7 @@
     if (o.laps && typeof o.laps === "object") for (const s of STAGES) if (o.laps[s.id]) d.laps[s.id] = Math.min(9, n(o.laps[s.id], 1));   // finished a stage's run (San Antonio: unlocks Otra vuelta)
     if (Array.isArray(o.runs)) d.runs = o.runs.filter((r) => r && typeof r.score === "number").slice(0, 10).map((r) => ({ fin: r.fin === true, lap: Math.max(1, Math.min(2, n(r.lap, 1))), score: n(r.score), meters: n(r.meters), feria: n(r.feria), perfects: n(r.perfects), combo: n(r.combo, 1), car: CARS.some((c) => c.id === r.car) ? r.car : "64", paint: String(r.paint || "candy").slice(0, 12), stage: STAGES.some((s) => s.id === r.stage) ? r.stage : "blvd", at: n(r.at), week: String(r.week || "").slice(0, 10) }));
     if (o.totals) for (const k of Object.keys(d.totals)) d.totals[k] = n(o.totals[k]);
+    d.music = o.music !== false; d.flame = o.flame === true; d.trail = d.flame && o.trail === true;
     d.howto = !!o.howto; d.muted = typeof o.muted === "boolean" ? o.muted : null;
     return d;
   }
@@ -167,7 +171,7 @@
   // An original laid-back cruising groove (~94 BPM, A minor dorian vamp Am7 → D9): bass line, kick/snare/hats, congas,
   // clave, güiro, cowbell and a light combo organ; it builds with the combo and slows + muffles for Abuela.
   function makeAudio(clock, pending) {
-    let ac = null, master, music, musicLP, sfx, organBus, noise, muted = false, playing = false, timer = null;
+    let ac = null, master, music, musicLP, sfx, organBus, noise, muted = false, playing = false, musicEnabled = true, timer = null;
     let step = 0, nextT = 0, bpm = 94, wantBpm = 94, intensity = 0, bars = 0, pump = null;
     // v49.27: shared tracking keeps teardown small, including stage-created nodes.
     const sound = root.ChismeJuegos.audio; let spoke = false, blocked = false;
@@ -261,9 +265,10 @@
     const fx = {
       pssh(p = 1) { if (!ctx() || muted) return; const t = ac.currentTime;
         nz(t, 0.42, 0.33 * (0.5 + p * 0.5), sfx, "highpass", 2600, 0.8, 0.004, 900);
+        osc("triangle", 240 + p * 100, t + 0.02, 0.3, 0.14, sfx, 0.003, 75, 0.12);
         osc("sine", 120, t + 0.035, 0.22, 0.85, sfx, 0.002, 42, 0.18); nz(t + 0.035, 0.06, 0.4, sfx, "lowpass", 500); },
       thunk(p = 1) { if (!ctx() || muted) return; const t = ac.currentTime; osc("sine", 95, t, 0.22, 0.7 * clamp(p, 0.3, 1), sfx, 0.002, 36, 0.2); nz(t, 0.08, 0.35 * p, sfx, "lowpass", 380); },
-      ding() { if (!ctx() || muted) return; const t = ac.currentTime; for (const [m, v] of [[1, 0.22], [2.76, 0.08], [5.4, 0.04], [2, 0.06]]) osc("sine", 1760 * m, t, 1.1, v, sfx, 0.002); },
+      ding() { if (!ctx() || muted) return; const t = ac.currentTime; [880, 1100, 1320].forEach((f, i) => osc("sine", f, t + i * 0.055, 0.35, 0.1, sfx, 0.003)); for (const [m, v] of [[1, 0.22], [2.76, 0.08], [5.4, 0.04], [2, 0.06]]) osc("sine", 1760 * m, t, 1.1, v, sfx, 0.002); },
       oooh(big = 1) { if (!ctx() || muted) return; const t = ac.currentTime, d = 1.25 + big * 0.4;
         const f1 = ac.createBiquadFilter(), f2 = ac.createBiquadFilter(), g = ac.createGain(); f1.type = f2.type = "bandpass"; f1.frequency.value = 360; f2.frequency.value = 820; f1.Q.value = 5; f2.Q.value = 6;
         g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.5 * big, t + 0.18); g.gain.setTargetAtTime(0.0001, t + d - 0.4, 0.18); f1.connect(g); f2.connect(g); g.connect(sfx);
@@ -304,7 +309,8 @@
       unlock() { blocked = false; ctx(); },
       get ready() { return !!ac; }, get state() { return ac ? ac.state : "none"; }, get playing() { return playing; },
       setMuted(m) { muted = !!m; if (m) { fx.pumpStop(); try { spoke && hasVoice() && speechSynthesis.cancel(); } catch (e) {} } if (ac) master.gain.setTargetAtTime(m ? 0 : 0.85, ac.currentTime, 0.03); if (m) this.stopMusic(); },
-      startMusic() { blocked = false; if (muted || !ctx()) return; if (playing) return; playing = true; step = 0; bars = 0; nextT = ac.currentTime + 0.06; clearInterval(timer); timer = setInterval(tick, 25); tick(); },
+      setMusic(on) { musicEnabled = !!on; if (!on) this.stopMusic(); },
+      startMusic() { blocked = false; if (!musicEnabled || muted || !ctx()) return; if (playing) return; playing = true; step = 0; bars = 0; nextT = ac.currentTime + 0.06; clearInterval(timer); timer = setInterval(tick, 25); tick(); },
       stopMusic() { playing = false; clearInterval(timer); timer = null; },
       intensity(n) { intensity = n; },
       muffle(on) { if (!ac) return; musicLP.frequency.setTargetAtTime(on ? 520 : 18000, ac.currentTime, on ? 0.15 : 0.3); },
@@ -922,7 +928,7 @@
     const appMuted = () => { try { return localStorage.getItem("chisme-feed-sound") === "off"; } catch (e) { return false; } };   // Settings → ChismeTV sound, the app's one sound switch
     let muted = st.muted === null ? appMuted() : st.muted;
     let voiceT = 0; // v49.26: monotonic sim clock (world T resets between runs)
-    const audio = makeAudio(() => voiceT * 1000, () => timers.size); audio.setMuted(muted);
+    const audio = makeAudio(() => voiceT * 1000, () => timers.size); audio.setMuted(muted); audio.setMusic(st.music);
     const timers = new Set(); // v49.26: mount-owned delayed effects
     function later(fn, ms) { const id = setTimeout(() => { timers.delete(id); if (alive) fn(); }, ms); timers.add(id); return id; }
     function clearLater() { for (const id of timers) clearTimeout(id); timers.clear(); }
@@ -1072,7 +1078,7 @@
       bbs.push({ x, s, w: 196, h: 236 }); bbEnd = x + 196; bbLog.push(s.name); if (bbLog.length > 60) bbLog.shift();
     }
     const difficulty = () => (run ? clamp(run.meters / 1900 + (run.boost || 0), 0, 1) : 0.08);   // boost: a harder lap (Otra vuelta)
-    const cruise = (d) => 262 + 215 * d;
+    const cruise = (d) => 262 + 80 * d; // v49.28: a gentle cap (342, was 477) keeps storefronts + billboards readable; difficulty mostly tightens hazard spacing
     function addObstacles() {
       const d = difficulty();
       if (ev && (ev.stop || ev.type === "abuela" || ev.type === "party")) { nextObs += cruise(d) * 3.5; return; } // v49.27
@@ -1084,7 +1090,7 @@
       if (kind === "rails") props.push({ kind: "xing", x: nextObs + 10 });
       if (run && SX && SX.afterObstacle && SX.afterObstacle(o)) {}
       else if (run && rand() < 0.38) { const apex = 120 + rand() * 70; for (let i = 0; i < 5; i++) { const u = (i - 2) / 2.4; coins.push({ x: o.x + o.w / 2 + (i - 2) * 40, h: apex * (1 - u * u) + 40, got: false }); } }
-      const gapT = 3.1 + rand() * 1.2; // v49.27: never pair hard obstacles inside a hop
+      const gapT = 3.1 + rand() * 1.2 - 0.4 * d; // v49.27: never pair hard obstacles inside a hop
       nextObs += cruise(d) * gapT + o.w + (run ? 0 : 120);
     }
     function spawnAhead() {
@@ -1183,6 +1189,7 @@
       car.air = true; groundedAt = -9; car.tapped = false; car.pend = null; car.launchC = c; car.vy = ph.vMin + (ph.vMax - ph.vMin) * c; car.y = 0.5;
       car.vF += 260 + 380 * c; car.vR += 120 + 160 * c;
       audio.fx.pssh(c);
+      for (const wx of [R64.rear, R64.front]) burst(car.x + wx, GY - 10, 8, "dust", { a: -1.57, spread: 2.6, sp: 80, life: 0.55, s: 1.4 });
       if (run) { run.hops++; st.totals.hops++; if (st.totals.hops >= 1000) unlock("addict"); }
       if (run && ev && ev.press) ev.press();
       if (c > 0.55) burst(car.x - 2, GY - 6, 10 + c * 14, "spark", { a: -2.6, spread: 1.2, sp: 260, vx: -car.v * 0.4, life: 0.5 });
@@ -1361,6 +1368,7 @@
       } else car.ang += (0 - car.ang) * Math.min(1, dt * 12);
       if (car.pend && T > car.pend.until) { if (inRun) resolve("scraped"); else car.pend = null; }
       car.hurt = Math.max(0, car.hurt - dt); car.scrape = Math.max(0, car.scrape - dt);
+      if (st.trail && car.air && rand() < dt * 45) burst(car.x + 8, GY - car.y - 16, 1, "flame", { a: -2.8, spread: 0.5, sp: 110, life: 0.35 });
       if (car.scrape > 0 && rand() < dt * 50) burst(car.x + 196, GY - 3, 1, "spark", { a: -0.3, spread: 0.8, sp: 220, life: 0.35 });
       camX = lerp(camX, car.x - carSX, 1 - Math.exp(-18 * dt)); // v49.27: subpixel camera
       if (inRun) {
@@ -1419,6 +1427,11 @@
       // sky + far layers
       if (skyC) g.drawImage(skyC, 0, 0, LW, skyH);
       g.fillStyle = "#22092f"; g.fillRect(0, skyH - 2, LW, GY - skyH);
+      // Slow cloud ribbons add depth above the skyline without moving ad layers.
+      g.save(); g.globalAlpha = 0.12; g.fillStyle = "#e89bcf";
+      const cloudOff = ((camX * 0.018) % 480 + 480) % 480;
+      for (let x = -cloudOff - 180; x < LW; x += 480) { rr(g, x, skyH * 0.32, 180, 5, 3); g.fill(); rr(g, x + 70, skyH * 0.38, 100, 3, 2); g.fill(); }
+      g.restore();
       if (skylineC) tileX(skylineC, 0.035, GY - 70 - 260, 1000);
       if (midC) tileX(midC, 0.13, GY - 60 - 170, 1000);
       // back billboards (parallax 0.45; the house ad is Chisme's own spot)
@@ -1472,6 +1485,7 @@
       // particles (world space)
       for (const p of parts) { const sx = p.x - camX, a = 1 - p.life / p.max;
         if (p.kind === "spark") { g.strokeStyle = (p.a * 10 | 0) % 3 ? `rgba(255,255,255,${a})` : `rgba(255,106,11,${a})`; g.lineWidth = 1.6; g.beginPath(); g.moveTo(sx, p.y); g.lineTo(sx - p.vx * 0.02, p.y - p.vy * 0.02); g.stroke(); }
+        else if (p.kind === "flame") { g.save(); g.globalAlpha = a; g.fillStyle = a > 0.5 ? COL.pink : COL.purple; g.beginPath(); g.ellipse(sx, p.y, 3 + a * 8, 2 + a * 4, p.a, 0, 6.2832); g.fill(); g.restore(); }
         else if (p.kind === "dust") { g.fillStyle = `rgba(200,180,220,${a * 0.35})`; g.beginPath(); g.arc(sx, p.y, 4 + (1 - a) * 10 * p.s, 0, 6.2832); g.fill(); }
         else if (p.kind === "star") { g.save(); g.translate(sx, p.y); g.rotate(p.a); g.fillStyle = a > 0.5 ? "#ffffff" : COL.turq; g.globalAlpha = a; star(g, 5); g.restore(); }
         else { g.save(); g.translate(sx, p.y); g.rotate(p.a); g.globalAlpha = Math.min(1, a * 2); g.fillStyle = p.col; g.fillRect(-3, -1.5, 6, 3); g.restore(); } }
@@ -1529,7 +1543,9 @@
         const tier = TIERS[run.tier], nxt = TIERS[run.tier + 1];
         if (run.streak > 0 || run.tier > 0) {
           const cx = LW / 2, w = 92, y = 18; g.fillStyle = run.tier ? COL.pink : "rgba(0,0,0,.55)"; rr(g, cx - w / 2, y, w, 26, 13); g.fill(); g.strokeStyle = "#fff"; g.lineWidth = 1.5; rr(g, cx - w / 2, y, w, 26, 13); g.stroke();
+          g.save(); g.shadowColor = COL.turq; g.shadowBlur = reduced() ? 0 : 12;
           txt(run.tier ? "x" + tier.x + " COMBO" : "STREAK " + run.streak, cx, y + 13.5, run.tier ? 14 : 12, "#fff", "center", null);
+          g.restore();
           if (nxt) { const f = (run.streak - tier.at) / (nxt.at - tier.at); g.fillStyle = "rgba(0,0,0,.45)"; rr(g, cx - 34, y + 30, 68, 4, 2); g.fill(); g.fillStyle = COL.turq; rr(g, cx - 34, y + 30, 68 * clamp(f, 0, 1), 4, 2); g.fill(); }
         }
         // event banners: La Chancla incoming (which way to dodge) · Abuela crossing (wait for it)
@@ -1697,6 +1713,7 @@
         ${lrCars()}
         ${own ? `<div class="lr-sws${c.orig ? " lr-sws6" : ""}" role="group" aria-label="Paint">${lrSwatches()}</div>` : `<p class="lr-sub lr-small">Unlock it to paint it. Paint you own works on every ride.</p>`}
         ${lrAction()}
+        ${lrExtras()}
         <p class="lr-sub lr-small">Feria is earned only by playing. Nothing here costs real money.</p>
         <button type="button" class="lr-btn lr-ghost" data-act="title">Back</button></div>`, "garage");
       gcv = ov.querySelector(".lr-gcv"); gg = gcv.getContext("2d"); sizeGarage();
@@ -1738,10 +1755,12 @@
       soundBtn.innerHTML = muted ? `<span aria-hidden="true">🔇</span>` : `<span aria-hidden="true">🔊</span>`; soundBtn.setAttribute("aria-label", muted ? "Sound off" : "Sound on"); soundBtn.setAttribute("aria-pressed", muted ? "false" : "true");
       pauseBtn.disabled = !(mode === "run" || mode === "paused"); pauseBtn.setAttribute("aria-label", mode === "paused" ? "Resume" : "Pause");
     }
+    function lrExtras() {   // v49.28: the flame-trail unlock + the synth-groove switch (our own text only)
+      return (st.flame ? (st.trail ? '<button type="button" class="lr-btn lr-pink" data-act="trail" aria-pressed="true">Hydraulic flame trail: On</button>' : '<button type="button" class="lr-btn lr-pink" data-act="trail" aria-pressed="false">Hydraulic flame trail: Off</button>') : '<button type="button" class="lr-btn lr-pink" data-act="trail" aria-pressed="false">Unlock hydraulic flame trail · 350 Feria</button>') + (st.music ? '<button type="button" class="lr-btn lr-ghost" data-act="music" aria-pressed="true">Synth groove: On</button>' : '<button type="button" class="lr-btn lr-ghost" data-act="music" aria-pressed="false">Synth groove: Off</button>'); }
     function setRide(c, pid) { st.carPaint[c.id] = pid; if (st.equip.car === c.id) st.equip.paint = pid; }
     // v49.26: another mounted tab may have spent or earned Feria since this mount.
     function syncWallet() { try { const raw = localStorage.getItem(SAVE_KEY); if (!raw) return; const o = migrate(JSON.parse(raw)), previous = walletSaved.get(st); if (previous != null) st.feria = Math.max(0, st.feria + o.feria - previous); walletSaved.set(st, o.feria); // v49.26: apply external changes without discarding unsaved local Feria
-      st.owned.car = [...new Set([...st.owned.car, ...o.owned.car])]; st.owned.paint = [...new Set([...st.owned.paint, ...o.owned.paint])]; } catch (e) {} }
+      st.flame = st.flame || o.flame; st.owned.car = [...new Set([...st.owned.car, ...o.owned.car])]; st.owned.paint = [...new Set([...st.owned.paint, ...o.owned.paint])]; } catch (e) {} }
     function buy() {
       syncWallet();
       const c = gCar(), p = PAINTS.find((x) => x.id === garage.preview); if (!p || !ownsCar(c.id) || st.owned.paint.includes(p.id) || st.feria < p.price) { showGarage(); return; } // v49.26: refresh stale purchase button states
@@ -1767,6 +1786,8 @@
       else if (a === "car") { garage.car = btn.dataset.id; garage.preview = null; showGarage(); }
       else if (a === "buy") buy();
       else if (a === "buycar") buyCar();
+      else if (a === "music") { st.music = !st.music; audio.setMusic(st.music); save(st); showGarage(); }
+      else if (a === "trail") { syncWallet(); if (st.flame) st.trail = !st.trail; else if (st.feria >= 350) { st.feria -= 350; st.flame = true; st.trail = true; } else toast("Keep cruising", "Earn " + num(350 - st.feria) + " more Feria for the flame trail."); save(st); showGarage(); }
       else if (a === "equip") { const c = gCar(), pid = garage.preview || st.carPaint[c.id] || c.paint; if (ownsCar(c.id) && (pid === "orig" || st.owned.paint.includes(pid))) { setRide(c, pid); st.equip.car = c.id; st.equip.paint = pid; garage.preview = null; save(st); showGarage(); } }
       else if (a === "stage") { const id = btn.dataset.id; if (id !== stage.id || stageLoading || (stage.file && !SM)) { const s = STAGES.find((x) => x.id === id); if (s && s.file && !lib.stages[s.id]) { btn.classList.add("busy"); } useStage(id).then((s) => { if (alive && s && mode === "title") showTitle(); }, () => { if (!alive) return; toast("Couldn't load " + (s ? s.name : id), "Check your connection and try again."); if (mode === "title") showTitle(); }); } } // v49.26: allow loading the saved selection on a fresh mount
       else if (a === "donate") donate(btn);
@@ -1783,7 +1804,7 @@
     const onDown = (e) => { if (e.target.closest("button,a,.lr-card,.lr-god")) return; if (mode !== "run") return; e.preventDefault(); inputDownAt = performance.now(); try { wrap.setPointerCapture(e.pointerId); } catch (x) {} press(); };
     const onUp = (e) => { if (mode !== "run") return; release(); };
     // v49.27: cancel touch scrolling at contact; pointer browsers must not double-press.
-    wrap.style.touchAction = "none"; wrap.style.userSelect = "none"; wrap.style.webkitUserSelect = "none";
+    cv.style.touchAction = "none"; wrap.style.touchAction = "none"; wrap.style.userSelect = "none"; wrap.style.webkitUserSelect = "none";
     const onTouch = (e) => { if (e.target.closest("button,a,.lr-card,.lr-god")) return; e.preventDefault(); if (!root.PointerEvent) { if (e.type === "touchstart") { inputDownAt = performance.now(); press(); } else release(); } };
     for (const type of ["touchstart", "touchend", "touchcancel"]) wrap.addEventListener(type, onTouch, { passive: false });
     wrap.addEventListener("pointerdown", onDown); wrap.addEventListener("pointerup", onUp); wrap.addEventListener("pointercancel", onUp);
@@ -1791,7 +1812,8 @@
     const keyOk = () => el.isConnected && (fs.on || el.getBoundingClientRect().top < innerHeight) && !/INPUT|TEXTAREA|SELECT/.test((document.activeElement || {}).tagName || "");
     const onKey = (e) => {
       if (!keyOk()) return; const k = e.key, hop = k === " " || k === "ArrowUp" || k === "w" || k === "W";
-      if (hop && mode === "run") { e.preventDefault(); if (e.type === "keydown") { if (!e.repeat) press(); } else release(); }
+      if (k === "Enter" && e.type === "keydown" && !e.repeat && (ovKind === "title" || ovKind === "over" || ovKind === "howto")) { e.preventDefault(); act(ovKind === "howto" ? "gotit" : "start"); }
+      else if (hop && mode === "run") { e.preventDefault(); if (e.type === "keydown") { if (!e.repeat) press(); } else release(); }
       else if ((k === "p" || k === "P" || k === "Escape") && e.type === "keydown" && (mode === "run" || mode === "paused")) { if (k === "Escape" && mode === "paused") return; e.preventDefault(); mode === "paused" ? resume() : pause(); }
     };
     addEventListener("keydown", onKey); addEventListener("keyup", onKey);
@@ -1807,7 +1829,7 @@
     let raf = 0, last = 0, acc = 0, alive = true;
     function frame(now) {
       raf = 0; if (!alive) return;
-      const dt = Math.min(1 / 15, last ? (now - last) / 1000 : 0.016); last = now;
+      const dt = Math.min(0.05, last ? (now - last) / 1000 : 0.016); last = now;
       const visible = !document.hidden && el.isConnected;
       if (visible && !frozen && mode !== "paused" && mode !== "over") { acc += dt; while (acc >= 1 / 120) { step(1 / 120); acc -= 1 / 120; } }
       else if (visible && mode === "over" && !frozen) { acc += dt; while (acc >= 1 / 120) { step(1 / 120); acc -= 1 / 120; } }
@@ -1865,7 +1887,7 @@
           traffic: obs.filter((o) => o.T).map((o) => ({ id: o.T.id, name: o.T.name, x: Math.round(o.x - car.x), vx: Math.round(o.vx), hit: o.hit, cleared: o.cleared })), bubbles: bubbles.map((b) => b.text),
           tags: lots.filter((L) => L.tag).map((L) => L.tag), lotKinds: lots.map((L) => L.kind), pickList: picks.filter((c) => !c.got).map((c) => ({ kind: c.kind, x: Math.round(c.x - car.x), h: Math.round(c.h) })), event: ev ? { type: ev.type, phase: ev.phase, high: !!ev.high } : null, overlay: ovKind, overlayText: ov.textContent.replace(/\s+/g, " ").trim(),
           pops: popList.map((p) => ({ ...p })), bubbleList: bubbleList.map((b) => ({ ...b, lines: [...b.lines] })), finishTitle, // v49.26
-          fullscreen: !!fs.on, LW, LH, GY, dpr, backing: [cv.width, cv.height], css: [cssW, cssH], muted, audio: audio.state, music: audio.playing, spoken: [...spoken], ach: Object.keys(st.ach),
+          fullscreen: !!fs.on, LW, LH, GY, dpr, backing: [cv.width, cv.height], css: [cssW, cssH], muted, groove: st.music, flame: st.flame, trail: st.trail, difficulty: difficulty(), audio: audio.state, music: audio.playing, spoken: [...spoken], ach: Object.keys(st.ach),
           lastShare, garage: garage.open ? garage.preview : null, obstacles: obs.map((o) => ({ kind: o.kind, x: Math.round(o.x - car.x), hit: o.hit, cleared: o.cleared })),
           signs: { lots: lots.filter((L) => L.sign).map((L) => L.sign.name), billboards: bbs.map((b) => b.s.name), log: [...bbLog] }, season, carPos: { x: car.x, front: car.x + 200, v: car.v }, crosswalk: ev && (ev.type === "abuela" || ev.stop) ? ev.x : null };
       },

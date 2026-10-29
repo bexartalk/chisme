@@ -161,7 +161,7 @@ check(post("4.4.4.4", {"name": "z", "score": 999999, "level": 1}).status_code ==
 os.environ.pop("RENDER")
 
 print("== innerHTML lint")
-SAFE = re.compile(r"^(esc|escH|num|fmt|cardHTML|listHTML|howList|skinBtn|skinHint|lrRows|lrTrophies|lrSwatches|lrAction|lrCars|lrStages|donateBtn|lapBtn|overEnd)\(|^\+[\w.]+ \|\| 0$|"
+SAFE = re.compile(r"^(esc|escH|num|fmt|cardHTML|listHTML|howList|skinBtn|skinHint|lrRows|lrTrophies|lrSwatches|lrAction|lrExtras|lrCars|lrStages|donateBtn|lapBtn|overEnd)\(|^\+[\w.]+ \|\| 0$|"
                   r"^(BEAN_DEFS|OVER|VW|cont|line|name|id|L\(\)\.done|LEVELS\[level\]\.name|oopsMsg|level \+ 1|SVGF|ART|LOGO|TITLE)$|^\w+ \? esc\([\w.]+\) : \"[^\"]*\"$|"
                   r"^[^`]*\?\s*(\"[^\"]*\"|'[^']*'|`[^`]*`)\s*:\s*(\"[^\"]*\"|'[^']*'|`[^`]*`)\s*$|^(id === cur|lock)")
 bad = []

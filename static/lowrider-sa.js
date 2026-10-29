@@ -553,7 +553,7 @@
         let tot = 0; for (const T of list) tot += T.weight || 1; let k = rand() * tot, T = list[0]; for (const q of list) { k -= q.weight || 1; if (k <= 0) { T = q; break; } }
         const n = K.nextObs, o = addTraffic(T, n, d);
         if (run && rand() < 0.5) addPick(rand() < 0.55 ? "taco" : "soda", n + o.w / 2, 150 + rand() * 40);
-        K.nextObs = n + (K.cruise(d) + Math.abs(o.vx || 0)) * (3.2 + rand()) /* v49.27: relative-speed hop spacing */ + o.w + (run ? 0 : 160);
+        K.nextObs = n + (K.cruise(d) + Math.abs(o.vx || 0)) * (3.2 + rand() - 0.4 * d) /* v49.27: relative-speed hop spacing */ + o.w + (run ? 0 : 160);
         return true;
       },
       afterObstacle(o) { if (rand() >= 0.3) return false; addPick(rand() < 0.5 ? "soda" : "taco", o.x + o.w / 2, 110 + rand() * 60); return true; },
