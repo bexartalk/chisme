@@ -3,6 +3,9 @@
 # later, so even when GitHub starts a scheduled run late (it often does, by 5-15 min) the gap stays under 15 minutes.
 # Free: public repo (Actions minutes don't count) + Render's 750 free hours a month (one service running 24/7 = ~744).
 # Run it by hand: Actions → "Keep Chisme awake" → Run workflow. Turn it off: Actions → … → Disable workflow.
+# v49.28: GitHub actually starts this about every ~35 min (scheduled runs are best-effort), so it can't keep Render awake
+# by itself; a 5-minute outside pinger (e.g. cron-job.org on Goonie's own account) would. The job now FAILS when
+# /healthz never answered 200 in a round, so a down site shows up red in Actions instead of passing silently.
 # Note: GitHub pauses scheduled workflows in a public repo after 60 days with no commits; it emails a re-enable link.
 name: Keep Chisme awake
 on:
@@ -30,9 +33,11 @@ jobs:
               [ "$code" = 200 ] && return 0
               sleep 15
             done
-            echo "::warning::chisme.onrender.com/healthz didn't answer 200 after 4 tries"
-            return 0
+            echo "::error::chisme.onrender.com/healthz didn't answer 200 after 4 tries"
+            return 1
           }
-          ping
+          fail=0
+          ping || fail=1
           sleep 300
-          ping
+          ping || fail=1
+          exit $fail
