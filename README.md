@@ -248,7 +248,7 @@ In San Antonio (other metros' outlets are in `data/metros.json`; no San Antonio 
 | San Antonio Report | `https://sanantonioreport.org/feed/` |
 | Texas Public Radio | `https://www.tpr.org/news.rss` |
 | News 4 San Antonio (WOAI) | `https://news4sanantonio.com/news/local.rss` |
-| San Antonio Current | `https://sacurrent.com/sanantonio/Rss.xml` |
+| San Antonio Current | `https://www.sacurrent.com/feed/?partner-feed=all` |
 | Express-News | No public RSS. Pulled through a Google News RSS search, `site:expressnews.com/news when:3d` |
 
 **Dynamic local searches** (Google News RSS `https://news.google.com/rss/search?q=…`), built for the detected place so Chisme works in any city:
@@ -271,7 +271,6 @@ For the "strict" searches (county, neighborhood, South Side), a result is kept o
 | **ESPN standings** | `https://site.api.espn.com/apis/v2/sports/basketball/nba/standings` (falls back to `?season=2026` when the new season hasn't started; labeled "final"); `football/nfl/standings?level=3` (divisions) | Western Conference standings; NFC East (Cowboys) |
 | **Blogging The Boys** (SB Nation Cowboys blog, v47) | `https://www.bloggingtheboys.com/rss/index.xml` | Cowboys page: fan coverage (text links only) |
 | **MLB Stats API** | `https://statsapi.mlb.com/api/v1/schedule?sportId=1` (today ±3 days); `schedule?sportId=12&teamId=510` (Missions); `standings?leagueId=109` (Texas League) | MLB scores, Missions games, Texas League South standings |
-| **San Antonio Spurs on YouTube** | `https://www.youtube.com/feeds/videos.xml?channel_id=UCEZHE-0CoHqeL1LGFa2EmQw` | Trending: latest team videos (text links only) |
 | **Pounding The Rock** (SB Nation Spurs blog) | `https://www.poundingtherock.com/rss/index.xml` | Trending: fan coverage (text links only) |
 | **Google News RSS** | `"San Antonio Spurs" OR Wembanyama when:3d`, `"Dallas Cowboys" when:3d` (v47), `"San Antonio Missions" (baseball OR "Wolff Stadium" OR "Texas League" OR Padres OR Double-A) when:60d` (National Historical Park / UNESCO results filtered out) | Spurs news from local outlets; Missions news |
 | **Reddit r/NBASpurs** | `https://www.reddit.com/r/NBASpurs/top/.rss?t=week` | **Rate-limited, cached**: fetched with a descriptive User-Agent, cached 30 min (stale up to 24h); on 429 it cools down (Retry-After or 5m→60m backoff) and serves the cached posts, or a link to the subreddit if none |

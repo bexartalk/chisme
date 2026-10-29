@@ -339,7 +339,7 @@ def build_sources(ctx: dict, kb: dict | None = None, tz=None) -> list[dict]:
     ms = sp.get("missions") or {}
     if ms.get("record"):
         add("sports", "San Antonio Missions: record", f"record {ms.get('record')}" + (" · season over" if ms.get("season_over") else ""),
-            "https://www.milb.com/san-antonio", "MiLB", None, _sub="team", _team="mission", _kw="missions record")
+            "https://www.mlb.com/milb/san-antonio", "MiLB", None, _sub="team", _team="mission", _kw="missions record")
     for lst in (spurs.get("news"), spurs.get("blog"), spurs.get("videos"), nba.get("news"), (sp.get("nfl") or {}).get("news"),
                 (sp.get("mlb") or {}).get("news"), ms.get("news")):
         for it in (lst or [])[:14]:

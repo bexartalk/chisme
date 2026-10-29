@@ -61,7 +61,7 @@
      "id": "chron-food",
      "name": "Houston Chronicle · Food",
      "gnews": "site:houstonchronicle.com (restaurant OR restaurants OR dining OR chef OR barbecue OR tacos) when:30d",
-     "home": "https://www.houstonchronicle.com/food-culture/"
+     "home": "https://www.houstonchronicle.com/food-restaurants/"
     }
    ],
    "nba_fans": [
@@ -119,7 +119,7 @@
      "id": "statesman-food",
      "name": "Austin American-Statesman · Food",
      "gnews": "site:statesman.com (restaurant OR restaurants OR dining OR chef OR barbecue OR tacos) when:30d",
-     "home": "https://www.statesman.com/entertainment/dining/"
+     "home": "https://www.statesman.com/food/"
     }
    ],
    "college": {
@@ -156,13 +156,13 @@
     },
     {
      "id": "kera",
-     "name": "KERA News",
-     "url": "https://www.keranews.org/news.rss"
+     "name": "KERA News (via Google News)",
+     "gnews": "site:kera.org when:3d"
     },
     {
      "id": "dallasobs",
      "name": "Dallas Observer",
-     "url": "https://www.dallasobserver.com/dallas/Rss.xml"
+     "url": "https://www.dallasobserver.com/feed/"
     },
     {
      "id": "dmn",
@@ -219,7 +219,7 @@
     {
      "id": "mnt",
      "name": "Miami New Times",
-     "url": "https://www.miaminewtimes.com/miami/Rss.xml"
+     "url": "https://www.miaminewtimes.com/feed/"
     },
     {
      "id": "herald",

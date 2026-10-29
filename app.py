@@ -86,7 +86,7 @@ SA_FEEDS = [
     {"id": "news4", "name": "News 4 San Antonio", "kind": "direct",
      "url": "https://news4sanantonio.com/news/local.rss"},
     {"id": "sacurrent", "name": "San Antonio Current", "kind": "direct",
-     "url": "https://sacurrent.com/sanantonio/Rss.xml"},
+     "url": "https://www.sacurrent.com/feed/?partner-feed=all"},
     gnews("expressnews", "Express-News (via Google News)", "site:expressnews.com/news when:3d"),
 ]
 for f in SA_FEEDS:
@@ -1198,7 +1198,7 @@ def base_event(**kw) -> dict:
 REGION_CITIES = [
     ("san-antonio", "San Antonio", 29.4241, -98.4936, [("vsa", "Visit San Antonio", VSA_RSS)], []),
     ("corpus-christi", "Corpus Christi", 27.8006, -97.3964, [("visitcc", "Visit Corpus Christi", "https://www.visitcorpuschristi.com/event/rss/")], []),
-    ("rockport", "Rockport", 28.0206, -97.0544, [], [("Rockport-Fulton Chamber events", "https://www.rockport-fulton.org/events/")]),
+    ("rockport", "Rockport", 28.0206, -97.0544, [], [("Rockport-Fulton Chamber events", "https://members.rockport-fulton.org/events/")]),
     ("port-aransas", "Port Aransas", 27.8339, -97.0611, [("visitpa", "Port Aransas & Mustang Island", "https://www.portaransas.org/event/rss/")], []),
     ("austin", "Austin", 30.2672, -97.7431, [("visitaustin", "Visit Austin", "https://www.austintexas.org/event/rss/")], []),
     ("south-padre-island", "South Padre Island", 26.1118, -97.1681, [("visitspi", "Visit South Padre Island", "https://visitsouthpadreisland.com/event/rss/")], []),
@@ -1695,7 +1695,7 @@ FOOD_SOURCES = [
      "url": YT_FEED + "UCdxqYEScHFdNhUOqKBRkTXg", "home": "https://www.youtube.com/@siempre_sanantonio"},
     # local food desks
     {"id": "sacurrent-food", "kind": "outlet", "name": "San Antonio Current · Food & Drink",
-     "url": "https://www.sacurrent.com/category/food-drink/feed/", "home": "https://www.sacurrent.com/food-drink/"},
+     "url": "https://www.sacurrent.com/category/food-drink/feed/", "home": "https://www.sacurrent.com/category/food-drink/"},
     {"id": "en-food", "kind": "outlet", "name": "Express-News · Food", "gnews": True,
      "url": GN + urllib.parse.quote("site:expressnews.com/food when:30d"), "home": "https://www.expressnews.com/food/"},
     {"id": "mysa-food", "kind": "outlet", "name": "MySA · Food", "gnews": True,
@@ -2178,8 +2178,7 @@ SPORTS_TTL = 5 * 60
 SPURS_FEEDS = [
     {"id": "reddit", "name": "r/NBASpurs (Reddit, top this week)", "kind": "reddit", "home": "https://www.reddit.com/r/NBASpurs/",
      "url": "https://www.reddit.com/r/NBASpurs/top/.rss?t=week"},
-    {"id": "yt-spurs", "name": "San Antonio Spurs on YouTube", "kind": "video", "home": "https://www.youtube.com/@Spurs",
-     "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCEZHE-0CoHqeL1LGFa2EmQw"},
+    # v49.28: the Spurs YouTube channel feed was dropped: YouTube 404s its RSS (the @Spurs channel is fine, the feed isn't)
     {"id": "ptr", "name": "Pounding The Rock (SB Nation)", "kind": "blog", "home": "https://www.poundingtherock.com/",
      "url": "https://www.poundingtherock.com/rss/index.xml"},
     dict(gnews("gn-spurs", "Google News: Spurs", "\"San Antonio Spurs\" OR Wembanyama when:3d"), home="https://news.google.com/"),
@@ -2535,7 +2534,7 @@ async def missions_block(log: SportsLog, tm: dict | None = None) -> dict:
     async def season_games(y):
         d = await sjson(f"{MLBAPI}/schedule?sportId={tm['sport']}&teamId={TID}&startDate={y}-01-01&endDate={y}-12-31&hydrate=linescore,team", 10 * 60)
         return [mlb_game(g, "milb") for x in d.get("dates") or [] for g in x["games"]]
-    games = await log.run(f"MLB Stats API: {nm} schedule", "https://www.milb.com/", season_games(year), []) or []
+    games = await log.run(f"MLB Stats API: {nm} schedule", "https://www.mlb.com/milb", season_games(year), []) or []
     done = [g for g in games if g["state"] == "post" and g["home"]["score"] is not None]
     if not done:
         done = [g for g in (await season_games(year - 1) if True else []) if g["state"] == "post"]
@@ -2547,9 +2546,9 @@ async def missions_block(log: SportsLog, tm: dict | None = None) -> dict:
                      "gb": tr.get("gamesBack"), "pct": tr.get("winningPercentage"), "spurs": tr["team"]["id"] == TID} for tr in rec["teamRecords"]]
             if any(r["spurs"] for r in rows):
                 standings = {"division": (rec.get("division") or {}).get("name") or tm["league"], "season": str(year), "rows": rows}
-        log.sources.append({"name": f"MLB Stats API: {tm['league']} standings", "home": "https://www.milb.com/standings", "ok": bool(standings), "count": len(standings["rows"]) if standings else 0})
+        log.sources.append({"name": f"MLB Stats API: {tm['league']} standings", "home": "https://www.mlb.com/milb/standings", "ok": bool(standings), "count": len(standings["rows"]) if standings else 0})
     except Exception as ex:
-        log.sources.append({"name": f"MLB Stats API: {tm['league']} standings", "home": "https://www.milb.com/standings", "ok": False, "error": _plain(ex)})
+        log.sources.append({"name": f"MLB Stats API: {tm['league']} standings", "home": "https://www.mlb.com/milb/standings", "ok": False, "error": _plain(ex)})
     gn = MISSIONS_GN if TID == MISSIONS_ID else gnews("gn-milb", f"Google News: {tm['name']}", f'"{tm["name"]}" baseball when:60d')
     news = await log.run(gn["name"], "https://news.google.com/", feed_items(gn), []) or []
     news = [n for n in news if not (TID == MISSIONS_ID and MISSIONS_NOT.search(n["title"]))][:10]
