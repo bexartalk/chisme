@@ -7,6 +7,40 @@
   const box = (g, color, x,y,w,h) => { g.fillStyle=color; g.fillRect(x,y,w,h); };
   const oval = (g,color,x,y,rx,ry) => { g.fillStyle=color; g.beginPath(); g.ellipse(x,y,rx,ry,0,0,Math.PI*2); g.fill(); };
   const line = (g,color,w,pts) => { g.strokeStyle=color; g.lineWidth=w; g.lineCap="round"; g.lineJoin="round"; g.beginPath(); pts.forEach(([x,y],i)=>i?g.lineTo(x,y):g.moveTo(x,y)); g.stroke(); };
+
+  // ---- v49.29.2 art kit: outlines, gradients, chrome, a tiny bitmap cache for heavy static parts
+  const OL = "#1b1024";
+  const lg = (g, x0, y0, x1, y1, st) => { const q = g.createLinearGradient(x0, y0, x1, y1); st.forEach(([a, c]) => q.addColorStop(a, c)); return q; };
+  const rg = (g, x, y, r0, r1, st, fx, fy) => { const q = g.createRadialGradient(fx == null ? x : fx, fy == null ? y : fy, r0, x, y, r1); st.forEach(([a, c]) => q.addColorStop(a, c)); return q; };
+  const trace = (g, pts) => { g.beginPath(); pts.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); g.closePath(); };
+  const fo = (g, fill, lw = 1.3, stroke = OL) => { g.fillStyle = fill; g.fill(); if (lw) { g.strokeStyle = stroke; g.lineWidth = lw; g.lineJoin = "round"; g.lineCap = "round"; g.stroke(); } };
+  const rrp = (g, x, y, w, h, r) => { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); };
+  const circ = (g, x, y, r) => { g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); };
+  const chromeG = (g, y0, y1) => lg(g, 0, y0, 0, y1, [[0, "#ffffff"], [0.3, "#cfd8e2"], [0.52, "#66707c"], [0.75, "#e9eff5"], [1, "#8d97a3"]]);
+  const goldG = (g, y0, y1) => lg(g, 0, y0, 0, y1, [[0, "#fff4c2"], [0.3, "#f2c04a"], [0.55, "#a8701a"], [0.8, "#ffd970"], [1, "#b47c22"]]);
+  const glassG = (g, y0, y1) => lg(g, 0, y0, 0, y1, [[0, "#9fd6ff"], [0.45, "#2e5f8f"], [1, "#16253f"]]);
+  const paintG = (g, P, y0, y1) => lg(g, 0, y0, 0, y1, [[0, P.hi], [0.18, P.mid], [0.55, P.base], [1, P.deep]]);
+  const rand = (seed) => () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+  const bitmaps = new Map();
+  function cached(g, key, x, y, w, h, fn) {   // static art rendered once at 3x, then blitted every frame
+    let c = bitmaps.get(key);
+    if (!c) {
+      const k = 3; c = typeof document !== "undefined" ? document.createElement("canvas") : new OffscreenCanvas(1, 1);
+      c.width = Math.ceil(w * k); c.height = Math.ceil(h * k);
+      const cg = c.getContext("2d"); cg.scale(k, k); cg.translate(-x, -y); fn(cg);
+      if (bitmaps.size > 40) bitmaps.clear(); bitmaps.set(key, c);
+    }
+    g.drawImage(c, x, y, w, h);
+  }
+  const pkey = (id, P) => id + P.deep + P.base + P.mid + P.hi;
+  function bell(g, x, y, s, swing) {   // a little brass bell hanging from (x, y)
+    g.save(); g.translate(x, y); g.rotate(swing);
+    g.strokeStyle = "#6b5a3a"; g.lineWidth = 0.8; g.beginPath(); g.moveTo(0, 0); g.lineTo(0, 2 * s); g.stroke();
+    g.beginPath(); g.moveTo(-1.2 * s, 2.6 * s); g.quadraticCurveTo(-1.6 * s, 5.5 * s, -3.4 * s, 7 * s); g.lineTo(3.4 * s, 7 * s); g.quadraticCurveTo(1.6 * s, 5.5 * s, 1.2 * s, 2.6 * s); g.quadraticCurveTo(0, 1.6 * s, -1.2 * s, 2.6 * s);
+    fo(g, lg(g, -3.4 * s, 0, 3.4 * s, 0, [[0, "#a8701a"], [0.35, "#fff1b0"], [0.6, "#e7b23c"], [1, "#7a4c10"]]), 0.7);
+    g.fillStyle = "#4a3210"; circ(g, Math.sin(swing * 3) * s, 7.6 * s, 0.9 * s); g.fill();
+    g.restore();
+  }
   function pickup(g,P,o,lift,noWheels) {
     const y=lift==="monster"?-62:lift?-43:-12;   // the lowrider pickup sits laid out over its wheels
     if (lift) line(g,"#363b4a",5,[[42,-14],[64,y-5],[143,y-5],[160,-14]]);
@@ -136,34 +170,97 @@
   const fiestaPop = { garage: { air: false, start: -10, last: -1 }, game: { air: false, start: -10, last: -1 } };
   const draw = {
     paleta(g,P,o) {
+      const t=o.t||0;
       o.wheels();
-      line(g,P.trim,3,[[42,-14],[52,-35],[150,-35],[160,-14]]);
-      box(g,P.deep,22,-66,155,39); box(g,P.base,25,-63,149,32);
-      box(g,P.trim,20,-70,160,6); box(g,P.mid,31,-59,136,7);
-      line(g,P.trim,4,[[177,-58],[195,-58],[195,-43]]);
-      line(g,P.trim,3,[[99,-70],[99,-131]]);
-      for(let i=0;i<6;i++) poly(g,[P.base,"#00c9cd","#7b2cbf"][i%3],[[99,-139],[25+i*25,-113],[50+i*25,-113]]);
-      line(g,P.deep,2,[[25,-113],[99,-139],[175,-113]]);
-      for(let i=0;i<3;i++) {
-        const x=73+i*25, sway=Math.sin(o.t*9+i)*2;
-        line(g,P.trim,1,[[x,-69],[x+sway,-58]]);
-        poly(g,"#b9c8da",[[x-4+sway,-58],[x+4+sway,-58],[x+6+sway,-50],[x-6+sway,-50]]);
-        oval(g,"#f1e4ff",x+sway,-50,6,2); oval(g,P.deep,x+sway,-48,1.5,2);
-      }
-      for(let i=0;i<3;i++) { box(g,["#ff1a7f","#00c9cd","#7b2cbf"][i],38+i*43,-47,13,11); line(g,P.trim,2,[[44+i*43,-36],[44+i*43,-32]]); }
+      line(g,"#2a2433",3.2,[[42,-14],[52,-30],[150,-30],[160,-14]]); line(g,P.trim,1.4,[[42,-14],[52,-30],[150,-30],[160,-14]]);
+      cached(g,pkey("paleta",P),14,-160,196,136,(c)=>{
+        // umbrella pole (behind the box)
+        c.fillStyle=chromeG(c,-150,-70); c.fillRect(98.6,-150,2.8,80); c.strokeStyle=OL; c.lineWidth=0.6; c.strokeRect(98.6,-150,2.8,80);
+        // freezer box: rounded, glossy, chrome bands
+        rrp(c,22,-76,156,50,6); fo(c,paintG(c,P,-76,-26),1.6);
+        rrp(c,34,-66,132,30,4); fo(c,lg(c,0,-66,0,-36,[[0,"#ffffff"],[0.6,"#eef3f8"],[1,"#c9d3de"]]),1.1);
+        c.fillStyle=chromeG(c,-78,-72); rrp(c,18,-80,164,7,3); c.fill(); c.strokeStyle=OL; c.lineWidth=1.1; c.stroke();   // the lid lip
+        rrp(c,30,-86,140,7,3); fo(c,lg(c,0,-86,0,-79,[[0,"#ffffff"],[1,"#cbd5df"]]),1.1);   // the freezer lid
+        for(const x of [56,144]) { rrp(c,x-7,-89,14,3.5,1.5); fo(c,chromeG(c,-89,-85),0.8); }   // lid handles
+        c.fillStyle=chromeG(c,-30,-25); c.fillRect(20,-30,160,4.5); c.strokeStyle=OL; c.lineWidth=0.9; c.strokeRect(20,-30,160,4.5);
+        // painted paletas on the panel
+        const fl=[["#ff3b6b","#ffd2de"],["#29c7a8","#c9fff1"],["#8a4bd8","#e8d6ff"],["#ff8a1f","#ffe0bf"],["#3aa0ff","#d4ecff"]];
+        fl.forEach(([a,b],i)=>{ const x=46+i*24;
+          c.fillStyle="#d8b27a"; c.fillRect(x+3,-50,3,7); c.strokeStyle="#8c6a3a"; c.lineWidth=0.5; c.strokeRect(x+3,-50,3,7);
+          rrp(c,x-1,-64,11,16,4.5); fo(c,lg(c,x-1,0,x+10,0,[[0,a],[0.35,b],[1,a]]),0.9);
+          c.fillStyle="rgba(255,255,255,.7)"; c.fillRect(x+1.5,-61,1.6,9); });
+        c.fillStyle=P.deep; c.font="bold 7px sans-serif"; c.textAlign="center"; c.fillText("PALETAS",100,-37.5);
+        for(const x of [26,174]) for(const y of [-71,-34]) { c.fillStyle=chromeG(c,y-1.5,y+1.5); circ(c,x,y,1.5); c.fill(); }   // rivets
+        // push handle
+        c.lineCap="round"; c.strokeStyle=OL; c.lineWidth=4.6; c.beginPath(); c.moveTo(178,-62); c.lineTo(194,-66); c.lineTo(200,-80); c.stroke();
+        c.strokeStyle=chromeG(c,-82,-60); c.lineWidth=2.8; c.stroke();
+        c.strokeStyle="#231a28"; c.lineWidth=5; c.beginPath(); c.moveTo(199,-77); c.lineTo(202,-85); c.stroke();
+        // umbrella canopy: six striped panels with scalloped edges
+        const cols=["#ff4b99","#ffffff","#00c9cd","#ffffff","#ffb020","#ffffff","#8a4bd8","#ffffff"], n=8, x0=26, x1=174, ay=-152, ry=-120;
+        for(let i=0;i<n;i++) { const a=x0+(x1-x0)*i/n, b=x0+(x1-x0)*(i+1)/n;
+          c.beginPath(); c.moveTo(100,ay); c.quadraticCurveTo(a+(100-a)*0.25,ay+8,a,ry); c.quadraticCurveTo((a+b)/2,ry+7,b,ry); c.quadraticCurveTo(b+(100-b)*0.25,ay+8,100,ay); c.closePath();
+          c.fillStyle=cols[i]; c.fill(); }
+        c.beginPath(); c.moveTo(100,ay); c.quadraticCurveTo(x0+18,ay+8,x0,ry); for(let i=0;i<n;i++){const a=x0+(x1-x0)*i/n,b=x0+(x1-x0)*(i+1)/n; c.quadraticCurveTo((a+b)/2,ry+7,b,ry);} c.quadraticCurveTo(x1-18,ay+8,100,ay); c.closePath();
+        c.fillStyle=lg(c,0,ay,0,ry+6,[[0,"rgba(255,255,255,.35)"],[0.5,"rgba(255,255,255,0)"],[1,"rgba(40,0,40,.25)"]]); c.fill(); c.strokeStyle=OL; c.lineWidth=1.4; c.stroke();
+        c.strokeStyle="rgba(27,16,36,.45)"; c.lineWidth=0.7; for(let i=1;i<n;i++){ const a=x0+(x1-x0)*i/n; c.beginPath(); c.moveTo(100,ay); c.quadraticCurveTo(a+(100-a)*0.25,ay+8,a,ry); c.stroke(); }
+        c.fillStyle=goldG(c,-158,-151); circ(c,100,-155,3.2); c.fill(); c.strokeStyle=OL; c.lineWidth=0.8; c.stroke();
+      });
+      // bells on the handle, swinging with the ride
+      const sw=Math.sin(t*9)*(o.air?0.5:0.22);
+      line(g,"#6b5a3a",1,[[184,-66],[196,-69]]);
+      bell(g,185,-66,1.7,sw); bell(g,194,-68,1.45,-sw*0.8);
+      // umbrella fringe tassels
+      for(let i=0;i<9;i++) { const x=27+i*18.4, s2=Math.sin(t*6+i)*1.2; line(g,"#ffe08a",0.8,[[x,-120],[x+s2,-115]]); oval(g,"#ffb020",x+s2,-114.5,1.1,1.4); }
+      // a cold shine on the lid
+      g.save(); g.globalAlpha=0.5+0.2*Math.sin(t*2); line(g,"#ffffff",1.2,[[40,-84],[90,-84]]); g.restore();
     },
     c10(g,P,o) {
       // Only the body leans: the standard contact centers stay fixed.
+      g.fillStyle="#07060a"; g.beginPath(); g.arc(42,-14,16.5,Math.PI,0); g.arc(160,-14,16.5,Math.PI,0); g.fill();
       o.wheels();
       const lift=o.air?13:Math.max(0,Math.sin((o.rot||0)*0.7))*9;
-      line(g,P.trim,3,[[42,-14],[48,-32],[151,-32-lift],[160,-14]]);
+      line(g,"#2a2433",3,[[42,-14],[48,-28],[151,-28-lift],[160,-14]]);
       g.save(); g.translate(42,-14); g.rotate(-lift/250); g.translate(-42,14);
-      pickup(g,P,o,false,true);
-      poly(g,"#91524b",[[13,-40],[45,-40],[40,-26],[17,-24]]);
-      poly(g,"#4c5361",[[91,-37],[107,-40],[113,-25],[88,-24]]);
-      poly(g,"#a4aab5",[[153,-40],[181,-37],[175,-27],[153,-28]]);
-      line(g,"#402b32",1.5,[[20,-22],[33,-24],[46,-21]]);
-      box(g,"#292837",55,-42,20,3); box(g,"#a9b5c5",179,-18,19,3);
+      cached(g,pkey("c10",P),-4,-92,214,86,(c)=>{
+        const body=()=>{ c.beginPath(); c.moveTo(3,-13); c.lineTo(3,-47); c.lineTo(93,-47); c.lineTo(96,-49); c.lineTo(98,-80); c.quadraticCurveTo(99,-83,103,-83); c.lineTo(130,-83);
+          c.quadraticCurveTo(134,-83,136,-80); c.lineTo(147,-52); c.lineTo(196,-49); c.quadraticCurveTo(203,-48,203,-42); c.lineTo(203,-14); c.lineTo(178,-14);
+          c.arc(160,-14,18,0,Math.PI,true); c.lineTo(60,-14); c.arc(42,-14,18,0,Math.PI,true); c.lineTo(3,-14); c.closePath(); };
+        body(); fo(c,lg(c,0,-83,0,-13,[[0,P.mid],[0.38,P.base],[0.5,P.mid],[0.62,P.base],[1,P.deep]]),1.7);
+        c.save(); body(); c.clip();
+        // rough primer patches (flat, jagged edges) + rust freckles
+        const R=rand(1067), patch=(col,cx,cy,rx,ry)=>{ c.beginPath(); for(let i=0;i<18;i++){ const a=i/18*Math.PI*2, k=0.78+R()*0.32; c.lineTo(cx+Math.cos(a)*rx*k,cy+Math.sin(a)*ry*k); } c.closePath(); c.fillStyle=col; c.fill(); };
+        patch("#8e4a3c",168,-34,17,11); patch("#7a3a30",172,-30,8,5);
+        patch("#3c4048",114,-24,15,7); patch("#5d636d",36,-34,19,8); patch("#9aa1ab",118,-76,10,4); patch("#4e535c",76,-22,10,6);
+        for(let i=0;i<40;i++){ const x=6+R()*196, y=-46+R()*32; c.fillStyle=R()<0.5?"rgba(122,52,26,.7)":"rgba(70,40,30,.55)"; c.beginPath(); c.ellipse(x,y,0.5+R()*1.4,0.4+R()*0.9,0,0,6.3); c.fill(); }
+        c.fillStyle="rgba(255,255,255,.18)"; c.fillRect(0,-47,210,3);   // the shoulder line highlight
+        c.restore();
+        // the beltline crease + bed/cab seam + door
+        line(c,"rgba(27,16,36,.55)",1,[[4,-33],[202,-33]]); line(c,"rgba(255,255,255,.35)",0.8,[[4,-34.2],[202,-34.2]]);
+        line(c,OL,1.2,[[95,-47],[95,-14]]);
+        c.strokeStyle=OL; c.lineWidth=1; c.beginPath(); c.moveTo(100,-50); c.lineTo(100,-17); c.lineTo(141,-17); c.lineTo(143,-50); c.stroke();
+        rrp(c,128,-44,9,2.2,1); fo(c,chromeG(c,-44,-41.8),0.5);   // door handle
+        // the side glass + vent window, a driver in a ball cap
+        trace(c,[[102,-78],[131,-78],[141,-53],[102,-53]]); fo(c,glassG(c,-78,-53),1.2);
+        c.save(); trace(c,[[102,-78],[131,-78],[141,-53],[102,-53]]); c.clip();
+        c.fillStyle="#2b1a14"; c.beginPath(); c.arc(116,-62,5,0,6.3); c.fill(); c.fillRect(110,-58,12,6); c.fillStyle="#151515"; c.beginPath(); c.ellipse(116,-66,5.4,2.4,0,3.1,6.3); c.fill(); c.fillRect(116,-67,7,1.4);
+        c.fillStyle="rgba(255,255,255,.28)"; trace(c,[[108,-78],[116,-78],[104,-53],[102,-53],[102,-62]]); c.fill(); c.restore();
+        line(c,"#2a2a30",1.6,[[132,-78],[127,-53]]);
+        trace(c,[[143,-56],[149,-58],[149,-52],[143,-52]]); fo(c,chromeG(c,-58,-52),0.7);   // mirror
+        // the bed: chrome rail, stake pockets, tailgate seam, fuel door
+        c.fillStyle=chromeG(c,-49,-45.5); c.fillRect(3,-49,91,3.4); c.strokeStyle=OL; c.lineWidth=0.7; c.strokeRect(3,-49,91,3.4);
+        for(const x of [20,50,80]) { c.fillStyle="#26242c"; c.fillRect(x,-45,3,3); }
+        line(c,"rgba(27,16,36,.6)",0.9,[[8,-46],[8,-15]]); circ(c,70,-40,3.4); fo(c,"rgba(0,0,0,.12)",0.6);
+        // nose: grille bars (no badge), headlight, marker, hood seam
+        rrp(c,197,-46,7,22,2); fo(c,"#1e1e24",0.9); for(let y=-44;y<-25;y+=3) { c.fillStyle=chromeG(c,y,y+1.6); c.fillRect(198,y,5.5,1.5); }
+        circ(c,202,-36,3.6); fo(c,rg(c,202,-36,0.5,3.6,[[0,"#ffffff"],[0.6,"#dff3ff"],[1,"#8fb7d0"]]),0.8);
+        rrp(c,188,-43,6,3,1); fo(c,"#ff9b2a",0.6); line(c,"rgba(27,16,36,.5)",0.8,[[150,-50],[195,-47.5]]);
+        rrp(c,3,-44,4,12,1); fo(c,lg(c,0,-44,0,-32,[[0,"#ff6a6a"],[1,"#a50f1e"]]),0.7);   // taillight
+        // bumpers + exhaust
+        rrp(c,186,-21,22,7,2.5); fo(c,chromeG(c,-21,-14),1); rrp(c,-2,-20,14,6,2.5); fo(c,chromeG(c,-20,-14),1);
+        rrp(c,6,-13,16,3,1.4); fo(c,chromeG(c,-13,-10),0.6);
+        // wheel-arch lips
+        c.strokeStyle=OL; c.lineWidth=1.8; for(const x of [42,160]) { c.beginPath(); c.arc(x,-14,18,Math.PI,0); c.stroke(); }
+      });
       g.restore();
     },
     raspa(g,P,o) {
