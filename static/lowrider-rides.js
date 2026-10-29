@@ -42,18 +42,48 @@
     g.restore();
   }
   function pickup(g,P,o,lift,noWheels) {
-    const y=lift==="monster"?-62:lift?-43:-12;   // the lowrider pickup sits laid out over its wheels
-    if (lift) line(g,"#363b4a",5,[[42,-14],[64,y-5],[143,y-5],[160,-14]]);
+    const dy=lift==="monster"?-50:lift?-31:0;   // the lowrider pickup sits laid out over its wheels
+    const ay=lift==="monster"?-28:-14;
+    if (lift) {   // lift kit: chrome struts with pink coil springs, a crossmember
+      line(g,"#363b4a",5,[[42,ay],[70,dy-16],[132,dy-16],[160,ay]]);
+      for (const x of [42,160]) { line(g,OL,4.4,[[x,ay],[x,dy-14]]); line(g,"#d7dee6",2.6,[[x,ay],[x,dy-14]]);
+        g.strokeStyle="#ff1a7f"; g.lineWidth=1.8; g.beginPath(); const n=7, y0=dy-14, y1=ay-6; for(let i=0;i<=n;i++){ g.lineTo(x+(i%2?4.5:-4.5),y0+(y1-y0)*i/n); } g.stroke(); }
+    } else { g.fillStyle="#07060a"; g.beginPath(); g.arc(42,-14,16,Math.PI,0); g.arc(160,-14,16,Math.PI,0); g.fill(); }
     if (!noWheels) o.wheels();
-    poly(g,P.deep,[[3,y-8],[7,y-34],[76,y-34],[87,y-69],[132,y-69],[151,y-34],[196,y-29],[202,y-6]]);
-    poly(g,P.base,[[5,y-10],[9,y-31],[79,y-31],[90,y-66],[130,y-66],[149,y-31],[197,y-26],[200,y-10]]);
-    box(g,P.mid,9,y-31,68,17); box(g,P.deep,15,y-35,58,4);
-    poly(g,"#173647",[[86,y-33],[94,y-61],[126,y-61],[140,y-33]]);
-    line(g,P.trim,2,[[111,y-60],[111,y-34]]);
-    line(g,P.hi,2,[[8,y-12],[197,y-12]]); box(g,P.trim,116,y-27,11,2);
-    box(g,P.trim,1,y-10,17,5); box(g,P.trim,185,y-10,18,5);
-    box(g,"#eef7ff",186,y-26,12,7); box(g,"#ff3c64",5,y-28,5,9);
-    line(g,P.deep,1,[[80,y-30],[80,y-12],[146,y-12],[146,y-30]]);
+    cached(g,pkey("pickup"+lift,P),-4,dy-100,214,96,(c)=>{
+      c.translate(0,dy);
+      const body=()=>{ c.beginPath(); c.moveTo(3,-15); c.lineTo(3,-44); c.lineTo(84,-44); c.lineTo(87,-46); c.lineTo(92,-74); c.quadraticCurveTo(93,-77,97,-77); c.lineTo(126,-77);
+        c.quadraticCurveTo(131,-77,134,-73); c.lineTo(150,-50); c.lineTo(194,-46); c.quadraticCurveTo(203,-45,203,-37); c.lineTo(203,-15); c.lineTo(178,-15);
+        c.arc(160,-14-dy*0,lift?18:17.5,0,Math.PI,true); c.lineTo(60,-15); c.arc(42,-14,lift?18:17.5,0,Math.PI,true); c.lineTo(3,-15); c.closePath(); };
+      body(); fo(c,lg(c,0,-77,0,-15,[[0,P.hi],[0.12,P.mid],[0.42,P.base],[0.52,P.mid],[0.7,P.base],[1,P.deep]]),1.7);
+      c.save(); body(); c.clip(); c.fillStyle="rgba(255,255,255,.35)"; c.beginPath(); c.ellipse(110,-41,96,1.6,0,0,TAU); c.fill();
+      c.fillStyle="rgba(0,0,0,.18)"; c.fillRect(0,-24,210,10); c.restore();
+      // pinstripe + body seams
+      line(c,P.trim,0.9,[[6,-33],[200,-31]]); line(c,"#ff1a7f",0.6,[[6,-35],[200,-33]]);
+      line(c,OL,1.1,[[86,-45],[86,-16]]); c.strokeStyle=OL; c.lineWidth=0.9; c.beginPath(); c.moveTo(92,-47); c.lineTo(92,-18); c.lineTo(144,-18); c.lineTo(147,-48); c.stroke();
+      rrp(c,132,-41,9,2.2,1); fo(c,chromeG(c,-41,-38.8),0.5);
+      // glass: rear cab window + door glass
+      trace(c,[[95,-72],[125,-72],[143,-50],[95,-50]]); fo(c,glassG(c,-72,-50),1.2);
+      c.save(); trace(c,[[95,-72],[125,-72],[143,-50],[95,-50]]); c.clip();
+      c.fillStyle="#1d1420"; circ(c,112,-59,4.6); c.fill(); c.fillRect(106,-55,12,6); c.fillStyle="#151515"; c.fillRect(106,-64.5,11,2.4);
+      c.fillStyle="rgba(255,255,255,.3)"; trace(c,[[102,-72],[110,-72],[97,-50],[95,-50],[95,-60]]); c.fill(); c.restore();
+      line(c,"#20202a",1.6,[[126,-72],[124,-50]]);
+      trace(c,[[145,-54],[151,-56],[151,-49],[145,-49]]); fo(c,chromeG(c,-56,-49),0.7);
+      // bed rail, tailgate, taillight
+      c.fillStyle=chromeG(c,-46,-42.5); c.fillRect(3,-46,82,3.4); c.strokeStyle=OL; c.lineWidth=0.7; c.strokeRect(3,-46,82,3.4);
+      line(c,"rgba(27,16,36,.55)",0.9,[[8,-43],[8,-16]]);
+      rrp(c,2.5,-42,4.5,13,1.2); fo(c,lg(c,0,-42,0,-29,[[0,"#ff6a6a"],[1,"#a50f1e"]]),0.7);
+      // nose: billet grille, headlight, amber marker
+      rrp(c,196,-44,8,20,2); fo(c,"#1e1e24",0.9); for(let y=-42;y<-25;y+=2.6) { c.fillStyle=chromeG(c,y,y+1.3); c.fillRect(197,y,6.5,1.2); }
+      rrp(c,193,-44,10,6,2); fo(c,rg(c,198,-41,0.5,6,[[0,"#ffffff"],[0.6,"#dff3ff"],[1,"#8fb7d0"]]),0.8);
+      rrp(c,186,-37,5,2.6,1); fo(c,"#ff9b2a",0.6);
+      rrp(c,185,-21,23,7,2.5); fo(c,chromeG(c,-21,-14),1); rrp(c,-2,-20,14,6,2.5); fo(c,chromeG(c,-20,-14),1);
+      c.strokeStyle=OL; c.lineWidth=1.8; for(const x of [42,160]) { c.beginPath(); c.arc(x,-14,lift?18:17.5,Math.PI,0); c.stroke(); }
+      if (lift) { // mud flaps, roof light bar
+        for (const x of [64,180]) { rrp(c,x-2,-22,4,12,1); fo(c,"#1d1d24",0.8); }
+        rrp(c,96,-82,30,4,1.5); fo(c,"#2a2433",0.9); for(let i=0;i<5;i++){ c.fillStyle=rg(c,99+i*6,-80,0.3,2.6,[[0,"#ffffff"],[1,"#bfe6ff"]]); circ(c,99+i*6,-80,1.8); c.fill(); }
+      }
+    });
   }
 
   // ---- v49.29 the horse: original art, real proportions (withers ≈ body length ≈ 105, legs ≈ half the height,
@@ -580,14 +610,17 @@
     lowtruck(g,P,o) { pickup(g,P,o,false); },
     monster(g,P,o) {
       // Big knobby tires: their bottoms touch the road exactly where the regular wheels do (contact geometry unchanged).
-      line(g,"#363b4a",6,[[42,-28],[70,-66],[140,-66],[160,-28]]);
-      for (const x of [42,160]) {
-        oval(g,"#12131c",x,-28,28,28); oval(g,"#2a2c38",x,-28,20,20); oval(g,"#9aa3b5",x,-28,9,9);
-        for(let i=0;i<12;i++) { const a=i*Math.PI/6+(o.rot||0); line(g,"#3e4050",4,[[x+24*Math.cos(a),-28+24*Math.sin(a)],[x+29*Math.cos(a),-28+29*Math.sin(a)]]); }
-      }
       pickup(g,P,o,"monster",true);
-      line(g,P.trim,4,[[71,-98],[77,-123],[134,-123],[142,-98]]);
-      box(g,"#e4f6ff",84,-128,13,5); box(g,"#e4f6ff",114,-128,13,5);
+      for (const x of [42,160]) {
+        circ(g,x,-28,28); fo(g,rg(g,x,-28,14,28,[[0,"#3a3c48"],[0.7,"#1c1d26"],[1,"#0b0c12"]]),1.6);
+        g.save(); g.translate(x,-28); g.rotate(o.rot||0);
+        for(let i=0;i<16;i++) { const a=i*TAU/16; g.save(); g.rotate(a); rrp(g,22.5,-3.4,6.5,6.8,1.6); fo(g,"#2a2c38",0.9); g.restore(); }   // tread lugs
+        circ(g,0,0,15); fo(g,rg(g,-3,-4,1,15,[[0,"#ffffff"],[0.4,"#b8c2ce"],[0.8,"#5d6672"],[1,"#c9d2dc"]]),1.2);
+        for(let i=0;i<6;i++){ g.save(); g.rotate(i*TAU/6); rrp(g,4,-1.8,9,3.6,1.6); fo(g,"#3a414c",0.5); g.restore(); }
+        circ(g,0,0,4.2); fo(g,chromeG(g,-4,4),0.8); for(let i=0;i<6;i++){ g.fillStyle="#2a2f38"; circ(g,Math.cos(i*TAU/6)*2.6,Math.sin(i*TAU/6)*2.6,0.6); g.fill(); }
+        g.restore();
+        g.strokeStyle="rgba(255,255,255,.12)"; g.lineWidth=1.2; g.beginPath(); g.arc(x,-28,25,3.5,5.2); g.stroke();
+      }
     },
     tank(g,P,o) {
       // Tread ends share the axle centers and retain the radius-14 contact envelope.
