@@ -282,7 +282,7 @@ Accounts that get repeated valid notices are closed.</p>
 def chisme_page(c: dict, base: str) -> str:
     who = c["author"]
     txt = c["text"] or ("A Chisme by @" + who["username"])
-    img = (c["photos"][0]["url"] if c["photos"] else c["videos"][0]["poster"] if c["videos"] else (c["clip"] or {}).get("thumb")) or "/static/og-banner.png"
+    img = (c["photos"][0]["url"] if c["photos"] else c["videos"][0]["poster"] if c["videos"] else (c["clip"] or {}).get("thumb")) or "/static/site/og-banner.png"
     img = img if img.startswith("http") else base + img
     e = lambda s: html.escape(str(s or ""), quote=True)
     media = "".join(f'<img src="{e(p["url"])}" alt="" width="{p["w"] or 600}" height="{p["h"] or 600}">' for p in c["photos"])

@@ -51,14 +51,14 @@
       "sizes": "780x1688",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "Chisme on a phone: neighborhood news first, with weather and events one swipe away"
+      "label": "Chisme on a phone: the Juegos tab, with original games that work offline"
     },
     {
       "src": "/static/screenshots/desktop.png",
       "sizes": "1280x900",
       "type": "image/png",
       "form_factor": "wide",
-      "label": "Chisme on desktop: local news near you"
+      "label": "Chisme on desktop: the Juegos tab"
     }
   ],
   "shortcuts": [
