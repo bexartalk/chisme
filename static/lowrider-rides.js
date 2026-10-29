@@ -725,5 +725,8 @@
     jet({nz,t,out},p) { nz(t,0.4,0.4*(0.5+p*0.5),out,"bandpass",3200,0.7,0.015,300); },
     horse({osc,nz,t,out}) { for(const d of [0,0.085]) { osc("triangle",540,t+d,0.045,0.15,out,0.002,170); nz(t+d,0.025,0.15,out,"bandpass",1700,2); } osc("triangle",740,t+0.12,0.19,0.045,out,0.015,1150,0.13); }
   };
-  root.ChismeLowriderRides = { draw, sound };
+  // art height (top of the tallest part above the road), so the Garage preview can fit tall rides; art only
+  const tops = { paleta: 160, ofrenda: 154, fiesta: 152, bruja: 150, barge: 136, chariot: 126, monster: 134, lifted: 115, raspa: 118 };
+  const garageFit = (body) => tops[body] > 106 ? 106 / tops[body] : 1;
+  root.ChismeLowriderRides = { draw, sound, garageFit };
 })(typeof window !== "undefined" ? window : globalThis);

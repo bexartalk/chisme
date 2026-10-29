@@ -1773,6 +1773,7 @@
       gg.save(); gg.font = `900 ${14 * s}px ${FONT}`; gg.textAlign = "center"; gg.fillStyle = "rgba(0,201,205,.85)"; gg.fillText("PURO 210 · HYDRAULICS", W / 2, 22 * s); gg.restore();
       gg.save(); gg.translate(W / 2 - 100 * s, 0); gg.scale(s, s);
       if (gCar().body === "horse") { gg.translate(30, 40); gg.scale(0.7, 0.7); }
+      else if (root.ChismeLowriderRides && root.ChismeLowriderRides.garageFit) { const k = root.ChismeLowriderRides.garageFit(gCar().body); if (k < 1) { gg.translate(100 * (1 - k), 132 * (1 - k)); gg.scale(k, k); } }   // v49.29.2: tall rides fit the preview
       const reduce = reduced(), d = reduce ? 0 : t;
       const sR = Math.max(0, Math.sin(d * 3.2)) * 7, sF = Math.max(0, Math.sin(d * 3.2 + 1.6)) * 9, bounce = reduce ? 0 : Math.max(0, Math.sin(d * 1.6)) * 6;
       const gc = gCar(), locked = !ownsCar(gc.id);
