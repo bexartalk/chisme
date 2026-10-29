@@ -624,27 +624,64 @@
     },
     tank(g,P,o) {
       // Tread ends share the axle centers and retain the radius-14 contact envelope.
-      oval(g,"#181c29",42,-14,14,14); oval(g,"#181c29",160,-14,14,14);
-      box(g,"#181c29",42,-28,118,28);
-      for(let x=32;x<173;x+=12) { const shift=((o.rot||0)*4)%12; box(g,"#7b8597",x+shift,-26,5,3); box(g,"#7b8597",x+shift,-5,5,3); }
-      for(const x of [42,71,101,130,160]) { oval(g,P.deep,x,-14,10,10); oval(g,P.mid,x,-14,6,6); }
-      poly(g,P.base,[[8,-30],[21,-51],[158,-51],[190,-31]]);
-      line(g,P.hi,2,[[24,-48],[157,-48],[183,-33]]);
-      poly(g,P.mid,[[60,-51],[71,-75],[125,-75],[147,-51]]);
-      box(g,P.deep,126,-68,76,10); box(g,P.trim,195,-67,8,8);
-      oval(g,P.deep,96,-76,22,4); box(g,"#b8c6da",43,-43,17,5);
+      const rot=o.rot||0;
+      g.beginPath(); g.arc(42,-14,14,Math.PI/2,Math.PI*1.5); g.lineTo(160,-28); g.arc(160,-14,14,-Math.PI/2,Math.PI/2); g.closePath();
+      fo(g,lg(g,0,-28,0,0,[[0,"#3a3f4c"],[0.5,"#1a1d27"],[1,"#0e1016"]]),1.6);
+      const shift=(rot*4)%8;
+      g.fillStyle="#6b7385"; for(let x=34+shift;x<168;x+=8) { g.fillRect(x,-28,4,2.6); g.fillRect(x,-2.6,4,2.6); }
+      for(const x of [42,71,101,130,160]) { circ(g,x,-14,10.5); fo(g,rg(g,x-2,-16,1,10.5,[[0,P.hi],[0.4,P.mid],[1,P.deep]]),1.1); circ(g,x,-14,4.2); fo(g,"#2a2f3a",0.8);
+        g.save(); g.translate(x,-14); g.rotate(rot); for(let i=0;i<5;i++){ g.fillStyle="#c9d2dc"; circ(g,Math.cos(i*TAU/5)*7,Math.sin(i*TAU/5)*7,0.9); g.fill(); } g.restore(); }
+      cached(g,pkey("tank",P),2,-100,206,74,(c)=>{
+        // hull with fenders, sloped glacis, tool box, rivets
+        trace(c,[[6,-30],[18,-52],[160,-52],[194,-32],[190,-28],[10,-28]]); fo(c,lg(c,0,-52,0,-28,[[0,P.hi],[0.2,P.mid],[0.6,P.base],[1,P.deep]]),1.6);
+        line(c,"rgba(255,255,255,.4)",1,[[20,-50],[158,-50],[190,-32]]);
+        c.fillStyle="rgba(0,0,0,.2)"; c.fillRect(10,-34,180,4);
+        for(let x=22;x<186;x+=10){ c.fillStyle="rgba(27,16,36,.5)"; circ(c,x,-32,0.9); c.fill(); }
+        rrp(c,30,-48,26,10,1.5); fo(c,lg(c,0,-48,0,-38,[[0,P.mid],[1,P.deep]]),1); line(c,"#c9d2dc",1,[[34,-43],[52,-43]]);
+        rrp(c,166,-46,10,5,1.5); fo(c,rg(c,171,-43.5,0.5,6,[[0,"#ffffff"],[1,"#9fd6ff"]]),0.8);   // headlight
+        // turret, hatch, periscope, antenna
+        c.beginPath(); c.moveTo(58,-52); c.lineTo(68,-74); c.quadraticCurveTo(98,-82,126,-74); c.lineTo(146,-52); c.closePath(); fo(c,lg(c,0,-80,0,-52,[[0,P.hi],[0.25,P.mid],[0.7,P.base],[1,P.deep]]),1.6);
+        line(c,"rgba(255,255,255,.4)",1,[[72,-72],[124,-72]]);
+        c.beginPath(); c.ellipse(92,-78,14,3.4,0,0,TAU); fo(c,lg(c,0,-81,0,-75,[[0,P.mid],[1,P.deep]]),1.1);
+        rrp(c,86,-86,12,6,2); fo(c,P.base,1); rrp(c,108,-84,6,6,1); fo(c,"#2a2f3a",0.9); c.fillStyle="#9fd6ff"; c.fillRect(109,-82,4,2);
+        line(c,OL,1.6,[[70,-74],[64,-98]]); line(c,"#c9d2dc",0.9,[[70,-74],[64,-98]]); c.fillStyle="#ff1a7f"; circ(c,64,-98,1.6); c.fill();
+        // the barrel + muzzle brake
+        rrp(c,140,-68,56,8,3); fo(c,lg(c,0,-68,0,-60,[[0,P.hi],[0.35,P.mid],[1,P.deep]]),1.3);
+        rrp(c,138,-70,10,12,2); fo(c,P.base,1.1); rrp(c,192,-70,12,12,2); fo(c,chromeG(c,-70,-58),1.2); c.fillStyle="#1b1024"; c.fillRect(196,-66,3,4);
+      });
     },
     jet(g,P,o) {
       afterburner(g,o);
+      // landing gear struts to the shared wheels
+      for(const x of [42,160]) { line(g,OL,5,[[x,-14],[x+(x<100?6:-6),-34]]); line(g,"#c9d2dc",3,[[x,-14],[x+(x<100?6:-6),-34]]); }
       o.wheels();
-      line(g,P.trim,4,[[42,-14],[42,-42],[160,-42],[160,-14]]);
-      poly(g,P.deep,[[5,-40],[14,-93],[32,-93],[49,-49],[141,-49],[202,-35],[164,-26],[33,-28]]);
-      poly(g,P.base,[[5,-40],[39,-50],[145,-48],[202,-35],[159,-29],[32,-31]]);
-      poly(g,P.mid,[[72,-42],[104,-86],[124,-86],[114,-43],[153,-19],[119,-22]]);
-      poly(g,"#163b59",[[108,-50],[120,-68],[143,-65],[162,-46]]);
-      line(g,P.hi,2,[[121,-65],[141,-63],[155,-49]]);
-      box(g,"#101624",5,-42,16,9); box(g,P.trim,3,-40,4,5);
-      line(g,P.hi,2,[[37,-34],[97,-34]]);
+      cached(g,pkey("jet",P),0,-100,208,82,(c)=>{
+        // tail fin + far wing (behind the fuselage)
+        trace(c,[[8,-44],[16,-94],[30,-94],[50,-48]]); fo(c,lg(c,0,-94,0,-44,[[0,P.hi],[0.3,P.mid],[1,P.deep]]),1.5);
+        line(c,"rgba(255,255,255,.45)",1,[[18,-90],[28,-90]]); trace(c,[[19,-80],[27,-80],[34,-64],[24,-64]]); fo(c,"#ff1a7f",0);
+        trace(c,[[86,-46],[118,-70],[132,-70],[126,-46]]); fo(c,P.deep,1.2);
+        // fuselage
+        const fus=()=>{ c.beginPath(); c.moveTo(6,-44); c.lineTo(40,-50); c.lineTo(140,-50); c.bezierCurveTo(170,-49,192,-42,206,-36); c.bezierCurveTo(192,-31,170,-28,140,-28); c.lineTo(30,-29); c.lineTo(6,-32); c.closePath(); };
+        fus(); fo(c,lg(c,0,-50,0,-28,[[0,P.hi],[0.18,P.mid],[0.55,P.base],[1,P.deep]]),1.7);
+        c.save(); fus(); c.clip();
+        c.fillStyle="#2a2f3a"; c.fillRect(176,-50,40,30); c.fillStyle="rgba(255,255,255,.35)"; c.beginPath(); c.ellipse(186,-41,10,1.2,-0.1,0,TAU); c.fill();   // dark radome
+        line(c,"rgba(27,16,36,.4)",0.6,[[60,-50],[60,-28]]); line(c,"rgba(27,16,36,.4)",0.6,[[100,-50],[100,-28]]); line(c,"rgba(27,16,36,.4)",0.6,[[140,-50],[140,-28]]);
+        c.fillStyle="#ff1a7f"; c.fillRect(30,-40,150,2); c.fillStyle="#00c9cd"; c.fillRect(30,-38,150,1.2);
+        c.restore(); fus(); c.strokeStyle=OL; c.lineWidth=1.7; c.stroke();
+        // intake
+        trace(c,[[96,-40],[124,-40],[128,-32],[100,-32]]); fo(c,lg(c,0,-40,0,-32,[[0,"#1b1024"],[1,"#3a3f4c"]]),1);
+        // near wing + missiles-free wingtip lights
+        trace(c,[[70,-36],[116,-36],[154,-20],[132,-18]]); fo(c,lg(c,0,-36,0,-18,[[0,P.mid],[1,P.deep]]),1.4);
+        circ(c,150,-20,1.6); fo(c,"#20bd80",0.4);
+        // canopy: glass bubble with a frame + pilot helmet
+        c.beginPath(); c.moveTo(118,-50); c.bezierCurveTo(124,-68,150,-68,166,-48); c.closePath(); fo(c,glassG(c,-66,-48),1.4);
+        c.save(); c.beginPath(); c.moveTo(118,-50); c.bezierCurveTo(124,-68,150,-68,166,-48); c.closePath(); c.clip();
+        c.fillStyle="#f2f2f6"; circ(c,138,-55,5.2); c.fill(); c.fillStyle="#1b1024"; rrp(c,139,-58,6,3.2,1.4); c.fill(); c.fillStyle="#ff1a7f"; c.fillRect(132,-61,12,1.6);
+        c.fillStyle="rgba(255,255,255,.45)"; c.beginPath(); c.ellipse(134,-62,10,2,-0.3,0,TAU); c.fill(); c.restore();
+        line(c,"#2a2f3a",1.6,[[146,-63],[148,-49]]);
+        // nozzle
+        rrp(c,1,-44,10,12,2); fo(c,chromeG(c,-44,-32),1.1); c.fillStyle="#101624"; c.fillRect(1,-41,3,6);
+      });
     },
     horse(g,P,o) { drawHorse(g,o); }
   };
