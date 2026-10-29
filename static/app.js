@@ -2695,7 +2695,8 @@ window.CHISME_APP_BUILD = "49.28.0";
     $("#food-outlets").replaceChildren(...(desk.length ? desk.map(deskItem) : [el("p", { class: "loading", text: "No new food coverage in the feeds right now." })]));
     renderCrew(n.creators || [], sa);
     syncFoodView(); renderForYouCard();
-    $("#food-sources").replaceChildren(...(n.sources || []).map((f) => el("li", { class: f.ok ? "" : "bad" },
+    // v49.28: a source that failed this time (a YouTube feed 404, Reddit blocking) is simply left off the list, no error shown
+    $("#food-sources").replaceChildren(...(n.sources || []).filter((f) => f.ok).map((f) => el("li", { class: f.ok ? "" : "bad" },
       ext(f.home, f.name), f.elsewhere && !(n.metro || {}).in_sa ? " (San Antonio creator)" : "", f.ok ? (f.platform === "tiktok" ? `: ${f.count} hand-picked TikTok${f.count === 1 ? "" : "s"}` : `: ${f.count} recent ${f.kind === "creator" ? "videos" : "stories"}`) : `: unavailable right now (${f.error})`)));
   }
   section("food", {
@@ -3068,7 +3069,8 @@ window.CHISME_APP_BUILD = "49.28.0";
       renderSports();
       $("#sports-updated").textContent = stampFor(saved, d);
       mixSoon();
-      $("#sports-sources").replaceChildren(...(d.sources || []).map((f) => el("li", { class: f.ok ? "" : "bad" },
+      // v49.28: failing sources (e.g. r/NBASpurs when Reddit blocks) are left off, no error shown
+      $("#sports-sources").replaceChildren(...(d.sources || []).filter((f) => f.ok).map((f) => el("li", { class: f.ok ? "" : "bad" },
         ext(f.home, f.name), f.ok ? (f.count != null ? `: ${f.count} items` : ": ok") : `: unavailable right now (${f.error})`)));
     },
   });
