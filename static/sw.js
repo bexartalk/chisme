@@ -1,7 +1,7 @@
 /* Chisme service worker: caches the app shell and the last-loaded news/weather
    so the app opens instantly (and shows the last saved data) even when the server is asleep
    or there's no connection. */
-const VERSION = "chisme-v49.28.0";   // v49.2 … v49.23: same-day follow-ups (a ".N" after the number is allowed)
+const VERSION = "chisme-v49.29.0";   // v49.2 … v49.23: same-day follow-ups (a ".N" after the number is allowed)
 const BUILD = VERSION.replace("chisme-v", "");          // index.html asks for app.js?v=<BUILD>
 const SHELL_CACHE = `${VERSION}-shell`;
 const DATA_CACHE = `${VERSION}-data`;
@@ -18,6 +18,7 @@ const SHELL = [
   `/static/juan.js?v=${BUILD}`,
   `/static/lowrider-sa-chase.js?v=${BUILD}`, // v49.26: SA chase + party
   `/static/lowrider-sa.js?v=${BUILD}`,   // v49.16: Puro Pinche Lowrider's San Antonio stage (+ its title art, thumb and lettering font below)
+  `/static/lowrider-rides.js?v=${BUILD}`,   // v49.29: the extra rides' art + hop sounds
   `/static/lowrider/title.webp?v=${BUILD}`,
   `/static/lowrider/thumb.webp?v=${BUILD}`,
   "/static/fonts/ppl-display.woff2",

@@ -10,6 +10,7 @@
    The rides are only inspired by classic lowriders: no real makes, badges, brands, songs or characters.
    Progress lives on this phone in localStorage "lowrider_v1" (versioned). The "Your best runs" board is local; a weekly
    server board can plug in later through the same { list, submit } shape (see BOARD).
+   v49.29: six unlockable rides with lazy art and synth hop sounds on the shared physics frame.
    v49.28: hop dust + an optional hydraulic flame trail (350 Feria, Garage), a Garage synth-groove toggle, combo glow, a richer
    hop/chime synth, Enter starts/restarts, a 50 ms frame cap; difficulty tightens hazard spacing while the road/sign scroll
    ramps only gently (max 342, was 477) so storefronts and billboards (future sponsor spots) stay readable. */
@@ -43,6 +44,18 @@
     { id: "64", name: "The '64 (Candy)", blurb: "Restored, candy paint, way too clean.", price: 900, body: "64", wheel: "chrome", paint: "candy", phys: PHYS },
     { id: "jefe", name: "El Jefe '76", blurb: "A '70s land yacht: vinyl top, opera windows, zero shame.", price: 2400, body: "76", wheel: "chrome", paint: "orig",
       orig: { id: "orig", name: "Original", deep: "#0a1430", base: "#1c2d5a", mid: "#30508f", hi: "#a3b8e8", flake: "#e6eeff", trim: "#ffffff", seat: "#efe9f2", pipe: "#7b2cbf", roof: "#f1eff8" }, phys: PHYS },
+    { id: "lifted", name: "Lifted Pickup", blurb: "Tall stance, same barrio hop.", price: 1600, body: "lifted", wheel: "chrome", paint: "orig",
+      orig: { id: "orig", name: "Original", deep: "#292137", base: "#247a99", mid: "#247a99", hi: "#e7c9dd", flake: "#ffffff", trim: "#e9edf1", seat: "#5a2a2e", pipe: "#8a3a3e" }, phys: PHYS },
+    { id: "lowtruck", name: "Lowrider Pickup", blurb: "A bagged mini-truck, laid out and ready.", price: 1800, body: "lowtruck", wheel: "chrome", paint: "orig",
+      orig: { id: "orig", name: "Original", deep: "#292137", base: "#77258e", mid: "#77258e", hi: "#e7c9dd", flake: "#ffffff", trim: "#e9edf1", seat: "#5a2a2e", pipe: "#8a3a3e" }, phys: PHYS },
+    { id: "monster", name: "Monster Truck", blurb: "Big tires, bigger bounce.", price: 3200, body: "monster", wheel: "chrome", paint: "orig",
+      orig: { id: "orig", name: "Original", deep: "#292137", base: "#197b63", mid: "#197b63", hi: "#e7c9dd", flake: "#ffffff", trim: "#e9edf1", seat: "#5a2a2e", pipe: "#8a3a3e" }, phys: PHYS },
+    { id: "tank", name: "Tank", blurb: "A cartoon crawler with a metallic hop.", price: 4500, body: "tank", wheel: "chrome", paint: "orig",
+      orig: { id: "orig", name: "Original", deep: "#292137", base: "#48566c", mid: "#48566c", hi: "#e7c9dd", flake: "#ffffff", trim: "#e9edf1", seat: "#5a2a2e", pipe: "#8a3a3e" }, phys: PHYS },
+    { id: "jet", name: "Fighter Jet", blurb: "Cartoon wings and landing-gear style.", price: 6000, body: "jet", wheel: "chrome", paint: "orig",
+      orig: { id: "orig", name: "Original", deep: "#292137", base: "#59658c", mid: "#59658c", hi: "#e7c9dd", flake: "#ffffff", trim: "#e9edf1", seat: "#5a2a2e", pipe: "#8a3a3e" }, phys: PHYS },
+    { id: "horse", name: "Cowboy on a Horse", blurb: "An original cowboy and a brown horse with rhythm.", price: 2000, body: "horse", wheel: "chrome", paint: "orig",
+      orig: { id: "orig", name: "Original", deep: "#292137", base: "#854536", mid: "#854536", hi: "#e7c9dd", flake: "#ffffff", trim: "#e9edf1", seat: "#5a2a2e", pipe: "#8a3a3e" }, phys: PHYS },
   ];
   const carById = (id) => CARS.find((c) => c.id === id) || CARS[0];
   const paintFor = (car, id) => (id === "orig" && car.orig) || PAINTS.find((p) => p.id === id) || car.orig || PAINTS[0];
@@ -263,7 +276,9 @@
     }
     // --- effects
     const fx = {
-      pssh(p = 1) { if (!ctx() || muted) return; const t = ac.currentTime;
+      pssh(p = 1, body) { if (!ctx() || muted) return; const t = ac.currentTime;
+        const rideSound = root.ChismeLowriderRides && root.ChismeLowriderRides.sound[body];
+        if (rideSound) { rideSound({ osc, nz, t, out: sfx }, p); return; }
         nz(t, 0.42, 0.33 * (0.5 + p * 0.5), sfx, "highpass", 2600, 0.8, 0.004, 900);
         osc("triangle", 240 + p * 100, t + 0.02, 0.3, 0.14, sfx, 0.003, 75, 0.12);
         osc("sine", 120, t + 0.035, 0.22, 0.85, sfx, 0.002, 42, 0.18); nz(t + 0.035, 0.06, 0.4, sfx, "lowpass", 500); },
@@ -549,7 +564,7 @@
       const ws = { blur: c.blur, style: c.car ? c.car.wheel : "chrome" }; drawWheel(g, rwx, rwy, c.rot, ws); drawWheel(g, fwx, fwy, c.rot, ws);
       g.restore();
     };
-    (c.car && c.car.body === "76" ? drawBody76 : drawBody64)(g, c.P, { t: c.t, lights: c.lights, wheels, driver: c.driver, bob: c.bob, brake: c.brake, lean: c.ang, car: c.car });
+    (c.car && c.car.body === "76" ? drawBody76 : (root.ChismeLowriderRides && c.car && root.ChismeLowriderRides.draw[c.car.body]) || drawBody64)(g, c.P, { t: c.t, rot: c.rot, lights: c.lights, wheels, driver: c.driver, bob: c.bob, brake: c.brake, lean: c.ang, car: c.car });
     g.restore();
     if (c.lights) { const hx = fwx + 37 * Math.cos(ang), hy = rwy - c.sR - 18 - (R64.front - R64.rear + 37) * Math.sin(ang); drawGlow(g, hx, hy, 16, "#dff6ff", 0.55); drawGlow(g, c.x + 1, rwy - c.sR - 20 + 0 * sa, 10, "#ff2a3a", c.brake ? 0.7 : 0.4); }
     return { rwx, rwy, fwx, fwy, ang, frontX: c.x + 200 * Math.cos(ang), frontY: rwy - c.sR - (200 - R64.rear) * Math.sin(ang) + 2, rearX: c.x - 4, rearY: rwy - c.sR + 4 };
@@ -959,6 +974,12 @@
     let stage = STAGES.find((s) => s.id === st.stage) || STAGES[0], SM = null, SX = null, stageLoading = null;
     // v49.26: load both SA modules before install; failed requests can be retried.
     let stageRequest = 0; const stageCancels = new Set(); // v49.26: detach pending script handlers on destroy
+    // Optional art: classic body is the fallback while loading or offline.
+    if (!root.ChismeLowriderRides) {
+      const sc = document.createElement("script"); sc.src = "/static/lowrider-rides.js" + (BUILD ? "?v=" + encodeURIComponent(BUILD) : ""); sc.async = true;
+      const cancel = () => { stageCancels.delete(cancel); sc.onload = sc.onerror = null; sc.remove(); };
+      stageCancels.add(cancel); sc.onload = sc.onerror = cancel; document.head.appendChild(sc);
+    }
     function loadStage(s) {
       if (!s.file) return Promise.resolve(null);
       if (lib.stages[s.id] && lib.saChase) return Promise.resolve(lib.stages[s.id]);
@@ -1188,7 +1209,7 @@
       car.charging = false; audio.fx.pumpStop();
       car.air = true; groundedAt = -9; car.tapped = false; car.pend = null; car.launchC = c; car.vy = ph.vMin + (ph.vMax - ph.vMin) * c; car.y = 0.5;
       car.vF += 260 + 380 * c; car.vR += 120 + 160 * c;
-      audio.fx.pssh(c);
+      audio.fx.pssh(c, curCar().body);
       for (const wx of [R64.rear, R64.front]) burst(car.x + wx, GY - 10, 8, "dust", { a: -1.57, spread: 2.6, sp: 80, life: 0.55, s: 1.4 });
       if (run) { run.hops++; st.totals.hops++; if (st.totals.hops >= 1000) unlock("addict"); }
       if (run && ev && ev.press) ev.press();
@@ -1729,6 +1750,7 @@
       gg.fillStyle = rg(gg, W / 2, H * 0.8, 4, W * 0.45, [[0, "rgba(255,26,127,.35)"], [1, "rgba(255,26,127,0)"]]); gg.fillRect(0, H * 0.5, W, H * 0.5);
       gg.save(); gg.font = `900 ${14 * s}px ${FONT}`; gg.textAlign = "center"; gg.fillStyle = "rgba(0,201,205,.85)"; gg.fillText("PURO 210 · HYDRAULICS", W / 2, 22 * s); gg.restore();
       gg.save(); gg.translate(W / 2 - 100 * s, 0); gg.scale(s, s);
+      if (gCar().body === "horse") { gg.translate(30, 40); gg.scale(0.7, 0.7); }
       const reduce = reduced(), d = reduce ? 0 : t;
       const sR = Math.max(0, Math.sin(d * 3.2)) * 7, sF = Math.max(0, Math.sin(d * 3.2 + 1.6)) * 9, bounce = reduce ? 0 : Math.max(0, Math.sin(d * 1.6)) * 6;
       const gc = gCar(), locked = !ownsCar(gc.id);

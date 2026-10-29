@@ -111,7 +111,9 @@ def static():
         sa: { landmarks: SA.LANDMARKS.map((l) => l.name || l.tag || l.id), stores: SA.STORES.map((s) => s.name || s.id), taqs: SA.TAQS.map((s) => s.name || s.id), traffic: SA.traffic.map((x) => [x.id, x.lines.near.length, x.lines.over.length, x.lines.hit.length]),
           picks: Object.keys(SA.picks), coats: SA.COATS.map((c) => c.id), coatHex: SA.COATS.flatMap((c) => hexes(c)), fuel: SA.fuel, bbWeb: bb(false).slice(0, 8), bbNative: bb(true).slice(0, 8) } })); """
     r = json.loads(subprocess.run(["node", "-e", node, os.path.join(HERE, "static/lowrider.js"), os.path.join(HERE, "static/lowrider-sa.js"), os.path.join(HERE, "static/lowrider-sa-chase.js")], capture_output=True, text=True, check=True).stdout)
-    check(r["cars"] == [["primer", "The '64 (Primer)", 0], ["64", "The '64 (Candy)", 900], ["jefe", "El Jefe '76", 2400]], f"3 rides: the Primer is free, the rest unlock with Feria {r['cars']}")
+    check(r["cars"] == [["primer", "The '64 (Primer)", 0], ["64", "The '64 (Candy)", 900], ["jefe", "El Jefe '76", 2400],
+                         ["lifted", "Lifted Pickup", 1600], ["lowtruck", "Lowrider Pickup", 1800], ["monster", "Monster Truck", 3200],
+                         ["tank", "Tank", 4500], ["jet", "Fighter Jet", 6000], ["horse", "Cowboy on a Horse", 2000]], f"9 rides: the Primer is free, the rest unlock with Feria {r['cars']}")
     check(r["fresh"] == {"cars": ["primer"], "car": "primer"}, "a new player starts in The '64 (Primer)")
     check(r["bronze"][1] == "#c47a4e" and not r["carYellow"], f"the Primer's bronze wheels (no gold / yellow in any ride, wheel or patch) {r['carYellow']}")
     check([p[0] for p in r["paints"]] == ["Candy red", "Turquoise", "Purple", "Black cherry", "Pearl white"] and r["paints"][0][1] == 0, f"paint: 5 colors, no gold {r['paints']}")
@@ -256,7 +258,7 @@ async def webkit(p):
     txt = await pg.evaluate(S + ".overlayText")
     check(all(n in txt for n in ["The '64 (Primer)", "The '64 (Candy)", "El Jefe '76", "900", "2,400", "Candy red", "Turquoise", "Purple", "Black cherry", "Pearl white", "earned only by playing"]) and "Gold" not in txt,
           "Garage: the 3 rides with their Feria prices, 5 paints, Feria only by playing")
-    check(await pg.evaluate("[...document.querySelectorAll('.lr-car.locked')].length") == 2, "the candy '64 + El Jefe show locked")
+    check(await pg.evaluate("[...document.querySelectorAll('.lr-car.locked')].length") == 8, "the candy '64, El Jefe and the 6 v49.29 rides show locked")
     await pg.click('[data-id="turq"]'); await pg.click('.lr-ov [data-act="buy"]'); await pg.wait_for_timeout(200); s = await pg.evaluate(S)
     save = await pg.evaluate("JSON.parse(localStorage.getItem('lowrider_v1'))")
     check("turq" in s["owned"] and save["feria"] == 180 and "turq" in save["owned"]["paint"], f"buy Turquoise with 120 Feria (saved) {s['owned']} {save['feria']}")
