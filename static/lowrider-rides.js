@@ -166,6 +166,48 @@
     for (let i = 1; i <= 3; i++) { g.globalAlpha = 0.5 * k; oval(g, "#7fb2ff", nx - L * (0.18 + i * 0.14), ny, 1.6, 2.6); }   // shock diamonds
     g.restore();
   }
+  function marigold(g, x, y, r) {   // cempasúchil: ruffled orange petals, gold heart
+    g.fillStyle = "#b8430a"; circ(g, x, y + r * 0.15, r); g.fill();
+    for (let i = 0; i < 7; i++) { const a = i / 7 * TAU; g.fillStyle = i % 2 ? "#ff7a00" : "#ff9a1f"; circ(g, x + Math.cos(a) * r * 0.55, y + Math.sin(a) * r * 0.5, r * 0.55); g.fill(); }
+    g.fillStyle = "#ffc23a"; circ(g, x - r * 0.1, y - r * 0.15, r * 0.45); g.fill(); g.fillStyle = "#c25500"; circ(g, x, y, r * 0.16); g.fill();
+  }
+  function paperFlower(g, x, y, r, col) {
+    for (let i = 0; i < 6; i++) { const a = i / 6 * TAU; g.fillStyle = col; circ(g, x + Math.cos(a) * r * 0.6, y + Math.sin(a) * r * 0.6, r * 0.55); g.fill(); }
+    g.strokeStyle = "rgba(27,16,36,.35)"; g.lineWidth = 0.5; circ(g, x, y, r * 1.1); g.stroke(); g.fillStyle = "#ffe36e"; circ(g, x, y, r * 0.35); g.fill();
+  }
+  // papel picado: flags on a sagging string, each with cut-outs (even-odd holes show what's behind)
+  function papel(g, x0, x1, y, sag, n, cols, t) {
+    const yAt = (x) => { const u = (x - x0) / (x1 - x0); return y + sag * 4 * u * (1 - u); };
+    const fw = (x1 - x0) / n;
+    for (let i = 0; i < n; i++) {
+      const cx = x0 + fw * (i + 0.5), top = yAt(cx), w = fw * 0.84, h = fw * 0.95, sw = t == null ? 0 : Math.sin(t * 5 + i) * 0.08;
+      g.save(); g.translate(cx, top); g.rotate(sw); g.beginPath();
+      g.moveTo(-w / 2, 0); g.lineTo(w / 2, 0); g.lineTo(w / 2, h); for (let k = 0; k < 5; k++) { const xa = w / 2 - (k + 0.5) * w / 5, xb = w / 2 - (k + 1) * w / 5; g.lineTo(xa, h - w * 0.09); g.lineTo(xb, h); } g.closePath();
+      const d = w * 0.13;   // a flower of four diamonds + a row of little triangles
+      for (const [dx, dy] of [[0, -1], [1, 0], [0, 1], [-1, 0]]) { const px = dx * d * 1.3, py = h * 0.5 + dy * d * 1.3; g.moveTo(px, py - d); g.lineTo(px + d * 0.7, py); g.lineTo(px, py + d); g.lineTo(px - d * 0.7, py); g.closePath(); }
+      for (let k = 0; k < 3; k++) { const px = -w * 0.3 + k * w * 0.3; g.moveTo(px - d * 0.6, h * 0.16); g.lineTo(px + d * 0.6, h * 0.16); g.lineTo(px, h * 0.16 + d); g.closePath(); }
+      g.fillStyle = cols[i % cols.length]; g.fill("evenodd"); g.strokeStyle = "rgba(27,16,36,.5)"; g.lineWidth = 0.5; g.stroke();
+      g.restore();
+    }
+    g.strokeStyle = "#f4ecff"; g.lineWidth = 0.7; g.beginPath(); for (let x = x0; x <= x1; x += 4) g.lineTo(x, yAt(x)); g.stroke();
+  }
+  function candle(g, x, y, h, t, k) {   // a white candle with a flickering flame and glow
+    rrp(g, x - 2.2, y - h, 4.4, h, 1); fo(g, lg(g, x - 2.2, 0, x + 2.2, 0, [[0, "#d8c9b8"], [0.4, "#fffaf0"], [1, "#cbb8a6"]]), 0.7);
+    const f = Math.sin(t * 13 + k) * 0.6, fy = y - h - 1;
+    g.save(); g.globalCompositeOperation = "lighter"; g.fillStyle = rg(g, x, fy - 3, 0, 9, [[0, "rgba(255,170,60,.45)"], [1, "rgba(255,120,20,0)"]]); circ(g, x, fy - 3, 9); g.fill(); g.restore();
+    g.beginPath(); g.moveTo(x, fy - 7 - f); g.quadraticCurveTo(x + 2.6, fy - 2, x, fy); g.quadraticCurveTo(x - 2.6, fy - 2, x, fy - 7 - f); g.fillStyle = "#ff8a1f"; g.fill();
+    g.fillStyle = "#fff6c8"; g.beginPath(); g.ellipse(x, fy - 2, 0.9, 2, 0, 0, TAU); g.fill();
+  }
+  function sugarSkull(g, x, y, s, accent) {   // an original calavera de azúcar, cheerful
+    g.save(); g.translate(x, y); g.scale(s, s);
+    g.beginPath(); g.moveTo(-9, -2); g.bezierCurveTo(-10, -15, 10, -15, 9, -2); g.quadraticCurveTo(9, 3, 5, 4); g.lineTo(5, 8); g.lineTo(-5, 8); g.lineTo(-5, 4); g.quadraticCurveTo(-9, 3, -9, -2); g.closePath();
+    fo(g, rg(g, -2, -6, 1, 13, [[0, "#ffffff"], [1, "#e6dcef"]]), 1.1 / s);
+    for (const ex of [-4, 4]) { g.fillStyle = accent; circ(g, ex, -2.5, 3.2); g.fill(); g.fillStyle = "#1b1024"; circ(g, ex, -2.5, 1.9); g.fill(); g.fillStyle = "#fff"; circ(g, ex + 0.6, -3.1, 0.6); g.fill(); }
+    g.fillStyle = "#1b1024"; g.beginPath(); g.moveTo(0, 0.5); g.lineTo(1.2, 2.6); g.lineTo(-1.2, 2.6); g.closePath(); g.fill();
+    g.strokeStyle = "#1b1024"; g.lineWidth = 0.5; for (let i = -4; i <= 4; i += 2) { g.beginPath(); g.moveTo(i, 4.5); g.lineTo(i, 7.5); g.stroke(); } g.beginPath(); g.moveTo(-5, 6); g.lineTo(5, 6); g.stroke();
+    for (const [px, c] of [[-3, "#ff1a7f"], [0, "#00c9cd"], [3, "#ffb020"]]) { g.fillStyle = c; circ(g, px, -9.5, 1.2); g.fill(); }
+    g.restore();
+  }
   // Independent hop edges for Garage preview and gameplay.
   const fiestaPop = { garage: { air: false, start: -10, last: -1 }, game: { air: false, start: -10, last: -1 } };
   const draw = {
@@ -369,41 +411,82 @@
       g.restore();
     },
     chariot(g,P,o) {
-      line(g,P.trim,4,[[42,-14],[61,-39],[145,-39],[160,-14]]);
-      poly(g,P.deep,[[26,-35],[35,-78],[62,-82],[85,-49],[152,-49],[165,-84],[182,-80],[176,-29]]);
-      poly(g,P.base,[[31,-37],[40,-73],[58,-75],[79,-43],[157,-43],[169,-76],[177,-74],[171,-35]]);
-      line(g,P.hi,3,[[38,-76],[57,-78],[82,-46],[156,-46],[168,-79],[180,-78]]);
-      for(let i=0;i<8;i++) { const x=52+i*15; oval(g,"#309b88",x,-37,5,2); }
-      poly(g,"#874c67",[[95,-49],[98,-87],[119,-87],[127,-49]]);
-      oval(g,"#c38d83",110,-97,8,10); oval(g,"#b76c58",109,-105,11,8);
-      box(g,"#b76c58",103,-104,6,15); poly(g,"#9c3169",[[101,-111],[105,-123],[120,-119],[116,-111]]);
-      line(g,"#c38d83",5,[[119,-81],[142,-68],[168,-72]]); oval(g,"#281e31",115,-99,1,1);
-      // Radius 14 keeps the large, open spokes on the shared contact envelope.
+      const t=o.t||0;
+      line(g,"#3a2a20",4.5,[[42,-14],[61,-36],[145,-36],[160,-14]]); line(g,"#e7b23c",2,[[42,-14],[61,-36],[145,-36],[160,-14]]);
+      cached(g,pkey("chariot",P),14,-120,184,94,(c)=>{
+        const shell=()=>{ c.beginPath(); c.moveTo(24,-30); c.lineTo(22,-66); c.quadraticCurveTo(24,-72,32,-70); c.quadraticCurveTo(70,-56,118,-58); c.bezierCurveTo(150,-60,160,-80,168,-96);
+          c.quadraticCurveTo(178,-108,188,-96); c.quadraticCurveTo(190,-60,180,-30); c.closePath(); };
+        shell(); fo(c,lg(c,0,-104,0,-30,[[0,P.hi],[0.2,P.mid],[0.55,P.base],[1,P.deep]]),1.8);
+        c.save(); shell(); c.clip();
+        // greek-key band in gold on a dark stripe
+        c.fillStyle=P.deep; c.fillRect(20,-46,172,11); c.strokeStyle=goldG(c,-46,-35); c.lineWidth=1.2; c.lineJoin="miter";
+        c.beginPath(); for(let x=22;x<190;x+=10){ c.moveTo(x,-37); c.lineTo(x,-44); c.lineTo(x+7,-44); c.lineTo(x+7,-39.5); c.lineTo(x+3,-39.5); c.lineTo(x+3,-41.5); c.moveTo(x+7,-37); c.lineTo(x+10,-37); } c.stroke();
+        c.fillStyle=goldG(c,-48,-45); c.fillRect(20,-48,172,2); c.fillRect(20,-35,172,2);
+        c.fillStyle="rgba(255,255,255,.25)"; c.beginPath(); c.ellipse(170,-86,4,12,-0.4,0,TAU); c.fill();
+        c.restore();
+        // gold rim along the top edge + the bottom
+        c.beginPath(); c.moveTo(22,-66); c.quadraticCurveTo(24,-72,32,-70); c.quadraticCurveTo(70,-56,118,-58); c.bezierCurveTo(150,-60,160,-80,168,-96); c.quadraticCurveTo(178,-108,188,-96);
+        c.strokeStyle=OL; c.lineWidth=5; c.lineCap="round"; c.stroke(); c.strokeStyle=goldG(c,-106,-56); c.lineWidth=3; c.stroke();
+        c.fillStyle=goldG(c,-32,-27); c.fillRect(22,-32,160,4); c.strokeStyle=OL; c.lineWidth=0.8; c.strokeRect(22,-32,160,4);
+        // a laurel sprig along the side
+        c.strokeStyle="#2f6b2a"; c.lineWidth=1; c.beginPath(); c.moveTo(40,-52); c.quadraticCurveTo(90,-46,150,-54); c.stroke();
+        for(let i=0;i<14;i++){ const u=i/13, x=40+u*110, y=-52+Math.sin(u*Math.PI)*(-3)+u*-2+6*u*(1-u)*1; for(const sd of [-1,1]){ c.save(); c.translate(x,y); c.rotate(sd*0.7-0.2); c.fillStyle=sd>0?"#4f9a3c":"#3b7f2e"; c.beginPath(); c.ellipse(3,0,3.6,1.3,0,0,TAU); c.fill(); c.restore(); } }
+        // a gold medallion on the front guard
+        circ(c,176,-68,9); fo(c,goldG(c,-77,-59),1.2); circ(c,176,-68,6); fo(c,P.deep,0.8);
+        c.fillStyle=goldG(c,-73,-63); for(let i=0;i<8;i++){ const a=i/8*TAU; c.beginPath(); c.ellipse(176+Math.cos(a)*3,-68+Math.sin(a)*3,1.6,0.8,a,0,TAU); c.fill(); } circ(c,176,-68,1.4); c.fill();
+      });
+      // the charioteer: tunic, cape, a crested helmet, reins forward
+      const b=o.air?-2:Math.sin(t*8)*0.8; g.save(); g.translate(0,b);
+      g.beginPath(); g.moveTo(98,-62); g.quadraticCurveTo(80,-70+Math.sin(t*6)*3,70,-62+Math.sin(t*6+1)*3); g.lineTo(96,-58); g.closePath(); fo(g,"#c2185b",1.1);
+      g.beginPath(); g.moveTo(96,-60); g.lineTo(98,-88); g.lineTo(118,-88); g.lineTo(122,-60); g.closePath(); fo(g,lg(g,96,0,122,0,[[0,"#e9e2f2"],[0.5,"#ffffff"],[1,"#c9bfd6"]]),1.2);
+      line(g,goldG(g,-77,-73),2.2,[[97,-75],[121,-75]]);
+      line(g,OL,5.6,[[116,-84],[134,-72],[154,-74]]); line(g,"#d79a78",4,[[116,-84],[134,-72],[154,-74]]);
+      line(g,"#4a2a1a",1,[[156,-74],[196,-58]]);
+      circ(g,110,-97,8.5); fo(g,rg(g,110,-97,1,9,[[0,"#f0bf98"],[1,"#c98a66"]],112,-99),1.2);
+      oval(g,"#2a1a20",114,-98,1.1,1.3); g.strokeStyle="#7a3a2a"; g.lineWidth=0.9; g.beginPath(); g.arc(113,-93.5,2.2,0.3,1.8); g.stroke();
+      g.beginPath(); g.moveTo(101,-96); g.quadraticCurveTo(100,-110,111,-110); g.quadraticCurveTo(121,-110,120,-99); g.lineTo(116,-100); g.lineTo(115,-94); g.lineTo(105,-92); g.closePath(); fo(g,goldG(g,-110,-92),1.2);
+      g.beginPath(); g.moveTo(102,-108); g.quadraticCurveTo(108,-124,120,-112); g.quadraticCurveTo(112,-116,104,-104); g.closePath(); fo(g,"#d81b40",1);   // crest
+      for(let i=0;i<5;i++) line(g,"#ff6a7f",0.6,[[104+i*3,-108-i*0.8],[107+i*3,-116+i*0.6]]);
+      g.restore();
+      // gold spoked wheels on the shared radius-14 envelope
       for(const x of [42,160]) {
-        oval(g,P.deep,x,-14,14,14); oval(g,"#d78c76",x,-14,12,12); oval(g,"#342a40",x,-14,9.5,9.5);
-        for(let i=0;i<8;i++) { const a=i*TAU/8+(o.rot||0); line(g,"#d78c76",1.5,[[x,-14],[x+11*Math.cos(a),-14+11*Math.sin(a)]]); }
-        oval(g,P.trim,x,-14,3,3);
+        circ(g,x,-14,14); fo(g,rg(g,x,-14,8,14,[[0,"#3a2a20"],[1,"#120c0a"]]),1.2);
+        g.strokeStyle=goldG(g,-26,-2); g.lineWidth=2.6; circ(g,x,-14,10.8); g.stroke(); g.strokeStyle=OL; g.lineWidth=0.6; circ(g,x,-14,12.2); g.stroke(); circ(g,x,-14,9.4); g.stroke();
+        for(let i=0;i<8;i++) { const a=i*TAU/8+(o.rot||0); line(g,OL,2.4,[[x+2.5*Math.cos(a),-14+2.5*Math.sin(a)],[x+9.6*Math.cos(a),-14+9.6*Math.sin(a)]]); line(g,"#f2c04a",1.3,[[x+2.5*Math.cos(a),-14+2.5*Math.sin(a)],[x+9.6*Math.cos(a),-14+9.6*Math.sin(a)]]); }
+        circ(g,x,-14,3.6); fo(g,goldG(g,-17.6,-10.4),0.8); g.fillStyle=OL; circ(g,x,-14,1.1); g.fill();
       }
     },
     ofrenda(g,P,o) {
+      const t=o.t||0;
       o.wheels();
-      box(g,P.deep,16,-36,174,14); box(g,P.base,23,-61,160,25); box(g,P.mid,48,-84,111,23); box(g,P.deep,76,-105,57,21);
-      for(let i=0;i<13;i++) {
-        const x=23+i*13; for(let j=0;j<5;j++) oval(g,j%2?"#ed461a":"#ff6a0b",x+Math.cos(j*TAU/5)*3,-40+Math.sin(j*TAU/5)*3,3,3);
-      }
-      for(let i=0;i<7;i++) {
-        const x=29+i*23; poly(g,["#ff1a7f","#00c9cd","#943cce"][i%3],[[x,-60],[x+18,-60],[x+18,-49],[x+14,-46],[x+9,-49],[x+4,-46],[x,-49]]); box(g,P.deep,x+7,-57,4,4);
-      }
-      for(const x of [57,143]) {
-        oval(g,"#ecd7f3",x,-92,9,9); box(g,"#ecd7f3",x-6,-90,12,8);
-        oval(g,"#7b2cbf",x-3,-93,2.5,3); oval(g,"#ff1a7f",x+3,-93,2.5,3);
-        line(g,P.deep,1,[[x-4,-85],[x+4,-85]]); box(g,"#00c9cd",x-1,-101,2,3);
-      }
-      for(const x of [84,111]) { box(g,"#bb745d",x,-126,22,22); box(g,"#30233e",x+3,-123,16,16); oval(g,"#99719f",x+11,-117,3,3); poly(g,"#99719f",[[x+5,-109],[x+11,-114],[x+17,-109]]); }
-      for(const [x,y] of [[34,-63],[170,-63],[72,-86],[132,-86],[103,-128]]) {
-        box(g,"#e4c7dd",x-2,y-10,4,10);
-        oval(g,"#ff6a0b",x+Math.sin(o.t*11+x),y-14,3,5); oval(g,"#ffe5f4",x,y-13,1,2);
-      }
+      cached(g,pkey("ofrenda",P),4,-160,200,140,(c)=>{
+        // poles + papel picado across the top
+        for(const x of [16,190]) { c.fillStyle=chromeG(c,-150,-40); c.fillRect(x-1.3,-150,2.6,112); c.strokeStyle=OL; c.lineWidth=0.6; c.strokeRect(x-1.3,-150,2.6,112); }
+        papel(c,16,190,-148,10,9,["#ff1a7f","#00c9cd","#ffb020","#8a4bd8","#20bd80"]);
+        // the trailer deck + skirt with fringe
+        rrp(c,10,-40,186,10,2); fo(c,chromeG(c,-40,-30),1.3);
+        c.beginPath(); c.moveTo(12,-31); c.lineTo(194,-31); c.lineTo(194,-22); for(let x=194;x>12;x-=7){ c.quadraticCurveTo(x-3.5,-17,x-7,-22); } c.closePath(); fo(c,lg(c,0,-31,0,-18,[[0,P.base],[1,P.deep]]),1.3);
+        // three tiers dressed in cloth with lace edges
+        const tier=(x0,x1,y0,y1)=>{ rrp(c,x0,y0,x1-x0,y1-y0,2); fo(c,lg(c,0,y0,0,y1,[[0,P.mid],[0.35,P.base],[1,P.deep]]),1.3);
+          c.fillStyle="#fff6fb"; c.beginPath(); c.moveTo(x0,y0); for(let x=x0;x<x1-0.1;x+=5){ c.lineTo(x,y0+2); c.arc(x+2.5,y0+2,2.5,Math.PI,0,true); } c.lineTo(x1,y0); c.closePath(); c.fill(); c.strokeStyle="rgba(27,16,36,.35)"; c.lineWidth=0.5; c.stroke(); };
+        tier(20,186,-62,-40); tier(44,162,-86,-62); tier(72,134,-108,-86);
+        // marigold arch over the top tier
+        c.lineWidth=2; c.strokeStyle="#2f6b2a"; c.beginPath(); c.moveTo(66,-86); c.bezierCurveTo(66,-140,140,-140,140,-86); c.stroke();
+        for(let i=0;i<=16;i++){ const u=i/16, mt=1-u, x=mt*mt*mt*66+3*mt*mt*u*66+3*mt*u*u*140+u*u*u*140, y=mt*mt*mt*-86+3*mt*mt*u*-140+3*mt*u*u*-140+u*u*u*-86; marigold(c,x,y,4.2); }
+        // photo frames with generic portraits, sugar skulls, pan de muerto
+        for(const [x,col] of [[88,"#e7b23c"],[112,"#c0c8d4"]]) { rrp(c,x-9,-122,18,22,1.5); fo(c,goldG(c,-122,-100),1.1); c.fillStyle="#2a2440"; c.fillRect(x-6,-119,12,16);
+          c.fillStyle=col==="#e7b23c"?"#8a6a8f":"#6a7a9a"; circ(c,x,-114,3); c.fill(); c.beginPath(); c.ellipse(x,-104.5,5,4,0,Math.PI,0); c.fill(); }
+        sugarSkull(c,60,-72,1.05,"#ff1a7f"); sugarSkull(c,146,-72,1.05,"#00c9cd"); sugarSkull(c,103,-72,0.85,"#ffb020");
+        c.beginPath(); c.ellipse(40,-66,9,5,0,Math.PI,0); fo(c,lg(c,0,-71,0,-66,[[0,"#e8a35a"],[1,"#a8622a"]]),1); line(c,"#c47a3a",1.6,[[33,-68],[47,-68]]); c.fillStyle="#fff5e0"; for(let i=0;i<6;i++){ circ(c,34+i*2.6,-70+((i%2)*1.2),0.5); c.fill(); }
+        c.beginPath(); c.ellipse(166,-66,9,5,0,Math.PI,0); fo(c,lg(c,0,-71,0,-66,[[0,"#e8a35a"],[1,"#a8622a"]]),1); line(c,"#c47a3a",1.6,[[159,-68],[173,-68]]);
+        // marigold garlands along each tier
+        for(const [x0,x1,y] of [[22,184,-41],[46,160,-63],[74,132,-87]]) for(let x=x0+3;x<=x1-3;x+=6.5) marigold(c,x,y+Math.sin(x)*0.6,3.3);
+        for(let x=14;x<=194;x+=7) marigold(c,x,-31,3);
+      });
+      // candles: flicker each frame
+      for(const [x,y,h] of [[30,-62,9],[176,-62,9],[54,-86,8],[152,-86,8],[124,-108,7],[80,-108,7],[84,-62,6],[122,-62,6]]) candle(g,x,y,h,t,x);
+      // petals drifting off on a hop
+      if(o.air) for(let i=0;i<6;i++){ const x=30+i*28+Math.sin(t*3+i)*6, y=-130+((t*40+i*20)%90); g.fillStyle="#ff8a1f"; g.beginPath(); g.ellipse(x,y,1.8,1,t*4+i,0,TAU); g.fill(); }
     },
     fiesta(g,P,o) {
       const key=o.garage?"garage":"game", t=o.t||0, state=fiestaPop[key];
