@@ -3440,6 +3440,19 @@ async def lowrider_god_js(request: Request):
                     headers={**STATS_HEADERS, "Cache-Control": "no-store, private"})
 
 
+@app.get("/stats/lowrider/owner", include_in_schema=False)
+async def lowrider_owner(request: Request):
+    """v49.29.1: is this the owner (the /stats sign-in, or the signed-in admin account SOCIAL_OWNER_EMAIL)? The Lowrider
+    garage then shows every ride unlocked for this session only (computed live, never written into the save). Decided here
+    from the session cookies only: nothing the browser stores can turn it on."""
+    try:
+        import social_api
+        owner = bool(await social_api.admin_ok(request))
+    except Exception:
+        owner = False
+    return JSONResponse({"ok": True, "owner": owner}, headers={**STATS_HEADERS, "Cache-Control": "no-store, private"})
+
+
 @app.get("/stats/juan/god.js", include_in_schema=False)
 async def juan_god_js(request: Request):
     """v49.15.x: the owner's god-mode panel for The Juan That Got Away (bug hunting: immortal, fly, noclip, speed, level

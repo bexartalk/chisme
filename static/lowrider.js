@@ -1,5 +1,5 @@
 /* Chisme · Juegos game 3: "Puro Pinche Lowrider" (v49.16; first built as "Lowrider Hop"). Hop it. Drop it. Don't scrape it.
-   A one-thumb arcade game: HOLD to charge the hydraulics, LET GO to hop, TAP right before you land (when the shrinking
+   A one-thumb arcade game (v49.29.1: TAP to hop at once, hold to go higher; was HOLD to charge, LET GO to hop), TAP right before you land (when the shrinking
    ring meets the dashed one). Landings: PERFECT HOP! · PURO STYLE · AY GÜEY! · YOU SCRAPED IT!. Clean hops build the
    combo (x2, x5, x10, x25) and Feria, earned ONLY by playing (no purchases anywhere), which unlocks rides and paint in the Garage.
    Vector art on a canvas at devicePixelRatio (the title screen's key art + its lettering font are the only files); procedural
@@ -37,7 +37,8 @@
   ];
   // Rides, unlocked with Feria (earned only by playing). Same wheelbase + hydraulics for now (phys can differ per ride later);
   // body: which art; wheel: "bronze" (warm, never yellow) or "chrome"; orig: the ride's own factory look ("Original").
-  const PHYS = { g: 1500, vMin: 470, vMax: 930, chargeT: 0.82, spring: 230, damp: 15 };
+  const PHYS = { g: 1300, vMin: 430, vMax: 960, chargeT: 0.82, spring: 230, damp: 15 };   // v49.29.1: a little floatier so slower speeds still clear the cop car
+  const HOP = { c0: 0.35, hold: 0.28 };   // v49.29.1: the hop fires on press at c0; holding while rising adds height up to c = 1 over `hold` s
   const CARS = [
     { id: "primer", name: "The '64 (Primer)", blurb: "Rusty, patched and proud. Every patch has a story.", price: 0, body: "64", wheel: "bronze", paint: "orig", matte: true,
       orig: { id: "orig", name: "Original", patch: true, deep: "#3b3f46", base: "#7c828b", mid: "#a2a8b0", hi: "#d3d7dc", flake: "#ffffff", trim: "#e9edf1", seat: "#5a2a2e", pipe: "#8a3a3e" }, phys: PHYS },
@@ -56,6 +57,22 @@
       orig: { id: "orig", name: "Original", deep: "#292137", base: "#59658c", mid: "#59658c", hi: "#e7c9dd", flake: "#ffffff", trim: "#e9edf1", seat: "#5a2a2e", pipe: "#8a3a3e" }, phys: PHYS },
     { id: "horse", name: "Cowboy on a Horse", blurb: "An original cowboy and a brown horse with rhythm.", price: 2000, body: "horse", wheel: "chrome", paint: "orig",
       orig: { id: "orig", name: "Original", deep: "#292137", base: "#854536", mid: "#854536", hi: "#e7c9dd", flake: "#ffffff", trim: "#e9edf1", seat: "#5a2a2e", pipe: "#8a3a3e" }, phys: PHYS },
+    { id: "paleta", name: "Paleta Cart", blurb: "Silver bells, cold treats, hydraulic heat.", price: 1200, body: "paleta", wheel: "chrome", paint: "orig",
+      orig: { id: "orig", name: "Original", deep: "#b51a65", base: "#ff4b99", mid: "#ff9bc9", hi: "#ecd7f3", flake: "#ffffff", trim: "#dce7ef", seat: "#45233e", pipe: "#ff6a0b" }, phys: PHYS },
+    { id: "c10", name: "Chafa C10 Hopper", blurb: "Primer patches and a proud three-wheel lean.", price: 2200, body: "c10", wheel: "chrome", paint: "orig",
+      orig: { id: "orig", name: "Original", deep: "#404854", base: "#7c8793", mid: "#b2bbc7", hi: "#ecd7f3", flake: "#ffffff", trim: "#dce7ef", seat: "#45233e", pipe: "#ff6a0b" }, phys: PHYS },
+    { id: "raspa", name: "Raspa Rocket", blurb: "Shaved ice with seven stripes of syrup thrust.", price: 2600, body: "raspa", wheel: "chrome", paint: "orig",
+      orig: { id: "orig", name: "Original", deep: "#166273", base: "#00a8b8", mid: "#75edf0", hi: "#ecd7f3", flake: "#ffffff", trim: "#dce7ef", seat: "#45233e", pipe: "#ff6a0b" }, phys: PHYS },
+    { id: "bruja", name: "Witch on a Broom", blurb: "A pointed hat, a flying broom, a little street magic.", price: 2800, body: "bruja", wheel: "chrome", paint: "orig",
+      orig: { id: "orig", name: "Original", deep: "#291540", base: "#7136a1", mid: "#c693ef", hi: "#ecd7f3", flake: "#ffffff", trim: "#dce7ef", seat: "#45233e", pipe: "#ff6a0b" }, phys: PHYS },
+    { id: "chariot", name: "Chariot Lowrider", blurb: "Laurel trim and hydraulics. Bring your own thunder.", price: 3600, body: "chariot", wheel: "chrome", paint: "orig",
+      orig: { id: "orig", name: "Original", deep: "#632e28", base: "#ad6249", mid: "#e59a83", hi: "#ecd7f3", flake: "#ffffff", trim: "#dce7ef", seat: "#45233e", pipe: "#ff6a0b" }, phys: PHYS },
+    { id: "ofrenda", name: "Ofrenda Float", blurb: "Marigolds, memories, and a candlelit bounce.", price: 3900, body: "ofrenda", wheel: "chrome", paint: "orig",
+      orig: { id: "orig", name: "Original", deep: "#341345", base: "#7b2cbf", mid: "#bd81e5", hi: "#ecd7f3", flake: "#ffffff", trim: "#dce7ef", seat: "#45233e", pipe: "#ff6a0b" }, phys: PHYS },
+    { id: "fiesta", name: "Fiesta Float", blurb: "Every hop deserves two confetti cannons.", price: 4200, body: "fiesta", wheel: "chrome", paint: "orig",
+      orig: { id: "orig", name: "Original", deep: "#542041", base: "#df247a", mid: "#ff8ec3", hi: "#ecd7f3", flake: "#ffffff", trim: "#dce7ef", seat: "#45233e", pipe: "#ff6a0b" }, phys: PHYS },
+    { id: "barge", name: "Calavera River Barge", blurb: "Sugar-skull prow and ripples under candlelight.", price: 5200, body: "barge", wheel: "chrome", paint: "orig",
+      orig: { id: "orig", name: "Original", deep: "#291d33", base: "#663d56", mid: "#b4769b", hi: "#ecd7f3", flake: "#ffffff", trim: "#dce7ef", seat: "#45233e", pipe: "#ff6a0b" }, phys: PHYS },
   ];
   const carById = (id) => CARS.find((c) => c.id === id) || CARS[0];
   const paintFor = (car, id) => (id === "orig" && car.orig) || PAINTS.find((p) => p.id === id) || car.orig || PAINTS[0];
@@ -132,7 +149,7 @@
   // ---------------------------------------------------------------- save (localStorage, versioned)
   function fresh() {
     return { v: SAVE_V, feria: 0, best: 0, owned: { car: ["primer"], paint: ["candy"] }, equip: { car: "primer", paint: "orig" }, carPaint: {}, stage: "blvd", ach: {}, runs: [],
-      totals: { hops: 0, perfects: 0, abuelas: 0, runs: 0, meters: 0, feria: 0, chanclas: 0, cops: 0, trails: 0 }, laps: {}, howto: false, muted: null, music: true, flame: false, trail: false };
+      totals: { hops: 0, perfects: 0, abuelas: 0, runs: 0, meters: 0, feria: 0, chanclas: 0, cops: 0, trails: 0 }, laps: {}, howto: false, ownerRide: null, muted: null, music: true, flame: false, trail: false };
   }
   function migrate(o) {   // v1 → v2: you keep everything; the v1 ride (the candy '64) stays yours next to the free Primer
     const d = fresh();
@@ -154,6 +171,7 @@
     if (Array.isArray(o.runs)) d.runs = o.runs.filter((r) => r && typeof r.score === "number").slice(0, 10).map((r) => ({ fin: r.fin === true, lap: Math.max(1, Math.min(2, n(r.lap, 1))), score: n(r.score), meters: n(r.meters), feria: n(r.feria), perfects: n(r.perfects), combo: n(r.combo, 1), car: CARS.some((c) => c.id === r.car) ? r.car : "64", paint: String(r.paint || "candy").slice(0, 12), stage: STAGES.some((s) => s.id === r.stage) ? r.stage : "blvd", at: n(r.at), week: String(r.week || "").slice(0, 10) }));
     if (o.totals) for (const k of Object.keys(d.totals)) d.totals[k] = n(o.totals[k]);
     d.music = o.music !== false; d.flame = o.flame === true; d.trail = d.flame && o.trail === true;
+    d.ownerRide = typeof o.ownerRide === "string" && CARS.some((c) => c.id === o.ownerRide) ? o.ownerRide : null;   // v49.29.1: the owner's last ride (a preference only, never an unlock)
     d.howto = !!o.howto; d.muted = typeof o.muted === "boolean" ? o.muted : null;
     return d;
   }
@@ -952,7 +970,7 @@
     const sayLine = (text, lang, o) => { const ok = audio.say(text, lang, o); if (ok) { spoken.push(text); if (spoken.length > 60) spoken.shift(); } return ok; };
     el.innerHTML = `
       <div class="lr-wrap no-swipe">
-        <canvas class="lr-cv no-swipe" role="img" aria-label="Puro Pinche Lowrider game screen. Hold anywhere to charge the hydraulics, let go to hop, and tap again right before you land."></canvas>
+        <canvas class="lr-cv no-swipe" role="img" aria-label="Puro Pinche Lowrider game screen. Tap anywhere to hop (hold for a higher hop), and tap again right before you land."></canvas>
         <div class="lr-ov" aria-live="polite"></div>
         <div class="lr-toasts" aria-live="polite"></div>
       </div>
@@ -960,7 +978,7 @@
         <button type="button" class="lr-cbtn" data-act="pause" aria-label="Pause"><span aria-hidden="true">❚❚</span></button>
         <button type="button" class="lr-cbtn" data-act="sound" aria-pressed="true"></button>
       </div>
-      <p class="lr-note">Hold to charge the hydraulics, let go to hop, tap right before you land. Feria is earned only by playing (nothing to buy with money) and unlocks rides and paint. Your progress stays on this phone.</p>
+      <p class="lr-note">Tap to hop (hold for higher), tap again right before you land. Feria is earned only by playing (nothing to buy with money) and unlocks rides and paint. Your progress stays on this phone.</p>
       <p class="lr-credit">An original game made for Chisme. The rides are only inspired by classic lowriders (no real makes or badges), every business is made up or a parody, and the San Antonio landmarks are our own cartoons.</p>`;
     const $ = (s) => el.querySelector(s);
     const wrap = $(".lr-wrap"), cv = $(".lr-cv"), ov = $(".lr-ov"), toasts = $(".lr-toasts"), g = cv.getContext("2d", { alpha: false });
@@ -1099,8 +1117,8 @@
       else { const list = own || SPONSOR_SLOTS.filter((q) => !q.house).map((q) => ({ ...q, tagline: q.line })); s = list[signI.billboard++ % list.length]; }
       bbs.push({ x, s, w: 196, h: 236 }); bbEnd = x + 196; bbLog.push(s.name); if (bbLog.length > 60) bbLog.shift();
     }
-    const difficulty = () => (run ? clamp(run.meters / 1900 + (run.boost || 0), 0, 1) : 0.08);   // boost: a harder lap (Otra vuelta)
-    const cruise = (d) => 262 + 80 * d; // v49.28: a gentle cap (342, was 477) keeps storefronts + billboards readable; difficulty mostly tightens hazard spacing
+    const difficulty = () => (run ? clamp(run.meters / 2600 + (run.boost || 0), 0, 1) : 0.08);   // v49.29.1: a gentler ramp (was meters / 1900)   // boost: a harder lap (Otra vuelta)
+    const cruise = (d) => 228 + 62 * d; // v49.29.1: slower for every ride (228 → 290; was 262 → 342), still building slowly; difficulty mostly tightens hazard spacing
     function addObstacles() {
       const d = difficulty();
       if (ev && (ev.stop || ev.type === "abuela" || ev.type === "party")) { nextObs += cruise(d) * 3.5; return; } // v49.27
@@ -1195,18 +1213,18 @@
     }
     function resume() { if (mode !== "paused") return; fs.enter(); mode = "run"; overlay(""); if (!muted) audio.startMusic(); ctrl(); kick(); }
 
-    // ---- input: HOLD = charge, RELEASE = hop, TAP in the air = set the landing
+    // ---- input (v49.29.1): PRESS = hop right away (no wind-up), HOLD while rising = higher, TAP in the air = set the landing
     function press() {
       if (mode !== "run") return;
       audio.unlock();
       held = true; // v49.27: landing taps are consumed once, including the 150ms pre-landing buffer
       if (car.pend) { resolve(gradeFor(T - car.pend.T, true)); if (T - groundedAt > 0.1 || !held) return; }
       if (car.air && T - groundedAt > 0.1) { if (tLand() <= 0.15) bufferedAt = T; if (!car.tapped) { car.tapped = true; car.tapT = T; audio.fx.click(); } return; }
-      if (!car.charging) { car.charging = true; car.charge = 0; inputLagMs = inputDownAt ? Math.max(0, performance.now() - inputDownAt) : 0; audio.fx.pumpStart(); }
+      if (!car.air) { inputLagMs = inputDownAt ? Math.max(0, performance.now() - inputDownAt) : 0; car.charge = HOP.c0; launch(); car.boost = 0; car.boosting = true; }
     }
-    function release() { held = false; if (mode !== "run" || !car.charging) return; launch(); }
+    function release() { held = false; car.boosting = false; }
     function launch() {
-      const ph = curCar().phys, c = Math.max(0.12, car.charge);
+      const ph = curCar().phys, c = Math.max(0.12, car.charge); car.boosting = false;
       car.charging = false; audio.fx.pumpStop();
       car.air = true; groundedAt = -9; car.tapped = false; car.pend = null; car.launchC = c; car.vy = ph.vMin + (ph.vMax - ph.vMin) * c; car.y = 0.5;
       car.vF += 260 + 380 * c; car.vR += 120 + 160 * c;
@@ -1333,17 +1351,17 @@
 
     // ---- autopilot (the title screen's attract mode; also a test hook)
     function autopilot() {
-      const ph = CARS[0].phys, v = Math.max(120, car.v), inRun = !!run && mode === "run";
+      const ph = curCar().phys, v = Math.max(120, car.v), inRun = !!run && mode === "run";
       if (car.air) { if (!car.tapped && tLand() < 0.06) { if (inRun) press(); else { car.tapped = true; car.tapT = T; } } return; }
       if (car.pend && inRun) { press(); return; }
       if (ev && ev.type === "chancla") {
-        if (ev.high) { if (car.charging && ev.phase === "fly") { if (inRun) release(); else launch(); } return; }
-        if (ev.phase === "fly" && !ev.dodged) { const tt = (ev.cx - (car.x + 200)) / (300 + v); if (!car.charging && tt < 0.62) startCharge(); if (car.charging && (car.charge >= 0.45 || tt < 0.2)) inRun ? release() : launch(); return; }
+        if (ev.high) return;   // stay low under a high one
+        if (ev.phase === "fly" && !ev.dodged) { const tt = (ev.cx - (car.x + 200)) / (300 + v); if (!car.air && tt < 0.25) autoHop(0.45); return; }
       }
       if (ev && ev.type === "abuela" && ev.phase !== "done") return;
       if (ev && ev.auto && ev.auto(inRun)) return;
       const o = obs.find((q) => !q.hit && !q.knock && !q.cleared && q.x + q.w > car.x + 20);
-      if (!o) { if (car.charging) inRun ? release() : launch(); return; }
+      if (!o) return;
       // the stretch of road where the car would touch it, and the hop that clears it with its apex in the middle
       const tall = o.h > 20, fr = o.pit ? R64.front + 6 : tall ? 194 : R64.front + R64.r, rr0 = o.pit ? R64.rear - 6 : tall ? 6 : R64.rear - R64.r;
       const vr = Math.max(60, v - (o.vx || 0)), a = o.x - fr - 14, b = o.x + o.w - rr0 + 14, hh = o.h + 10, Tn = (b - a) / vr;
@@ -1352,10 +1370,10 @@
       if (!run) c = Math.max(c, 0.3 + ((o.x | 0) % 7) / 11);
       vy0 = ph.vMin + (ph.vMax - ph.vMin) * c;
       const launchX = (a + b) / 2 - vr * (vy0 / ph.g);
-      if (!car.charging && car.x >= launchX - vr * c * ph.chargeT - 4 && car.x < b) { startCharge(); car.autoWant = c; }
-      if (car.charging && (car.charge >= (car.autoWant || c) - 0.004 || car.x >= launchX)) inRun ? release() : launch();
+      if (!car.air && !car.pend && car.x >= launchX - 4 && car.x < b) autoHop(c);
     }
-    function startCharge() { if (mode === "run") press(); else if (!car.air) { car.charging = true; car.charge = 0; } }
+    function autoHop(c) { if (car.air) return; if (mode === "run") audio.unlock(); car.charge = c; launch(); }   // the autopilot hops at once with the height it needs
+    function startCharge() { autoHop(0.45); }   // v49.29.1: stage events (lowrider-sa.js) ask for a hop: it's instant now
 
     // ---- simulation
     function step(dt) {
@@ -1383,6 +1401,8 @@
       car.vR += ((sq + hurtSag - car.sR) * ph.spring - car.vR * ph.damp) * dt; car.sR += car.vR * dt;
       car.vF += ((sq * 0.8 - car.sF) * ph.spring - car.vF * ph.damp) * dt; car.sF += car.vF * dt;
       if (car.air) {
+        if (car.boosting && held && car.vy > 0 && car.boost < HOP.hold) { const k = Math.min(dt, HOP.hold - car.boost); car.boost += k; car.vy += (ph.vMax - ph.vMin) * (1 - HOP.c0) * k / HOP.hold; car.launchC = Math.min(1, HOP.c0 + (1 - HOP.c0) * car.boost / HOP.hold); }
+        else car.boosting = false;   // v49.29.1: variable jump, only while rising and still held
         car.vy -= ph.g * dt; car.y += car.vy * dt;
         const tgt = car.tapped ? 0 : car.vy > 0 ? 0.06 * car.launchC : -0.085;
         car.ang += (tgt - car.ang) * Math.min(1, dt * 6);
@@ -1593,7 +1613,7 @@
           g.strokeStyle = "#fff"; g.lineWidth = 1.5; rr(g, mx, my, mw, 16, 8); g.stroke();
           txt(car.charge >= 1 ? "FULL PSI · LET GO!" : "CHARGING…", LW / 2, my + 30, 12, "#fff", "center", "#000", SANS, "900");
         } else if (st.totals.hops < 14 && mode === "run" && zoom === 1) {
-          txt(car.air ? (car.tapped ? "Nice. Now stick it." : "TAP when the rings meet!") : "HOLD to charge · LET GO to hop", LW / 2, my + 10, 13, "#fff", "center", "#000", SANS, "900");
+          txt(car.air ? (car.tapped ? "Nice. Now stick it." : "TAP when the rings meet!") : "TAP to hop · HOLD for higher", LW / 2, my + 10, 13, "#fff", "center", "#000", SANS, "900");
         }
       }
       // v49.26: reserve measured rectangles every frame, big awards first (maximum two).
@@ -1657,7 +1677,7 @@
     function showHowto(thenStart) {
       overlay(`<div class="lr-card lr-howto"><h3 class="lr-h">How to hop</h3>
         <ol class="lr-steps">
-          <li><b>HOLD</b> anywhere to charge the hydraulics. Longer = higher.</li>
+          <li><b>TAP</b> anywhere to hop, right away. <b>Hold</b> while rising to go higher.</li>
           <li><b>LET GO</b> to hop over potholes, cones, couches and whatever your cousin left in the street.</li>
           <li><b>TAP</b> right before you land, when the white ring meets the dashed one. Nail it for a <b>PERFECT HOP!</b> and build the combo.</li>
         </ol>
@@ -1704,9 +1724,10 @@
 
     // ---- garage: rides (unlocked with Feria) + paint for any ride you own
     let gcv = null, gg = null;
-    const curCar = () => carById(st.equip.car);
+    const curCar = () => carById(ownsCar(st.equip.car) ? st.equip.car : "primer");
     const gCar = () => carById(garage.car || st.equip.car);
-    const ownsCar = (id) => st.owned.car.includes(id);
+    let ownerAll = false;   // v49.29.1: every ride for the owner; only the server's GET /stats/lowrider/owner turns it on (this session, never saved as unlocks)
+    const ownsCar = (id) => ownerAll || st.owned.car.includes(id);
     function lrCars() {
       return `<div class="lr-cars" role="radiogroup" aria-label="Rides">` + CARS.map((c) => { const own = ownsCar(c.id), on = gCar().id === c.id, eq = st.equip.car === c.id;
         return `<button type="button" class="lr-car${on ? " on" : ""}${own ? "" : " locked"}" role="radio" aria-checked="${on ? "true" : "false"}" data-act="car" data-id="${esc(c.id)}" aria-label="${esc(c.name)}${own ? (eq ? ", riding" : ", unlocked") : ", locked, " + num(c.price) + " Feria"}"><b>${esc(c.name)}</b><small>${eq ? "Riding" : own ? "Unlocked" : (st.feria >= c.price ? "" : "🔒 ") + num(c.price) + " F"}</small></button>`; }).join("") + `</div>`;
@@ -1811,7 +1832,7 @@
       else if (a === "buycar") buyCar();
       else if (a === "music") { st.music = !st.music; audio.setMusic(st.music); save(st); showGarage(); }
       else if (a === "trail") { syncWallet(); if (st.flame) st.trail = !st.trail; else if (st.feria >= 350) { st.feria -= 350; st.flame = true; st.trail = true; } else toast("Keep cruising", "Earn " + num(350 - st.feria) + " more Feria for the flame trail."); save(st); showGarage(); }
-      else if (a === "equip") { const c = gCar(), pid = garage.preview || st.carPaint[c.id] || c.paint; if (ownsCar(c.id) && (pid === "orig" || st.owned.paint.includes(pid))) { setRide(c, pid); st.equip.car = c.id; st.equip.paint = pid; garage.preview = null; save(st); showGarage(); } }
+      else if (a === "equip") { const c = gCar(), pid = garage.preview || st.carPaint[c.id] || c.paint; if (ownsCar(c.id) && (pid === "orig" || st.owned.paint.includes(pid))) { setRide(c, pid); st.ownerRide = st.owned.car.includes(c.id) ? null : c.id; st.equip.car = c.id; st.equip.paint = pid; garage.preview = null; save(st); showGarage(); } }
       else if (a === "stage") { const id = btn.dataset.id; if (id !== stage.id || stageLoading || (stage.file && !SM)) { const s = STAGES.find((x) => x.id === id); if (s && s.file && !lib.stages[s.id]) { btn.classList.add("busy"); } useStage(id).then((s) => { if (alive && s && mode === "title") showTitle(); }, () => { if (!alive) return; toast("Couldn't load " + (s ? s.name : id), "Check your connection and try again."); if (mode === "title") showTitle(); }); } } // v49.26: allow loading the saved selection on a fresh mount
       else if (a === "donate") donate(btn);
       else if (a === "share") share();
@@ -1830,7 +1851,7 @@
     cv.style.touchAction = "none"; wrap.style.touchAction = "none"; wrap.style.userSelect = "none"; wrap.style.webkitUserSelect = "none";
     const onTouch = (e) => { if (e.target.closest("button,a,.lr-card,.lr-god")) return; e.preventDefault(); if (!root.PointerEvent) { if (e.type === "touchstart") { inputDownAt = performance.now(); press(); } else release(); } };
     for (const type of ["touchstart", "touchend", "touchcancel"]) wrap.addEventListener(type, onTouch, { passive: false });
-    wrap.addEventListener("pointerdown", onDown); wrap.addEventListener("pointerup", onUp); wrap.addEventListener("pointercancel", onUp);
+    wrap.addEventListener("pointerdown", onDown, { passive: false }); wrap.addEventListener("pointerup", onUp); wrap.addEventListener("pointercancel", onUp);
     const onContext = (e) => e.preventDefault(); wrap.addEventListener("contextmenu", onContext);
     const keyOk = () => el.isConnected && (fs.on || el.getBoundingClientRect().top < innerHeight) && !/INPUT|TEXTAREA|SELECT/.test((document.activeElement || {}).tagName || "");
     const onKey = (e) => {
@@ -1889,6 +1910,11 @@
       script.onload = () => { if (alive && !native() && root.ChismeLowriderGod) godUi = root.ChismeLowriderGod.attach(godHooks, godFlag()); script.remove(); };
       script.onerror = () => { godLoading = false; script.remove(); }; document.head.appendChild(script); }
     if (!native() && /(?:^|;\s*)chisme_admin=1(?:;|$)/.test(document.cookie)) { godButton = document.createElement("button"); godButton.type = "button"; godButton.textContent = "Owner controls"; godButton.onclick = loadGod; el.appendChild(godButton); if (godFlag()) loadGod(); }
+    // v49.29.1: ask the server whether this is the owner (session cookies only); a yes unlocks every ride for this session
+    if (typeof fetch === "function") fetch("/stats/lowrider/owner", { credentials: "same-origin", cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).then((j) => {
+      if (!alive || !j || j.owner !== true) return; ownerAll = true;
+      if (st.ownerRide && CARS.some((c) => c.id === st.ownerRide)) { st.equip.car = st.ownerRide; st.equip.paint = st.carPaint[st.ownerRide] || carById(st.ownerRide).paint; }
+      if (garage.open) showGarage(); else if (mode === "title") showTitle(); }).catch(() => {});
     const api = {
       pause() { pause(); },
       exitFullscreen() { fs.exit(true); },
@@ -1904,7 +1930,7 @@
       },
       get state() {
         return { mode, score: run ? Math.round(run.score) : 0, meters: run ? run.meters : 0, runFeria: run ? run.feria : 0, feria: st.feria, best: st.best, streak: run ? run.streak : 0, mult: run ? TIERS[run.tier].x : 1,
-          god: !!(god && god.on), godRun: !!(run && run.god), inputLagMs, cleared: { ...(run && run.cleared) }, sponsorSlots: sponsors.map((s) => ({ ...s, colors: [...s.colors] })), lives: run ? run.lives : 3, air: car.air, charging: car.charging, charge: car.charge, y: car.y, tLand: tLand(), tapped: car.tapped, pend: !!car.pend, lastGrade, grades: { ...gradeCounts }, hops: st.totals.hops,
+          ownerAll, god: !!(god && god.on), godRun: !!(run && run.god), inputLagMs, cleared: { ...(run && run.cleared) }, sponsorSlots: sponsors.map((s) => ({ ...s, colors: [...s.colors] })), lives: run ? run.lives : 3, air: car.air, charging: car.charging, charge: car.charge, y: car.y, tLand: tLand(), tapped: car.tapped, pend: !!car.pend, lastGrade, grades: { ...gradeCounts }, hops: st.totals.hops,
           paint: st.equip.paint, owned: [...st.owned.paint], car: st.equip.car, cars: [...st.owned.car], carPaint: { ...st.carPaint }, stage: stage.id, stageLoaded: !!SM, native: native(),
           fuel: run ? run.fuel : null, outOfGas: run ? run.out : false, picks: run ? { ...run.picks } : null, cops: run ? run.cops : 0, trafficCleared: run ? run.traffic : 0, salutes: run ? run.salutes : 0, trails: run ? run.trails : 0, chase: SX && SX.state ? SX.state() : null, laps: { ...st.laps }, lap: run ? run.lap : null, boost: run ? run.boost || 0 : 0,
           traffic: obs.filter((o) => o.T).map((o) => ({ id: o.T.id, name: o.T.name, x: Math.round(o.x - car.x), vx: Math.round(o.vx), hit: o.hit, cleared: o.cleared })), bubbles: bubbles.map((b) => b.text),

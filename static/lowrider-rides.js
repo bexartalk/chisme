@@ -132,7 +132,153 @@
     for (let i = 1; i <= 3; i++) { g.globalAlpha = 0.5 * k; oval(g, "#7fb2ff", nx - L * (0.18 + i * 0.14), ny, 1.6, 2.6); }   // shock diamonds
     g.restore();
   }
+  // Independent hop edges for Garage preview and gameplay.
+  const fiestaPop = { garage: { air: false, start: -10, last: -1 }, game: { air: false, start: -10, last: -1 } };
   const draw = {
+    paleta(g,P,o) {
+      o.wheels();
+      line(g,P.trim,3,[[42,-14],[52,-35],[150,-35],[160,-14]]);
+      box(g,P.deep,22,-66,155,39); box(g,P.base,25,-63,149,32);
+      box(g,P.trim,20,-70,160,6); box(g,P.mid,31,-59,136,7);
+      line(g,P.trim,4,[[177,-58],[195,-58],[195,-43]]);
+      line(g,P.trim,3,[[99,-70],[99,-131]]);
+      for(let i=0;i<6;i++) poly(g,[P.base,"#00c9cd","#7b2cbf"][i%3],[[99,-139],[25+i*25,-113],[50+i*25,-113]]);
+      line(g,P.deep,2,[[25,-113],[99,-139],[175,-113]]);
+      for(let i=0;i<3;i++) {
+        const x=73+i*25, sway=Math.sin(o.t*9+i)*2;
+        line(g,P.trim,1,[[x,-69],[x+sway,-58]]);
+        poly(g,"#b9c8da",[[x-4+sway,-58],[x+4+sway,-58],[x+6+sway,-50],[x-6+sway,-50]]);
+        oval(g,"#f1e4ff",x+sway,-50,6,2); oval(g,P.deep,x+sway,-48,1.5,2);
+      }
+      for(let i=0;i<3;i++) { box(g,["#ff1a7f","#00c9cd","#7b2cbf"][i],38+i*43,-47,13,11); line(g,P.trim,2,[[44+i*43,-36],[44+i*43,-32]]); }
+    },
+    c10(g,P,o) {
+      // Only the body leans: the standard contact centers stay fixed.
+      o.wheels();
+      const lift=o.air?13:Math.max(0,Math.sin((o.rot||0)*0.7))*9;
+      line(g,P.trim,3,[[42,-14],[48,-32],[151,-32-lift],[160,-14]]);
+      g.save(); g.translate(42,-14); g.rotate(-lift/250); g.translate(-42,14);
+      pickup(g,P,o,false,true);
+      poly(g,"#91524b",[[13,-40],[45,-40],[40,-26],[17,-24]]);
+      poly(g,"#4c5361",[[91,-37],[107,-40],[113,-25],[88,-24]]);
+      poly(g,"#a4aab5",[[153,-40],[181,-37],[175,-27],[153,-28]]);
+      line(g,"#402b32",1.5,[[20,-22],[33,-24],[46,-21]]);
+      box(g,"#292837",55,-42,20,3); box(g,"#a9b5c5",179,-18,19,3);
+      g.restore();
+    },
+    raspa(g,P,o) {
+      const colors=["#ff2948","#ff6a0b","#ff1a7f","#20bd80","#00c9cd","#397bff","#993ede"], power=o.air?1:0.45;
+      for(let i=0;i<7;i++) {
+        const y=-52+i*3.5, tail=5+(1-power)*21;
+        poly(g,colors[i],[[49,y],[tail,y-2+Math.sin(o.t*12+i)*3*power],[tail+8,y+3],[49,y+3]]);
+      }
+      o.wheels(); line(g,P.trim,3,[[42,-14],[63,-34],[150,-34],[160,-14]]);
+      poly(g,P.deep,[[39,-29],[48,-65],[163,-65],[190,-45],[166,-27]]);
+      box(g,P.base,56,-62,106,30); box(g,P.trim,50,-68,119,6);
+      poly(g,"#e4f2ff",[[79,-69],[89,-91],[101,-99],[115,-91],[130,-69]]);
+      poly(g,"#ff1a7f",[[88,-86],[101,-99],[116,-86],[107,-76]]);
+      poly(g,"#00c9cd",[[104,-95],[116,-89],[129,-69],[116,-72]]);
+      for(let i=0;i<4;i++) { box(g,colors[i*2],62+i*24,-57,10,17); box(g,P.trim,65+i*24,-61,4,4); }
+      poly(g,P.mid,[[143,-32],[159,-52],[177,-32]]); box(g,P.trim,38,-54,12,18);
+    },
+    bruja(g,P,o) {
+      for(const x of [42,160]) oval(g,"#c693ef",x,-1.5,9+Math.sin(o.t*5)*2,1.5);
+      g.save(); g.translate(0,-4-Math.sin(o.t*3)*3);
+      poly(g,"#985148",[[12,-33],[55,-45],[56,-31],[15,-19],[24,-30]]);
+      for(let i=0;i<5;i++) line(g,"#d78870",1.5,[[17,-23-i*3],[52,-34-i*2]]);
+      line(g,"#78463e",5,[[46,-36],[190,-44]]);
+      poly(g,P.deep,[[112,-94],[63,-61],[78,-59],[57,-48],[110,-58],[136,-65]]);
+      poly(g,P.base,[[108,-91],[98,-60],[134,-61],[126,-88]]);
+      line(g,"#352440",7,[[118,-63],[141,-52],[130,-37]]); line(g,"#251c32",5,[[127,-37],[143,-37]]);
+      oval(g,"#bd8b86",121,-101,8,10); poly(g,"#bd8b86",[[127,-104],[137,-99],[127,-97]]);
+      poly(g,"#35203f",[[111,-108],[105,-122],[119,-147],[125,-130],[134,-113]]);
+      oval(g,P.deep,122,-112,22,4); line(g,"#ff1a7f",3,[[111,-118],[129,-118]]);
+      line(g,P.mid,6,[[124,-84],[145,-66],[157,-48]]); oval(g,"#bd8b86",158,-47,3,3);
+      for(let i=0;i<5;i++) { const x=23+i*35,y=-60-((o.t*14+i*17)%37); line(g,"#d7b4ff",1,[[x-2,y],[x+2,y]]); line(g,"#d7b4ff",1,[[x,y-2],[x,y+2]]); }
+      g.restore();
+    },
+    chariot(g,P,o) {
+      line(g,P.trim,4,[[42,-14],[61,-39],[145,-39],[160,-14]]);
+      poly(g,P.deep,[[26,-35],[35,-78],[62,-82],[85,-49],[152,-49],[165,-84],[182,-80],[176,-29]]);
+      poly(g,P.base,[[31,-37],[40,-73],[58,-75],[79,-43],[157,-43],[169,-76],[177,-74],[171,-35]]);
+      line(g,P.hi,3,[[38,-76],[57,-78],[82,-46],[156,-46],[168,-79],[180,-78]]);
+      for(let i=0;i<8;i++) { const x=52+i*15; oval(g,"#309b88",x,-37,5,2); }
+      poly(g,"#874c67",[[95,-49],[98,-87],[119,-87],[127,-49]]);
+      oval(g,"#c38d83",110,-97,8,10); oval(g,"#b76c58",109,-105,11,8);
+      box(g,"#b76c58",103,-104,6,15); poly(g,"#9c3169",[[101,-111],[105,-123],[120,-119],[116,-111]]);
+      line(g,"#c38d83",5,[[119,-81],[142,-68],[168,-72]]); oval(g,"#281e31",115,-99,1,1);
+      // Radius 14 keeps the large, open spokes on the shared contact envelope.
+      for(const x of [42,160]) {
+        oval(g,P.deep,x,-14,14,14); oval(g,"#d78c76",x,-14,12,12); oval(g,"#342a40",x,-14,9.5,9.5);
+        for(let i=0;i<8;i++) { const a=i*TAU/8+(o.rot||0); line(g,"#d78c76",1.5,[[x,-14],[x+11*Math.cos(a),-14+11*Math.sin(a)]]); }
+        oval(g,P.trim,x,-14,3,3);
+      }
+    },
+    ofrenda(g,P,o) {
+      o.wheels();
+      box(g,P.deep,16,-36,174,14); box(g,P.base,23,-61,160,25); box(g,P.mid,48,-84,111,23); box(g,P.deep,76,-105,57,21);
+      for(let i=0;i<13;i++) {
+        const x=23+i*13; for(let j=0;j<5;j++) oval(g,j%2?"#ed461a":"#ff6a0b",x+Math.cos(j*TAU/5)*3,-40+Math.sin(j*TAU/5)*3,3,3);
+      }
+      for(let i=0;i<7;i++) {
+        const x=29+i*23; poly(g,["#ff1a7f","#00c9cd","#943cce"][i%3],[[x,-60],[x+18,-60],[x+18,-49],[x+14,-46],[x+9,-49],[x+4,-46],[x,-49]]); box(g,P.deep,x+7,-57,4,4);
+      }
+      for(const x of [57,143]) {
+        oval(g,"#ecd7f3",x,-92,9,9); box(g,"#ecd7f3",x-6,-90,12,8);
+        oval(g,"#7b2cbf",x-3,-93,2.5,3); oval(g,"#ff1a7f",x+3,-93,2.5,3);
+        line(g,P.deep,1,[[x-4,-85],[x+4,-85]]); box(g,"#00c9cd",x-1,-101,2,3);
+      }
+      for(const x of [84,111]) { box(g,"#bb745d",x,-126,22,22); box(g,"#30233e",x+3,-123,16,16); oval(g,"#99719f",x+11,-117,3,3); poly(g,"#99719f",[[x+5,-109],[x+11,-114],[x+17,-109]]); }
+      for(const [x,y] of [[34,-63],[170,-63],[72,-86],[132,-86],[103,-128]]) {
+        box(g,"#e4c7dd",x-2,y-10,4,10);
+        oval(g,"#ff6a0b",x+Math.sin(o.t*11+x),y-14,3,5); oval(g,"#ffe5f4",x,y-13,1,2);
+      }
+    },
+    fiesta(g,P,o) {
+      const key=o.garage?"garage":"game", t=o.t||0, state=fiestaPop[key];
+      if(t<state.last) { state.air=false; state.start=-10; }
+      if(o.air&&!state.air) state.start=t;
+      state.air=!!o.air; state.last=t;
+      o.wheels(); box(g,P.deep,12,-40,182,16); box(g,P.base,18,-64,170,24);
+      line(g,P.trim,3,[[30,-63],[30,-120],[175,-120],[175,-63]]);
+      for(let i=0;i<7;i++) { const x=34+i*20,y=-117+Math.sin(i*Math.PI/6)*8; poly(g,["#ff1a7f","#00c9cd","#7b2cbf"][i%3],[[x,y],[x+16,y+1],[x+15,y+14],[x+8,y+11],[x,y+14]]); box(g,P.deep,x+6,y+4,4,4); }
+      for(let i=0;i<9;i++) oval(g,["#ff6a0b","#ff1a7f","#00c9cd"][i%3],27+i*19,-48,5,5);
+      for(const x of [40,164]) { line(g,P.deep,12,[[x,-61],[x+(x<100?-9:9),-86]]); line(g,P.trim,3,[[x-9,-84],[x+2,-88]]); }
+      const age=t-state.start;
+      if(age>=0&&age<0.6) {
+        g.save(); g.globalAlpha=1-age/0.6;
+        for(let i=0;i<32;i++) {
+          const side=i%2, vx=Math.sin(i*2.4)*65, vy=55+(i%7)*10;
+          const x=(side?173:31)+vx*age, y=-87-vy*age+100*age*age;
+          g.save(); g.translate(x,y); g.rotate(i+age*9); box(g,["#ff1a7f","#00c9cd","#7b2cbf","#ff6a0b"][i%4],-2,-1,4,2); g.restore();
+        }
+        g.restore();
+      }
+    },
+    barge(g,P,o) {
+      poly(g,P.deep,[[6,-46],[33,-16],[172,-16],[201,-58],[182,-49],[21,-49]]);
+      poly(g,P.base,[[18,-43],[38,-24],[168,-24],[188,-46]]);
+      line(g,P.hi,3,[[10,-47],[32,-52],[177,-52],[199,-59]]);
+      for(let i=0;i<5;i++) line(g,P.mid,1,[[36+i*28,-43],[43+i*27,-27]]);
+      poly(g,"#143b59",[[26,-20],[179,-20],[172,-5],[32,-5]]);
+      for(const x of [42,160]) {
+        line(g,"#62d9ed",2,[[x-11,-3],[x-5,-5],[x+2,-2],[x+11,-4]]);
+        for(let i=0;i<3;i++) oval(g,"#62d9ed",x-8+i*8,-6-Math.abs(Math.sin(o.t*7+i+x))*5,1.5,2);
+        oval(g,"#23627b",x,-1,12,1);
+      }
+      line(g,"#8a5779",3,[[34,-54],[34,-101],[158,-101],[158,-54]]);
+      poly(g,P.deep,[[22,-102],[40,-116],[149,-116],[174,-102]]);
+      line(g,"#ff1a7f",2,[[25,-103],[171,-103]]);
+      for(const x of [48,73,102,132,158]) {
+        box(g,"#e9ccdf",x-3,-68,6,15); const f=Math.sin(o.t*13+x);
+        oval(g,x%2?"#ff1a7f":"#ff6a0b",x+f,-74,3,5+f); oval(g,"#fff0fa",x,-73,1,2);
+      }
+      oval(g,"#ead9ef",184,-70,13,14); box(g,"#ead9ef",177,-64,14,11);
+      for(const x of [179,189]) { oval(g,"#ff1a7f",x,-73,4,5); oval(g,P.deep,x,-73,2,3); }
+      poly(g,"#00c9cd",[[184,-67],[181,-62],[187,-62]]);
+      line(g,P.deep,1,[[179,-57],[190,-57]]); for(let i=0;i<4;i++) line(g,P.deep,1,[[181+i*2.5,-59],[181+i*2.5,-54]]);
+      oval(g,"#7b2cbf",184,-82,3,3);
+    },
     lifted(g,P,o) { pickup(g,P,o,true); },
     lowtruck(g,P,o) { pickup(g,P,o,false); },
     monster(g,P,o) {
@@ -174,6 +320,38 @@
   };
   const truck = ({nz,osc,t,out},p) => { nz(t,0.36,0.3,out,"lowpass",1500,0.8,0.004,350); osc("sine",100,t,0.24,0.55*p,out,0.003,40); };
   const sound = {
+    paleta({osc,t,out},p) {
+      for(let i=0;i<4;i++) { const f=[1318.51,1567.98,1975.53,1567.98][i], at=t+i*0.075; osc("sine",f,at,0.42,0.12*(0.6+p*0.4),out,0.002); osc("sine",f*2.76,at,0.16,0.035,out,0.001); }
+    },
+    c10({osc,nz,t,out},p) {
+      osc("sine",110,t,0.32,0.55*p,out,0.003,38);
+      for(const d of [0,0.07,0.15]) { nz(t+d,0.06,0.12,out,"bandpass",1100,1.8); osc("triangle",170,t+d,0.055,0.08,out,0.002,70); }
+    },
+    raspa({osc,nz,t,out},p) {
+      nz(t,0.5,0.32*(0.5+p*0.5),out,"highpass",1300,0.7,0.035,5800);
+      nz(t+0.02,0.36,0.15,out,"bandpass",2600,2,0.015,550);
+      osc("sine",240,t,0.3,0.1,out,0.025,680);
+    },
+    bruja({osc,nz,t,out},p) {
+      for(let i=0;i<5;i++) { const f=[523.25,659.25,783.99,1046.5,1318.51][i]; osc("sine",f,t+i*0.055,0.26,0.1*(0.65+p*0.35),out,0.008); osc("triangle",f*2,t+i*0.055,0.13,0.018,out,0.006); }
+      nz(t,0.4,0.14,out,"bandpass",700,0.8,0.04,3200);
+    },
+    chariot({osc,nz,t,out},p) {
+      for(const [f,v] of [[330,0.18],[557,0.1],[901,0.065],[1423,0.04]]) osc("sine",f,t,0.42,v,out,0.002);
+      osc("sine",85,t,0.3,0.55*p,out,0.003,35); nz(t,0.055,0.12,out,"highpass",1800);
+    },
+    ofrenda({osc,t,out},p) {
+      for(let i=0;i<3;i++) { const f=[523.25,659.25,783.99][i], at=t+i*0.105; osc("sine",f,at,0.25,0.16*(0.6+p*0.4),out,0.003); osc("sine",f*4,at,0.065,0.035,out,0.001); }
+    },
+    fiesta({osc,nz,t,out},p) {
+      for(const d of [0,0.085]) { nz(t+d,0.055,0.24,out,"bandpass",2200,0.7,0.001,650); osc("sine",200,t+d,0.065,0.28*p,out,0.001,55); }
+      nz(t+0.08,0.34,0.17,out,"highpass",1900,0.8,0.015,4500);
+    },
+    barge({osc,nz,t,out},p) {
+      osc("sine",185,t,0.17,0.28*p,out,0.002,95); osc("triangle",370,t,0.085,0.1,out,0.001,210);
+      nz(t+0.025,0.36,0.22,out,"lowpass",2100,0.8,0.012,450);
+      for(let i=0;i<3;i++) osc("sine",700+i*190,t+0.07+i*0.05,0.075,0.035,out,0.005,350+i*90);
+    },
     lifted: truck, lowtruck: truck,
     monster({osc,nz,t,out},p) { osc("sine",85,t,0.42,0.9*p,out,0.003,30); nz(t,0.24,0.3,out,"lowpass",650); },
     tank({osc,nz,t,out},p) { for(const f of [390,713,1127]) osc("triangle",f,t,0.19,0.09,out,0.002); osc("sine",65,t,0.4,0.65*p,out,0.004,32); nz(t,0.28,0.2,out,"lowpass",280); },

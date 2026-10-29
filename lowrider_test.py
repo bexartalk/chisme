@@ -8,7 +8,7 @@ first time it's opened; its San Antonio stage, static/lowrider-sa.js, the first 
    7 traffic types, gas / soda / tacos, 10 horse coats; no yellow in any color. Node: grades, combo tiers, the versioned save (a v1 save
    keeps its '64 + paint; garbage in → a fresh save).
 2. WebKit iPhone 13: Juegos lists it third (with its own art), it loads lazily, the canvas draws at devicePixelRatio, no errors.
-   HOLD charges, LET GO hops, TAP right before landing = PERFECT HOP!; no tap = YOU SCRAPED IT!; the combo goes x2 at a 3 streak;
+   TAP hops at once (v49.29.1; holding while rising goes higher), TAP right before landing = PERFECT HOP!; no tap = YOU SCRAPED IT!; the combo goes x2 at a 3 streak;
    an obstacle costs a wheel; Abuela Crossing stops the car before the crosswalk (+500 RESPETO, "Gracias, mijo."); La Chancla;
    game over saves Feria / best / runs in localStorage "lowrider_v1"; the Garage shows locked rides + prices, unlocks one with Feria
    (saved, survives a reload) and buys + equips paint; Share with a #puro-pinche-lowrider link; trophies; the house billboard every
@@ -113,7 +113,9 @@ def static():
     r = json.loads(subprocess.run(["node", "-e", node, os.path.join(HERE, "static/lowrider.js"), os.path.join(HERE, "static/lowrider-sa.js"), os.path.join(HERE, "static/lowrider-sa-chase.js")], capture_output=True, text=True, check=True).stdout)
     check(r["cars"] == [["primer", "The '64 (Primer)", 0], ["64", "The '64 (Candy)", 900], ["jefe", "El Jefe '76", 2400],
                          ["lifted", "Lifted Pickup", 1600], ["lowtruck", "Lowrider Pickup", 1800], ["monster", "Monster Truck", 3200],
-                         ["tank", "Tank", 4500], ["jet", "Fighter Jet", 6000], ["horse", "Cowboy on a Horse", 2000]], f"9 rides: the Primer is free, the rest unlock with Feria {r['cars']}")
+                         ["tank", "Tank", 4500], ["jet", "Fighter Jet", 6000], ["horse", "Cowboy on a Horse", 2000],
+                         ["paleta", "Paleta Cart", 1200], ["c10", "Chafa C10 Hopper", 2200], ["raspa", "Raspa Rocket", 2600], ["bruja", "Witch on a Broom", 2800],
+                         ["chariot", "Chariot Lowrider", 3600], ["ofrenda", "Ofrenda Float", 3900], ["fiesta", "Fiesta Float", 4200], ["barge", "Calavera River Barge", 5200]], f"17 rides: the Primer is free, the rest unlock with Feria {r['cars']}")
     check(r["fresh"] == {"cars": ["primer"], "car": "primer"}, "a new player starts in The '64 (Primer)")
     check(r["bronze"][1] == "#c47a4e" and not r["carYellow"], f"the Primer's bronze wheels (no gold / yellow in any ride, wheel or patch) {r['carYellow']}")
     check([p[0] for p in r["paints"]] == ["Candy red", "Turquoise", "Purple", "Black cherry", "Pearl white"] and r["paints"][0][1] == 0, f"paint: 5 colors, no gold {r['paints']}")
@@ -163,7 +165,8 @@ async def land_with_tap(pg, before=0.06):
     await pg.evaluate("(() => { const d = %s; let n = 0; while (%s.tLand > %f && n++ < 400) d.step(1 / 120); d.press(); d.step(%f); })()" % (D, S, before, before + 0.15))
 
 async def hop(pg, c=0.6, before=0.06):
-    await pg.evaluate(D + ".press(); " + D + f".step({c * 0.82:.3f}); " + D + ".release(); " + D + ".step(0.05)"); await land_with_tap(pg, before)
+    hold = max(0.0, (c - 0.35) / 0.65 * 0.28)   # v49.29.1: the hop fires on press; holding while rising adds height
+    await pg.evaluate(D + ".press(); " + D + f".step({max(hold, 0.01):.3f}); " + D + ".release(); " + D + ".step(0.05)"); await land_with_tap(pg, before)
 
 async def webkit(p):
     b = await p.webkit.launch()
@@ -191,10 +194,10 @@ async def webkit(p):
     check(await pg.evaluate(S + ".fullscreen"), "the title can go full screen (the attract-mode '64 cruises under the logo)")
     await start(pg); s = await pg.evaluate(S)
     check(s["mode"] == "run" and s["fullscreen"], "▶ Cruise plays full screen (after the how-to the first time)")
-    await pg.evaluate(D + ".step(0.4); " + D + ".press(); " + D + ".step(0.5)"); s = await pg.evaluate(S)
-    check(s["charging"] and 0.5 < s["charge"] < 0.7 and not s["air"], f"HOLD charges the hydraulics ({s['charge']:.2f})")
-    await pg.evaluate(D + ".release(); " + D + ".step(0.3)"); s = await pg.evaluate(S)
-    check(s["air"] and s["y"] > 80, f"LET GO hops ({s['y']:.0f} units up)")
+    await pg.evaluate(D + ".step(0.4); " + D + ".press()"); s = await pg.evaluate(S)
+    check(s["air"] and not s["charging"], "v49.29.1: a press hops at once (no wind-up)")
+    await pg.evaluate(D + ".step(0.3); " + D + ".release()"); s = await pg.evaluate(S)
+    check(s["air"] and s["y"] > 80, f"…and holding while rising goes higher ({s['y']:.0f} units up)")
     await pg.screenshot(path=os.path.join(OUT, "gameplay-hop.png"))
     await land_with_tap(pg); s = await pg.evaluate(S)
     check(s["lastGrade"] == "perfect" and s["score"] > 0 and s["runFeria"] > 0 and "first" in s["ach"], f"TAP right before landing: PERFECT HOP! (+{s['score']}, +{s['runFeria']} Feria, First Hop)")
@@ -258,7 +261,7 @@ async def webkit(p):
     txt = await pg.evaluate(S + ".overlayText")
     check(all(n in txt for n in ["The '64 (Primer)", "The '64 (Candy)", "El Jefe '76", "900", "2,400", "Candy red", "Turquoise", "Purple", "Black cherry", "Pearl white", "earned only by playing"]) and "Gold" not in txt,
           "Garage: the 3 rides with their Feria prices, 5 paints, Feria only by playing")
-    check(await pg.evaluate("[...document.querySelectorAll('.lr-car.locked')].length") == 8, "the candy '64, El Jefe and the 6 v49.29 rides show locked")
+    check(await pg.evaluate("[...document.querySelectorAll('.lr-car.locked')].length") == 16, "the candy '64, El Jefe and the 14 newer rides show locked")
     await pg.click('[data-id="turq"]'); await pg.click('.lr-ov [data-act="buy"]'); await pg.wait_for_timeout(200); s = await pg.evaluate(S)
     save = await pg.evaluate("JSON.parse(localStorage.getItem('lowrider_v1'))")
     check("turq" in s["owned"] and save["feria"] == 180 and "turq" in save["owned"]["paint"], f"buy Turquoise with 120 Feria (saved) {s['owned']} {save['feria']}")
@@ -384,14 +387,14 @@ async def revision_4927(p):
     instant = await pg.evaluate("""() => { const cv = document.querySelector('.lr-cv');
       cv.dispatchEvent(new PointerEvent('pointerdown', { bubbles:true, cancelable:true, pointerId:7, pointerType:'touch' }));
       const s = ChismeLowrider.current.state; cv.dispatchEvent(new PointerEvent('pointerup', { bubbles:true, pointerId:7 }));
-      return { charging:s.charging, lag:s.inputLagMs, action:getComputedStyle(cv.parentElement).touchAction, select:getComputedStyle(cv.parentElement).userSelect }; }""")
-    check(instant['charging'] and instant['lag'] < 17 and instant['action'] == 'none' and instant['select'] == 'none', f"pointerdown charges synchronously without click {instant}")
+      return { air:s.air, lag:s.inputLagMs, action:getComputedStyle(cv.parentElement).touchAction, select:getComputedStyle(cv.parentElement).userSelect }; }""")
+    check(instant['air'] and instant['lag'] < 17 and instant['action'] == 'none' and instant['select'] == 'none', f"pointerdown hops synchronously without click {instant}")
     await pg.evaluate(D + ".step(2); " + D + ".launch(.6)")
     await land_with_tap(pg, .12)
     s0 = await pg.evaluate(S)
     check(s0['lastGrade'] in ('perfect', 'puro') and not s0['pend'], 'a tap 120ms before landing is consumed as the landing tap')
     coyote = await pg.evaluate("""() => { const g = ChismeLowrider.current, d = g.debug; d.step(1); d.launch(.3);
-      let n=0; while(g.state.air && n++<400) d.sim(1/120); d.sim(.05); d.press(); const charging=g.state.charging; d.release(); return charging && g.state.air; }""")
+      let n=0; while(g.state.air && n++<400) d.sim(1/120); d.sim(.05); d.press(); const hopped=g.state.air; d.release(); return hopped; }""")
     check(coyote, 'a press 50ms after touchdown can grade the landing and start another hop')
     for stage in ('blvd', 'sa'):
         await pg.evaluate(D + ".title()")
